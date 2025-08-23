@@ -1,0 +1,25 @@
+# Dipendenze 
+node_modules/ 
+ 
+# File di ambiente 
+.env 
+.env.local 
+ 
+# Credenziali 
+credentials.json 
+token.json 
+client_secret*.json 
+*.key 
+*.pem 
+ 
+# WhatsApp Web 
+.wwebjs_auth/ 
+.wwebjs_cache/ 
+ 
+# Logs 
+logs/ 
+*.log 
+ 
+# Backup 
+backups/ 
+*.backup 

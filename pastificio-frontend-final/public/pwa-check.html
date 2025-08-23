@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PWA Check</title>
+</head>
+<body>
+    <h1>PWA Requirements Check</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function checkPWA() {
+            const results = document.getElementById('results');
+            let html = '<ul>';
+            
+            // Check HTTPS
+            html += `<li>HTTPS/Localhost: ${location.protocol === 'https:' || location.hostname === 'localhost' ? '✅' : '❌'}</li>`;
+            
+            // Check Service Worker
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                html += `<li>Service Worker: ✅ (${registrations.length} registered)</li>`;
+            } else {
+                html += '<li>Service Worker: ❌</li>';
+            }
+            
+            // Check Manifest
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            html += `<li>Manifest Link: ${manifestLink ? '✅' : '❌'}</li>`;
+            
+            // Check beforeinstallprompt support
+            html += `<li>Install Prompt Support: ${window.beforeinstallprompt ? '✅' : '❓'}</li>`;
+            
+            // Check standalone
+            html += `<li>Standalone Mode: ${window.matchMedia('(display-mode: standalone)').matches ? '✅' : '❌'}</li>`;
+            
+            html += '</ul>';
+            
+            // Add install button
+            html += '<button onclick="testInstall()">Force Install Test</button>';
+            
+            results.innerHTML = html;
+        }
+        
+        window.testInstall = async function() {
+            if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.register('/sw.js');
+                console.log('SW registered:', reg);
+            }
+            
+            window.addEventListener('beforeinstallprompt', (e) => {
+                console.log('Install prompt received!');
+                e.prompt();
+            });
+        }
+        
+        checkPWA();
+    </script>
+</body>
+</html>

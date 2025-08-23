@@ -1,0 +1,195 @@
+'use client';
+
+// Importazioni corrette
+import React, { useState, useEffect } from 'react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+
+// Definizione dei tipi corretta
+const UnitaMisura = {
+  KG: 'Kg',
+  UNITA: 'unità',
+  EURO: '€'
+};
+
+const GestoreOrdini = () => {
+
+interface Prodotto {
+  nome: string;
+  prezzo: number;
+  categoria: string;
+  unita: UnitaMisura;
+}
+
+interface ProdottoOrdine {
+  prodotto: string;
+  quantita: number;
+  prezzo: number;
+  unita: UnitaMisura;
+  note: string;
+}
+
+interface Ordine {
+  id: string;
+  prodotti: ProdottoOrdine[];
+  dataRitiro: string;
+  oraRitiro: string;
+  nomeCliente: string;
+  daViaggio: boolean;
+  telefono: string;
+  note: string;
+  stato: 'da fare' | 'in lavorazione' | 'completato';
+}
+
+const prodotti: Prodotto[] = [
+  { nome: "Pardulas", prezzo: 18.00, categoria: "Dolci", unita: "Kg" },
+  { nome: "Amaretti", prezzo: 20.00, categoria: "Dolci", unita: "Kg" },
+  // ... altri prodotti come nel tuo esempio originale
+];
+
+export default function GestoreOrdini() {
+  const [ordini, setOrdini] = useState<Ordine[]>([]);
+  const [prodottoSelezionato, setProdottoSelezionato] = useState('');
+  const [quantita, setQuantita] = useState(1);
+  const [categoriaSelezionata, setCategoriaSelezionata] = useState('');
+  const [dataRitiro, setDataRitiro] = useState('');
+  const [oraRitiro, setOraRitiro] = useState('');
+  const [nomeCliente, setNomeCliente] = useState('');
+  const [daViaggio, setDaViaggio] = useState(false);
+  const [telefono, setTelefono] = useState('');
+  const [note, setNote] = useState('');
+  const [carrello, setCarrello] = useState<ProdottoOrdine[]>([]);
+  const [modalitaManuale, setModalitaManuale] = useState(false);
+  const [prodottoManuale, setProdottoManuale] = useState('');
+  const [noteProdotto, setNoteProdotto] = useState('');
+  const [unitaMisuraSelezionata, setUnitaMisuraSelezionata] = useState<UnitaMisura>('Kg');
+
+  const categorie = Array.from(new Set(prodotti.map(p => p.categoria)));
+
+  useEffect(() => {
+    const ordiniSalvati = localStorage.getItem('ordini');
+    if (ordiniSalvati) {
+      setOrdini(JSON.parse(ordiniSalvati));
+    }
+    setDataRitiro(new Date().toISOString().split('T')[0]);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('ordini', JSON.stringify(ordini));
+  }, [ordini]);
+
+  const aggiungiAlCarrello = () => {
+    if (modalitaManuale && !prodottoManuale) return;
+    if (!modalitaManuale && !prodottoSelezionato) return;
+
+    let prezzo = 0;
+    if (modalitaManuale) {
+      prezzo = unitaMisuraSelezionata === '€' ? quantita : 0;
+    } else {
+      const prodottoOrdine = prodotti.find(p => p.nome === prodottoSelezionato);
+      prezzo = prodottoOrdine ? prodottoOrdine.prezzo * quantita : 0;
+    }
+
+    const nuovoProdottoOrdine: ProdottoOrdine = {
+      prodotto: modalitaManuale ? prodottoManuale : prodottoSelezionato,
+      quantita,
+      prezzo,
+      unita: unitaMisuraSelezionata,
+      note: noteProdotto
+    };
+
+    setCarrello([...carrello, nuovoProdottoOrdine]);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    if (modalitaManuale) {
+      setProdottoManuale('');
+    } else {
+      setCategoriaSelezionata('');
+      setProdottoSelezionato('');
+    }
+    setQuantita(1);
+    setUnitaMisuraSelezionata('Kg');
+    setNoteProdotto('');
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-4 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Nuovo Ordine</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="modalitaManuale" 
+                checked={modalitaManuale}
+                onCheckedChange={(checked) => setModalitaManuale(checked as boolean)}
+              />
+              <Label htmlFor="modalitaManuale">Inserimento manuale</Label>
+            </div>
+
+            {!modalitaManuale ? (
+              <>
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select value={categoriaSelezionata} onValueChange={setCategoriaSelezionata}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categorie.map(categoria => (
+                        <SelectItem key={categoria} value={categoria}>
+                          {categoria}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Prodotto</Label>
+                  <Select 
+                    value={prodottoSelezionato} 
+                    onValueChange={(value) => {
+                      setProdottoSelezionato(value);
+                      const prod = prodotti.find(p => p.nome === value);
+                      if (prod) setUnitaMisuraSelezionata(prod.unita);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona prodotto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {prodotti
+                        .filter(p => !categoriaSelezionata || p.categoria === categoriaSelezionata)
+                        .map(prodotto => (
+                          <SelectItem key={prodotto.nome} value={prodotto.nome}>
+                            {prodotto.nome} ({prodotto.unita})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Label>Nome Prodotto</Label>
+                <Input
+                  value={prodottoManuale}
+                  onChange={(e) => setProdottoManuale(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Rest of the form components */}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Rest of the component UI */}
+    </div>
+  );
+}
