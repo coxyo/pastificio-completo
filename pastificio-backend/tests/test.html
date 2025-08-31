@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WhatsApp Pastificio</title>
+</head>
+<body>
+    <h1>Test WhatsApp</h1>
+    <button onclick="login()">Login</button>
+    <button onclick="testWhatsApp()">Test WhatsApp</button>
+    <div id="result"></div>
+
+    <script>
+        const API_URL = 'https://pastificio-backend.onrender.com';
+        
+        async function login() {
+            const res = await fetch(`${API_URL}/api/auth/login`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    email: 'admin@pastificio.com',
+                    password: 'Admin123!'
+                })
+            });
+            const data = await res.json();
+            localStorage.setItem('token', data.token);
+            document.getElementById('result').innerText = 'Login OK';
+        }
+        
+        async function testWhatsApp() {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/api/whatsapp/send`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    numero: '3497319143',
+                    messaggio: 'Test messaggio WhatsApp'
+                })
+            });
+            const data = await res.json();
+            document.getElementById('result').innerText = JSON.stringify(data);
+        }
+    </script>
+</body>
+</html>

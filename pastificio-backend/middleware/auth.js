@@ -1,149 +1,173 @@
-// pastificio-backend/middleware/auth.js
+// middleware/auth.js - ES6 MODULES VERSION
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
 import User from '../models/User.js';
-import logger from '../config/logger.js';
 
+// Middleware di protezione principale
 export const protect = async (req, res, next) => {
+  let token;
+
   try {
-    // Estrai il token dall'header Authorization
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token non fornito'
+    // Controlla se c'è l'header Authorization
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      // Estrai il token
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.headers.authorization) {
+      // Se manca "Bearer", usa direttamente il token
+      token = req.headers.authorization;
+    }
+
+    // Se non c'è token
+    if (!token) {
+      console.log('[AUTH] Nessun token fornito');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Non autorizzato - Token mancante' 
       });
     }
-    
-    const token = authHeader.replace('Bearer ', '');
-    
-    // Verifica se è un token JWT standard o il formato semplificato
-    let decoded;
-    let userId;
-    
-    try {
-      // Prima prova a decodificare come JWT
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-      userId = decoded.id;
-    } catch (jwtError) {
-      // Se fallisce, prova con il formato semplificato
-      const tokenParts = token.split('_');
-      
-      if (tokenParts.length < 4 || tokenParts[0] !== 'simple' || tokenParts[1] !== 'token') {
-        logger.error('Token non valido:', token);
-        return res.status(401).json({
-          success: false,
-          error: 'Token non valido'
-        });
-      }
-      
-      userId = tokenParts[2];
-    }
-    
-    // Verifica che userId sia un ObjectId valido
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      logger.error('UserId non valido:', userId);
-      return res.status(401).json({
-        success: false,
-        error: 'Token non valido - ID utente non valido'
-      });
-    }
+
+    // Verifica il token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
     
     // Trova l'utente
-    const user = await User.findById(userId).select('-password');
+    const user = await User.findById(decoded.id).select('-password');
     
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Utente non trovato'
+      console.log('[AUTH] Utente non trovato per token:', decoded.id);
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Utente non trovato' 
       });
     }
-    
-    // Aggiungi l'utente alla request con tutti i campi necessari
-    req.user = {
-      id: user._id.toString(),
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      ruolo: user.ruolo,
-      nome: user.nome,
-      cognome: user.cognome
-    };
-    
-    logger.debug('Utente autenticato:', {
-      id: req.user.id,
-      username: req.user.username
-    });
-    
+
+    // Verifica se l'utente è attivo
+    if (user.isActive === false) {
+      console.log('[AUTH] Utente disattivato:', user.email);
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Account disattivato' 
+      });
+    }
+
+    // Aggiungi l'utente alla request
+    req.user = user;
     next();
-    
+
   } catch (error) {
-    logger.error('Errore middleware auth:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore di autenticazione'
-    });
+    // Log solo se è un vero errore, non per token scaduti normali
+    if (error.name === 'TokenExpiredError') {
+      console.log('[AUTH] Token scaduto');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Token scaduto - Effettua nuovamente il login' 
+      });
+    } else if (error.name === 'JsonWebTokenError') {
+      console.log('[AUTH] Token non valido');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Token non valido' 
+      });
+    } else {
+      console.error('[AUTH] Errore verifica token:', error.message);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Errore server durante autenticazione' 
+      });
+    }
   }
 };
 
-export const authorize = (...ruoli) => {
+// Middleware opzionale - non blocca se non c'è token
+export const optionalAuth = async (req, res, next) => {
+  let token;
+
+  try {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.headers.authorization) {
+      token = req.headers.authorization;
+    }
+
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
+      const user = await User.findById(decoded.id).select('-password');
+      if (user && user.isActive !== false) {
+        req.user = user;
+      }
+    }
+  } catch (error) {
+    // Ignora errori, è opzionale
+    console.log('[AUTH] Token opzionale non valido, continuo senza auth');
+  }
+  
+  next();
+};
+
+// Middleware per verificare ruoli admin
+export const adminOnly = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Non autorizzato' 
+    });
+  }
+
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Accesso negato - Solo amministratori' 
+    });
+  }
+
+  next();
+};
+
+// Middleware per verificare ruoli specifici
+export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Non autenticato'
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Non autorizzato' 
       });
     }
-    
-    if (!ruoli.includes(req.user.ruolo)) {
-      logger.warn('Tentativo di accesso non autorizzato:', {
-        userId: req.user.id,
-        ruolo: req.user.ruolo,
-        ruoliRichiesti: ruoli
-      });
-      
-      return res.status(403).json({
-        success: false,
-        error: 'Non autorizzato per questa operazione'
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        success: false, 
+        message: `Ruolo ${req.user.role} non autorizzato per questa operazione` 
       });
     }
-    
+
     next();
   };
 };
 
-// Middleware opzionale per verificare se l'utente è attivo
-export const checkUserActive = async (req, res, next) => {
+// Genera nuovo token
+export const generateToken = (id) => {
+  return jwt.sign(
+    { id, tokenVersion: 0 },
+    process.env.JWT_SECRET || 'pastificio-secret-key-2024',
+    { expiresIn: '30d' }
+  );
+};
+
+// Verifica token senza middleware
+export const verifyToken = async (token) => {
   try {
-    const user = await User.findById(req.user.id);
-    
-    if (!user || !user.attivo) {
-      return res.status(403).json({
-        success: false,
-        error: 'Account non attivo'
-      });
-    }
-    
-    next();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
+    const user = await User.findById(decoded.id).select('-password');
+    return user;
   } catch (error) {
-    logger.error('Errore verifica utente attivo:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore di verifica account'
-    });
+    return null;
   }
 };
 
-// Middleware per logging delle azioni
-export const logAction = (action) => {
-  return (req, res, next) => {
-    logger.info(`Azione: ${action}`, {
-      userId: req.user?.id,
-      username: req.user?.username,
-      ip: req.ip,
-      userAgent: req.get('user-agent')
-    });
-    next();
-  };
+// Export di default per compatibilità
+export default { 
+  protect, 
+  optionalAuth, 
+  adminOnly, 
+  authorize, 
+  generateToken, 
+  verifyToken 
 };

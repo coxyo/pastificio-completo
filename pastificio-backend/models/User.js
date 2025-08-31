@@ -5,12 +5,28 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
 const UserSchema = new mongoose.Schema({
+  // Campo nome per compatibilità con auth.js
+  nome: {
+    type: String,
+    required: [true, 'Nome richiesto'],
+    trim: true,
+    minlength: [2, 'Nome deve essere almeno 2 caratteri']
+  },
+  // Username opzionale
   username: {
     type: String,
-    required: [true, 'Username richiesto'],
     unique: true,
+    sparse: true,
     trim: true,
     minlength: [3, 'Username deve essere almeno 3 caratteri']
+  },
+  // Email principale per autenticazione
+  email: {
+    type: String,
+    required: [true, 'Email richiesta'],
+    unique: true,
+    lowercase: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Email non valida']
   },
   password: {
     type: String,
@@ -18,21 +34,16 @@ const UserSchema = new mongoose.Schema({
     minlength: [6, 'Password deve essere almeno 6 caratteri'],
     select: false
   },
-  ruolo: {
+  // Campo role (non ruolo) per compatibilità
+  role: {
     type: String,
-    enum: ['admin', 'operatore', 'viewer'],
+    enum: ['admin', 'superadmin', 'operatore', 'viewer', 'user'],
     default: 'operatore'
   },
-  attivo: {
+  // Campo isActive (non attivo) per compatibilità
+  isActive: {
     type: Boolean,
     default: true
-  },
-  email: {
-    type: String,
-    unique: true,
-    sparse: true,
-    lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Email non valida']
   },
   telefono: {
     type: String,
@@ -53,6 +64,9 @@ const UserSchema = new mongoose.Schema({
     },
     browser: {
       enabled: { type: Boolean, default: true }
+    },
+    whatsapp: {
+      enabled: { type: Boolean, default: true }
     }
   },
   lastNotificationSent: Date,
@@ -62,6 +76,7 @@ const UserSchema = new mongoose.Schema({
     sentAt: { type: Date, default: Date.now },
     success: Boolean
   }],
+  lastLogin: Date,
   ultimoAccesso: Date,
   tentativi: { type: Number, default: 0 },
   bloccato: { type: Boolean, default: false },
@@ -73,18 +88,20 @@ const UserSchema = new mongoose.Schema({
 });
 
 // Indici
-UserSchema.index({ username: 1 });
 UserSchema.index({ email: 1 });
-UserSchema.index({ ruolo: 1 });
+UserSchema.index({ username: 1 });
+UserSchema.index({ role: 1 });
+UserSchema.index({ isActive: 1 });
 
 // Hash password prima del salvataggio
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
   
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
 // Confronta password
@@ -99,8 +116,8 @@ UserSchema.methods.getSignedJwtToken = function() {
       id: this._id,
       tokenVersion: this.tokenVersion 
     }, 
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
+    process.env.JWT_SECRET || 'pastificio-secret-key-2024',
+    { expiresIn: process.env.JWT_EXPIRE || '30d' }
   );
 };
 
@@ -153,6 +170,11 @@ UserSchema.methods.canReceiveNotification = function(type, channel) {
   }
   
   return true;
+};
+
+// Metodo helper per verificare se è admin
+UserSchema.methods.isAdmin = function() {
+  return this.role === 'admin' || this.role === 'superadmin';
 };
 
 const User = mongoose.model('User', UserSchema);

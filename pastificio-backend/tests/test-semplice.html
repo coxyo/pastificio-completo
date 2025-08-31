@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WhatsApp Semplice</title>
+</head>
+<body>
+    <h1>Test WhatsApp - Versione Semplice</h1>
+    <button onclick="testAll()">CLICCA QUI PER TESTARE</button>
+    <pre id="output"></pre>
+
+    <script>
+        async function testAll() {
+            const output = document.getElementById('output');
+            output.textContent = 'Test in corso...\n';
+            
+            try {
+                // Login
+                const res1 = await fetch('http://localhost:5000/api/auth/login'
+, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        email: 'admin@pastificio.com',
+                        password: 'Admin123!'
+                    })
+                });
+                const data1 = await res1.json();
+                output.textContent += 'Login: ' + (data1.token ? 'OK\n' : 'FALLITO\n');
+                
+                if(data1.token) {
+                    // Check WhatsApp
+                    const res2 = await fetch('https://pastificio-backend.onrender.com/api/whatsapp/status', {
+                        headers: {'Authorization': 'Bearer ' + data1.token}
+                    });
+                    const data2 = await res2.json();
+                    output.textContent += 'WhatsApp: ' + (data2.isConnected ? 'CONNESSO\n' : 'NON CONNESSO\n');
+                    
+                    if(!data2.isConnected) {
+                        output.textContent += '\nAPRI QUESTO LINK PER IL QR CODE:\n';
+                        output.textContent += 'https://pastificio-backend.onrender.com/api/whatsapp/qr\n';
+                    }
+                }
+            } catch(e) {
+                output.textContent += 'ERRORE: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>

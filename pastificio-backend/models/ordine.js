@@ -1,291 +1,197 @@
-// models/ordine.js
+// models/Ordine.js
 import mongoose from 'mongoose';
 
-const ProdottoSchema = new mongoose.Schema({
+const prodottoSchema = new mongoose.Schema({
   nome: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   quantita: {
     type: Number,
     required: true,
-    min: [0, 'La quantità non può essere negativa']
+    min: 0
   },
-  prezzo: {
-    type: Number, 
-    required: true,
-    min: [0, 'Il prezzo non può essere negativo']
+  unita: {
+    type: String,
+    enum: ['kg', 'pezzi', '€', 'g', 'l'],
+    default: 'kg'
   },
   unitaMisura: {
     type: String,
-    enum: ['Kg', 'Pezzi', 'Unità', 'unità', '€'],
-    required: true
+    enum: ['kg', 'pezzi', '€', 'g', 'l'],
+    default: 'kg'
+  },
+  prezzo: {
+    type: Number,
+    required: true,
+    min: 0
   },
   categoria: {
     type: String,
+    enum: ['pasta', 'dolci', 'pane', 'altro'],
     default: 'altro'
-  },
-  note: String
+  }
 });
 
-const StatoSchema = new mongoose.Schema({
-  stato: {
-    type: String,
-    required: true,
-    enum: ['nuovo', 'in_lavorazione', 'completato', 'annullato']
-  },
-  data: {
-    type: Date,
-    default: Date.now
-  },
-  note: String
-}, { _id: false });
-
-const OrdineSchema = new mongoose.Schema({
-  // Riferimento al cliente (opzionale)
-  cliente: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Cliente',
-    required: false
-  },
+const ordineSchema = new mongoose.Schema({
   nomeCliente: {
     type: String,
-    required: [true, 'Il nome del cliente è obbligatorio'],
+    required: true,
     trim: true
   },
   telefono: {
     type: String,
-    required: [true, 'Il numero di telefono è obbligatorio'],
-    trim: true,
-    validate: {
-      validator: function(v) {
-        // Accetta numeri con 9-15 cifre (per gestire prefissi internazionali)
-        return /^\d{9,15}$/.test(v);
-      },
-      message: props => `${props.value} non è un numero di telefono valido!`
-    }
+    trim: true
   },
-  email: String,
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
   dataRitiro: {
     type: Date,
-    required: [true, 'La data di ritiro è obbligatoria'],
-    validate: {
-      validator: function(v) {
-        // Disabilita temporaneamente per test
-        return true;
-        // Per riabilitare:
-        // const oggi = new Date();
-        // oggi.setHours(0, 0, 0, 0);
-        // return v >= oggi;
-      },
-      message: 'La data di ritiro deve essere oggi o futura'
-    }
+    required: true
   },
   oraRitiro: {
     type: String,
-    required: [true, "L'ora di ritiro è obbligatoria"],
-    validate: {
-      validator: function(v) {
-        return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
-      },
-      message: props => `${props.value} non è un formato ora valido!`
-    }
+    required: true
   },
-  prodotti: {
-    type: [ProdottoSchema],
-    required: [true, 'Almeno un prodotto è richiesto'],
-    validate: {
-      validator: function(v) {
-        return Array.isArray(v) && v.length > 0;
-      },
-      message: 'Un ordine deve contenere almeno un prodotto'
-    }
-  },
-  deveViaggiare: {
-    type: Boolean,
-    default: false
-  },
-  note: {
-    type: String,
-    trim: true,
-    maxlength: [500, 'Le note non possono superare i 500 caratteri']
-  },
-  stato: {
-    type: String,
-    enum: ['nuovo', 'in_lavorazione', 'completato', 'annullato'],
-    default: 'nuovo'
-  },
-  storicoStati: [StatoSchema],
+  prodotti: [prodottoSchema],
   totale: {
     type: Number,
     default: 0
+  },
+  totaleCalcolato: {
+    type: Number,
+    default: 0
+  },
+  note: {
+    type: String,
+    trim: true
+  },
+  stato: {
+    type: String,
+    enum: ['nuovo', 'inLavorazione', 'pronto', 'completato', 'annullato'],
+    default: 'nuovo'
+  },
+  metodoPagamento: {
+    type: String,
+    enum: ['contanti', 'carta', 'bonifico', 'altro'],
+    default: 'contanti'
   },
   pagato: {
     type: Boolean,
     default: false
   },
-  metodoPagamento: {
-    type: String,
-    enum: ['contanti', 'carta', 'bonifico', 'non_pagato'],
-    default: 'non_pagato'
-  },
-  createdBy: {
+  creatoDa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  lastModifiedBy: {
+  modificatoDa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  tempId: String // Per gestire ordini offline
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
-
-// Virtuals
-OrdineSchema.virtual('totaleCalcolato').get(function() {
-  const subtotale = this.prodotti.reduce((tot, prod) => {
-    if (prod.unitaMisura === '€') {
-      return tot + prod.quantita;
-    }
-    return tot + (prod.quantita * prod.prezzo);
-  }, 0);
-  return this.deveViaggiare ? subtotale * 1.1 : subtotale;
-});
-
-OrdineSchema.virtual('numeroProdotti').get(function() {
-  return this.prodotti.reduce((tot, prod) => tot + prod.quantita, 0);
-});
-
-// Inizializza lo storico stati quando viene creato un nuovo ordine
-OrdineSchema.pre('save', function(next) {
-  if (this.isNew) {
-    this.storicoStati = [{
-      stato: this.stato || 'nuovo',
-      data: new Date()
-    }];
-    
-    // Calcola il totale se non è stato fornito
-    if (!this.totale) {
-      this.totale = this.totaleCalcolato;
-    }
+  dataModifica: {
+    type: Date
+  },
+  // Campi per sincronizzazione
+  modificatoOffline: {
+    type: Boolean,
+    default: false
+  },
+  ultimaSincronizzazione: {
+    type: Date
   }
+}, {
+  timestamps: true
+});
+
+// Indici per performance
+ordineSchema.index({ dataRitiro: 1, oraRitiro: 1 });
+ordineSchema.index({ nomeCliente: 1 });
+ordineSchema.index({ stato: 1 });
+ordineSchema.index({ createdAt: -1 });
+
+// Metodo per calcolare il totale
+ordineSchema.methods.calcolaTotale = function() {
+  this.totaleCalcolato = this.prodotti.reduce((sum, p) => {
+    return sum + (p.quantita * p.prezzo);
+  }, 0);
+  this.totale = this.totaleCalcolato;
+  return this.totale;
+};
+
+// Hook pre-save per calcolare il totale e normalizzare i dati
+ordineSchema.pre('save', function(next) {
+  // Calcola totale se non presente
+  if (!this.totale) {
+    this.calcolaTotale();
+  }
+  
+  // Normalizza prodotti
+  this.prodotti = this.prodotti.map(p => {
+    // Rimuovi quantità dal nome se presente
+    if (p.nome) {
+      p.nome = p.nome.replace(/\s*\(\d+.*?\)\s*$/, '').trim();
+    }
+    
+    // Assicura che unita e unitaMisura siano allineati
+    if (p.unita && !p.unitaMisura) {
+      p.unitaMisura = p.unita;
+    } else if (p.unitaMisura && !p.unita) {
+      p.unita = p.unitaMisura;
+    }
+    
+    // Determina categoria se non presente
+    if (!p.categoria) {
+      p.categoria = this.getCategoriaProdotto(p.nome);
+    }
+    
+    return p;
+  });
+  
   next();
 });
 
-// Middleware per aggiornare statistiche cliente dopo il salvataggio
-OrdineSchema.post('save', async function(doc) {
-  if (doc.cliente) {
-    try {
-      const Cliente = mongoose.model('Cliente');
-      await Cliente.findByIdAndUpdate(doc.cliente, {
-        $inc: { 
-          'statistiche.numeroOrdini': 1,
-          'statistiche.totaleSpeso': doc.totale || doc.totaleCalcolato
-        },
-        $set: {
-          'statistiche.ultimoOrdine': new Date()
-        }
-      });
-      
-      // Calcola media ordine
-      const cliente = await Cliente.findById(doc.cliente);
-      if (cliente && cliente.statistiche.numeroOrdini > 0) {
-        cliente.statistiche.mediaOrdine = cliente.statistiche.totaleSpeso / cliente.statistiche.numeroOrdini;
-        
-        // Aggiorna punti fedeltà (1 punto per euro)
-        const puntiDaAggiungere = Math.floor(doc.totale || doc.totaleCalcolato);
-        if (cliente.aggiungiPunti) {
-          await cliente.aggiungiPunti(puntiDaAggiungere, `Ordine #${doc._id}`);
-        }
-      }
-    } catch (error) {
-      console.error('Errore aggiornamento statistiche cliente:', error);
-    }
+// Metodo per determinare la categoria di un prodotto
+ordineSchema.methods.getCategoriaProdotto = function(nomeProdotto) {
+  const nome = nomeProdotto?.toLowerCase() || '';
+  
+  if (nome.includes('malloreddus') || nome.includes('culurgiones') || 
+      nome.includes('ravioli') || nome.includes('gnocch') || 
+      nome.includes('fregola') || nome.includes('tagliatelle') ||
+      nome.includes('lasagne') || nome.includes('cannelloni')) {
+    return 'pasta';
   }
+  
+  if (nome.includes('seadas') || nome.includes('sebadas') || 
+      nome.includes('pardulas') || nome.includes('papassin') || 
+      nome.includes('amaretti') || nome.includes('bianchini') ||
+      nome.includes('gueffus') || nome.includes('candelaus') ||
+      nome.includes('pabassinas') || nome.includes('dolci') ||
+      nome.includes('ciambelle')) {
+    return 'dolci';
+  }
+  
+  if (nome.includes('pane') || nome.includes('carasau') || 
+      nome.includes('civraxiu') || nome.includes('coccoi') ||
+      nome.includes('pistoccu') || nome.includes('moddizzosu')) {
+    return 'pane';
+  }
+  
+  return 'altro';
+};
+
+// Virtuals
+ordineSchema.virtual('dataRitiroFormattata').get(function() {
+  return this.dataRitiro?.toLocaleDateString('it-IT');
 });
 
-// Indici
-OrdineSchema.index({ dataRitiro: 1 });
-OrdineSchema.index({ nomeCliente: 1 });
-OrdineSchema.index({ stato: 1 });
-OrdineSchema.index({ telefono: 1 });
-OrdineSchema.index({ cliente: 1 });
-OrdineSchema.index({ createdAt: -1 });
+ordineSchema.virtual('isTemporary').get(function() {
+  return false; // Gli ordini salvati nel DB non sono mai temporanei
+});
 
-// Metodo per cambiare stato
-OrdineSchema.methods.cambiaStato = async function(nuovoStato, note = '') {
-  const transizioniValide = {
-    'nuovo': ['in_lavorazione', 'annullato'],
-    'in_lavorazione': ['completato', 'annullato'],
-    'completato': ['annullato'],
-    'annullato': []
-  };
+const Ordine = mongoose.model('Ordine', ordineSchema);
 
-  if (!transizioniValide[this.stato]?.includes(nuovoStato)) {
-    throw new Error(`Transizione non valida da ${this.stato} a ${nuovoStato}`);
-  }
-
-  this.stato = nuovoStato;
-  this.storicoStati.push({
-    stato: nuovoStato,
-    data: new Date(),
-    note
-  });
-
-  return await this.save();
-};
-
-// Metodi statici
-OrdineSchema.statics.getStatistiche = async function(dataInizio, dataFine) {
-  return this.aggregate([
-    {
-      $match: {
-        dataRitiro: {
-          $gte: dataInizio,
-          $lte: dataFine
-        }
-      }
-    },
-    {
-      $group: {
-        _id: '$stato',
-        count: { $sum: 1 },
-        totale: { $sum: '$totale' }
-      }
-    }
-  ]);
-};
-
-// Metodo per la ricerca avanzata
-OrdineSchema.statics.ricercaAvanzata = async function(filtri = {}) {
-  const query = {};
-  
-  if (filtri.dataInizio || filtri.dataFine) {
-    query.dataRitiro = {};
-    if (filtri.dataInizio) query.dataRitiro.$gte = filtri.dataInizio;
-    if (filtri.dataFine) query.dataRitiro.$lte = filtri.dataFine;
-  }
-
-  if (filtri.cliente) {
-    query.nomeCliente = new RegExp(filtri.cliente, 'i');
-  }
-
-  if (filtri.stato) {
-    query.stato = filtri.stato;
-  }
-
-  if (filtri.telefono) {
-    query.telefono = new RegExp(filtri.telefono.replace(/\D/g, ''));
-  }
-
-  return this.find(query)
-    .sort(filtri.ordinamento || '-dataRitiro')
-    .skip(filtri.skip || 0)
-    .limit(filtri.limit || 20);
-};
-
-export const Ordine = mongoose.model('Ordine', OrdineSchema);
 export default Ordine;

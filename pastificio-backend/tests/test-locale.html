@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WhatsApp Locale</title>
+</head>
+<body>
+    <h1>Test WhatsApp - Backend Locale</h1>
+    <button onclick="testAll()">TEST WHATSAPP</button>
+    <pre id="output"></pre>
+
+    <script>
+        const API = 'http://localhost:5000';  // Backend locale
+        
+        async function testAll() {
+            const output = document.getElementById('output');
+            output.textContent = 'Test in corso...\n';
+            
+            try {
+                // 1. Login
+                const res1 = await fetch(API + '/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        email: 'admin@pastificio.com',
+                        password: 'Admin123!'
+                    })
+                });
+                const data1 = await res1.json();
+                output.textContent += 'Login: ' + (data1.token ? 'OK - Token ricevuto\n' : 'FALLITO\n');
+                
+                if(data1.token) {
+                    // 2. Check WhatsApp
+                    const res2 = await fetch(API + '/api/whatsapp/status', {
+                        headers: {'Authorization': 'Bearer ' + data1.token}
+                    });
+                    const data2 = await res2.json();
+                    output.textContent += 'WhatsApp: ' + (data2.isConnected ? 'CONNESSO!\n' : 'NON CONNESSO\n');
+                    
+                    if(!data2.isConnected) {
+                        output.textContent += '\nWhatsApp non connesso.\n';
+                        output.textContent += 'Apri: ' + API + '/api/whatsapp/qr per il QR code\n';
+                    } else {
+                        output.textContent += '\nWhatsApp pronto! Puoi inviare messaggi.';
+                    }
+                }
+            } catch(e) {
+                output.textContent += 'ERRORE: ' + e.message + '\n';
+                output.textContent += '\nAssicurati che il backend sia avviato (npm start)';
+            }
+        }
+    </script>
+</body>
+</html>
