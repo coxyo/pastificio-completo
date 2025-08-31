@@ -1,7 +1,7 @@
 // src/services/authManager.js
 class AuthManager {
   constructor() {
-    this.baseURL = 'http://localhost:5000/api';
+    this.baseURL = '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
   }
 
   // Pulisce tutto e fa un login fresco

@@ -279,7 +279,7 @@ export default function GestoreOrdini() {
   // NUOVO: Check WhatsApp status
   const checkWhatsAppStatus = async () => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
       const token = localStorage.getItem('token');
       
       const response = await fetch(`${backendUrl}/api/whatsapp/status`, {

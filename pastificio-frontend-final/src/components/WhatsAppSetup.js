@@ -15,7 +15,7 @@ function WhatsAppSetup() {
   const checkStatus = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/whatsapp/status', {
+      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/whatsapp/status', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

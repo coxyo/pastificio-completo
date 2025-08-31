@@ -1,4 +1,4 @@
-﻿export default function GestioneUtenti() {
+export default function GestioneUtenti() {
   return (
     <div>
       <h1>Gestione Utenti</h1>

@@ -34,7 +34,7 @@ import {
   Group as GroupIcon
 } from '@mui/icons-material';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;

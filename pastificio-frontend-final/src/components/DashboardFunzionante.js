@@ -54,7 +54,7 @@ const DashboardFunzionante = () => {
 
   const loadDashboardData = async () => {
     try {
-      const response = await authManager.authenticatedFetch('http://localhost:5000/api/ordini');
+      const response = await authManager.authenticatedFetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini');
       
       if (!response.ok) {
         if (response.status === 401) {

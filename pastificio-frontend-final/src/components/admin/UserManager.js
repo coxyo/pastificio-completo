@@ -72,7 +72,7 @@ const UserManager = () => {
   // Auth state
   const authToken = localStorage.getItem('token');
   const currentUserData = JSON.parse(localStorage.getItem('user') || '{}');
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
   
   // Fetch users
   const fetchUsers = async () => {

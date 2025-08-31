@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { handleError } from '../utils/errorHandler';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
 
 // Ottieni tutte le fatture con filtri e paginazione
 export const getFatture = async (params = {}) => {

@@ -243,7 +243,7 @@ function DashboardUltimate() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/reports/email', {
+      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/reports/email', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -273,7 +273,7 @@ function DashboardUltimate() {
       let token = localStorage.getItem('token');
       
       if (!token) {
-        const loginRes = await fetch('http://localhost:5000/api/auth/login', {
+        const loginRes = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -291,7 +291,7 @@ function DashboardUltimate() {
         }
       }
       
-      const ordersRes = await fetch('http://localhost:5000/api/ordini', {
+      const ordersRes = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

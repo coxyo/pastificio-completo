@@ -47,7 +47,7 @@ const OrdiniList = ({
   const segnaComePronto = async (ordineId) => {
     try {
       // Prima aggiorna lo stato dell'ordine a completato
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ordini/${ordineId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/ordini/${ordineId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ const OrdiniList = ({
 
       // Poi invia la notifica WhatsApp separatamente
       try {
-        const whatsappResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ordini/invio-ordine-pronto/${ordineId}`, {
+        const whatsappResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/ordini/invio-ordine-pronto/${ordineId}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -102,7 +102,7 @@ const OrdiniList = ({
   // Invia promemoria WhatsApp
   const inviaPromemoria = async (ordineId) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ordini/invio-promemoria/${ordineId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/ordini/invio-promemoria/${ordineId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -172,7 +172,7 @@ const OrdiniList = ({
     localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
     
     // Aggiorna anche sul server
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ordini/${ordineSelezionato._id}`, {
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/ordini/${ordineSelezionato._id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

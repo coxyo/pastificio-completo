@@ -1,5 +1,5 @@
 // services/api.js
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
 const USE_MOCK = true; // Cambia a false quando il backend è attivo
 
 // Mock data per test

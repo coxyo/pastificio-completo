@@ -30,7 +30,7 @@ const DashboardRapido = () => {
       }
 
       // Carica gli ordini usando il token esistente
-      const ordiniResponse = await fetch('http://localhost:5000/api/ordini', {
+      const ordiniResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

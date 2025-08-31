@@ -51,7 +51,7 @@ import StatisticheCliente from './StatisticheCliente';
 import TimelineAttivita from './TimelineAttivita';
 import AzioniRapide from './AzioniRapide';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
 
 function TabPanel({ children, value, index }) {
   return (

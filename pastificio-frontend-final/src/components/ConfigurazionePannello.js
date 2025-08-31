@@ -173,7 +173,7 @@ const ConfigurazionePannello = () => {
         try {
           const token = localStorage.getItem('token');
           if (token) {
-            const response = await fetch('http://localhost:5000/api/auth/users', {
+            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/users', {
               headers: {
                 'Authorization': `Bearer ${token}`
               }
@@ -288,7 +288,7 @@ const ConfigurazionePannello = () => {
           return;
         }
         
-        const response = await fetch('http://localhost:5000/api/auth/register', {
+        const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/register', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -331,7 +331,7 @@ const ConfigurazionePannello = () => {
           return;
         }
         
-        const response = await fetch(`http://localhost:5000/api/auth/users/${id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/users/${id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`

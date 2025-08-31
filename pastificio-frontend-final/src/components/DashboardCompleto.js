@@ -33,7 +33,7 @@ const DashboardCompleto = () => {
       }
 
       // Prova a usare il token esistente
-      const testResponse = await fetch('http://localhost:5000/api/auth/me', {
+      const testResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -41,7 +41,7 @@ const DashboardCompleto = () => {
 
       // Se il test fallisce, prova con gli ordini
       if (!testResponse.ok) {
-        const ordiniResponse = await fetch('http://localhost:5000/api/ordini', {
+        const ordiniResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -61,7 +61,7 @@ const DashboardCompleto = () => {
         setIsAuthenticated(true);
       } else {
         // Token valido, carica i dati degli ordini
-        const ordiniResponse = await fetch('http://localhost:5000/api/ordini', {
+        const ordiniResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

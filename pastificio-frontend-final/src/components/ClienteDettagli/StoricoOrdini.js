@@ -41,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
 
 export default function StoricoOrdini({ clienteId, nomeCliente }) {
   const router = useRouter();

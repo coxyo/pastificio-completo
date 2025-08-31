@@ -1,6 +1,6 @@
 // src/config/api.js
-export const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-export const WS_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+export const WS_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
 
 export const API_ENDPOINTS = {
   AUTH: {

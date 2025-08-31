@@ -8,7 +8,7 @@ export const testCredentials = async () => {
 
   for (const cred of credentials) {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cred)
