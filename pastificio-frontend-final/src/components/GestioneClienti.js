@@ -62,20 +62,18 @@ function GestioneClienti() {
   const [totalClienti, setTotalClienti] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
-  const [filtroAttivo, setFiltroAttivo] = useState(''); // Vuoto di default per mostrare tutti
+  const [filtroAttivo, setFiltroAttivo] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [clienteSelezionato, setClienteSelezionato] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuCliente, setMenuCliente] = useState(null);
   
-  // Stati per le notifiche
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'info'
   });
 
-  // Funzione per mostrare notifiche
   const showToast = (message, severity = 'info') => {
     console.log(`${severity}: ${message}`);
     setSnackbar({
@@ -89,48 +87,55 @@ function GestioneClienti() {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  // Funzione per fare login automatico se necessario
+  const ensureAuthenticated = async () => {
+    let token = localStorage.getItem('token');
+    
+    if (!token) {
+      console.log('Token non trovato, tentativo login...');
+      try {
+        const loginResponse = await fetch(`${API_URL.replace('/api', '')}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username: 'admin',  // Usa username invece di email
+            password: 'admin123'
+          })
+        });
+
+        const loginData = await loginResponse.json();
+        
+        if (loginData.success && loginData.token) {
+          localStorage.setItem('token', loginData.token);
+          if (loginData.user) {
+            localStorage.setItem('user', JSON.stringify(loginData.user));
+          }
+          console.log('Login automatico riuscito');
+          return loginData.token;
+        } else {
+          console.error('Login fallito:', loginData);
+          showToast('Sessione scaduta. Effettua il login.', 'error');
+          router.push('/login');
+          return null;
+        }
+      } catch (error) {
+        console.error('Errore login:', error);
+        showToast('Errore di connessione.', 'error');
+        return null;
+      }
+    }
+    
+    return token;
+  };
+
   // Funzione per caricare i clienti dal backend
   const caricaClienti = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        console.log('⚠️ Token non trovato, tentativo login automatico...');
-        // Tentativo di login automatico
-        try {
-          const loginResponse = await fetch(`${API_URL.replace('/api', '')}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              email: 'admin@pastificio.com',
-              password: 'admin123'
-            })
-          });
-
-          if (loginResponse.ok) {
-            const loginData = await loginResponse.json();
-            if (loginData.success && loginData.token) {
-              localStorage.setItem('token', loginData.token);
-              console.log('✅ Login automatico riuscito');
-            } else {
-              showToast('Sessione scaduta. Effettua nuovamente il login.', 'error');
-              router.push('/login');
-              return;
-            }
-          } else {
-            showToast('Sessione scaduta. Effettua nuovamente il login.', 'error');
-            router.push('/login');
-            return;
-          }
-        } catch (loginError) {
-          console.error('Errore login automatico:', loginError);
-          showToast('Errore di connessione. Riprova più tardi.', 'error');
-          return;
-        }
-      }
+      const token = await ensureAuthenticated();
+      if (!token) return;
 
       // Costruisci i parametri della query
       const params = new URLSearchParams({
@@ -139,35 +144,34 @@ function GestioneClienti() {
         sort: '-createdAt'
       });
 
-      // Aggiungi parametri opzionali solo se hanno un valore
       if (searchTerm) {
         params.append('search', searchTerm);
       }
       if (filtroTipo) {
         params.append('tipo', filtroTipo);
       }
-      // IMPORTANTE: Non inviare il parametro attivo se è vuoto
       if (filtroAttivo !== '') {
         params.append('attivo', filtroAttivo);
       }
 
       const url = `${API_URL}/clienti?${params}`;
-      console.log('🔍 Calling API:', url);
+      console.log('Chiamata API:', url);
 
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         }
       });
 
-      console.log('📡 Response status:', response.status);
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
         if (response.status === 401) {
           localStorage.removeItem('token');
+          localStorage.removeItem('user');
           showToast('Sessione scaduta. Effettua nuovamente il login.', 'error');
           router.push('/login');
           return;
@@ -178,28 +182,26 @@ function GestioneClienti() {
       }
 
       const data = await response.json();
-      console.log('📦 Data received:', data);
+      console.log('Dati ricevuti:', data);
       
-      // Il backend restituisce { success: true, data: [...], pagination: {...} }
       if (data.success && Array.isArray(data.data)) {
         setClienti(data.data);
         setTotalClienti(data.pagination?.total || data.data.length);
-        console.log(`✅ Caricati ${data.data.length} clienti`);
+        console.log(`Caricati ${data.data.length} clienti`);
         
-        // Se non ci sono clienti e siamo alla prima pagina senza filtri
         if (data.data.length === 0 && page === 0 && !searchTerm && !filtroTipo && !filtroAttivo) {
           showToast('Nessun cliente trovato. Aggiungi il primo cliente!', 'info');
         }
       } else {
-        console.warn('⚠️ Formato risposta non atteso:', data);
+        console.warn('Formato risposta non atteso:', data);
         setClienti([]);
         setTotalClienti(0);
         showToast('Formato risposta non valido', 'warning');
       }
       
     } catch (error) {
-      console.error('❌ Errore caricamento clienti:', error);
-      showToast(`Errore nel caricamento dei clienti: ${error.message}`, 'error');
+      console.error('Errore caricamento clienti:', error);
+      showToast(`Errore: ${error.message}`, 'error');
       setClienti([]);
       setTotalClienti(0);
     } finally {
@@ -207,7 +209,6 @@ function GestioneClienti() {
     }
   };
 
-  // UseEffect per caricare i clienti
   useEffect(() => {
     caricaClienti();
   }, [page, rowsPerPage, searchTerm, filtroTipo, filtroAttivo]);
@@ -262,7 +263,9 @@ function GestioneClienti() {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = await ensureAuthenticated();
+      if (!token) return;
+
       const response = await fetch(`${API_URL}/clienti/${cliente._id}`, {
         method: 'DELETE',
         headers: {
@@ -277,11 +280,10 @@ function GestioneClienti() {
       }
 
       showToast('Cliente disattivato con successo', 'success');
-      // Ricarica la lista
       caricaClienti();
     } catch (error) {
       console.error('Errore eliminazione cliente:', error);
-      showToast(`Errore durante l'eliminazione: ${error.message}`, 'error');
+      showToast(`Errore: ${error.message}`, 'error');
     }
     handleMenuClose();
   };
@@ -293,23 +295,17 @@ function GestioneClienti() {
 
   const handleSaveCliente = async (clienteData) => {
     try {
-      console.log('💾 Inizio salvataggio cliente:', clienteData);
+      console.log('Salvataggio cliente:', clienteData);
       
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        showToast('Sessione scaduta. Effettua nuovamente il login.', 'error');
-        router.push('/login');
-        return;
-      }
+      const token = await ensureAuthenticated();
+      if (!token) return;
       
       const method = clienteSelezionato ? 'PUT' : 'POST';
       const url = clienteSelezionato 
         ? `${API_URL}/clienti/${clienteSelezionato._id}`
         : `${API_URL}/clienti`;
 
-      console.log('📡 Invio richiesta a:', url);
-      console.log('📦 Dati inviati:', JSON.stringify(clienteData, null, 2));
+      console.log('Invio richiesta a:', url);
 
       const response = await fetch(url, {
         method,
@@ -320,36 +316,32 @@ function GestioneClienti() {
         body: JSON.stringify(clienteData)
       });
 
-      console.log('📨 Response status:', response.status);
+      console.log('Response status:', response.status);
       
       const responseText = await response.text();
-      console.log('📄 Response text:', responseText);
+      console.log('Response text:', responseText);
       
       let result;
       try {
         result = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('❌ Errore parsing JSON:', parseError);
+        console.error('Errore parsing JSON:', parseError);
         throw new Error('Risposta del server non valida');
       }
 
-      // Se lo status è 200 o 201, consideriamo il salvataggio riuscito
       if (response.status === 200 || response.status === 201 || result.success === true) {
-        console.log('✅ Cliente salvato con successo');
+        console.log('Cliente salvato con successo');
         
-        // Mostra notifica di successo
         if (clienteSelezionato) {
           showToast('Cliente aggiornato con successo', 'success');
         } else {
           showToast('Cliente creato con successo', 'success');
         }
         
-        // Chiudi il dialog
         handleCloseDialog();
         
-        // Ricarica la lista clienti
         setTimeout(() => {
-          console.log('🔄 Ricaricamento lista clienti...');
+          console.log('Ricaricamento lista clienti...');
           caricaClienti();
         }, 500);
         
@@ -358,26 +350,20 @@ function GestioneClienti() {
       }
       
     } catch (error) {
-      console.error('❌ Errore durante il salvataggio:', error);
+      console.error('Errore durante il salvataggio:', error);
       showToast(error.message || 'Errore durante il salvataggio', 'error');
     }
   };
 
-  // Funzione per ricaricare manualmente
   const handleRefresh = () => {
-    console.log('🔄 Refresh manuale...');
+    console.log('Refresh manuale...');
     caricaClienti();
   };
 
-  // Funzione per export Excel
   const handleExportExcel = async () => {
     try {
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        showToast('Sessione scaduta. Effettua nuovamente il login.', 'error');
-        return;
-      }
+      const token = await ensureAuthenticated();
+      if (!token) return;
       
       showToast('Preparazione export in corso...', 'info');
       
@@ -694,7 +680,6 @@ function GestioneClienti() {
         <AddIcon />
       </Fab>
 
-      {/* Snackbar per le notifiche */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}

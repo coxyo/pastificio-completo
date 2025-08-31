@@ -1,254 +1,378 @@
-// services/whatsappService.js
-import axios from 'axios';
+// services/whatsappService.js - VERSIONE BAILEYS DEFINITIVA
+import pkg from 'baileys';
+const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = pkg;
+import { Boom } from '@hapi/boom';
 import logger from '../config/logger.js';
+import qrcode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class WhatsAppService {
   constructor() {
-    // Opzioni per WhatsApp Business API
-    this.provider = process.env.WHATSAPP_PROVIDER || 'twilio'; // twilio, meta, waba
-    
-    // Configurazione Twilio WhatsApp
-    if (this.provider === 'twilio' && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_ACCOUNT_SID.startsWith('AC')) {
-      try {
-        const twilio = (await import('twilio')).default;
-        this.client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        this.fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886'; // Sandbox Twilio
-        this.enabled = true;
-        logger.info('WhatsApp Service: Twilio configurato');
-      } catch (error) {
-        logger.warn('WhatsApp Service: Errore configurazione Twilio', error.message);
-        this.enabled = false;
+    this.sock = null;
+    this.ready = false;
+    this.qrCode = null;
+    this.connectionStatus = 'disconnected';
+    this.authPath = path.join(__dirname, '..', '.baileys_auth');
+  }
+
+  async initialize() {
+    try {
+      logger.info('🚀 Inizializzazione WhatsApp Business con BAILEYS...');
+      console.log('\n========================================');
+      console.log('📱 USANDO BAILEYS - NON WHATSAPP-WEB.JS');
+      console.log('========================================\n');
+      
+      // Crea cartella auth se non esiste
+      if (!fs.existsSync(this.authPath)) {
+        fs.mkdirSync(this.authPath, { recursive: true });
       }
-    } 
-    // Configurazione WhatsApp Business API diretta
-    else if (this.provider === 'meta' && process.env.WHATSAPP_TOKEN) {
-      this.apiUrl = 'https://graph.facebook.com/v17.0';
-      this.phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-      this.token = process.env.WHATSAPP_TOKEN;
-      this.enabled = true;
-      logger.info('WhatsApp Service: Meta API configurato');
-    }
-    // Configurazione servizi terzi (es: WhatsApp Business API providers)
-    else if (this.provider === 'waba' && process.env.WABA_API_KEY) {
-      this.apiUrl = process.env.WABA_API_URL;
-      this.apiKey = process.env.WABA_API_KEY;
-      this.enabled = true;
-      logger.info('WhatsApp Service: WABA configurato');
-    }
-    else {
-      logger.warn('WhatsApp Service: Non configurato - Messaggi simulati');
-      this.enabled = false;
+
+      // Carica stato autenticazione
+      const { state, saveCreds } = await useMultiFileAuthState(this.authPath);
+      
+      // Crea connessione WhatsApp
+      this.sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: true,
+        defaultQueryTimeoutMs: 60000,
+        browser: ['Pastificio Nonna Claudia', 'Chrome', '1.0.0']
+      });
+
+      // Gestione aggiornamento credenziali
+      this.sock.ev.on('creds.update', saveCreds);
+
+      // Gestione eventi connessione
+      this.sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
+        
+        if (qr) {
+          // Genera QR Code
+          logger.info('📱 QR Code ricevuto - SCANSIONA CON WHATSAPP!');
+          console.log('\n========================================');
+          console.log('📱 SCANSIONA IL QR CODE CON WHATSAPP');
+          console.log('========================================');
+          console.log('1. Apri WhatsApp sul telefono');
+          console.log('2. Vai su Impostazioni > Dispositivi collegati');
+          console.log('3. Tocca "Collega un dispositivo"');
+          console.log('4. Scansiona il QR code nel terminale');
+          console.log('========================================\n');
+          
+          // Salva QR per visualizzazione web
+          try {
+            this.qrCode = await qrcode.toDataURL(qr);
+          } catch (err) {
+            console.error('Errore generazione QR DataURL:', err);
+          }
+          this.connectionStatus = 'waiting_qr';
+        }
+        
+        if (connection === 'close') {
+          const shouldReconnect = (lastDisconnect?.error instanceof Boom) 
+            ? lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut
+            : true;
+            
+          logger.warn('❌ Connessione WhatsApp chiusa');
+          this.ready = false;
+          this.connectionStatus = 'disconnected';
+          
+          if (shouldReconnect) {
+            logger.info('🔄 Tentativo di riconnessione in 5 secondi...');
+            setTimeout(() => this.initialize(), 5000);
+          }
+        } else if (connection === 'open') {
+          logger.info('✅ WhatsApp CONNESSO con successo!');
+          console.log('\n🎉🎉🎉 WHATSAPP CONNESSO CON BAILEYS! 🎉🎉🎉\n');
+          this.ready = true;
+          this.qrCode = null;
+          this.connectionStatus = 'connected';
+          
+          // Notifica via socket se disponibile
+          if (global.io) {
+            global.io.emit('whatsapp:status', { connected: true });
+          }
+        }
+      });
+
+      // Gestione messaggi ricevuti
+      this.sock.ev.on('messages.upsert', async ({ messages }) => {
+        const msg = messages[0];
+        if (!msg.key.fromMe && msg.message) {
+          const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+          logger.info(`📨 Messaggio ricevuto da ${msg.key.remoteJid}: ${text}`);
+        }
+      });
+      
+      return true;
+    } catch (error) {
+      logger.error('❌ Errore inizializzazione Baileys:', error);
+      console.error('❌ ERRORE BAILEYS:', error.message);
+      this.connectionStatus = 'error';
+      return false;
     }
   }
 
-  async sendMessage({ to, message, mediaUrl = null }) {
-    if (!this.enabled) {
-      logger.info(`WhatsApp simulato a ${to}: ${message}`);
-      return { success: true, simulated: true };
-    }
+  isReady() {
+    return this.ready && this.sock !== null;
+  }
 
+  getQRCode() {
+    return this.qrCode;
+  }
+
+  getStatus() {
+    return {
+      connected: this.ready,
+      status: this.connectionStatus,
+      hasQR: this.qrCode !== null
+    };
+  }
+
+  async inviaMessaggio(numero, messaggio) {
     try {
-      let result;
-
-      switch (this.provider) {
-        case 'twilio':
-          result = await this.sendViaTwilio(to, message, mediaUrl);
-          break;
-        case 'meta':
-          result = await this.sendViaMeta(to, message, mediaUrl);
-          break;
-        case 'waba':
-          result = await this.sendViaWABA(to, message, mediaUrl);
-          break;
+      if (!this.isReady()) {
+        logger.warn('WhatsApp non connesso - messaggio non inviato');
+        throw new Error('WhatsApp Business non è connesso');
       }
 
-      logger.info(`WhatsApp inviato a ${to}`, result);
-      return { success: true, ...result };
-
+      // Formatta il numero per WhatsApp
+      let numeroFormattato = numero.replace(/\D/g, '');
+      
+      // Se è un numero italiano senza prefisso, aggiungi 39
+      if (numeroFormattato.length === 10 && !numeroFormattato.startsWith('39')) {
+        numeroFormattato = '39' + numeroFormattato;
+      }
+      
+      // Formato WhatsApp JID
+      const jid = numeroFormattato.includes('@s.whatsapp.net') 
+        ? numeroFormattato 
+        : `${numeroFormattato}@s.whatsapp.net`;
+      
+      logger.info(`📤 Invio messaggio WhatsApp a ${numero}...`);
+      
+      // Invia il messaggio
+      const result = await this.sock.sendMessage(jid, { 
+        text: messaggio 
+      });
+      
+      logger.info(`✅ Messaggio WhatsApp inviato a ${numero}`);
+      console.log(`✅ WhatsApp inviato a ${numero} - ID: ${result.key.id}`);
+      
+      return { 
+        success: true, 
+        messageId: result.key.id 
+      };
+      
     } catch (error) {
-      logger.error('Errore invio WhatsApp:', error);
+      logger.error('❌ Errore invio messaggio WhatsApp:', error);
       throw error;
     }
   }
 
-  async sendViaTwilio(to, message, mediaUrl) {
-    const messageData = {
-      body: message,
-      from: this.fromNumber,
-      to: `whatsapp:${to.replace(/\D/g, '')}`
-    };
+  async inviaMessaggioConTemplate(numero, templateNome, variabili = {}) {
+    try {
+      // Template di base per ordini
+      const templates = {
+        'conferma-ordine': `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
 
-    if (mediaUrl) {
-      messageData.mediaUrl = [mediaUrl];
-    }
+✨ *ORDINE CONFERMATO* ✨
 
-    const result = await this.client.messages.create(messageData);
-    return { messageId: result.sid, status: result.status };
-  }
+Gentile {{nomeCliente}},
+grazie per aver scelto i nostri prodotti artigianali!
 
-  async sendViaMeta(to, message, mediaUrl) {
-    const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
-    
-    const data = {
-      messaging_product: 'whatsapp',
-      to: to.replace(/\D/g, ''),
-      type: mediaUrl ? 'image' : 'text'
-    };
+📋 *RIEPILOGO ORDINE:*
+{{prodotti}}
 
-    if (mediaUrl) {
-      data.image = { link: mediaUrl };
-    } else {
-      data.text = { body: message };
-    }
+💰 *TOTALE:* €{{totale}}
 
-    const response = await axios.post(url, data, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+📅 *RITIRO:* {{dataRitiro}}
+⏰ *ORA:* {{oraRitiro}}
+📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
 
-    return { messageId: response.data.messages[0].id };
-  }
+{{note}}
 
-  async sendViaWABA(to, message, mediaUrl) {
-    // Implementazione per provider WABA specifico
-    const response = await axios.post(`${this.apiUrl}/send`, {
-      to: to.replace(/\D/g, ''),
-      message: message,
-      media_url: mediaUrl
-    }, {
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
+📞 *INFO:* 389 887 9833
+📱 *WhatsApp:* 389 887 9833
 
-    return { messageId: response.data.id };
-  }
+Grazie e a presto! 😊
+_Pastificio Nonna Claudia_`,
 
-  // Invia template pre-approvati (per WhatsApp Business)
-  async sendTemplate({ to, templateName, params = [] }) {
-    if (!this.enabled) {
-      logger.info(`WhatsApp Template simulato a ${to}: ${templateName}`);
-      return { success: true, simulated: true };
-    }
+        'promemoria-giorno-prima': `🍝 *PROMEMORIA ORDINE* 🍝
 
-    if (this.provider === 'meta') {
-      const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
+Ciao {{nomeCliente}}! 👋
+
+Ti ricordiamo che domani potrai ritirare il tuo ordine:
+
+📅 *{{dataRitiro}}*
+⏰ *Ore {{oraRitiro}}*
+📍 Via Carmine 20/B, Assemini (CA)
+
+*I tuoi prodotti:*
+{{prodottiBreve}}
+
+Ti aspettiamo! 😊`,
+
+        'ordine-pronto': `🍝 *ORDINE PRONTO!* 🍝
+
+{{nomeCliente}}, il tuo ordine è *PRONTO* per il ritiro! 🎉
+
+⏰ Ti aspettiamo alle *{{oraRitiro}}*
+📍 Via Carmine 20/B, Assemini (CA)
+
+Buon appetito! 🍽️`,
+
+        'promemoria': `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
+
+Promemoria: domani è previsto il ritiro del suo ordine.
+
+📅 {{dataRitiro}} alle {{oraRitiro}}
+📍 Via Carmine 20/B, Assemini (CA)
+
+A domani! 😊`
+      };
       
-      const data = {
-        messaging_product: 'whatsapp',
-        to: to.replace(/\D/g, ''),
-        type: 'template',
-        template: {
-          name: templateName,
-          language: { code: 'it' },
-          components: params.length > 0 ? [{
-            type: 'body',
-            parameters: params.map(p => ({ type: 'text', text: p }))
-          }] : []
-        }
-      };
-
-      const response = await axios.post(url, data, {
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json'
-        }
+      let messaggio = templates[templateNome] || templates['conferma-ordine'];
+      
+      // Sostituisci le variabili
+      Object.keys(variabili).forEach(key => {
+        const regex = new RegExp(`{{${key}}}`, 'g');
+        messaggio = messaggio.replace(regex, variabili[key] || '');
       });
+      
+      // Invia il messaggio
+      return await this.inviaMessaggio(numero, messaggio);
+    } catch (error) {
+      logger.error('Errore invio messaggio con template:', error);
+      throw error;
+    }
+  }
 
-      return { 
-        success: true, 
-        messageId: response.data.messages[0].id 
+  async inviaMessaggioBroadcast(numeri, messaggio, options = {}) {
+    const risultati = [];
+    const { delay = 2000, continueOnError = true } = options;
+    
+    for (const numero of numeri) {
+      try {
+        const result = await this.inviaMessaggio(numero, messaggio);
+        risultati.push({ numero, success: true, result });
+        
+        // Delay tra messaggi per evitare ban
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        logger.error(`Errore invio a ${numero}:`, error);
+        risultati.push({ numero, success: false, error: error.message });
+        
+        if (!continueOnError) {
+          break;
+        }
+      }
+    }
+    
+    return risultati;
+  }
+
+  async verificaNumero(numero) {
+    try {
+      if (!this.isReady()) {
+        throw new Error('WhatsApp non è connesso');
+      }
+      
+      // Formatta il numero
+      let numeroFormattato = numero.replace(/\D/g, '');
+      if (numeroFormattato.length === 10 && !numeroFormattato.startsWith('39')) {
+        numeroFormattato = '39' + numeroFormattato;
+      }
+      
+      const jid = `${numeroFormattato}@s.whatsapp.net`;
+      
+      // Verifica se il numero esiste su WhatsApp
+      const [result] = await this.sock.onWhatsApp(jid);
+      
+      return {
+        numero: numero,
+        numeroFormattato: numeroFormattato,
+        registrato: result?.exists || false
+      };
+    } catch (error) {
+      logger.error('Errore verifica numero:', error);
+      throw error;
+    }
+  }
+
+  async getInfo() {
+    try {
+      if (!this.isReady()) {
+        return {
+          connected: false,
+          status: this.connectionStatus
+        };
+      }
+      
+      const user = this.sock.user;
+      return {
+        connected: true,
+        status: this.connectionStatus,
+        info: {
+          phoneNumber: user?.id?.split('@')[0],
+          name: user?.name || 'Pastificio Nonna Claudia'
+        }
+      };
+    } catch (error) {
+      logger.error('Errore recupero info WhatsApp:', error);
+      return {
+        connected: false,
+        status: 'error',
+        error: error.message
       };
     }
-
-    // Per altri provider, usa il messaggio normale
-    return this.sendMessage({ to, message: `Template: ${templateName}` });
   }
 
-  // Invia menu interattivo
-  async sendInteractiveMenu({ to, header, body, buttons }) {
-    if (!this.enabled || this.provider !== 'meta') {
-      return this.sendMessage({ to, message: body });
-    }
-
-    const url = `${this.apiUrl}/${this.phoneNumberId}/messages`;
-    
-    const data = {
-      messaging_product: 'whatsapp',
-      to: to.replace(/\D/g, ''),
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        header: { type: 'text', text: header },
-        body: { text: body },
-        action: {
-          buttons: buttons.map((btn, idx) => ({
-            type: 'reply',
-            reply: {
-              id: `btn_${idx}`,
-              title: btn.text
-            }
-          }))
-        }
+  disconnect() {
+    try {
+      if (this.sock) {
+        this.sock.end();
+        this.sock = null;
       }
-    };
-
-    const response = await axios.post(url, data, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    return { 
-      success: true, 
-      messageId: response.data.messages[0].id 
-    };
-  }
-
-  // Invia catalogo prodotti
-  async sendProductCatalog({ to, products }) {
-    const message = products.map(p => 
-      `*${p.nome}*\n${p.descrizione}\nPrezzo: €${p.prezzo}`
-    ).join('\n\n');
-
-    return this.sendMessage({ to, message });
-  }
-
-  // Verifica se il numero ha WhatsApp
-  async checkWhatsApp(phoneNumber) {
-    if (!this.enabled) {
-      return { hasWhatsApp: true, simulated: true };
+      this.ready = false;
+      this.qrCode = null;
+      this.connectionStatus = 'disconnected';
+      logger.info('WhatsApp disconnesso');
+    } catch (error) {
+      logger.error('Errore disconnessione WhatsApp:', error);
     }
-
-    // Implementazione dipende dal provider
-    // Per ora assumiamo che tutti i numeri abbiano WhatsApp
-    return { hasWhatsApp: true };
   }
 
-  // Gestione webhook per risposte
-  async handleWebhook(data) {
-    logger.info('WhatsApp webhook ricevuto:', data);
-    
-    // Gestisci le risposte dei clienti
-    if (data.messages) {
-      for (const message of data.messages) {
-        // Emetti evento per gestire la risposta
-        if (global.io) {
-          global.io.emit('whatsapp:messaggio_ricevuto', {
-            from: message.from,
-            text: message.text?.body,
-            timestamp: message.timestamp
-          });
-        }
-      }
-    }
-
-    return { success: true };
+  async restart() {
+    logger.info('Riavvio WhatsApp...');
+    this.disconnect();
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return await this.initialize();
   }
 }
 
-export default new WhatsAppService();
+// Esporta l'istanza singleton
+const whatsappService = new WhatsAppService();
+
+// Esporta anche le funzioni direttamente per compatibilità
+export const getQRCode = () => whatsappService.getQRCode();
+export const getStatus = () => whatsappService.getStatus();
+export const inviaMessaggio = (numero, messaggio) => whatsappService.inviaMessaggio(numero, messaggio);
+export const inviaMessaggioConTemplate = (numero, template, variabili) => 
+  whatsappService.inviaMessaggioConTemplate(numero, template, variabili);
+export const inviaMessaggioBroadcast = (numeri, messaggio, options) => 
+  whatsappService.inviaMessaggioBroadcast(numeri, messaggio, options);
+export const verificaNumero = (numero) => whatsappService.verificaNumero(numero);
+export const getInfo = () => whatsappService.getInfo();
+export const initialize = () => whatsappService.initialize();
+export const disconnect = () => whatsappService.disconnect();
+export const restart = () => whatsappService.restart();
+export const isReady = () => whatsappService.isReady();
+
+export default whatsappService;

@@ -7,7 +7,8 @@ import { useSearchParams } from 'next/navigation';
 import { 
   Box, Container, Grid, Paper, Typography, 
   Snackbar, Alert, CircularProgress, IconButton, Chip, Button,
-  LinearProgress, Badge, Menu, MenuItem, Divider
+  LinearProgress, Badge, Menu, MenuItem, Divider, Dialog, DialogTitle, 
+  DialogContent, DialogActions
 } from '@mui/material';
 import { 
   Wifi as WifiIcon,
@@ -28,13 +29,15 @@ import {
   Sync as SyncIcon,
   SyncDisabled as SyncDisabledIcon,
   Storage as StorageIcon,
-  Speed as SpeedIcon
+  Speed as SpeedIcon,
+  ListAlt as ListAltIcon // NUOVO: Icona per Riepilogo
 } from '@mui/icons-material';
 
 // Importa i componenti esistenti
 import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
+import RiepilogoGiornaliero from './RiepilogoGiornaliero'; // COMPONENTE RIEPILOGO
 
 // NUOVO: Importa il widget statistiche
 import StatisticheWidget from './widgets/StatisticheWidget';
@@ -51,38 +54,39 @@ import '../styles/modern-theme.css';
 // Prodotti direttamente nel file per evitare errori di import
 const prodottiDisponibili = {
   dolci: [
-    { nome: "Pardulas", prezzo: 18.00, unita: "Kg", descrizione: "Dolci tradizionali sardi con ricotta e zafferano" },
-    { nome: "Amaretti", prezzo: 20.00, unita: "Kg", descrizione: "Biscotti alle mandorle amare" },
-    { nome: "Papassinas", prezzo: 20.00, unita: "Kg", descrizione: "Biscotti tradizionali sardi" },
-    { nome: "Ciambelle con marmellata", prezzo: 16.00, unita: "Kg", descrizione: "Ciambelle dolci con marmellata" },
-    { nome: "Ciambelle con Nutella", prezzo: 16.00, unita: "Kg", descrizione: "Ciambelle dolci con Nutella" },
-    { nome: "Crostate", prezzo: 20.00, unita: "Kg", descrizione: "Crostate con marmellata" },
-    { nome: "Cantucci", prezzo: 22.00, unita: "Kg", descrizione: "Biscotti secchi alle mandorle" },
-    { nome: "Bianchini", prezzo: 15.00, unita: "Kg", descrizione: "Dolci tradizionali sardi" },
-    { nome: "Gueffus", prezzo: 20.00, unita: "Kg", descrizione: "Dolci tradizionali sardi" },
-    { nome: "Zeppole", prezzo: 20.00, unita: "Kg", descrizione: "Zeppole tradizionali" },
-    { nome: "Pizzette sfoglia", prezzo: 15.00, unita: "Kg", descrizione: "Pizzette di pasta sfoglia" },
-    { nome: "Torta di sapa", prezzo: 21.00, unita: "Kg", descrizione: "Torta tradizionale sarda con sapa" }
+    { nome: "Pardulas", prezzo: 19.00, unita: "Kg", descrizione: "Ricotta, zucchero, uova, aromi vari, farina 00, strutto, lievito" },
+    { nome: "Amaretti", prezzo: 22.00, unita: "Kg", descrizione: "Mandorle, zucchero, uova, aromi vari" },
+    { nome: "Papassinas", prezzo: 22.00, unita: "Kg", descrizione: "Farina, mandorle, uva sultanina, noci, sapa, zucchero, strutto, aromi vari, lievito" },
+    { nome: "Ciambelle con marmellata", prezzo: 16.00, unita: "Kg", descrizione: "Farina 00, zucchero, strutto, margarina vegetale, uova, passata di albicocche" },
+    { nome: "Ciambelle con Nutella", prezzo: 16.00, unita: "Kg", descrizione: "Farina, zucchero, strutto, margarina vegetale, uova, cacao, aromi vari" },
+    { nome: "Cantucci", prezzo: 23.00, unita: "Kg", descrizione: "Mandorle, farina 00, zucchero, uova, aromi vari" },
+    { nome: "Bianchini", prezzo: 15.00, unita: "Kg", descrizione: "Zucchero, uova" },
+    { nome: "Gueffus", prezzo: 22.00, unita: "Kg", descrizione: "Mandorle, zucchero, aromi vari" },
+    { nome: "Dolci misti (Pardulas, ciambelle, papassinas, amaretti, gueffus, bianchini)", prezzo: 19.00, unita: "Kg", descrizione: "Mix di dolci tradizionali" },
+    { nome: "Dolci misti (Pardulas, ciambelle)", prezzo: 17.00, unita: "Kg", descrizione: "Mix pardulas e ciambelle" },
+    { nome: "Zeppole", prezzo: 21.00, unita: "Kg", descrizione: "Farina, latte, uova, ricotta, patate, aromi vari, lievito" },
+    { nome: "Pizzette sfoglia", prezzo: 16.00, unita: "Kg", descrizione: "Farina, passata di pomodoro, strutto, capperi, lievito" },
+    { nome: "Torta di sapa", prezzo: 23.00, unita: "Kg", descrizione: "Farina, sapa, zucchero, uova, noci, mandorle, uva sultanina" }
   ],
   panadas: [
-    { nome: "Panada di anguille", prezzo: 25.00, unita: "Kg", descrizione: "Panada tradizionale con anguille" },
-    { nome: "Panada di Agnello", prezzo: 30.00, unita: "Kg", descrizione: "Panada con carne di agnello" },
-    { nome: "Panada di Maiale", prezzo: 20.00, unita: "Kg", descrizione: "Panada con carne di maiale" },
-    { nome: "Panada di Vitella", prezzo: 22.00, unita: "Kg", descrizione: "Panada con carne di vitello" },
-    { nome: "Panada di verdure", prezzo: 17.00, unita: "Kg", descrizione: "Panada vegetariana" },
-    { nome: "Panadine carne o verdura", prezzo: 0.80, unita: "unità", descrizione: "Panadine singole" }
+    { nome: "Panada di anguille", prezzo: 30.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
+    { nome: "Panada di Agnello", prezzo: 25.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
+    { nome: "Panada di Maiale", prezzo: 21.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
+    { nome: "Panada di Vitella", prezzo: 23.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
+    { nome: "Panada di verdure", prezzo: 17.00, unita: "Kg", descrizione: "Melanzane, patate e piselli (prodotto congelato)" },
+    { nome: "Panadine carne o verdura", prezzo: 0.80, unita: "unità", descrizione: "Prodotto congelato" }
   ],
   pasta: [
-    { nome: "Ravioli ricotta e zafferano", prezzo: 10.00, unita: "Kg", descrizione: "Ravioli con ricotta e zafferano" },
-    { nome: "Ravioli ricotta spinaci e zafferano", prezzo: 10.00, unita: "Kg", descrizione: "Ravioli con ricotta, spinaci e zafferano" },
-    { nome: "Ravioli ricotta spinaci", prezzo: 10.00, unita: "Kg", descrizione: "Ravioli con ricotta e spinaci" },
-    { nome: "Ravioli ricotta dolci", prezzo: 10.00, unita: "Kg", descrizione: "Ravioli dolci con ricotta" },
-    { nome: "Culurgiones", prezzo: 14.00, unita: "Kg", descrizione: "Culurgiones tradizionali sardi" },
-    { nome: "Ravioli formaggio", prezzo: 15.00, unita: "Kg", descrizione: "Ravioli con formaggio" },
-    { nome: "Sfoglie per Lasagne", prezzo: 5.00, unita: "Kg", descrizione: "Sfoglie fresche per lasagne" },
-    { nome: "Pasta per panadas", prezzo: 4.50, unita: "Kg", descrizione: "Pasta fresca per panadas" },
-    { nome: "Pasta per pizza", prezzo: 4.50, unita: "Kg", descrizione: "Pasta fresca per pizza" },
-    { nome: "Fregola", prezzo: 10.00, unita: "Kg", descrizione: "Fregola sarda tradizionale" }
+    { nome: "Ravioli ricotta e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, sale, semola, farina" },
+    { nome: "Ravioli ricotta spinaci e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, spinaci, zafferano, uova, sale, semola, farina" },
+    { nome: "Ravioli ricotta spinaci", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, spinaci, uova, sale, semola, farina" },
+    { nome: "Ravioli ricotta dolci", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, zucchero, semola, farina" },
+    { nome: "Culurgiones", prezzo: 16.00, unita: "Kg", descrizione: "Patate, formaggio, aglio, menta, olio extra vergine, sale, semola, farina" },
+    { nome: "Ravioli formaggio", prezzo: 16.00, unita: "Kg", descrizione: "Formaggio pecorino, spinaci, uova, sale, semola, farina" },
+    { nome: "Sfoglie per Lasagne", prezzo: 5.00, unita: "Kg", descrizione: "Semola, farina, uova, sale" },
+    { nome: "Pasta per panadas", prezzo: 5.00, unita: "Kg", descrizione: "Semola, farina, strutto naturale, sale" },
+    { nome: "Pasta per pizza", prezzo: 5.00, unita: "Kg", descrizione: "Farina, latte, olio, lievito, sale" },
+    { nome: "Fregola", prezzo: 10.00, unita: "Kg", descrizione: "Semola, zafferano, sale" }
   ]
 };
 
@@ -103,7 +107,10 @@ export default function GestoreOrdini() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   
-  // NUOVO: Stati per funzionalità aggiuntive
+  // NUOVO: Stato per Riepilogo Giornaliero
+  const [riepilogoAperto, setRiepilogoAperto] = useState(false);
+  
+  // NUOVO: Stati per funzionalitÃ  aggiuntive
   const [menuExport, setMenuExport] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [storageUsed, setStorageUsed] = useState(0);
@@ -685,6 +692,17 @@ export default function GestoreOrdini() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <InstallPWA />
             
+            {/* NUOVO: Bottone Riepilogo Giornaliero */}
+            <Button
+              variant="contained"
+              size="small"
+              color="success"
+              startIcon={<ListAltIcon />}
+              onClick={() => setRiepilogoAperto(true)}
+            >
+              Riepilogo Giornaliero
+            </Button>
+            
             {/* NUOVO: Menu Export */}
             <Button
               variant="outlined"
@@ -849,6 +867,32 @@ export default function GestoreOrdini() {
           submitInCorso={submitInCorso}
         />
       )}
+      
+      {/* NUOVO: Dialog per Riepilogo Giornaliero */}
+      <Dialog 
+        open={riepilogoAperto} 
+        onClose={() => setRiepilogoAperto(false)}
+        maxWidth="lg" 
+        fullWidth
+        PaperProps={{
+          sx: { height: '90vh' }
+        }}
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Riepilogo Giornaliero Ordini</Typography>
+            <IconButton onClick={() => setRiepilogoAperto(false)} size="small">
+              ×
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <RiepilogoGiornaliero />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRiepilogoAperto(false)}>Chiudi</Button>
+        </DialogActions>
+      </Dialog>
       
       {/* Notifiche */}
       <Snackbar

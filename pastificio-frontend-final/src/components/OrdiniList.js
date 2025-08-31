@@ -13,7 +13,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import { useRouter } from 'next/navigation';
 import IntegrationService from '@/services/integrationService';
 
 const OrdiniList = ({ 
@@ -23,7 +22,6 @@ const OrdiniList = ({
   onDateChange, 
   onNuovoOrdine,
 }) => {
-  const router = useRouter();
   const [dataFiltro, setDataFiltro] = useState(new Date().toISOString().split('T')[0]);
   const [anchorEl, setAnchorEl] = useState(null);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
@@ -48,6 +46,7 @@ const OrdiniList = ({
   // Segna ordine come pronto e invia WhatsApp
   const segnaComePronto = async (ordineId) => {
     try {
+      // Prima aggiorna lo stato dell'ordine a completato
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ordini/${ordineId}`, {
         method: 'PUT',
         headers: {
@@ -55,29 +54,48 @@ const OrdiniList = ({
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({ 
-          stato: 'completato',
-          notificaPronto: false // Questo farà scattare l'invio WhatsApp nel backend
+          stato: 'completato'
         })
       });
       
-      if (response.ok) {
-        // Aggiorna stato locale
-        const ordiniAggiornati = ordini.map(o => 
-          o._id === ordineId 
-            ? { ...o, stato: 'completato' }
-            : o
-        );
-        localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-        
-        alert('✅ Ordine segnato come pronto! WhatsApp inviato al cliente.');
-        handleMenuClose();
-        window.location.reload();
-      } else {
-        throw new Error('Errore nell\'aggiornamento');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Errore aggiornamento stato');
       }
+
+      // Poi invia la notifica WhatsApp separatamente
+      try {
+        const whatsappResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ordini/invio-ordine-pronto/${ordineId}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (whatsappResponse.ok) {
+          alert('✅ Ordine segnato come pronto e WhatsApp inviato!');
+        } else {
+          // Se WhatsApp fallisce, l'ordine è comunque stato segnato come pronto
+          alert('✅ Ordine segnato come pronto (WhatsApp non inviato - verificare il numero)');
+        }
+      } catch (whatsappError) {
+        console.error('Errore invio WhatsApp:', whatsappError);
+        alert('✅ Ordine segnato come pronto (WhatsApp non disponibile)');
+      }
+      
+      // Aggiorna la lista locale
+      const ordiniAggiornati = ordini.map(o => 
+        o._id === ordineId 
+          ? { ...o, stato: 'completato' }
+          : o
+      );
+      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+      
+      handleMenuClose();
+      window.location.reload();
     } catch (error) {
       console.error('Errore:', error);
-      alert('❌ Errore nel segnare l\'ordine come pronto');
+      alert(`❌ Errore: ${error.message}`);
     }
   };
 
@@ -91,15 +109,17 @@ const OrdiniList = ({
         }
       });
       
+      const result = await response.json();
+      
       if (response.ok) {
         alert('📱 Promemoria WhatsApp inviato con successo!');
         handleMenuClose();
       } else {
-        throw new Error('Errore nell\'invio del promemoria');
+        throw new Error(result.error || 'Errore nell\'invio del promemoria');
       }
     } catch (error) {
       console.error('Errore:', error);
-      alert('❌ Errore nell\'invio del promemoria WhatsApp');
+      alert(`❌ Errore: ${error.message}`);
     }
   };
 
@@ -124,11 +144,8 @@ const OrdiniList = ({
       alert(`Fattura ${fattura.numero} creata con successo!`);
       
       handleMenuClose();
+      window.location.reload();
       
-      // Opzionale: naviga alla fattura
-      if (confirm('Vuoi visualizzare la fattura creata?')) {
-        router.push(`/fatturazione/visualizza/${fattura.id}`);
-      }
     } catch (error) {
       console.error('Errore creazione fattura:', error);
       alert('Errore nella creazione della fattura');
@@ -145,6 +162,7 @@ const OrdiniList = ({
       return;
     }
     
+    // Per altri stati, aggiorna solo localmente
     const ordiniAggiornati = ordini.map(o => 
       o._id === ordineSelezionato._id 
         ? { ...o, stato: nuovoStato }
@@ -152,8 +170,19 @@ const OrdiniList = ({
     );
     
     localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+    
+    // Aggiorna anche sul server
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ordini/${ordineSelezionato._id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ stato: nuovoStato })
+    }).catch(error => console.error('Errore aggiornamento stato:', error));
+    
     handleMenuClose();
-    window.location.reload(); // Ricarica per aggiornare la lista
+    window.location.reload();
   };
 
   // Stampa ordine
