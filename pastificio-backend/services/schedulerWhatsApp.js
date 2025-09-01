@@ -1,7 +1,7 @@
-// services/schedulerWhatsApp.js
+// services/schedulerWhatsApp.js - VERSIONE TWILIO
 import cron from 'node-cron';
 import Ordine from '../models/Ordine.js';
-import whatsappService from './whatsappService.js';
+import twilioService from './twilioService.js';
 import logger from '../config/logger.js';
 
 class SchedulerWhatsApp {
@@ -10,7 +10,7 @@ class SchedulerWhatsApp {
   }
 
   inizializza() {
-    logger.info('🕐 Inizializzazione scheduler WhatsApp...');
+    logger.info('📅 Inizializzazione scheduler WhatsApp con Twilio...');
     
     // Promemoria giornaliero alle 18:00
     this.aggiungiJob('promemoria-giorno-prima', '0 18 * * *', this.inviaPromemoriaDomani);
@@ -21,11 +21,7 @@ class SchedulerWhatsApp {
     // Report giornaliero alle 20:00
     this.aggiungiJob('report-giornaliero', '0 20 * * *', this.inviaReportGiornaliero);
     
-    // Auguri festività (esempio Natale)
-    this.aggiungiJob('auguri-natale', '0 9 25 12 *', () => this.inviaAuguriFestivita('Natale'));
-    this.aggiungiJob('auguri-pasqua', '0 9 1 4 *', () => this.inviaAuguriFestivita('Pasqua'));
-    
-    logger.info('✅ Scheduler WhatsApp attivato');
+    logger.info('✅ Scheduler WhatsApp Twilio attivato');
   }
 
   aggiungiJob(nome, cronExpression, funzione) {
@@ -42,7 +38,6 @@ class SchedulerWhatsApp {
     logger.info(`📅 Job schedulato: ${nome} - ${cronExpression}`);
   }
 
-  // Invia promemoria per ordini di domani
   async inviaPromemoriaDomani() {
     try {
       logger.info('🔔 Invio promemoria per ordini di domani...');
@@ -67,25 +62,19 @@ class SchedulerWhatsApp {
       for (const ordine of ordiniDomani) {
         if (ordine.telefono) {
           try {
-            const prodottiBreve = ordine.prodotti
-              .slice(0, 3)
-              .map(p => `• ${p.nome}`)
-              .join('\n');
-            
-            await whatsappService.inviaMessaggioConTemplate(
+            await twilioService.inviaMessaggioConTemplate(
               ordine.telefono,
-              'promemoria-giorno-prima',
+              'promemoria',
               {
                 nomeCliente: ordine.nomeCliente,
                 dataRitiro: domani.toLocaleDateString('it-IT'),
-                oraRitiro: ordine.oraRitiro,
-                prodottiBreve: prodottiBreve + (ordine.prodotti.length > 3 ? '\n• ...' : '')
+                oraRitiro: ordine.oraRitiro
               }
             );
             
-            logger.info(`✅ Promemoria inviato a ${ordine.nomeCliente}`);
+            logger.info(`✅ Promemoria Twilio inviato a ${ordine.nomeCliente}`);
             
-            // Pausa tra messaggi per evitare ban
+            // Pausa tra messaggi per evitare rate limits
             await new Promise(resolve => setTimeout(resolve, 3000));
           } catch (error) {
             logger.error(`Errore invio promemoria a ${ordine.nomeCliente}:`, error);
@@ -99,7 +88,6 @@ class SchedulerWhatsApp {
     }
   }
 
-  // Check ordini pronti (da chiamare manualmente quando un ordine è pronto)
   async checkOrdiniPronti() {
     try {
       const oggi = new Date();
@@ -119,7 +107,7 @@ class SchedulerWhatsApp {
       for (const ordine of ordiniOggi) {
         if (ordine.telefono) {
           try {
-            await whatsappService.inviaMessaggioConTemplate(
+            await twilioService.inviaMessaggioConTemplate(
               ordine.telefono,
               'ordine-pronto',
               {
@@ -128,11 +116,10 @@ class SchedulerWhatsApp {
               }
             );
             
-            // Marca come notificato
             ordine.notificaPronto = true;
             await ordine.save();
             
-            logger.info(`✅ Notifica ordine pronto inviata a ${ordine.nomeCliente}`);
+            logger.info(`✅ Notifica ordine pronto inviata con Twilio a ${ordine.nomeCliente}`);
             
             await new Promise(resolve => setTimeout(resolve, 3000));
           } catch (error) {
@@ -145,17 +132,15 @@ class SchedulerWhatsApp {
     }
   }
 
-  // Invia report giornaliero al proprietario
   async inviaReportGiornaliero() {
     try {
-      const NUMERO_PROPRIETARIO = '3898879833'; // Il tuo numero
+      const NUMERO_PROPRIETARIO = process.env.OWNER_PHONE || '3898879833';
       
       const oggi = new Date();
       oggi.setHours(0, 0, 0, 0);
       const domani = new Date(oggi);
       domani.setDate(domani.getDate() + 1);
       
-      // Statistiche del giorno
       const ordiniOggi = await Ordine.find({
         dataRitiro: {
           $gte: oggi,
@@ -165,126 +150,25 @@ class SchedulerWhatsApp {
       
       const totaleOrdini = ordiniOggi.length;
       const ordiniCompletati = ordiniOggi.filter(o => o.stato === 'completato').length;
-      const ordiniAnnullati = ordiniOggi.filter(o => o.stato === 'annullato').length;
       const totaleIncasso = ordiniOggi
         .filter(o => o.stato !== 'annullato')
         .reduce((sum, o) => sum + (o.totale || 0), 0);
       
-      // Prodotti più venduti
-      const prodottiVenduti = {};
-      ordiniOggi.forEach(ordine => {
-        ordine.prodotti.forEach(p => {
-          if (!prodottiVenduti[p.nome]) {
-            prodottiVenduti[p.nome] = 0;
-          }
-          prodottiVenduti[p.nome] += p.quantita;
-        });
-      });
+      const messaggio = `📊 *REPORT GIORNALIERO*\n` +
+        `${oggi.toLocaleDateString('it-IT')}\n\n` +
+        `📦 Ordini: ${totaleOrdini}\n` +
+        `✅ Completati: ${ordiniCompletati}\n` +
+        `💰 Incasso: €${totaleIncasso.toFixed(2)}\n\n` +
+        `Sistema: Twilio WhatsApp Business`;
       
-      const topProdotti = Object.entries(prodottiVenduti)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([nome, qty]) => `• ${nome}: ${qty}`)
-        .join('\n');
-      
-      const messaggio = `📊 *REPORT GIORNALIERO* 📊
-${oggi.toLocaleDateString('it-IT')}
-
-📦 *ORDINI:*
-- Totali: ${totaleOrdini}
-- Completati: ${ordiniCompletati}
-- Annullati: ${ordiniAnnullati}
-
-💰 *INCASSO:* €${totaleIncasso.toFixed(2)}
-
-🏆 *TOP PRODOTTI:*
-${topProdotti || 'Nessuno'}
-
-📅 *ORDINI DOMANI:* ${await this.contaOrdiniDomani()}
-
-Buon lavoro! 💪`;
-      
-      await whatsappService.inviaMessaggio(NUMERO_PROPRIETARIO, messaggio);
-      logger.info('✅ Report giornaliero inviato');
+      await twilioService.inviaMessaggio(NUMERO_PROPRIETARIO, messaggio);
+      logger.info('✅ Report giornaliero inviato con Twilio');
       
     } catch (error) {
       logger.error('Errore invio report:', error);
     }
   }
 
-  async contaOrdiniDomani() {
-    const domani = new Date();
-    domani.setDate(domani.getDate() + 1);
-    domani.setHours(0, 0, 0, 0);
-    const dopodomani = new Date(domani);
-    dopodomani.setDate(dopodomani.getDate() + 1);
-    
-    const count = await Ordine.countDocuments({
-      dataRitiro: {
-        $gte: domani,
-        $lt: dopodomani
-      },
-      stato: { $ne: 'annullato' }
-    });
-    
-    return count;
-  }
-
-  // Invia auguri per festività
-  async inviaAuguriFestivita(festivita) {
-    try {
-      const messaggi = {
-        'Natale': {
-          messaggio: 'In questo magico Natale, vogliamo ringraziarti per la fiducia che ci hai accordato durante l\'anno.',
-          auguri: 'Buon Natale e Felice Anno Nuovo'
-        },
-        'Pasqua': {
-          messaggio: 'La Pasqua è rinascita e speranza. Grazie per essere parte della nostra famiglia.',
-          auguri: 'Buona Pasqua'
-        }
-      };
-      
-      const festivitaData = messaggi[festivita];
-      if (!festivitaData) return;
-      
-      // Prendi clienti attivi (con ordini negli ultimi 3 mesi)
-      const treMesiFa = new Date();
-      treMesiFa.setMonth(treMesiFa.getMonth() - 3);
-      
-      const clientiAttivi = await Ordine.distinct('telefono', {
-        createdAt: { $gte: treMesiFa }
-      });
-      
-      logger.info(`🎄 Invio auguri ${festivita} a ${clientiAttivi.length} clienti`);
-      
-      for (const telefono of clientiAttivi) {
-        const ordine = await Ordine.findOne({ telefono }).sort('-createdAt');
-        if (ordine) {
-          try {
-            await whatsappService.inviaMessaggioConTemplate(
-              telefono,
-              'auguri-festivita',
-              {
-                nomeCliente: ordine.nomeCliente,
-                messaggioFestivita: festivitaData.messaggio,
-                auguri: festivitaData.auguri
-              }
-            );
-            
-            await new Promise(resolve => setTimeout(resolve, 5000));
-          } catch (error) {
-            logger.error(`Errore invio auguri a ${telefono}:`, error);
-          }
-        }
-      }
-      
-      logger.info(`✅ Auguri ${festivita} completati`);
-    } catch (error) {
-      logger.error('Errore invio auguri:', error);
-    }
-  }
-
-  // Ferma tutti i job
   ferma() {
     this.jobs.forEach((job, nome) => {
       job.stop();

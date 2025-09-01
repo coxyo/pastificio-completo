@@ -1,6 +1,7 @@
-// pastificio-backend/services/notificationService.js
+// services/NotificationService.js - VERSIONE TWILIO
 import nodemailer from 'nodemailer';
 import logger from '../config/logger.js';
+import twilioService from './twilioService.js';
 
 class NotificationService {
   constructor() {
@@ -31,7 +32,6 @@ class NotificationService {
         }
       });
       
-      // Verifica la configurazione
       this.transporter.verify((error, success) => {
         if (error) {
           logger.error('Errore verifica configurazione email:', error);
@@ -78,7 +78,20 @@ class NotificationService {
       });
     }
     
-    // Qui potresti aggiungere l'invio email
+    // Invia WhatsApp con Twilio
+    if (order.telefono) {
+      try {
+        const messaggio = `🍝 Nuovo ordine ricevuto!\n\n` +
+          `Cliente: ${order.nomeCliente}\n` +
+          `Ritiro: ${new Date(order.dataRitiro).toLocaleDateString('it-IT')} alle ${order.oraRitiro}\n` +
+          `Totale: €${order.totale}`;
+        
+        await twilioService.inviaMessaggio(order.telefono, messaggio);
+        logger.info('WhatsApp nuovo ordine inviato con Twilio');
+      } catch (error) {
+        logger.error('Errore invio WhatsApp:', error);
+      }
+    }
   }
 
   async notifyOrderUpdate(order, action) {
@@ -103,7 +116,18 @@ class NotificationService {
       });
     }
     
-    // Qui potresti aggiungere l'invio email
+    // Notifica al proprietario via WhatsApp
+    const NUMERO_PROPRIETARIO = process.env.OWNER_PHONE || '3898879833';
+    try {
+      const messaggio = ⚠️ *SCORTE BASSE*\n\n` +
+        `Prodotto: ${product.nome}\n` +
+        `Quantità attuale: ${product.quantitaAttuale} ${product.unitaMisura}\n` +
+        `Scorta minima: ${product.scortaMinima}`;
+      
+      await twilioService.inviaMessaggio(NUMERO_PROPRIETARIO, messaggio);
+    } catch (error) {
+      logger.error('Errore invio notifica scorte:', error);
+    }
   }
 
   async notifyExpiringProducts(products) {
@@ -122,6 +146,12 @@ class NotificationService {
     
     try {
       // Qui implementerai la logica per il report giornaliero
+      const NUMERO_PROPRIETARIO = process.env.OWNER_PHONE || '3898879833';
+      const messaggio = `📊 *REPORT GIORNALIERO*\n\n` +
+        `Data: ${new Date().toLocaleDateString('it-IT')}\n\n` +
+        `Sistema operativo con Twilio WhatsApp Business`;
+      
+      await twilioService.inviaMessaggio(NUMERO_PROPRIETARIO, messaggio);
       logger.info('Report giornaliero inviato con successo');
     } catch (error) {
       logger.error('Errore invio report giornaliero:', error);
@@ -137,11 +167,8 @@ class NotificationService {
         timestamp: new Date()
       });
     }
-    
-    // Qui potresti aggiungere l'invio email
   }
 }
 
-// Esporta un'istanza singleton
 const notificationService = new NotificationService();
 export default notificationService;

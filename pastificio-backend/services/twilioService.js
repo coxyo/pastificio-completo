@@ -1,11 +1,32 @@
-const twilio = require('twilio');
+// services/twilioService.js
+import twilio from 'twilio';
+import logger from '../config/logger.js';
 
 class TwilioService {
   constructor() {
-    this.accountSid = process.env.TWILIO_ACCOUNT_SID;
-    this.authToken = process.env.TWILIO_AUTH_TOKEN;
+    this.accountSid = process.env.TWILIO_ACCOUNT_SID || 'ACb3be7d8f44ad3333a326ec2e43aac57b5';
+    this.authToken = process.env.TWILIO_AUTH_TOKEN || '8ee0ca191092c20d015e03cdea3b9621';
     this.client = twilio(this.accountSid, this.authToken);
-    this.fromNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+    this.fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886';
+    this.ready = true; // Twilio è sempre pronto se le credenziali sono valide
+  }
+
+  isReady() {
+    return this.ready;
+  }
+
+  getStatus() {
+    return {
+      connected: true,
+      status: 'twilio_active',
+      provider: 'Twilio'
+    };
+  }
+
+  async initialize() {
+    // Con Twilio non serve inizializzazione
+    logger.info('Twilio WhatsApp Service inizializzato');
+    return true;
   }
 
   async inviaMessaggio(telefono, messaggio) {
@@ -21,40 +42,106 @@ class TwilioService {
         body: messaggio
       });
       
-      console.log('✅ Messaggio Twilio inviato:', result.sid);
+      logger.info(`✅ Messaggio Twilio inviato: ${result.sid}`);
       return { success: true, messageId: result.sid };
     } catch (error) {
-      console.error('❌ Errore Twilio:', error.message);
-      return { success: false, error: error.message };
+      logger.error('❌ Errore Twilio:', error.message);
+      throw error;
     }
   }
 
-  async inviaConfermaOrdine(ordine) {
-    const messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA*\n\n` +
-      `✅ Ordine Confermato!\n\n` +
-      `👤 Cliente: ${ordine.nomeCliente}\n` +
-      `📦 Prodotti: ${ordine.prodotti.map(p => `${p.nome} x${p.quantita}`).join(', ')}\n` +
-      `💰 Totale: €${ordine.totale}\n` +
-      `📅 Ritiro: ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n` +
-      `⏰ Ora: ${ordine.oraRitiro}\n\n` +
-      `📍 Via Carmine 20/B, Assemini (CA)\n` +
-      `📞 389 887 9833\n\n` +
-      `_Messaggio inviato con Twilio WhatsApp Business_`;
+  async inviaMessaggioConTemplate(numero, templateNome, variabili = {}) {
+    const templates = {
+      'conferma-ordine': `🍝 *PASTIFICIO NONNA CLAUDIA*
+
+✅ *ORDINE CONFERMATO*
+
+Cliente: {{nomeCliente}}
+Data: {{dataRitiro}}
+Ora: {{oraRitiro}}
+
+Prodotti:
+{{prodotti}}
+
+💰 Totale: €{{totale}}
+
+📍 Via Carmine 20/B, Assemini
+📞 389 887 9833
+
+{{note}}`,
+
+      'promemoria': `🔔 *PROMEMORIA RITIRO*
+
+Ciao {{nomeCliente}}!
+Ti ricordiamo il tuo ordine:
+
+📅 {{dataRitiro}}
+⏰ Ore {{oraRitiro}}
+
+Ti aspettiamo!`,
+
+      'ordine-pronto': `✅ *ORDINE PRONTO!*
+
+{{nomeCliente}}, il tuo ordine è pronto!
+
+⏰ Ti aspettiamo alle {{oraRitiro}}
+📍 Via Carmine 20/B, Assemini`
+    };
     
-    return this.inviaMessaggio(ordine.telefono, messaggio);
+    let messaggio = templates[templateNome] || templates['conferma-ordine'];
+    
+    Object.keys(variabili).forEach(key => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      messaggio = messaggio.replace(regex, variabili[key] || '');
+    });
+    
+    return await this.inviaMessaggio(numero, messaggio);
   }
 
-  async inviaPromemoria(ordine) {
-    const messaggio = `🔔 *PROMEMORIA RITIRO*\n\n` +
-      `Ciao ${ordine.nomeCliente}!\n` +
-      `Ti ricordiamo il ritiro del tuo ordine:\n\n` +
-      `📅 Domani ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n` +
-      `⏰ Ore ${ordine.oraRitiro}\n` +
-      `📍 Via Carmine 20/B, Assemini\n\n` +
-      `A domani! 😊`;
+  async inviaMessaggioBroadcast(numeri, messaggio, options = {}) {
+    const risultati = [];
+    const { delay = 2000 } = options;
     
-    return this.inviaMessaggio(ordine.telefono, messaggio);
+    for (const numero of numeri) {
+      try {
+        const result = await this.inviaMessaggio(numero, messaggio);
+        risultati.push({ numero, success: true, result });
+        
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        risultati.push({ numero, success: false, error: error.message });
+      }
+    }
+    
+    return risultati;
+  }
+
+  async getInfo() {
+    return {
+      connected: true,
+      status: 'twilio_active',
+      info: {
+        provider: 'Twilio WhatsApp Business',
+        accountSid: this.accountSid.substring(0, 10) + '...',
+        fromNumber: this.fromNumber
+      }
+    };
+  }
+
+  disconnect() {
+    // Con Twilio non serve disconnessione
+    logger.info('Twilio service - disconnect chiamato (non necessario)');
+  }
+
+  restart() {
+    // Con Twilio non serve restart
+    logger.info('Twilio service - restart chiamato (non necessario)');
+    return Promise.resolve(true);
   }
 }
 
-module.exports = new TwilioService();
+const twilioService = new TwilioService();
+
+export default twilioService;

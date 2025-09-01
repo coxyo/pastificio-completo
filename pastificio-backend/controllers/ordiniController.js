@@ -1,10 +1,10 @@
-// controllers/ordiniController.js
+// controllers/ordiniController.js - VERSIONE TWILIO
 import { AppError } from '../middleware/errorHandler.js';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 import mongoose from 'mongoose';
-import whatsappService from '../services/whatsappService.js';
+import twilioService from '../services/twilioService.js';
 
 export const ordiniController = {
   async creaOrdine(req, res) {
@@ -15,7 +15,6 @@ export const ordiniController = {
           telefono: req.body.telefono 
         });
 
-        // Se non esiste, crea un nuovo cliente
         if (!cliente && req.body.nomeCliente) {
           const [nome, ...cognomeParts] = req.body.nomeCliente.split(' ');
           cliente = await Cliente.create({
@@ -43,44 +42,28 @@ export const ordiniController = {
       await ordine.save();
       logger.info(`Nuovo ordine creato: ${ordine._id}`);
       
-      // Popola i dati del cliente se presente
       if (ordine.cliente) {
         await ordine.populate('cliente');
       }
 
-      // Invia WhatsApp automatico se il cliente ha un numero
-      if (ordine.cliente && ordine.cliente.telefono) {
+      // Invia WhatsApp con Twilio
+      if (ordine.telefono || (ordine.cliente && ordine.cliente.telefono)) {
         try {
-          const messaggioOrdine = `
-🎉 *Ordine Confermato!*
-
-Ciao ${ordine.cliente.nome || ordine.nomeCliente},
-Il tuo ordine #${ordine.numeroOrdine} è stato ricevuto!
-
-📅 *Data ritiro:* ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
-⏰ *Ora:* ${ordine.oraRitiro}
-
-📦 *Prodotti ordinati:*
-${ordine.prodotti.map(p => `• ${p.nome}: ${p.quantita} ${p.unitaMisura} - €${p.prezzo}`).join('\n')}
-
-💰 *Totale:* €${ordine.totale}
-
-${ordine.note ? `📝 Note: ${ordine.note}` : ''}
-
-Ti invieremo un promemoria il giorno prima del ritiro.
-
-Grazie per aver scelto il nostro pastificio! 🍝
-          `.trim();
+          const telefono = ordine.telefono || ordine.cliente.telefono;
+          const messaggioOrdine = `🍝 *PASTIFICIO NONNA CLAUDIA*\n\n` +
+            `✅ Ordine #${ordine.numeroOrdine} Confermato!\n\n` +
+            `Cliente: ${ordine.nomeCliente || ordine.cliente.nome}\n` +
+            `Data: ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n` +
+            `Ora: ${ordine.oraRitiro}\n\n` +
+            `Prodotti:\n${ordine.prodotti.map(p => `• ${p.nome}: ${p.quantita} ${p.unitaMisura}`).join('\n')}\n\n` +
+            `💰 Totale: €${ordine.totale}\n` +
+            `${ordine.note ? `\n📝 Note: ${ordine.note}` : ''}\n\n` +
+            `📍 Via Carmine 20/B, Assemini`;
           
-          await whatsappService.inviaMessaggio(
-            ordine.cliente.telefono,
-            messaggioOrdine
-          );
-          
-          logger.info(`WhatsApp inviato per ordine ${ordine.numeroOrdine}`);
+          await twilioService.inviaMessaggio(telefono, messaggioOrdine);
+          logger.info(`WhatsApp Twilio inviato per ordine ${ordine.numeroOrdine}`);
         } catch (whatsappError) {
-          // Non bloccare la creazione dell'ordine se WhatsApp fallisce
-          logger.error('Errore invio WhatsApp:', whatsappError);
+          logger.error('Errore invio WhatsApp Twilio:', whatsappError);
         }
       }
 
@@ -123,7 +106,6 @@ Grazie per aver scelto il nostro pastificio! 🍝
 
     let query = {};
     
-    // Filtri
     if (req.query.data) {
       const dataInizio = new Date(req.query.data);
       dataInizio.setHours(0, 0, 0, 0);
@@ -200,23 +182,20 @@ Grazie per aver scelto il nostro pastificio! 🍝
       { new: true, runValidators: true }
     ).populate('cliente');
 
-    // Se lo stato è cambiato a "pronto", invia notifica WhatsApp
-    if (ordineOriginale.stato !== 'pronto' && ordine.stato === 'pronto' && ordine.cliente?.telefono) {
-      try {
-        const messaggio = `
-✅ *Ordine Pronto!*
-
-${ordine.cliente.nome}, il tuo ordine #${ordine.numeroOrdine} è pronto per il ritiro!
-
-Puoi venire a ritirarlo negli orari di apertura.
-
-Grazie! 🙏
-        `.trim();
-        
-        await whatsappService.inviaMessaggio(ordine.cliente.telefono, messaggio);
-        logger.info(`Notifica ordine pronto inviata per #${ordine.numeroOrdine}`);
-      } catch (error) {
-        logger.error('Errore invio notifica ordine pronto:', error);
+    // Se lo stato è cambiato a "pronto", invia notifica con Twilio
+    if (ordineOriginale.stato !== 'pronto' && ordine.stato === 'pronto') {
+      const telefono = ordine.telefono || ordine.cliente?.telefono;
+      if (telefono) {
+        try {
+          const messaggio = `✅ *Ordine Pronto!*\n\n` +
+            `${ordine.nomeCliente || ordine.cliente?.nome}, il tuo ordine #${ordine.numeroOrdine} è pronto per il ritiro!\n\n` +
+            `📍 Via Carmine 20/B, Assemini`;
+          
+          await twilioService.inviaMessaggio(telefono, messaggio);
+          logger.info(`Notifica ordine pronto inviata con Twilio per #${ordine.numeroOrdine}`);
+        } catch (error) {
+          logger.error('Errore invio notifica ordine pronto:', error);
+        }
       }
     }
 
@@ -310,4 +289,3 @@ Grazie! 🙏
     });
   }
 };
-
