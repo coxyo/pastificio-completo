@@ -1,4 +1,7 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
+// src/services/dashboardService.js
+import config from '../config/config.js';
+
+const API_URL = config.API_URL + '/api';
 
 class DashboardService {
   constructor() {
@@ -32,7 +35,6 @@ class DashboardService {
       return await response.json();
     } catch (error) {
       console.error('Errore dashboard service:', error);
-      // Ritorna dati mock in caso di errore
       return {
         ordiniOggi: 0,
         valoreOggi: 0,
