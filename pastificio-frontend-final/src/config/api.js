@@ -1,6 +1,6 @@
-// src/config/api.js
-export const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
-export const WS_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+﻿// src/config/api.js
+export const API_BASE_URL = 'https://pastificio-backend.onrender.com';
+export const WS_URL = 'https://pastificio-backend.onrender.com';
 
 export const API_ENDPOINTS = {
   AUTH: {
@@ -97,3 +97,4 @@ export const apiRequest = async (endpoint, options = {}) => {
     throw error;
   }
 };
+

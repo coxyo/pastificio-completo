@@ -1,4 +1,4 @@
-// services/api.js
+﻿// services/api.js
 import config from '../config/config.js';
 
 const API_URL = config.API_URL + '/api';
@@ -136,7 +136,7 @@ export const eliminaOrdine = async (id) => {
   }
 };
 
-// Export oggetto api per compatibilità
+// Export oggetto api per compatibilitÃ 
 export const api = {
   caricaOrdini,
   salvaOrdine,
@@ -147,3 +147,4 @@ export const api = {
 };
 
 export default api;
+

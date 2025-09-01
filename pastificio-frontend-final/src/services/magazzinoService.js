@@ -1,5 +1,5 @@
-// src/services/magazzinoService.js
-const API_BASE_URL = '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
+﻿// src/services/magazzinoService.js
+const API_BASE_URL = 'https://pastificio-backend.onrender.com/api';
 
 class MagazzinoService {
   async fetchWithAuth(url, options = {}) {
@@ -22,7 +22,7 @@ class MagazzinoService {
         }
       });
 
-      // Se la risposta è 404, non è un errore critico
+      // Se la risposta Ã¨ 404, non Ã¨ un errore critico
       if (response.status === 404) {
         console.log('API non trovata, uso dati offline');
         return null;
@@ -69,3 +69,4 @@ class MagazzinoService {
 }
 
 export default new MagazzinoService();
+

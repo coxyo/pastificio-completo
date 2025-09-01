@@ -1,4 +1,4 @@
-// components/GestoreOrdini.js
+﻿// components/GestoreOrdini.js
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -74,7 +74,7 @@ const prodottiDisponibili = {
     { nome: "Panada di Maiale", prezzo: 21.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
     { nome: "Panada di Vitella", prezzo: 23.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
     { nome: "Panada di verdure", prezzo: 17.00, unita: "Kg", descrizione: "Melanzane, patate e piselli (prodotto congelato)" },
-    { nome: "Panadine carne o verdura", prezzo: 0.80, unita: "unità", descrizione: "Prodotto congelato" }
+    { nome: "Panadine carne o verdura", prezzo: 0.80, unita: "unitÃ ", descrizione: "Prodotto congelato" }
   ],
   pasta: [
     { nome: "Ravioli ricotta e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, sale, semola, farina" },
@@ -110,7 +110,7 @@ export default function GestoreOrdini() {
   // NUOVO: Stato per Riepilogo Giornaliero
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   
-  // NUOVO: Stati per funzionalitÃ  aggiuntive
+  // NUOVO: Stati per funzionalitÃƒ  aggiuntive
   const [menuExport, setMenuExport] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [storageUsed, setStorageUsed] = useState(0);
@@ -209,11 +209,11 @@ export default function GestoreOrdini() {
   // useEffect per setup dashboard handlers
   useEffect(() => {
     const handleDashboardUpdate = (event) => {
-      console.log('📊 Dashboard update event:', event.detail);
+      console.log('ðŸ“Š Dashboard update event:', event.detail);
     };
 
     const handleDashboardRealtime = (event) => {
-      console.log('📊 Dashboard realtime update:', event.detail);
+      console.log('ðŸ“Š Dashboard realtime update:', event.detail);
     };
 
     window.addEventListener('dashboard:updated', handleDashboardUpdate);
@@ -229,18 +229,18 @@ export default function GestoreOrdini() {
   useEffect(() => {
     const initNotifications = async () => {
       try {
-        // Verifica se il servizio di notifiche è disponibile
+        // Verifica se il servizio di notifiche Ã¨ disponibile
         if (notificationService && notificationService.getPermissionStatus) {
           const status = notificationService.getPermissionStatus();
           setNotificationsEnabled(status === 'granted');
           
           if (status === 'default') {
-            console.log('🔔 Notifiche disponibili ma non ancora autorizzate');
+            console.log('ðŸ”” Notifiche disponibili ma non ancora autorizzate');
             // Non richiediamo automaticamente, aspettiamo azione utente
           }
         }
       } catch (error) {
-        console.error('❌ Errore inizializzazione notifiche:', error);
+        console.error('âŒ Errore inizializzazione notifiche:', error);
       }
     };
 
@@ -262,15 +262,15 @@ export default function GestoreOrdini() {
     };
   }, [isConnected, hasToken]);
   
-  // Effetto iniziale per setup - MODALITÀ OFFLINE
+  // Effetto iniziale per setup - MODALITÃ€ OFFLINE
   useEffect(() => {
-    console.log('🚀 Inizializzazione GestoreOrdini - MODALITÀ OFFLINE');
+    console.log('ðŸš€ Inizializzazione GestoreOrdini - MODALITÃ€ OFFLINE');
     
-    // SEMPRE MODALITÀ OFFLINE
+    // SEMPRE MODALITÃ€ OFFLINE
     setHasToken(false);
     setIsConnected(false);
     caricaOrdiniDaCache();
-    mostraNotifica('Modalità offline attiva', 'info');
+    mostraNotifica('ModalitÃ  offline attiva', 'info');
     
     // NON FARE LOGIN AUTOMATICO
     return;
@@ -279,7 +279,7 @@ export default function GestoreOrdini() {
   // NUOVO: Check WhatsApp status
   const checkWhatsAppStatus = async () => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+      const backendUrl = 'https://pastificio-backend.onrender.com';
       const token = localStorage.getItem('token');
       
       const response = await fetch(`${backendUrl}/api/whatsapp/status`, {
@@ -291,10 +291,10 @@ export default function GestoreOrdini() {
       if (response.ok) {
         const data = await response.json();
         setWhatsappConnected(data.connected);
-        console.log('📱 WhatsApp status:', data);
+        console.log('ðŸ“± WhatsApp status:', data);
       }
     } catch (error) {
-      console.error('❌ Errore check WhatsApp:', error);
+      console.error('âŒ Errore check WhatsApp:', error);
       setWhatsappConnected(false);
     }
   };
@@ -311,9 +311,9 @@ export default function GestoreOrdini() {
       for (const ordine of ordiniOffline) {
         try {
           await creaOrdine(ordine);
-          console.log('✅ Sincronizzato ordine offline:', ordine.nomeCliente);
+          console.log('âœ… Sincronizzato ordine offline:', ordine.nomeCliente);
         } catch (error) {
-          console.error('❌ Errore sync ordine:', error);
+          console.error('âŒ Errore sync ordine:', error);
         }
       }
       
@@ -329,14 +329,14 @@ export default function GestoreOrdini() {
   // Connessione WebSocket con notifiche browser e dashboard
   const connectWebSocket = async (token) => {
     try {
-      console.log('🔌 Connessione WebSocket...');
+      console.log('ðŸ”Œ Connessione WebSocket...');
       
       if (webSocketService.connect) {
         await webSocketService.connect(token);
         
         webSocketService.addConnectionListener((connected) => {
           setWsConnected(connected);
-          console.log('📡 WebSocket connesso:', connected);
+          console.log('ðŸ“¡ WebSocket connesso:', connected);
         });
         
         // Sottoscrivi agli aggiornamenti dashboard
@@ -344,13 +344,13 @@ export default function GestoreOrdini() {
         
         // NUOVO: Handler per stato WhatsApp
         webSocketService.on('whatsapp:status', (data) => {
-          console.log('📱 WhatsApp status update:', data);
+          console.log('ðŸ“± WhatsApp status update:', data);
           setWhatsappConnected(data.connected);
         });
         
         // Handler nuovo ordine con notifiche browser
         webSocketService.on('nuovo-ordine', (data) => {
-          console.log('📨 Nuovo ordine via WebSocket:', data);
+          console.log('ðŸ“¨ Nuovo ordine via WebSocket:', data);
           
           setOrdini(prevOrdini => {
             const esistente = prevOrdini.find(o => 
@@ -361,7 +361,7 @@ export default function GestoreOrdini() {
             );
             
             if (esistente) {
-              console.log('⚠️ Ordine già presente (WebSocket), non aggiungo duplicato');
+              console.log('âš ï¸ Ordine giÃ  presente (WebSocket), non aggiungo duplicato');
               return prevOrdini;
             }
             
@@ -379,14 +379,14 @@ export default function GestoreOrdini() {
             });
           }
           
-          mostraNotifica(`🔔 NUOVO ORDINE: ${data.ordine.nomeCliente}`, 'success');
+          mostraNotifica(`ðŸ”” NUOVO ORDINE: ${data.ordine.nomeCliente}`, 'success');
         });
         
         setWsConnected(true);
-        console.log('✅ WebSocket connesso con successo');
+        console.log('âœ… WebSocket connesso con successo');
       }
     } catch (error) {
-      console.error('❌ Errore connessione WebSocket:', error);
+      console.error('âŒ Errore connessione WebSocket:', error);
       setWsConnected(false);
     }
   };
@@ -406,7 +406,7 @@ export default function GestoreOrdini() {
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       if (ordiniCache.length > 0) {
         setOrdini(ordiniCache);
-        console.log(`📂 Caricati ${ordiniCache.length} ordini dalla cache`);
+        console.log(`ðŸ“‚ Caricati ${ordiniCache.length} ordini dalla cache`);
         mostraNotifica(`Caricati ${ordiniCache.length} ordini dalla cache`, 'info');
       }
     } catch (error) {
@@ -415,7 +415,7 @@ export default function GestoreOrdini() {
   };
   
   const caricaOrdini = async () => {
-    // In modalità offline, carica solo dalla cache
+    // In modalitÃ  offline, carica solo dalla cache
     caricaOrdiniDaCache();
   };
 
@@ -528,14 +528,14 @@ export default function GestoreOrdini() {
                 <td>${o.telefono}</td>
                 <td>${o.oraRitiro || ''}</td>
                 <td>${(o.prodotti || []).map(p => `${p.nome} x${p.quantita}`).join(', ')}</td>
-                <td>€${o.totale || 0}</td>
+                <td>â‚¬${o.totale || 0}</td>
                 <td>${o.stato || 'nuovo'}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
         <div class="totale">
-          Totale: €${ordiniData.reduce((sum, o) => sum + (o.totale || 0), 0).toFixed(2)}
+          Totale: â‚¬${ordiniData.reduce((sum, o) => sum + (o.totale || 0), 0).toFixed(2)}
         </div>
         <button onclick="window.print()">Stampa</button>
       </body>
@@ -548,14 +548,14 @@ export default function GestoreOrdini() {
   
   const salvaOrdine = async (nuovoOrdine) => {
     if (submitInCorso) {
-      console.log('⚠️ Submit già in corso, ignoro...');
+      console.log('âš ï¸ Submit giÃ  in corso, ignoro...');
       return;
     }
 
     setSubmitInCorso(true);
     
     try {
-      console.log('💾 Salvataggio ordine:', nuovoOrdine);
+      console.log('ðŸ’¾ Salvataggio ordine:', nuovoOrdine);
       
       if (ordineSelezionato) {
         await aggiornaOrdine({ ...nuovoOrdine, _id: ordineSelezionato._id });
@@ -568,7 +568,7 @@ export default function GestoreOrdini() {
       mostraNotifica('Ordine salvato con successo', 'success');
       
     } catch (error) {
-      console.error('❌ Errore salvataggio ordine:', error);
+      console.error('âŒ Errore salvataggio ordine:', error);
       mostraNotifica('Errore durante il salvataggio', 'error');
     } finally {
       setTimeout(() => {
@@ -577,7 +577,7 @@ export default function GestoreOrdini() {
     }
   };
 
-  // MODIFICATO: creaOrdine per modalità offline
+  // MODIFICATO: creaOrdine per modalitÃ  offline
   const creaOrdine = async (ordine) => {
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
@@ -597,7 +597,7 @@ export default function GestoreOrdini() {
       return nuoviOrdini;
     });
     
-    console.log('💾 Ordine salvato localmente (offline)');
+    console.log('ðŸ’¾ Ordine salvato localmente (offline)');
     mostraNotifica('Ordine salvato localmente', 'success');
   };
   
@@ -609,7 +609,7 @@ export default function GestoreOrdini() {
       return nuoviOrdini;
     });
     
-    console.log('✅ Ordine aggiornato localmente');
+    console.log('âœ… Ordine aggiornato localmente');
     mostraNotifica('Ordine aggiornato con successo', 'success');
   };
   
@@ -621,7 +621,7 @@ export default function GestoreOrdini() {
       return nuoviOrdini;
     });
     
-    console.log('🗑️ Ordine eliminato localmente');
+    console.log('ðŸ—‘ï¸ Ordine eliminato localmente');
     mostraNotifica('Ordine eliminato con successo', 'success');
   };
 
@@ -637,7 +637,7 @@ export default function GestoreOrdini() {
           visti.add(chiave);
           ordiniUnici.push(ordine);
         } else {
-          console.log('🗑️ Rimosso ordine duplicato:', ordine.nomeCliente);
+          console.log('ðŸ—‘ï¸ Rimosso ordine duplicato:', ordine.nomeCliente);
         }
       });
       
@@ -655,7 +655,7 @@ export default function GestoreOrdini() {
       messaggio,
       tipo
     });
-    console.log(`📢 Notifica [${tipo}]: ${messaggio}`);
+    console.log(`ðŸ“¢ Notifica [${tipo}]: ${messaggio}`);
   };
   
   const chiudiNotifica = () => {
@@ -824,7 +824,7 @@ export default function GestoreOrdini() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <WifiOffIcon />
               <Typography variant="body2">
-                Modalità Offline - I dati sono salvati localmente
+                ModalitÃ  Offline - I dati sono salvati localmente
               </Typography>
             </Box>
           </Box>
@@ -882,7 +882,7 @@ export default function GestoreOrdini() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">Riepilogo Giornaliero Ordini</Typography>
             <IconButton onClick={() => setRiepilogoAperto(false)} size="small">
-              ×
+              Ã—
             </IconButton>
           </Box>
         </DialogTitle>
@@ -919,3 +919,4 @@ export default function GestoreOrdini() {
  / /   R e b u i l d   0 8 / 3 1 / 2 0 2 5   2 1 : 2 4 : 5 9 
  
  
+

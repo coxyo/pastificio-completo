@@ -1,4 +1,4 @@
-// src/services/ordiniService.js
+﻿// src/services/ordiniService.js
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import config from '../config/config.js';
@@ -83,7 +83,7 @@ const ordiniService = {
       if (!datiOrdine.prodotti?.length) throw new Error('Almeno un prodotto richiesto');
       
       const totale = datiOrdine.prodotti.reduce((sum, prod) => {
-        const prezzo = prod.unitaMisura === '€' ? prod.quantita : prod.quantita * prod.prezzo;
+        const prezzo = prod.unitaMisura === 'â‚¬' ? prod.quantita : prod.quantita * prod.prezzo;
         return sum + prezzo;
       }, 0);
       
@@ -152,3 +152,4 @@ const ordiniService = {
 };
 
 export default ordiniService;
+

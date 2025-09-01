@@ -1,4 +1,4 @@
-// src/components/GestioneClienti.js
+﻿// src/components/GestioneClienti.js
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -51,7 +51,7 @@ import {
 import { useRouter } from 'next/navigation';
 import FormCliente from './FormCliente';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com/api';
 
 function GestioneClienti() {
   const router = useRouter();
@@ -597,7 +597,7 @@ function GestioneClienti() {
                     }
                   </TableCell>
                   <TableCell>
-                    €{(cliente.statistiche?.totaleSpeso || 0).toFixed(2)}
+                    â‚¬{(cliente.statistiche?.totaleSpeso || 0).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -695,3 +695,4 @@ function GestioneClienti() {
 }
 
 export default GestioneClienti;
+

@@ -1,4 +1,4 @@
-// src/components/DashboardUltimate.js
+﻿// src/components/DashboardUltimate.js
 import React, { useState, useEffect, useRef } from 'react';
 // Import per analytics e AI
 import DashboardAnalytics from './Dashboard/DashboardAnalytics';
@@ -88,7 +88,7 @@ function DashboardUltimate() {
     }
   };
 
-  const sendNotification = (title, body, icon = '🔔') => {
+  const sendNotification = (title, body, icon = 'ðŸ””') => {
     if (Notification.permission === 'granted') {
       try {
         const notification = new Notification(`${icon} ${title}`, {
@@ -124,7 +124,7 @@ function DashboardUltimate() {
         order.telefono || '',
         new Date(order.dataRitiro || order.createdAt).toLocaleDateString('it-IT'),
         (order.prodotti || []).length + ' articoli',
-        '€' + (order.totale || 0).toFixed(2)
+        'â‚¬' + (order.totale || 0).toFixed(2)
       ])
     ].map(row => row.join(',')).join('\\n');
 
@@ -134,7 +134,7 @@ function DashboardUltimate() {
     link.download = `ordini_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     
-    sendNotification('Export Completato', `File Excel scaricato con ${filteredOrders.length} ordini`, '📊');
+    sendNotification('Export Completato', `File Excel scaricato con ${filteredOrders.length} ordini`, 'ðŸ“Š');
   };
 
   const exportToPDF = () => {
@@ -166,7 +166,7 @@ function DashboardUltimate() {
           </style>
         </head>
         <body>
-          <h1>📊 Report Dashboard - Pastificio</h1>
+          <h1>ðŸ“Š Report Dashboard - Pastificio</h1>
           <p>Generato il: ${new Date().toLocaleString('it-IT')}</p>
           
           <div class="stats">
@@ -176,22 +176,22 @@ function DashboardUltimate() {
             </div>
             <div class="stat-box">
               <div class="stat-label">Valore Totale</div>
-              <div class="stat-value">€${(stats?.value || 0).toFixed(2)}</div>
+              <div class="stat-value">â‚¬${(stats?.value || 0).toFixed(2)}</div>
             </div>
             <div class="stat-box">
               <div class="stat-label">Ticket Medio</div>
-              <div class="stat-value">€${(stats?.avg || 0).toFixed(2)}</div>
+              <div class="stat-value">â‚¬${(stats?.avg || 0).toFixed(2)}</div>
             </div>
           </div>
 
           <h2>Top 5 Prodotti</h2>
           <table>
-            <tr><th>Prodotto</th><th>Quantità</th><th>Ricavo</th></tr>
+            <tr><th>Prodotto</th><th>QuantitÃ </th><th>Ricavo</th></tr>
             ${topProducts.map(p => `
               <tr>
                 <td>${p.name}</td>
                 <td>${p.quantity}</td>
-                <td>€${p.revenue.toFixed(2)}</td>
+                <td>â‚¬${p.revenue.toFixed(2)}</td>
               </tr>
             `).join('')}
           </table>
@@ -211,13 +211,13 @@ function DashboardUltimate() {
                 <td>${order.telefono || '-'}</td>
                 <td>${new Date(order.dataRitiro || order.createdAt).toLocaleDateString('it-IT')}</td>
                 <td>${(order.prodotti || []).length} articoli</td>
-                <td>€${(order.totale || 0).toFixed(2)}</td>
+                <td>â‚¬${(order.totale || 0).toFixed(2)}</td>
               </tr>
             `).join('')}
           </table>
 
           <p style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
-            © ${new Date().getFullYear()} Pastificio - Report generato automaticamente
+            Â© ${new Date().getFullYear()} Pastificio - Report generato automaticamente
           </p>
         </body>
       </html>
@@ -228,7 +228,7 @@ function DashboardUltimate() {
     
     setTimeout(() => {
       printWindow.print();
-      sendNotification('PDF Pronto', 'Documento pronto per la stampa/salvataggio', '📄');
+      sendNotification('PDF Pronto', 'Documento pronto per la stampa/salvataggio', 'ðŸ“„');
     }, 500);
   };
 
@@ -243,7 +243,7 @@ function DashboardUltimate() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/reports/email', {
+      const response = await fetch('https://pastificio-backend.onrender.com/api/reports/email', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -257,13 +257,13 @@ function DashboardUltimate() {
       });
 
       if (response.ok) {
-        sendNotification('Email Inviata', 'Report inviato con successo via email', '📧');
+        sendNotification('Email Inviata', 'Report inviato con successo via email', 'ðŸ“§');
       } else {
-        sendNotification('Info', 'Servizio email non disponibile', '📧');
+        sendNotification('Info', 'Servizio email non disponibile', 'ðŸ“§');
       }
     } catch (error) {
       console.error('Errore invio email:', error);
-      sendNotification('Info', 'Servizio email non configurato', '📧');
+      sendNotification('Info', 'Servizio email non configurato', 'ðŸ“§');
     }
   };
 
@@ -273,7 +273,7 @@ function DashboardUltimate() {
       let token = localStorage.getItem('token');
       
       if (!token) {
-        const loginRes = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/login', {
+        const loginRes = await fetch('https://pastificio-backend.onrender.com/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -291,7 +291,7 @@ function DashboardUltimate() {
         }
       }
       
-      const ordersRes = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', {
+      const ordersRes = await fetch('https://pastificio-backend.onrender.com/api/ordini', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -310,7 +310,7 @@ function DashboardUltimate() {
         sendNotification(
           'Nuovi Ordini!', 
           `${newOrdersCount} nuov${newOrdersCount > 1 ? 'i' : 'o'} ordin${newOrdersCount > 1 ? 'i' : 'e'} ricevut${newOrdersCount > 1 ? 'i' : 'o'}`,
-          '🎉'
+          'ðŸŽ‰'
         );
       }
       
@@ -433,7 +433,7 @@ function DashboardUltimate() {
 
   if (!stats) return (
     <div style={{ padding: '40px', textAlign: 'center' }}>
-      <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
+      <div style={{ fontSize: '24px', marginBottom: '10px' }}>â³</div>
       <div>Caricamento Dashboard...</div>
     </div>
   );
@@ -457,7 +457,7 @@ function DashboardUltimate() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <h1 style={{ margin: 0, fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              🍝 Pastificio Nonna Claudia
+              ðŸ Pastificio Nonna Claudia
               <span style={{
                 backgroundColor: 'rgba(255,255,255,0.2)',
                 padding: '4px 12px',
@@ -480,10 +480,10 @@ function DashboardUltimate() {
               alignItems: 'center',
               gap: '10px'
             }}>
-              <span>👤</span>
+              <span>ðŸ‘¤</span>
               <span>{currentUser.nome}</span>
               <span style={{ opacity: 0.7 }}>|</span>
-              <span>{currentUser.ruolo === 'admin' ? '👨‍💼 Admin' : '👷 Operatore'}</span>
+              <span>{currentUser.ruolo === 'admin' ? 'ðŸ‘¨â€ðŸ’¼ Admin' : 'ðŸ‘· Operatore'}</span>
             </div>
             
             {/* Notifications */}
@@ -500,7 +500,7 @@ function DashboardUltimate() {
                   fontSize: '18px'
                 }}
               >
-                🔔
+                ðŸ””
                 <span style={{
                   position: 'absolute',
                   top: '-4px',
@@ -534,7 +534,7 @@ function DashboardUltimate() {
                 fontSize: '14px'
               }}
             >
-              🚪 Esci
+              ðŸšª Esci
             </button>
           </div>
         </div>
@@ -551,7 +551,7 @@ function DashboardUltimate() {
         gap: '15px',
         borderBottom: '2px solid #f59e0b'
       }}>
-        <span style={{ fontWeight: 'bold' }}>👥 Utenti online ({onlineUsers.length + 1}):</span>
+        <span style={{ fontWeight: 'bold' }}>ðŸ‘¥ Utenti online ({onlineUsers.length + 1}):</span>
         {onlineUsers.map((user, i) => (
           <span key={i} style={{
             backgroundColor: user.status === 'online' ? '#10b981' : '#f59e0b',
@@ -593,7 +593,7 @@ function DashboardUltimate() {
         <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <h1 style={{ fontSize: '32px', margin: '0 0 8px 0', color: '#1f2937' }}>
-              📊 Dashboard Ultimate
+              ðŸ“Š Dashboard Ultimate
             </h1>
             <p style={{ color: '#6b7280', margin: 0 }}>
               {new Date().toLocaleDateString('it-IT', { 
@@ -636,9 +636,9 @@ function DashboardUltimate() {
                 fontSize: '14px'
               }}
             >
-              <option value="bar">📊 Barre</option>
-              <option value="line">📈 Linee</option>
-              <option value="pie">🥧 Torta</option>
+              <option value="bar">ðŸ“Š Barre</option>
+              <option value="line">ðŸ“ˆ Linee</option>
+              <option value="pie">ðŸ¥§ Torta</option>
             </select>
             
             <button
@@ -652,7 +652,7 @@ function DashboardUltimate() {
                 fontSize: '14px'
               }}
             >
-              {viewMode === 'cards' ? '📋 Vista Tabella' : '🎴 Vista Card'}
+              {viewMode === 'cards' ? 'ðŸ“‹ Vista Tabella' : 'ðŸŽ´ Vista Card'}
             </button>
 
             {/* Bottone Analytics */}
@@ -672,7 +672,7 @@ function DashboardUltimate() {
                 fontWeight: '500'
               }}
             >
-              {showAnalytics ? '📊 Dashboard Base' : '📈 Analytics Avanzate'}
+              {showAnalytics ? 'ðŸ“Š Dashboard Base' : 'ðŸ“ˆ Analytics Avanzate'}
             </button>
 
             {/* Bottone Fidelizzazione */}
@@ -692,7 +692,7 @@ function DashboardUltimate() {
                 fontWeight: '500'
               }}
             >
-              {showFidelity ? '📊 Dashboard' : '🎁 Fedeltà'}
+              {showFidelity ? 'ðŸ“Š Dashboard' : 'ðŸŽ FedeltÃ '}
             </button>
 
             <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -709,7 +709,7 @@ function DashboardUltimate() {
                   fontWeight: '500'
                 }}
               >
-                📥 Esporta
+                ðŸ“¥ Esporta
               </button>
               {exportFormat === 'menu' && (
                 <div style={{
@@ -738,7 +738,7 @@ function DashboardUltimate() {
                     onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
                     onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                   >
-                    📊 Excel/CSV
+                    ðŸ“Š Excel/CSV
                   </button>
                   <button
                     onClick={() => { exportToPDF(); setExportFormat('excel'); }}
@@ -755,7 +755,7 @@ function DashboardUltimate() {
                     onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
                     onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                   >
-                    📄 PDF
+                    ðŸ“„ PDF
                   </button>
                   <button
                     onClick={() => { sendEmailReport(); setExportFormat('excel'); }}
@@ -773,7 +773,7 @@ function DashboardUltimate() {
                     onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
                     onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
                   >
-                    📧 Email Report
+                    ðŸ“§ Email Report
                   </button>
                 </div>
               )}
@@ -796,7 +796,7 @@ function DashboardUltimate() {
                 gap: '8px'
               }}
             >
-              {loading ? '⏳ Caricamento...' : '🔄 Aggiorna'}
+              {loading ? 'â³ Caricamento...' : 'ðŸ”„ Aggiorna'}
             </button>
           </div>
         </div>
@@ -819,7 +819,7 @@ function DashboardUltimate() {
                 boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
               }}>
                 <h3 style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  🤖 Previsioni AI per Oggi
+                  ðŸ¤– Previsioni AI per Oggi
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                   <div>
@@ -828,7 +828,7 @@ function DashboardUltimate() {
                   </div>
                   <div>
                     <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
-                      €{(predictions.fatturatoAtteso || 0).toFixed(2)}
+                      â‚¬{(predictions.fatturatoAtteso || 0).toFixed(2)}
                     </div>
                     <div style={{ fontSize: '14px', opacity: 0.9 }}>Fatturato Atteso</div>
                   </div>
@@ -841,7 +841,7 @@ function DashboardUltimate() {
                       Focaccia
                     </div>
                     <div style={{ fontSize: '14px', opacity: 0.9 }}>
-                      Prodotto più probabile (Q.tà: 4)
+                      Prodotto piÃ¹ probabile (Q.tÃ : 4)
                     </div>
                   </div>
                 </div>
@@ -852,9 +852,9 @@ function DashboardUltimate() {
                   backgroundColor: 'rgba(255,255,255,0.1)', 
                   borderRadius: '8px' 
                 }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>💡 Suggerimenti AI:</div>
+                  <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>ðŸ’¡ Suggerimenti AI:</div>
                   <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                    • 🍞 Prodotto star: Focaccia → Assicurati di avere scorte sufficienti!
+                    â€¢ ðŸž Prodotto star: Focaccia â†’ Assicurati di avere scorte sufficienti!
                   </div>
                 </div>
 
@@ -864,12 +864,12 @@ function DashboardUltimate() {
                   backgroundColor: 'rgba(255,100,100,0.2)', 
                   borderRadius: '8px' 
                 }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚠️ Alert Scorte:</div>
+                  <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>âš ï¸ Alert Scorte:</div>
                   <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                    • Papassino: 3 giorni rimanenti
+                    â€¢ Papassino: 3 giorni rimanenti
                   </div>
                   <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                    • Seadas: 5 giorni rimanenti
+                    â€¢ Seadas: 5 giorni rimanenti
                   </div>
                 </div>
               </div>
@@ -900,7 +900,7 @@ function DashboardUltimate() {
                   backgroundColor: 'rgba(255,255,255,0.1)',
                   borderRadius: '50%'
                 }}></div>
-                <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>🛒 Ordini Periodo</div>
+                <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>ðŸ›’ Ordini Periodo</div>
                 <div style={{ fontSize: '36px', fontWeight: 'bold', margin: '8px 0' }}>{stats.orders}</div>
                 <div style={{ fontSize: '13px', opacity: 0.8 }}>Su {stats.total} totali</div>
                 <div style={{ 
@@ -910,7 +910,7 @@ function DashboardUltimate() {
                   fontSize: '12px',
                   opacity: 0.9
                 }}>
-                  📈 Media giornaliera: {(stats.orders / (dateFilter === 'settimana' ? 7 : dateFilter === 'mese' ? 30 : 1)).toFixed(1)}
+                  ðŸ“ˆ Media giornaliera: {(stats.orders / (dateFilter === 'settimana' ? 7 : dateFilter === 'mese' ? 30 : 1)).toFixed(1)}
                 </div>
               </div>
               
@@ -932,8 +932,8 @@ function DashboardUltimate() {
                   backgroundColor: 'rgba(255,255,255,0.1)',
                   borderRadius: '50%'
                 }}></div>
-                <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>💰 Valore Periodo</div>
-                <div style={{ fontSize: '36px', fontWeight: 'bold', margin: '8px 0' }}>€{stats.value.toFixed(2)}</div>
+                <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>ðŸ’° Valore Periodo</div>
+                <div style={{ fontSize: '36px', fontWeight: 'bold', margin: '8px 0' }}>â‚¬{stats.value.toFixed(2)}</div>
                 <div style={{ fontSize: '13px', opacity: 0.8 }}>Incasso {dateFilter}</div>
                 <div style={{ 
                   marginTop: '12px', 
@@ -942,7 +942,7 @@ function DashboardUltimate() {
                   fontSize: '12px',
                   opacity: 0.9
                 }}>
-                  💳 Ticket medio: €{stats.avg.toFixed(2)}
+                  ðŸ’³ Ticket medio: â‚¬{stats.avg.toFixed(2)}
                 </div>
               </div>
               
@@ -964,7 +964,7 @@ function DashboardUltimate() {
                   backgroundColor: 'rgba(255,255,255,0.1)',
                   borderRadius: '50%'
                 }}></div>
-                <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>📊 Performance</div>
+                <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>ðŸ“Š Performance</div>
                 <div style={{ fontSize: '36px', fontWeight: 'bold', margin: '8px 0' }}>
                   {stats.orders > 0 ? Math.round((stats.orders / stats.total) * 100) : 0}%
                 </div>
@@ -976,7 +976,7 @@ function DashboardUltimate() {
                   fontSize: '12px',
                   opacity: 0.9
                 }}>
-                  🎯 Obiettivo: 100 ordini/mese
+                  ðŸŽ¯ Obiettivo: 100 ordini/mese
                 </div>
               </div>
               
@@ -998,7 +998,7 @@ function DashboardUltimate() {
                   backgroundColor: 'rgba(255,255,255,0.1)',
                   borderRadius: '50%'
                 }}></div>
-                <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>📦 Database</div>
+                <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>ðŸ“¦ Database</div>
                 <div style={{ fontSize: '36px', fontWeight: 'bold', margin: '8px 0' }}>{stats.total || 10}</div>
                 <div style={{ fontSize: '13px', opacity: 0.8 }}>Ordini totali</div>
                 <div style={{ 
@@ -1008,7 +1008,7 @@ function DashboardUltimate() {
                   fontSize: '12px',
                   opacity: 0.9
                 }}>
-                  📅 Ultimo: Oggi
+                  ðŸ“… Ultimo: Oggi
                 </div>
               </div>
             </div>
@@ -1027,11 +1027,11 @@ function DashboardUltimate() {
           color: '#14532d',
           textAlign: 'center'
         }}>
-          📄 <strong>Auto-aggiornamento:</strong> Il dashboard si aggiorna automaticamente quando ricevi nuovi ordini. 
+          ðŸ“„ <strong>Auto-aggiornamento:</strong> Il dashboard si aggiorna automaticamente quando ricevi nuovi ordini. 
           Le notifiche push ti avviseranno in tempo reale!
           {predictions && (
             <span style={{ display: 'block', marginTop: '8px' }}>
-              🤖 <strong>AI Attiva:</strong> Le previsioni vengono aggiornate ogni ora basandosi sui pattern storici.
+              ðŸ¤– <strong>AI Attiva:</strong> Le previsioni vengono aggiornate ogni ora basandosi sui pattern storici.
             </span>
           )}
         </div>
@@ -1074,3 +1074,4 @@ function DashboardUltimate() {
 }
 
 export default DashboardUltimate;
+

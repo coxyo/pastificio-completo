@@ -13,8 +13,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import IntegrationService from '@/services/integrationService';
-import config from '@/config/config';
+
+const API_URL = 'https://pastificio-backend.onrender.com';
 
 const OrdiniList = ({ 
   ordini, 
@@ -27,16 +27,12 @@ const OrdiniList = ({
   const [anchorEl, setAnchorEl] = useState(null);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
 
-  // Usa l'URL dal config
-  const API_URL = config.API_URL;
-
   const handleDateChange = (e) => {
     const newDate = e.target.value;
     setDataFiltro(newDate);
     onDateChange(newDate);
   };
 
-  // Menu azioni
   const handleMenuOpen = (event, ordine) => {
     setAnchorEl(event.currentTarget);
     setOrdineSelezionato(ordine);
@@ -47,10 +43,8 @@ const OrdiniList = ({
     setOrdineSelezionato(null);
   };
 
-  // Segna ordine come pronto e invia WhatsApp
   const segnaComePronto = async (ordineId) => {
     try {
-      // Prima aggiorna lo stato dell'ordine a completato
       const response = await fetch(`${API_URL}/api/ordini/${ordineId}`, {
         method: 'PUT',
         headers: {
@@ -67,7 +61,6 @@ const OrdiniList = ({
         throw new Error(error.error || 'Errore aggiornamento stato');
       }
 
-      // Poi invia la notifica WhatsApp separatamente
       try {
         const whatsappResponse = await fetch(`${API_URL}/api/ordini/invio-ordine-pronto/${ordineId}`, {
           method: 'POST',
@@ -79,7 +72,6 @@ const OrdiniList = ({
         if (whatsappResponse.ok) {
           alert('✅ Ordine segnato come pronto e WhatsApp inviato!');
         } else {
-          // Se WhatsApp fallisce, l'ordine è comunque stato segnato come pronto
           alert('✅ Ordine segnato come pronto (WhatsApp non inviato - verificare il numero)');
         }
       } catch (whatsappError) {
@@ -87,7 +79,6 @@ const OrdiniList = ({
         alert('✅ Ordine segnato come pronto (WhatsApp non disponibile)');
       }
       
-      // Aggiorna la lista locale
       const ordiniAggiornati = ordini.map(o => 
         o._id === ordineId 
           ? { ...o, stato: 'completato' }
@@ -103,7 +94,6 @@ const OrdiniList = ({
     }
   };
 
-  // Invia promemoria WhatsApp
   const inviaPromemoria = async (ordineId) => {
     try {
       const response = await fetch(`${API_URL}/api/ordini/invio-promemoria/${ordineId}`, {
@@ -127,46 +117,20 @@ const OrdiniList = ({
     }
   };
 
-  // Crea fattura da ordine
   const handleCreaFattura = async () => {
     if (!ordineSelezionato) return;
-    
-    try {
-      const fattura = await IntegrationService.createInvoiceFromOrder(ordineSelezionato);
-      
-      // Aggiorna l'ordine localmente
-      const ordiniAggiornati = ordini.map(o => 
-        o._id === ordineSelezionato._id 
-          ? { ...o, statoFatturazione: 'fatturato', fatturaId: fattura.id }
-          : o
-      );
-      
-      // Salva in localStorage
-      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-      
-      // Mostra messaggio di successo
-      alert(`Fattura ${fattura.numero} creata con successo!`);
-      
-      handleMenuClose();
-      window.location.reload();
-      
-    } catch (error) {
-      console.error('Errore creazione fattura:', error);
-      alert('Errore nella creazione della fattura');
-    }
+    alert('Funzione fatturazione in sviluppo');
+    handleMenuClose();
   };
 
-  // Cambia stato ordine
   const handleCambiaStato = (nuovoStato) => {
     if (!ordineSelezionato) return;
     
-    // Se il nuovo stato è completato, usa la funzione speciale per inviare WhatsApp
     if (nuovoStato === 'completato') {
       segnaComePronto(ordineSelezionato._id);
       return;
     }
     
-    // Per altri stati, aggiorna solo localmente
     const ordiniAggiornati = ordini.map(o => 
       o._id === ordineSelezionato._id 
         ? { ...o, stato: nuovoStato }
@@ -175,7 +139,6 @@ const OrdiniList = ({
     
     localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
     
-    // Aggiorna anche sul server
     fetch(`${API_URL}/api/ordini/${ordineSelezionato._id}`, {
       method: 'PUT',
       headers: {
@@ -189,7 +152,6 @@ const OrdiniList = ({
     window.location.reload();
   };
 
-  // Stampa ordine
   const handleStampaOrdine = () => {
     if (!ordineSelezionato) return;
     
@@ -200,36 +162,24 @@ const OrdiniList = ({
           <title>Ordine ${ordineSelezionato.nomeCliente}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-            h2 { color: #333; }
-            .info { margin: 20px 0; }
-            .info p { margin: 5px 0; }
+            h1 { color: #2c3e50; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
             th { background-color: #3498db; color: white; }
-            .totale { font-weight: bold; font-size: 1.2em; background-color: #ecf0f1; }
-            .note { margin-top: 20px; padding: 10px; background-color: #fff9e6; border-left: 4px solid #f39c12; }
-            .viaggio { color: #e74c3c; font-weight: bold; margin-top: 10px; }
-            .footer { margin-top: 30px; text-align: center; color: #7f8c8d; font-size: 0.9em; }
           </style>
         </head>
         <body>
-          <h1>🍝 PASTIFICIO NONNA CLAUDIA</h1>
+          <h1>PASTIFICIO NONNA CLAUDIA</h1>
           <h2>Ordine - ${ordineSelezionato.nomeCliente}</h2>
-          
-          <div class="info">
-            <p><strong>📅 Data ritiro:</strong> ${new Date(ordineSelezionato.dataRitiro).toLocaleDateString('it-IT')}</p>
-            <p><strong>⏰ Ora:</strong> ${ordineSelezionato.oraRitiro}</p>
-            <p><strong>📞 Telefono:</strong> ${ordineSelezionato.telefono}</p>
-            <p><strong>📍 Indirizzo:</strong> Via Carmine 20/B, Assemini (CA)</p>
-          </div>
-          
+          <p>Data ritiro: ${new Date(ordineSelezionato.dataRitiro).toLocaleDateString('it-IT')}</p>
+          <p>Ora: ${ordineSelezionato.oraRitiro}</p>
+          <p>Telefono: ${ordineSelezionato.telefono}</p>
           <table>
             <thead>
               <tr>
                 <th>Prodotto</th>
                 <th>Quantità</th>
-                <th>Prezzo Unit.</th>
+                <th>Prezzo</th>
                 <th>Totale</th>
               </tr>
             </thead>
@@ -237,27 +187,14 @@ const OrdiniList = ({
               ${ordineSelezionato.prodotti.map(p => `
                 <tr>
                   <td>${p.nome || p.prodotto}</td>
-                  <td>${p.quantita} ${p.unitaMisura || p.unita || ''}</td>
+                  <td>${p.quantita} ${p.unitaMisura || ''}</td>
                   <td>€ ${p.prezzo.toFixed(2)}</td>
                   <td>€ ${(p.prezzo * p.quantita).toFixed(2)}</td>
                 </tr>
               `).join('')}
             </tbody>
-            <tfoot>
-              <tr class="totale">
-                <td colspan="3" align="right">TOTALE:</td>
-                <td>€ ${calcolaTotale(ordineSelezionato)}</td>
-              </tr>
-            </tfoot>
           </table>
-          
-          ${ordineSelezionato.note ? `<div class="note"><strong>📝 Note:</strong> ${ordineSelezionato.note}</div>` : ''}
-          ${ordineSelezionato.daViaggio ? '<p class="viaggio">⚠️ ORDINE DA VIAGGIO</p>' : ''}
-          
-          <div class="footer">
-            <p>Grazie per aver scelto Pastificio Nonna Claudia!</p>
-            <p>📞 389 887 9833 | 📍 Via Carmine 20/B, Assemini (CA)</p>
-          </div>
+          <h3>Totale: € ${calcolaTotale(ordineSelezionato)}</h3>
         </body>
       </html>
     `);
@@ -266,12 +203,10 @@ const OrdiniList = ({
     handleMenuClose();
   };
 
-  // Filtra ordini per data
   const ordiniDelGiorno = ordini.filter(ordine => 
     ordine.dataRitiro && ordine.dataRitiro.includes(dataFiltro)
   );
 
-  // Calcola statistiche del giorno
   const totaleGiorno = ordiniDelGiorno.reduce((sum, ordine) => 
     sum + parseFloat(calcolaTotale(ordine)), 0
   ).toFixed(2);
@@ -279,7 +214,6 @@ const OrdiniList = ({
   const ordiniCompletati = ordiniDelGiorno.filter(o => o.stato === 'completato').length;
   const ordiniFatturati = ordiniDelGiorno.filter(o => o.statoFatturazione === 'fatturato').length;
 
-  // Determina colore stato
   const getStatoColor = (stato) => {
     switch (stato) {
       case 'completato': return 'success';
@@ -292,7 +226,6 @@ const OrdiniList = ({
   return (
     <Paper elevation={3}>
       <Box sx={{ p: 2 }}>
-        {/* Header con statistiche */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
             <Typography variant="h6">Ordini del giorno</Typography>
@@ -322,7 +255,6 @@ const OrdiniList = ({
 
         <Divider sx={{ mb: 2 }} />
 
-        {/* Tabella ordini */}
         <TableContainer>
           <Table>
             <TableHead>
@@ -430,17 +362,13 @@ const OrdiniList = ({
         </TableContainer>
       </Box>
 
-      {/* Menu azioni */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        {/* SEZIONE WHATSAPP */}
         <MenuItem 
-          onClick={() => {
-            segnaComePronto(ordineSelezionato._id);
-          }}
+          onClick={() => segnaComePronto(ordineSelezionato?._id)}
           disabled={ordineSelezionato?.stato === 'completato'}
           sx={{ color: 'success.main' }}
         >
@@ -449,9 +377,7 @@ const OrdiniList = ({
         </MenuItem>
         
         <MenuItem 
-          onClick={() => {
-            inviaPromemoria(ordineSelezionato._id);
-          }}
+          onClick={() => inviaPromemoria(ordineSelezionato?._id)}
         >
           <NotificationsActiveIcon sx={{ mr: 1 }} fontSize="small" />
           📱 Invia Promemoria WhatsApp
@@ -459,7 +385,6 @@ const OrdiniList = ({
         
         <Divider />
         
-        {/* SEZIONE FATTURAZIONE */}
         <MenuItem 
           onClick={handleCreaFattura}
           disabled={ordineSelezionato?.statoFatturazione === 'fatturato'}
@@ -475,7 +400,6 @@ const OrdiniList = ({
         
         <Divider />
         
-        {/* SEZIONE STATI */}
         <MenuItem 
           onClick={() => handleCambiaStato('in_lavorazione')}
           disabled={ordineSelezionato?.stato === 'in_lavorazione'}
@@ -503,7 +427,6 @@ const OrdiniList = ({
   );
 };
 
-// Funzione per calcolare il totale dell'ordine
 const calcolaTotale = (ordine) => {
   if (!ordine.prodotti || !Array.isArray(ordine.prodotti)) return '0.00';
   
