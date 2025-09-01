@@ -47,7 +47,7 @@ import notificationService from './services/NotificationService.js';
 import exportService from './services/exportService.js';
 import googleDriveService from './services/googleDriveService.js';
 import backupService from './services/backupService.js';
-import whatsappService from './services/whatsappService.js';
+import twilioService from './services/twilioService.js';
 import schedulerService from './services/schedulerService.js';
 import schedulerWhatsApp from './services/schedulerWhatsApp.js';
 
