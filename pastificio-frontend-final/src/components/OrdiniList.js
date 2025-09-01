@@ -14,6 +14,7 @@ import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import IntegrationService from '@/services/integrationService';
+import config from '@/config/config';
 
 const OrdiniList = ({ 
   ordini, 
@@ -25,6 +26,9 @@ const OrdiniList = ({
   const [dataFiltro, setDataFiltro] = useState(new Date().toISOString().split('T')[0]);
   const [anchorEl, setAnchorEl] = useState(null);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
+
+  // Usa l'URL dal config
+  const API_URL = config.API_URL;
 
   const handleDateChange = (e) => {
     const newDate = e.target.value;
@@ -47,7 +51,7 @@ const OrdiniList = ({
   const segnaComePronto = async (ordineId) => {
     try {
       // Prima aggiorna lo stato dell'ordine a completato
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/ordini/${ordineId}`, {
+      const response = await fetch(`${API_URL}/api/ordini/${ordineId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +69,7 @@ const OrdiniList = ({
 
       // Poi invia la notifica WhatsApp separatamente
       try {
-        const whatsappResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/ordini/invio-ordine-pronto/${ordineId}`, {
+        const whatsappResponse = await fetch(`${API_URL}/api/ordini/invio-ordine-pronto/${ordineId}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -102,7 +106,7 @@ const OrdiniList = ({
   // Invia promemoria WhatsApp
   const inviaPromemoria = async (ordineId) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/ordini/invio-promemoria/${ordineId}`, {
+      const response = await fetch(`${API_URL}/api/ordini/invio-promemoria/${ordineId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -172,7 +176,7 @@ const OrdiniList = ({
     localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
     
     // Aggiorna anche sul server
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/ordini/${ordineSelezionato._id}`, {
+    fetch(`${API_URL}/api/ordini/${ordineSelezionato._id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
