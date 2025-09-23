@@ -38,7 +38,7 @@ import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
-import WhatsAppHelper from './WhatsAppHelper'; // NUOVO IMPORT
+import WhatsAppHelper from '../utils/whatsappHelper';
 
 // Importa il widget statistiche
 import StatisticheWidget from './widgets/StatisticheWidget';
