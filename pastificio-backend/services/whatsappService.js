@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // services/whatsappService.js - VERSIONE SEMPLIFICATA
 import logger from '../config/logger.js';
 
@@ -45,8 +46,22 @@ class WhatsAppService {
     return true; 
   }
   
+=======
+import logger from '../config/logger.js';
+class WhatsAppService {
+  isReady() { return true; }
+  async inviaMessaggio(n, m) {
+    logger.info(`Mock message to ${n}: ${m}`);
+    return { success: true, messageId: 'mock-' + Date.now() };
+  }
+  async inviaMessaggioConTemplate(n, t, v) { 
+    return this.inviaMessaggio(n, 'Mock'); 
+  }
+  getStatus() { return { connected: true, status: 'active' }; }
+  getInfo() { return { connected: true }; }
+  async initialize() { return true; }
+>>>>>>> d62a9b18eb32db96b141b851886398197b0d6578
   disconnect() {}
   restart() { return Promise.resolve(true); }
 }
-
 export default new WhatsAppService();
