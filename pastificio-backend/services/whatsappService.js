@@ -1,35 +1,50 @@
-import twilio from 'twilio';
+// services/whatsappService.js - VERSIONE SEMPLIFICATA
 import logger from '../config/logger.js';
-
-const accountSid = 'ACb3be7d8f44ad3333a326ec2e43aac57b5';
-const authToken = '8ee0ca191092c20d015e03cdea3b9621';
-const fromNumber = 'whatsapp:+14155238886';
 
 class WhatsAppService {
   constructor() {
-    this.client = twilio(accountSid, authToken);
     this.ready = true;
+    this.numeroAziendale = '3898879833';
   }
 
-  isReady() { return true; }
+  isReady() { 
+    return true; 
+  }
   
   async inviaMessaggio(numero, messaggio) {
+    // Sistema semplificato - genera solo il link WhatsApp
     const numeroClean = numero.replace(/\D/g, '');
-    const toNumber = `whatsapp:+${numeroClean.startsWith('39') ? numeroClean : '39' + numeroClean}`;
+    const numeroWhatsApp = numeroClean.startsWith('39') ? numeroClean : '39' + numeroClean;
+    const testoEncoded = encodeURIComponent(messaggio);
+    const whatsappUrl = `https://wa.me/${numeroWhatsApp}?text=${testoEncoded}`;
     
-    const result = await this.client.messages.create({
-      from: fromNumber,
-      to: toNumber,
-      body: messaggio
-    });
+    logger.info(`WhatsApp link generato per ${numero}`);
     
-    return { success: true, messageId: result.sid };
+    return { 
+      success: true, 
+      whatsappUrl: whatsappUrl,
+      messageId: 'manual-' + Date.now() 
+    };
   }
-
-  async inviaMessaggioConTemplate(n, t, v) { return this.inviaMessaggio(n, 'Ordine confermato'); }
-  getStatus() { return { connected: true, status: 'twilio_active' }; }
-  getInfo() { return { connected: true }; }
-  async initialize() { return true; }
+  
+  async inviaMessaggioConTemplate(numero, template, variabili) {
+    const messaggio = `Ordine confermato - Pastificio Nonna Claudia\nRitiro: ${variabili.dataRitiro || 'oggi'}`;
+    return this.inviaMessaggio(numero, messaggio);
+  }
+  
+  getStatus() { 
+    return { connected: true, status: 'manual-mode' }; 
+  }
+  
+  getInfo() { 
+    return { connected: true, mode: 'manual', numero: this.numeroAziendale }; 
+  }
+  
+  async initialize() { 
+    logger.info('WhatsApp Service in modalità manuale');
+    return true; 
+  }
+  
   disconnect() {}
   restart() { return Promise.resolve(true); }
 }
