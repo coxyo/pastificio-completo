@@ -1,35 +1,35 @@
-// components/WhatsAppHelper.js - NUOVO COMPONENTE
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Copy, MessageCircle, Clock, CheckCircle } from 'lucide-react';
+import { 
+  Card, CardContent, CardHeader, CardTitle,
+  Button, Typography, Box, Chip, Paper
+} from '@mui/material';
+import { 
+  ContentCopy as CopyIcon, 
+  WhatsApp as WhatsAppIcon, 
+  CheckCircle as CheckIcon, 
+  Schedule as ClockIcon 
+} from '@mui/icons-material';
 
 export default function WhatsAppHelper({ ordini }) {
-  const [ordiniOggi, setOrdiniOggi] = useState([]);
   const [messaggiCopiati, setMessaggiCopiati] = useState({});
-  
   const numeroWhatsApp = '3898879833';
   
-  useEffect(() => {
-    // Filtra ordini di oggi da confermare
+  const ordiniOggi = ordini.filter(o => {
     const oggi = new Date().toDateString();
-    const ordiniDaConfermare = ordini.filter(o => {
-      const dataOrdine = new Date(o.dataRitiro).toDateString();
-      return dataOrdine === oggi && !o.confermato;
-    });
-    setOrdiniOggi(ordiniDaConfermare);
-  }, [ordini]);
+    const dataOrdine = new Date(o.dataRitiro).toDateString();
+    return dataOrdine === oggi;
+  });
 
   const generaMessaggio = (ordine, tipo) => {
     const templates = {
-      conferma: `🍝 *PASTIFICIO NONNA CLAUDIA*\n\n✅ Ordine Confermato!\n\nGentile ${ordine.nomeCliente},\nconfermiamo il suo ordine per:\n\n📅 ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n⏰ Ore ${ordine.oraRitiro}\n\nProdotti:\n${ordine.prodotti.map(p => `• ${p.nome}: ${p.quantita} ${p.unita}`).join('\n')}\n\n💰 Totale: €${ordine.totale}\n\n📍 Via Carmine 20/B, Assemini\n📞 389 887 9833\n\nGrazie!`,
+      conferma: `🍝 *PASTIFICIO NONNA CLAUDIA*\n\n✅ Ordine Confermato!\n\nGentile ${ordine.nomeCliente},\nconfermiamo il suo ordine per:\n\n📅 ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n⏰ Ore ${ordine.oraRitiro}\n\nProdotti:\n${(ordine.prodotti || []).map(p => `• ${p.nome}: ${p.quantita} ${p.unita}`).join('\n')}\n\n💰 Totale: €${ordine.totale}\n\n📍 Via Carmine 20/B, Assemini\n📞 389 887 9833\n\nGrazie!`,
       
-      promemoria: `🔔 *PROMEMORIA RITIRO*\n\nCiao ${ordine.nomeCliente}!\n\nTi ricordiamo il ritiro del tuo ordine domani:\n\n📅 ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n⏰ Ore ${ordine.oraRitiro}\n\nTi aspettiamo!\n\nPastificio Nonna Claudia\n📍 Via Carmine 20/B`,
+      promemoria: `🔔 *PROMEMORIA RITIRO*\n\nCiao ${ordine.nomeCliente}!\n\nTi ricordiamo il ritiro del tuo ordine domani:\n\n📅 ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n⏰ Ore ${ordine.oraRitiro}\n\nTi aspettiamo!`,
       
-      pronto: `✅ *ORDINE PRONTO!*\n\n${ordine.nomeCliente}, il tuo ordine è pronto per il ritiro!\n\n⏰ Ti aspettiamo entro le ${ordine.oraRitiro}\n\n📍 Via Carmine 20/B, Assemini\n\nA presto!`
+      pronto: `✅ *ORDINE PRONTO!*\n\n${ordine.nomeCliente}, il tuo ordine è pronto!\n\n⏰ Ti aspettiamo entro le ${ordine.oraRitiro}\n📍 Via Carmine 20/B\n\nA presto!`
     };
     
-    return templates[tipo];
+    return templates[tipo] || '';
   };
 
   const copiaMessaggio = (ordine, tipo) => {
@@ -56,94 +56,86 @@ export default function WhatsAppHelper({ ordini }) {
   };
 
   return (
-    <Card className="mt-4">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5" />
-          WhatsApp Helper - Invio Facilitato
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {ordiniOggi.length === 0 ? (
-          <p className="text-gray-500">Nessun ordine da confermare oggi</p>
-        ) : (
-          <div className="space-y-4">
-            {ordiniOggi.map(ordine => (
-              <div key={ordine._id} className="border rounded-lg p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h4 className="font-semibold">{ordine.nomeCliente}</h4>
-                    <p className="text-sm text-gray-600">
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        Invio Messaggi WhatsApp - {ordiniOggi.length} ordini oggi
+      </Typography>
+      
+      {ordiniOggi.length === 0 ? (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography color="textSecondary">
+            Nessun ordine da confermare oggi
+          </Typography>
+        </Paper>
+      ) : (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {ordiniOggi.map(ordine => (
+            <Card key={ordine._id}>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Box>
+                    <Typography variant="h6">{ordine.nomeCliente}</Typography>
+                    <Typography variant="body2" color="textSecondary">
                       📞 {ordine.telefono} | ⏰ {ordine.oraRitiro}
-                    </p>
-                  </div>
+                    </Typography>
+                  </Box>
                   <Button
-                    size="sm"
-                    variant="outline"
+                    variant="outlined"
+                    color="success"
+                    startIcon={<WhatsAppIcon />}
                     onClick={() => apriWhatsApp(ordine.telefono)}
-                    className="ml-2"
                   >
-                    <MessageCircle className="h-4 w-4 mr-1" />
-                    Apri WhatsApp
+                    Apri Chat
                   </Button>
-                </div>
+                </Box>
                 
-                <div className="flex gap-2 flex-wrap">
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Button
-                    size="sm"
-                    variant={messaggiCopiati[`${ordine._id}-conferma`] ? "success" : "default"}
+                    variant={messaggiCopiati[`${ordine._id}-conferma`] ? "contained" : "outlined"}
+                    color={messaggiCopiati[`${ordine._id}-conferma`] ? "success" : "primary"}
+                    size="small"
+                    startIcon={messaggiCopiati[`${ordine._id}-conferma`] ? <CheckIcon /> : <CopyIcon />}
                     onClick={() => copiaMessaggio(ordine, 'conferma')}
                   >
-                    {messaggiCopiati[`${ordine._id}-conferma`] ? (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Copiato!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copia Conferma
-                      </>
-                    )}
+                    {messaggiCopiati[`${ordine._id}-conferma`] ? 'Copiato!' : 'Copia Conferma'}
                   </Button>
                   
                   <Button
-                    size="sm"
-                    variant="outline"
+                    variant="outlined"
+                    size="small"
+                    startIcon={<ClockIcon />}
                     onClick={() => copiaMessaggio(ordine, 'promemoria')}
                   >
-                    <Clock className="h-4 w-4 mr-1" />
-                    Copia Promemoria
+                    Promemoria
                   </Button>
                   
                   <Button
-                    size="sm"
-                    variant="outline"
+                    variant="outlined"
+                    size="small"
+                    startIcon={<CheckIcon />}
                     onClick={() => copiaMessaggio(ordine, 'pronto')}
                   >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Copia "Pronto"
+                    Pronto
                   </Button>
-                </div>
+                </Box>
                 
-                <div className="mt-2 text-xs text-gray-500">
-                  Prodotti: {ordine.prodotti.map(p => p.nome).join(', ')}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <strong>Come funziona:</strong><br/>
-            1. Clicca "Copia" sul messaggio desiderato<br/>
-            2. Clicca "Apri WhatsApp" per aprire la chat<br/>
-            3. Incolla (Ctrl+V) e invia<br/>
-            4. Il messaggio è già formattato perfettamente!
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                  Prodotti: {(ordine.prodotti || []).map(p => p.nome).join(', ')}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      )}
+      
+      <Paper sx={{ mt: 3, p: 2, bgcolor: 'info.main', color: 'white' }}>
+        <Typography variant="body2">
+          <strong>Istruzioni:</strong><br/>
+          1️⃣ Clicca "Copia" per copiare il messaggio<br/>
+          2️⃣ Clicca "Apri Chat" per aprire WhatsApp Web<br/>
+          3️⃣ Incolla con Ctrl+V e invia!
+        </Typography>
+      </Paper>
+    </Box>
   );
 }
