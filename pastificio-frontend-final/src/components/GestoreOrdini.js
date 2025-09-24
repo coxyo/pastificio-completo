@@ -8,7 +8,7 @@ import {
   Box, Container, Grid, Paper, Typography, 
   Snackbar, Alert, CircularProgress, IconButton, Chip, Button,
   LinearProgress, Badge, Menu, MenuItem, Divider, Dialog, DialogTitle, 
-  DialogContent, DialogActions
+  DialogContent, DialogActions, TextField
 } from '@mui/material';
 import { 
   Wifi as WifiIcon,
@@ -107,7 +107,7 @@ export default function GestoreOrdini() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
-  const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false); // NUOVO STATO
+  const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   const [menuExport, setMenuExport] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [storageUsed, setStorageUsed] = useState(0);
@@ -479,6 +479,100 @@ export default function GestoreOrdini() {
     setDialogoNuovoOrdineAperto(true);
   };
 
+  // Componente WhatsApp Helper semplificato
+  const WhatsAppHelperComponent = ({ ordini }) => {
+    const [ordineSelezionato, setOrdineSelezionato] = useState(null);
+    const [messaggio, setMessaggio] = useState('');
+
+    const handleSelectOrdine = (ordine) => {
+      setOrdineSelezionato(ordine);
+      const msg = WhatsAppHelper.formatMessage({
+        numeroOrdine: ordine.numeroOrdine || ordine._id?.substr(-6),
+        cliente: ordine.nomeCliente,
+        telefono: ordine.telefono,
+        dataConsegna: ordine.dataRitiro,
+        orarioConsegna: ordine.oraRitiro,
+        prodotti: ordine.prodotti,
+        totale: ordine.totale,
+        note: ordine.note
+      });
+      setMessaggio(msg);
+    };
+
+    const handleCopy = async () => {
+      if (!messaggio) {
+        alert('Seleziona prima un ordine');
+        return;
+      }
+      
+      const success = await WhatsAppHelper.copyToClipboard(messaggio);
+      if (success) {
+        alert('✅ Messaggio copiato! Incollalo su WhatsApp');
+        window.open('https://web.whatsapp.com/', '_blank');
+      } else {
+        alert('❌ Errore nella copia del messaggio');
+      }
+    };
+
+    return (
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Seleziona un ordine per generare il messaggio WhatsApp
+        </Typography>
+        
+        <Grid container spacing={2}>
+          <Grid item xs={6}>
+            <Paper sx={{ p: 2, maxHeight: 400, overflow: 'auto' }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Ordini del giorno
+              </Typography>
+              {ordini.map(ordine => (
+                <Button
+                  key={ordine._id}
+                  fullWidth
+                  variant={ordineSelezionato?._id === ordine._id ? 'contained' : 'outlined'}
+                  sx={{ mb: 1, justifyContent: 'flex-start' }}
+                  onClick={() => handleSelectOrdine(ordine)}
+                >
+                  {ordine.nomeCliente} - €{ordine.totale || 0}
+                </Button>
+              ))}
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={6}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Anteprima messaggio
+              </Typography>
+              <TextField
+                multiline
+                rows={10}
+                fullWidth
+                value={messaggio}
+                onChange={(e) => setMessaggio(e.target.value)}
+                variant="outlined"
+              />
+              
+              <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<WhatsAppIcon />}
+                  onClick={handleCopy}
+                  disabled={!messaggio}
+                  fullWidth
+                >
+                  Copia e Apri WhatsApp
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  };
+
   return (
     <Container maxWidth="xl">
       {/* Widget Statistiche */}
@@ -494,7 +588,7 @@ export default function GestoreOrdini() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <InstallPWA />
             
-            {/* NUOVO: Bottone WhatsApp Helper */}
+            {/* Bottone WhatsApp Helper */}
             <Button
               variant="contained"
               size="small"
@@ -700,7 +794,7 @@ export default function GestoreOrdini() {
         </DialogActions>
       </Dialog>
       
-      {/* NUOVO: Dialog per WhatsApp Helper */}
+      {/* Dialog per WhatsApp Helper */}
       <Dialog 
         open={whatsappHelperAperto} 
         onClose={() => setWhatsappHelperAperto(false)}
@@ -716,7 +810,7 @@ export default function GestoreOrdini() {
           </Box>
         </DialogTitle>
         <DialogContent>
-          <WhatsAppHelper ordini={ordini} />
+          <WhatsAppHelperComponent ordini={ordini} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWhatsappHelperAperto(false)}>Chiudi</Button>
@@ -741,8 +835,4 @@ export default function GestoreOrdini() {
       </Snackbar>
     </Container>
   );
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> d62a9b18eb32db96b141b851886398197b0d6578
