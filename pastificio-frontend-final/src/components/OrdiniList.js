@@ -43,48 +43,52 @@ const OrdiniList = ({
     setOrdineSelezionato(null);
   };
 
-  const segnaComePronto = async (ordineId) => {
+  // FUNZIONE WHATSAPP SEMPLIFICATA
+  const inviaWhatsApp = (ordine, tipo = 'conferma') => {
     try {
-      const response = await fetch(`${API_URL}/api/ordini/${ordineId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ 
-          stato: 'completato'
-        })
-      });
+      // Prepara il messaggio
+      let messaggio = '';
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Errore aggiornamento stato');
+      if (tipo === 'pronto') {
+        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n✅ *ORDINE PRONTO PER IL RITIRO*\n👤 Cliente: ${ordine.nomeCliente}\n📅 Data: ${ordine.dataRitiro}\n⏰ Ora: ${ordine.oraRitiro}\n\nVi aspettiamo in Via Garibaldi 123, Milano\n📞 389 887 9833`;
+      } else if (tipo === 'promemoria') {
+        messaggio = `🔔 *PROMEMORIA RITIRO*\n\nGentile ${ordine.nomeCliente},\nle ricordiamo il suo ordine per domani alle ${ordine.oraRitiro}.\n\n📍 Pastificio Nonna Claudia\n📞 389 887 9833`;
+      } else {
+        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n📋 *RIEPILOGO ORDINE*\n👤 ${ordine.nomeCliente}\n📅 ${ordine.dataRitiro}\n⏰ ${ordine.oraRitiro}\n\n📦 *PRODOTTI:*\n${ordine.prodotti.map(p => `• ${p.nome || p.prodotto}: ${p.quantita} ${p.unitaMisura || p.unita || ''}`).join('\n')}\n\n💰 *TOTALE: €${calcolaTotale(ordine)}*\n\nGrazie per averci scelto!`;
       }
 
-      try {
-        const whatsappResponse = await fetch(`${API_URL}/api/ordini/invio-ordine-pronto/${ordineId}`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (whatsappResponse.ok) {
-          alert('✅ Ordine segnato come pronto e WhatsApp inviato!');
-        } else {
-          alert('✅ Ordine segnato come pronto (WhatsApp non inviato - verificare il numero)');
-        }
-      } catch (whatsappError) {
-        console.error('Errore invio WhatsApp:', whatsappError);
-        alert('✅ Ordine segnato come pronto (WhatsApp non disponibile)');
-      }
+      // Numero di telefono
+      const numeroCliente = ordine.telefono || ordine.cliente?.telefono || '3898879833';
+      const numeroClean = numeroCliente.replace(/\D/g, '');
+      const numeroWhatsApp = numeroClean.startsWith('39') ? numeroClean : '39' + numeroClean;
       
+      // Apri WhatsApp Web
+      const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(messaggio)}`;
+      window.open(url, '_blank');
+      
+      alert('✅ WhatsApp aperto con il messaggio precompilato!');
+      
+    } catch (error) {
+      console.error('Errore WhatsApp:', error);
+      alert('❌ Errore nell\'invio del messaggio WhatsApp');
+    }
+  };
+
+  const segnaComePronto = async (ordineId) => {
+    try {
+      // Aggiorna lo stato localmente
       const ordiniAggiornati = ordini.map(o => 
         o._id === ordineId 
           ? { ...o, stato: 'completato' }
           : o
       );
       localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+      
+      // Invia WhatsApp
+      const ordine = ordini.find(o => o._id === ordineId);
+      if (ordine) {
+        inviaWhatsApp(ordine, 'pronto');
+      }
       
       handleMenuClose();
       window.location.reload();
@@ -96,21 +100,11 @@ const OrdiniList = ({
 
   const inviaPromemoria = async (ordineId) => {
     try {
-      const response = await fetch(`${API_URL}/api/ordini/invio-promemoria/${ordineId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok) {
-        alert('📱 Promemoria WhatsApp inviato con successo!');
-        handleMenuClose();
-      } else {
-        throw new Error(result.error || 'Errore nell\'invio del promemoria');
+      const ordine = ordini.find(o => o._id === ordineId);
+      if (ordine) {
+        inviaWhatsApp(ordine, 'promemoria');
       }
+      handleMenuClose();
     } catch (error) {
       console.error('Errore:', error);
       alert(`❌ Errore: ${error.message}`);
@@ -138,16 +132,6 @@ const OrdiniList = ({
     );
     
     localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-    
-    fetch(`${API_URL}/api/ordini/${ordineSelezionato._id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({ stato: nuovoStato })
-    }).catch(error => console.error('Errore aggiornamento stato:', error));
-    
     handleMenuClose();
     window.location.reload();
   };

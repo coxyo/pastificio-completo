@@ -1,13 +1,80 @@
 // components/NuovoOrdine.js
 import React, { useState, useEffect } from 'react';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { toast } from 'react-hot-toast';
-import { Plus, Save, X, Calendar, Clock, Phone, User, Package, Euro, Cookie } from 'lucide-react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Grid,
+  IconButton,
+  Typography,
+  Box,
+  MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Alert,
+  Divider,
+  Chip
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Save as SaveIcon,
+  WhatsApp as WhatsAppIcon,
+  Person as PersonIcon,
+  Phone as PhoneIcon,
+  CalendarToday as CalendarIcon,
+  AccessTime as TimeIcon,
+  ShoppingCart as CartIcon
+} from '@mui/icons-material';
 
-const NuovoOrdine = ({ onSave, clienti = [] }) => {
+const prodottiDisponibili = {
+  dolci: [
+    { nome: "Pardulas", prezzo: 19.00, unita: "Kg", descrizione: "Ricotta, zucchero, uova, aromi vari, farina 00, strutto, lievito" },
+    { nome: "Amaretti", prezzo: 22.00, unita: "Kg", descrizione: "Mandorle, zucchero, uova, aromi vari" },
+    { nome: "Papassinas", prezzo: 22.00, unita: "Kg", descrizione: "Farina, mandorle, uva sultanina, noci, sapa, zucchero, strutto, aromi vari, lievito" },
+    { nome: "Ciambelle con marmellata", prezzo: 16.00, unita: "Kg", descrizione: "Farina 00, zucchero, strutto, margarina vegetale, uova, passata di albicocche" },
+    { nome: "Ciambelle con Nutella", prezzo: 16.00, unita: "Kg", descrizione: "Farina, zucchero, strutto, margarina vegetale, uova, cacao, aromi vari" },
+    { nome: "Cantucci", prezzo: 23.00, unita: "Kg", descrizione: "Mandorle, farina 00, zucchero, uova, aromi vari" },
+    { nome: "Bianchini", prezzo: 15.00, unita: "Kg", descrizione: "Zucchero, uova" },
+    { nome: "Gueffus", prezzo: 22.00, unita: "Kg", descrizione: "Mandorle, zucchero, aromi vari" },
+    { nome: "Dolci misti (Pardulas, ciambelle, papassinas, amaretti, gueffus, bianchini)", prezzo: 19.00, unita: "Kg", descrizione: "Mix di dolci tradizionali" },
+    { nome: "Dolci misti (Pardulas, ciambelle)", prezzo: 17.00, unita: "Kg", descrizione: "Mix pardulas e ciambelle" },
+    { nome: "Zeppole", prezzo: 21.00, unita: "Kg", descrizione: "Farina, latte, uova, ricotta, patate, aromi vari, lievito" },
+    { nome: "Pizzette sfoglia", prezzo: 16.00, unita: "Kg", descrizione: "Farina, passata di pomodoro, strutto, capperi, lievito" },
+    { nome: "Torta di sapa", prezzo: 23.00, unita: "Kg", descrizione: "Farina, sapa, zucchero, uova, noci, mandorle, uva sultanina" }
+  ],
+  panadas: [
+    { nome: "Panada di anguille", prezzo: 30.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
+    { nome: "Panada di Agnello", prezzo: 25.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
+    { nome: "Panada di Maiale", prezzo: 21.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
+    { nome: "Panada di Vitella", prezzo: 23.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
+    { nome: "Panada di verdure", prezzo: 17.00, unita: "Kg", descrizione: "Melanzane, patate e piselli (prodotto congelato)" },
+    { nome: "Panadine carne o verdura", prezzo: 0.80, unita: "unità", descrizione: "Prodotto congelato" }
+  ],
+  pasta: [
+    { nome: "Ravioli ricotta e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, sale, semola, farina" },
+    { nome: "Ravioli ricotta spinaci e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, spinaci, zafferano, uova, sale, semola, farina" },
+    { nome: "Ravioli ricotta spinaci", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, spinaci, uova, sale, semola, farina" },
+    { nome: "Ravioli ricotta dolci", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, zucchero, semola, farina" },
+    { nome: "Culurgiones", prezzo: 16.00, unita: "Kg", descrizione: "Patate, formaggio, aglio, menta, olio extra vergine, sale, semola, farina" },
+    { nome: "Ravioli formaggio", prezzo: 16.00, unita: "Kg", descrizione: "Formaggio pecorino, spinaci, uova, sale, semola, farina" },
+    { nome: "Sfoglie per Lasagne", prezzo: 5.00, unita: "Kg", descrizione: "Semola, farina, uova, sale" },
+    { nome: "Pasta per panadas", prezzo: 5.00, unita: "Kg", descrizione: "Semola, farina, strutto naturale, sale" },
+    { nome: "Pasta per pizza", prezzo: 5.00, unita: "Kg", descrizione: "Farina, latte, olio, lievito, sale" },
+    { nome: "Fregola", prezzo: 10.00, unita: "Kg", descrizione: "Semola, zafferano, sale" }
+  ]
+};
+
+export default function NuovoOrdine({ open, onClose, onSave, ordineIniziale, submitInCorso }) {
   const [ordine, setOrdine] = useState({
     nomeCliente: '',
     telefono: '',
@@ -15,66 +82,60 @@ const NuovoOrdine = ({ onSave, clienti = [] }) => {
     oraRitiro: '',
     prodotti: [],
     note: '',
-    stato: 'nuovo'
+    stato: 'nuovo',
+    cliente: { nome: '', telefono: '' }
   });
 
   const [prodottoCorrente, setProdottoCorrente] = useState({
     nome: '',
     quantita: 1,
-    unita: 'kg',
-    prezzo: 0
+    unita: 'Kg',
+    prezzo: 0,
+    categoria: ''
   });
 
-  // Lista prodotti predefiniti con prezzi
-  const prodottiPredefiniti = [
-    // Pasta fresca
-    { nome: 'Malloreddus', prezzo: 12, unita: 'kg', categoria: 'pasta' },
-    { nome: 'Culurgiones', prezzo: 18, unita: 'kg', categoria: 'pasta' },
-    { nome: 'Ravioli ricotta e spinaci', prezzo: 15, unita: 'kg', categoria: 'pasta' },
-    { nome: 'Ravioli di carne', prezzo: 16, unita: 'kg', categoria: 'pasta' },
-    { nome: 'Gnocchetti sardi', prezzo: 10, unita: 'kg', categoria: 'pasta' },
-    { nome: 'Fregola', prezzo: 8, unita: 'kg', categoria: 'pasta' },
-    { nome: 'Tagliatelle', prezzo: 10, unita: 'kg', categoria: 'pasta' },
-    { nome: 'Lasagne', prezzo: 12, unita: 'kg', categoria: 'pasta' },
-    { nome: 'Cannelloni', prezzo: 14, unita: 'kg', categoria: 'pasta' },
-    
-    // Dolci
-    { nome: 'Seadas', prezzo: 4, unita: 'pezzi', categoria: 'dolci' },
-    { nome: 'Pardulas', prezzo: 2.5, unita: 'pezzi', categoria: 'dolci' },
-    { nome: 'Papassini', prezzo: 18, unita: 'kg', categoria: 'dolci' },
-    { nome: 'Amaretti', prezzo: 20, unita: 'kg', categoria: 'dolci' },
-    { nome: 'Bianchini', prezzo: 22, unita: 'kg', categoria: 'dolci' },
-    { nome: 'Gueffus', prezzo: 25, unita: 'kg', categoria: 'dolci' },
-    { nome: 'Candelaus', prezzo: 20, unita: 'kg', categoria: 'dolci' },
-    
-    // Pane
-    { nome: 'Pane carasau', prezzo: 8, unita: 'kg', categoria: 'pane' },
-    { nome: 'Pane civraxiu', prezzo: 5, unita: 'kg', categoria: 'pane' },
-    { nome: 'Coccoi', prezzo: 6, unita: 'kg', categoria: 'pane' },
-    { nome: 'Pistoccu', prezzo: 7, unita: 'kg', categoria: 'pane' },
-    { nome: 'Moddizzosu', prezzo: 4, unita: 'kg', categoria: 'pane' },
-    
-    // Altri prodotti
-    { nome: 'Sebadas', prezzo: 4, unita: 'pezzi', categoria: 'dolci' },
-    { nome: 'Pabassinas', prezzo: 20, unita: 'kg', categoria: 'dolci' },
-    { nome: 'Ricotta fresca', prezzo: 8, unita: 'kg', categoria: 'altro' },
-    { nome: 'Formaggelle', prezzo: 3, unita: 'pezzi', categoria: 'altro' },
-    { nome: 'Panadas', prezzo: 5, unita: 'pezzi', categoria: 'altro' },
-    { nome: 'Dolci misti', prezzo: 0, unita: '€', categoria: 'dolci' },
-    { nome: 'Ciambelle con marmellata', prezzo: 18, unita: 'kg', categoria: 'dolci' }
+  const [errori, setErrori] = useState({});
+
+  // Carica ordine se in modifica
+  useEffect(() => {
+    if (ordineIniziale) {
+      setOrdine({
+        ...ordineIniziale,
+        nomeCliente: ordineIniziale.nomeCliente || ordineIniziale.cliente?.nome || '',
+        telefono: ordineIniziale.telefono || ordineIniziale.cliente?.telefono || ''
+      });
+    }
+  }, [ordineIniziale]);
+
+  // Trova tutti i prodotti in un array piatto
+  const tuttiProdotti = [
+    ...Object.values(prodottiDisponibili).flat()
   ];
+
+  const handleProdottoChange = (nomeProdotto) => {
+    const prodotto = tuttiProdotti.find(p => p.nome === nomeProdotto);
+    if (prodotto) {
+      setProdottoCorrente({
+        nome: prodotto.nome,
+        prezzo: prodotto.prezzo,
+        unita: prodotto.unita,
+        quantita: 1,
+        categoria: Object.entries(prodottiDisponibili).find(([_, prods]) => 
+          prods.some(p => p.nome === prodotto.nome)
+        )?.[0] || ''
+      });
+    }
+  };
 
   const aggiungiProdotto = () => {
     if (!prodottoCorrente.nome) {
-      toast.error('Seleziona un prodotto');
+      setErrori({ prodotto: 'Seleziona un prodotto' });
       return;
     }
 
     const nuovoProdotto = {
       ...prodottoCorrente,
-      // Non includere la quantità nel nome
-      nome: prodottoCorrente.nome,
-      // Calcola il totale
+      prodotto: prodottoCorrente.nome, // Compatibilità con il backend
       totale: prodottoCorrente.quantita * prodottoCorrente.prezzo
     };
 
@@ -83,15 +144,15 @@ const NuovoOrdine = ({ onSave, clienti = [] }) => {
       prodotti: [...ordine.prodotti, nuovoProdotto]
     });
 
-    // Reset prodotto corrente
+    // Reset
     setProdottoCorrente({
       nome: '',
       quantita: 1,
-      unita: 'kg',
-      prezzo: 0
+      unita: 'Kg',
+      prezzo: 0,
+      categoria: ''
     });
-
-    toast.success('Prodotto aggiunto');
+    setErrori({});
   };
 
   const rimuoviProdotto = (index) => {
@@ -99,19 +160,6 @@ const NuovoOrdine = ({ onSave, clienti = [] }) => {
       ...ordine,
       prodotti: ordine.prodotti.filter((_, i) => i !== index)
     });
-    toast.success('Prodotto rimosso');
-  };
-
-  const handleProdottoChange = (nomeProdotto) => {
-    const prodotto = prodottiPredefiniti.find(p => p.nome === nomeProdotto);
-    if (prodotto) {
-      setProdottoCorrente({
-        ...prodottoCorrente,
-        nome: prodotto.nome,
-        prezzo: prodotto.prezzo,
-        unita: prodotto.unita
-      });
-    }
   };
 
   const calcolaTotale = () => {
@@ -119,296 +167,341 @@ const NuovoOrdine = ({ onSave, clienti = [] }) => {
   };
 
   const handleSubmit = () => {
+    const erroriValidazione = {};
+    
     if (!ordine.nomeCliente) {
-      toast.error('Inserisci il nome del cliente');
-      return;
+      erroriValidazione.nomeCliente = 'Nome cliente obbligatorio';
     }
-
     if (ordine.prodotti.length === 0) {
-      toast.error('Aggiungi almeno un prodotto');
-      return;
+      erroriValidazione.prodotti = 'Aggiungi almeno un prodotto';
+    }
+    if (!ordine.dataRitiro) {
+      erroriValidazione.dataRitiro = 'Data ritiro obbligatoria';
+    }
+    if (!ordine.oraRitiro) {
+      erroriValidazione.oraRitiro = 'Ora ritiro obbligatoria';
     }
 
-    if (!ordine.dataRitiro || !ordine.oraRitiro) {
-      toast.error('Inserisci data e ora di ritiro');
+    if (Object.keys(erroriValidazione).length > 0) {
+      setErrori(erroriValidazione);
       return;
     }
 
     const ordineCompleto = {
       ...ordine,
+      cliente: {
+        nome: ordine.nomeCliente,
+        telefono: ordine.telefono
+      },
       totale: calcolaTotale(),
-      _id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date().toISOString()
+      createdAt: ordine.createdAt || new Date().toISOString()
     };
 
     onSave(ordineCompleto);
-    
-    // Reset form
-    setOrdine({
-      nomeCliente: '',
-      telefono: '',
-      dataRitiro: new Date().toISOString().split('T')[0],
-      oraRitiro: '',
-      prodotti: [],
-      note: '',
-      stato: 'nuovo'
-    });
-    
-    toast.success('Ordine creato con successo!');
+  };
+
+  const handleWhatsApp = () => {
+    const testoOrdine = `
+🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
+
+📋 *NUOVO ORDINE*
+👤 Cliente: ${ordine.nomeCliente}
+📅 Ritiro: ${ordine.dataRitiro}
+⏰ Ora: ${ordine.oraRitiro}
+
+📦 *PRODOTTI:*
+${ordine.prodotti.map(p => `• ${p.nome}: ${p.quantita} ${p.unita}`).join('\n')}
+
+💰 *TOTALE: €${calcolaTotale().toFixed(2)}*
+
+${ordine.note ? `📝 Note: ${ordine.note}` : ''}
+
+Grazie per l'ordine! ✨
+    `.trim();
+
+    const numeroWhatsApp = ordine.telefono?.replace(/\D/g, '');
+    const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(testoOrdine)}`;
+    window.open(url, '_blank');
   };
 
   return (
-    <Card className="p-6">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b pb-4">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Cookie className="h-6 w-6 text-blue-600" />
-            Nuovo Ordine
-          </h2>
-          <div className="text-sm text-gray-500">
-            {new Date().toLocaleDateString('it-IT', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </div>
-        </div>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6">
+            {ordineIniziale ? 'Modifica Ordine' : 'Nuovo Ordine'}
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
 
-        {/* Dati Cliente */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              <User className="inline h-4 w-4 mr-1" />
-              Nome Cliente *
-            </label>
-            <Input
+      <DialogContent dividers>
+        <Grid container spacing={3}>
+          {/* Dati Cliente */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+              <PersonIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+              Dati Cliente
+            </Typography>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Nome Cliente"
               value={ordine.nomeCliente}
               onChange={(e) => setOrdine({ ...ordine, nomeCliente: e.target.value })}
-              placeholder="Mario Rossi"
-              className="w-full"
+              error={!!errori.nomeCliente}
+              helperText={errori.nomeCliente}
+              required
+              InputProps={{
+                startAdornment: <PersonIcon sx={{ mr: 1, color: 'action.active' }} />
+              }}
             />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              <Phone className="inline h-4 w-4 mr-1" />
-              Telefono
-            </label>
-            <Input
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Telefono"
               value={ordine.telefono}
               onChange={(e) => setOrdine({ ...ordine, telefono: e.target.value })}
-              placeholder="+39 xxx xxx xxxx"
-              className="w-full"
+              InputProps={{
+                startAdornment: <PhoneIcon sx={{ mr: 1, color: 'action.active' }} />
+              }}
             />
-          </div>
-        </div>
+          </Grid>
 
-        {/* Data e Ora */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              <Calendar className="inline h-4 w-4 mr-1" />
-              Data Ritiro *
-            </label>
-            <Input
+          {/* Data e Ora */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+              <CalendarIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+              Data e Ora Ritiro
+            </Typography>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
               type="date"
+              label="Data Ritiro"
               value={ordine.dataRitiro}
               onChange={(e) => setOrdine({ ...ordine, dataRitiro: e.target.value })}
-              className="w-full"
+              error={!!errori.dataRitiro}
+              helperText={errori.dataRitiro}
+              required
+              InputLabelProps={{ shrink: true }}
             />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              <Clock className="inline h-4 w-4 mr-1" />
-              Ora Ritiro *
-            </label>
-            <Input
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
               type="time"
+              label="Ora Ritiro"
               value={ordine.oraRitiro}
               onChange={(e) => setOrdine({ ...ordine, oraRitiro: e.target.value })}
-              className="w-full"
+              error={!!errori.oraRitiro}
+              helperText={errori.oraRitiro}
+              required
+              InputLabelProps={{ shrink: true }}
             />
-          </div>
-        </div>
+          </Grid>
 
-        {/* Sezione Prodotti */}
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Prodotti
-          </h3>
-          
+          {/* Prodotti */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+              <CartIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+              Prodotti
+            </Typography>
+          </Grid>
+
           {/* Form aggiungi prodotto */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="md:col-span-1">
-                <label className="block text-xs font-medium mb-1">Prodotto</label>
-                <Select value={prodottoCorrente.nome} onValueChange={handleProdottoChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">-- Seleziona --</SelectItem>
-                    {prodottiPredefiniti.map(p => (
-                      <SelectItem key={p.nome} value={p.nome}>
-                        {p.nome} - €{p.prezzo}/{p.unita}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium mb-1">Quantità</label>
-                <Input
-                  type="number"
-                  value={prodottoCorrente.quantita}
-                  onChange={(e) => setProdottoCorrente({
-                    ...prodottoCorrente,
-                    quantita: parseFloat(e.target.value) || 0
-                  })}
-                  step="0.1"
-                  min="0"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium mb-1">Unità</label>
-                <Select 
-                  value={prodottoCorrente.unita} 
-                  onValueChange={(v) => setProdottoCorrente({ ...prodottoCorrente, unita: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="kg">kg</SelectItem>
-                    <SelectItem value="pezzi">pezzi</SelectItem>
-                    <SelectItem value="€">€</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium mb-1">Prezzo/unità</label>
-                <Input
-                  type="number"
-                  value={prodottoCorrente.prezzo}
-                  onChange={(e) => setProdottoCorrente({
-                    ...prodottoCorrente,
-                    prezzo: parseFloat(e.target.value) || 0
-                  })}
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-            </div>
-            
-            <Button onClick={aggiungiProdotto} className="w-full md:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Aggiungi Prodotto
-            </Button>
-          </div>
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Seleziona Prodotto"
+                    value={prodottoCorrente.nome}
+                    onChange={(e) => handleProdottoChange(e.target.value)}
+                    error={!!errori.prodotto}
+                    helperText={errori.prodotto}
+                    size="small"
+                  >
+                    <MenuItem value="">-- Seleziona --</MenuItem>
+                    {Object.entries(prodottiDisponibili).map(([categoria, prodotti]) => [
+                      <MenuItem key={`header-${categoria}`} disabled>
+                        <Typography variant="overline">{categoria.toUpperCase()}</Typography>
+                      </MenuItem>,
+                      ...prodotti.map(p => (
+                        <MenuItem key={p.nome} value={p.nome}>
+                          {p.nome} - €{p.prezzo}/{p.unita}
+                        </MenuItem>
+                      ))
+                    ])}
+                  </TextField>
+                </Grid>
 
-          {/* Lista prodotti aggiunti */}
+                <Grid item xs={6} md={2}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Quantità"
+                    value={prodottoCorrente.quantita}
+                    onChange={(e) => setProdottoCorrente({
+                      ...prodottoCorrente,
+                      quantita: parseFloat(e.target.value) || 0
+                    })}
+                    inputProps={{ min: 0, step: 0.1 }}
+                    size="small"
+                  />
+                </Grid>
+
+                <Grid item xs={6} md={2}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Unità"
+                    value={prodottoCorrente.unita}
+                    onChange={(e) => setProdottoCorrente({
+                      ...prodottoCorrente,
+                      unita: e.target.value
+                    })}
+                    size="small"
+                  >
+                    <MenuItem value="Kg">Kg</MenuItem>
+                    <MenuItem value="unità">Unità</MenuItem>
+                    <MenuItem value="pezzi">Pezzi</MenuItem>
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={6} md={2}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Prezzo"
+                    value={prodottoCorrente.prezzo}
+                    onChange={(e) => setProdottoCorrente({
+                      ...prodottoCorrente,
+                      prezzo: parseFloat(e.target.value) || 0
+                    })}
+                    inputProps={{ min: 0, step: 0.01 }}
+                    size="small"
+                  />
+                </Grid>
+
+                <Grid item xs={6} md={2}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={aggiungiProdotto}
+                    startIcon={<AddIcon />}
+                  >
+                    Aggiungi
+                  </Button>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+
+          {/* Lista prodotti */}
           {ordine.prodotti.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Prodotto</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Qtà</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Unità</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Prezzo/u</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">Totale</th>
-                    <th className="px-4 py-2 text-center text-sm font-medium">Azioni</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {ordine.prodotti.map((p, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 text-sm">{p.nome}</td>
-                      <td className="px-4 py-2 text-sm">{p.quantita}</td>
-                      <td className="px-4 py-2 text-sm">{p.unita}</td>
-                      <td className="px-4 py-2 text-sm">€{p.prezzo.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-sm font-semibold">
-                        €{(p.quantita * p.prezzo).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        <Button
-                          onClick={() => rimuoviProdotto(index)}
-                          size="sm"
-                          variant="destructive"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-gray-100">
-                  <tr>
-                    <td colSpan="4" className="px-4 py-3 text-right font-semibold">
-                      Totale Ordine:
-                    </td>
-                    <td colSpan="2" className="px-4 py-3 text-lg font-bold text-green-600">
-                      €{calcolaTotale().toFixed(2)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+            <Grid item xs={12}>
+              <TableContainer component={Paper}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Prodotto</TableCell>
+                      <TableCell align="right">Quantità</TableCell>
+                      <TableCell>Unità</TableCell>
+                      <TableCell align="right">Prezzo/u</TableCell>
+                      <TableCell align="right">Totale</TableCell>
+                      <TableCell align="center">Azioni</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {ordine.prodotti.map((p, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{p.nome || p.prodotto}</TableCell>
+                        <TableCell align="right">{p.quantita}</TableCell>
+                        <TableCell>{p.unita}</TableCell>
+                        <TableCell align="right">€{p.prezzo.toFixed(2)}</TableCell>
+                        <TableCell align="right">€{(p.quantita * p.prezzo).toFixed(2)}</TableCell>
+                        <TableCell align="center">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => rimuoviProdotto(index)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={4} align="right">
+                        <Typography variant="h6">Totale:</Typography>
+                      </TableCell>
+                      <TableCell align="right" colSpan={2}>
+                        <Typography variant="h6" color="primary">
+                          €{calcolaTotale().toFixed(2)}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Grid>
           )}
-        </div>
 
-        {/* Note */}
-        <div>
-          <label className="block text-sm font-medium mb-2">Note</label>
-          <textarea
-            value={ordine.note}
-            onChange={(e) => setOrdine({ ...ordine, note: e.target.value })}
-            className="w-full p-3 border rounded-lg"
-            rows="3"
-            placeholder="Note aggiuntive per l'ordine..."
-          />
-        </div>
+          {errori.prodotti && (
+            <Grid item xs={12}>
+              <Alert severity="error">{errori.prodotti}</Alert>
+            </Grid>
+          )}
 
-        {/* Pulsanti azione */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
+          {/* Note */}
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Note"
+              value={ordine.note}
+              onChange={(e) => setOrdine({ ...ordine, note: e.target.value })}
+            />
+          </Grid>
+        </Grid>
+      </DialogContent>
+
+      <DialogActions>
+        {ordine.telefono && ordine.prodotti.length > 0 && (
           <Button
-            onClick={() => {
-              setOrdine({
-                nomeCliente: '',
-                telefono: '',
-                dataRitiro: new Date().toISOString().split('T')[0],
-                oraRitiro: '',
-                prodotti: [],
-                note: '',
-                stato: 'nuovo'
-              });
-              toast.success('Form resettato');
-            }}
-            variant="outline"
+            color="success"
+            startIcon={<WhatsAppIcon />}
+            onClick={handleWhatsApp}
           >
-            <X className="h-4 w-4 mr-2" />
-            Cancella
+            Invia WhatsApp
           </Button>
-          
-          <Button
-            onClick={handleSubmit}
-            disabled={!ordine.nomeCliente || ordine.prodotti.length === 0}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Salva Ordine
-          </Button>
-        </div>
-      </div>
-    </Card>
+        )}
+        <Box sx={{ flexGrow: 1 }} />
+        <Button onClick={onClose}>
+          Annulla
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={submitInCorso}
+          startIcon={<SaveIcon />}
+        >
+          {submitInCorso ? 'Salvataggio...' : 'Salva Ordine'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
-};
-
-export default NuovoOrdine;
+}
