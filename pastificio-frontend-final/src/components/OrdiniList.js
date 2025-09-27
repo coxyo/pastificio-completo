@@ -43,18 +43,69 @@ const OrdiniList = ({
     setOrdineSelezionato(null);
   };
 
-  // FUNZIONE WHATSAPP SEMPLIFICATA
+  // FUNZIONE WHATSAPP CON MESSAGGIO DETTAGLIATO
   const inviaWhatsApp = (ordine, tipo = 'conferma') => {
     try {
-      // Prepara il messaggio
+      // Prepara il messaggio dettagliato
       let messaggio = '';
       
       if (tipo === 'pronto') {
-        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n✅ *ORDINE PRONTO PER IL RITIRO*\n👤 Cliente: ${ordine.nomeCliente}\n📅 Data: ${ordine.dataRitiro}\n⏰ Ora: ${ordine.oraRitiro}\n\nVi aspettiamo in Via Garibaldi 123, Milano\n📞 389 887 9833`;
+        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
+
+✅ *ORDINE PRONTO PER IL RITIRO*
+
+Cliente: ${ordine.nomeCliente}
+Data: ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
+Ora: ${ordine.oraRitiro}
+
+📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
+📞 *INFO:* 389 887 9833
+
+Vi aspettiamo!
+Pastificio Nonna Claudia`;
+
       } else if (tipo === 'promemoria') {
-        messaggio = `🔔 *PROMEMORIA RITIRO*\n\nGentile ${ordine.nomeCliente},\nle ricordiamo il suo ordine per domani alle ${ordine.oraRitiro}.\n\n📍 Pastificio Nonna Claudia\n📞 389 887 9833`;
+        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
+
+🔔 *PROMEMORIA RITIRO*
+
+Gentile ${ordine.nomeCliente},
+le ricordiamo il suo ordine per domani alle ${ordine.oraRitiro}.
+
+📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
+📞 *Per info:* 389 887 9833
+💬 *WhatsApp:* 389 887 9833
+
+Grazie e a presto!
+Pastificio Nonna Claudia`;
+
       } else {
-        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n📋 *RIEPILOGO ORDINE*\n👤 ${ordine.nomeCliente}\n📅 ${ordine.dataRitiro}\n⏰ ${ordine.oraRitiro}\n\n📦 *PRODOTTI:*\n${ordine.prodotti.map(p => `• ${p.nome || p.prodotto}: ${p.quantita} ${p.unitaMisura || p.unita || ''}`).join('\n')}\n\n💰 *TOTALE: €${calcolaTotale(ordine)}*\n\nGrazie per averci scelto!`;
+        // Messaggio conferma ordine dettagliato
+        const prodottiDettaglio = ordine.prodotti.map(p => 
+          `• ${p.nome || p.prodotto}: ${p.quantita} ${p.unitaMisura || p.unita || 'Kg'} - €${((p.prezzo * p.quantita) || 0).toFixed(2)}`
+        ).join('\n');
+
+        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
+
+✅ *ORDINE CONFERMATO*
+
+Gentile ${ordine.nomeCliente},
+grazie per aver scelto i nostri prodotti artigianali!
+
+📋 *RIEPILOGO ORDINE:*
+${prodottiDettaglio}
+
+💰 *TOTALE: €${calcolaTotale(ordine)}*
+
+📅 *RITIRO:* ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+⏰ *ORA:* ${ordine.oraRitiro}
+📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
+
+${ordine.note ? `📝 *Note:* ${ordine.note}\n\n` : ''}📞 *INFO:* 389 887 9833
+💬 *WhatsApp:* 389 887 9833
+
+Grazie e a presto!
+Pastificio Nonna Claudia`;
       }
 
       // Numero di telefono
@@ -66,11 +117,11 @@ const OrdiniList = ({
       const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(messaggio)}`;
       window.open(url, '_blank');
       
-      alert('✅ WhatsApp aperto con il messaggio precompilato!');
+      console.log('WhatsApp aperto con successo');
       
     } catch (error) {
       console.error('Errore WhatsApp:', error);
-      alert('❌ Errore nell\'invio del messaggio WhatsApp');
+      alert('Errore nell\'invio del messaggio WhatsApp');
     }
   };
 
@@ -94,7 +145,7 @@ const OrdiniList = ({
       window.location.reload();
     } catch (error) {
       console.error('Errore:', error);
-      alert(`❌ Errore: ${error.message}`);
+      alert(`Errore: ${error.message}`);
     }
   };
 
@@ -107,7 +158,7 @@ const OrdiniList = ({
       handleMenuClose();
     } catch (error) {
       console.error('Errore:', error);
-      alert(`❌ Errore: ${error.message}`);
+      alert(`Errore: ${error.message}`);
     }
   };
 
@@ -150,14 +201,21 @@ const OrdiniList = ({
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
             th { background-color: #3498db; color: white; }
+            .info { margin: 10px 0; }
+            .totale { font-size: 1.2em; font-weight: bold; margin-top: 20px; }
           </style>
         </head>
         <body>
           <h1>PASTIFICIO NONNA CLAUDIA</h1>
+          <div class="info">Via Carmine 20/B, Assemini (CA) - Tel: 389 887 9833</div>
+          <hr>
           <h2>Ordine - ${ordineSelezionato.nomeCliente}</h2>
-          <p>Data ritiro: ${new Date(ordineSelezionato.dataRitiro).toLocaleDateString('it-IT')}</p>
-          <p>Ora: ${ordineSelezionato.oraRitiro}</p>
-          <p>Telefono: ${ordineSelezionato.telefono}</p>
+          <div class="info">
+            <p><strong>Data ritiro:</strong> ${new Date(ordineSelezionato.dataRitiro).toLocaleDateString('it-IT')}</p>
+            <p><strong>Ora:</strong> ${ordineSelezionato.oraRitiro}</p>
+            <p><strong>Telefono:</strong> ${ordineSelezionato.telefono}</p>
+            ${ordineSelezionato.note ? `<p><strong>Note:</strong> ${ordineSelezionato.note}</p>` : ''}
+          </div>
           <table>
             <thead>
               <tr>
@@ -171,14 +229,14 @@ const OrdiniList = ({
               ${ordineSelezionato.prodotti.map(p => `
                 <tr>
                   <td>${p.nome || p.prodotto}</td>
-                  <td>${p.quantita} ${p.unitaMisura || ''}</td>
+                  <td>${p.quantita} ${p.unitaMisura || p.unita || ''}</td>
                   <td>€ ${p.prezzo.toFixed(2)}</td>
                   <td>€ ${(p.prezzo * p.quantita).toFixed(2)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
-          <h3>Totale: € ${calcolaTotale(ordineSelezionato)}</h3>
+          <div class="totale">Totale: € ${calcolaTotale(ordineSelezionato)}</div>
         </body>
       </html>
     `);
@@ -357,14 +415,14 @@ const OrdiniList = ({
           sx={{ color: 'success.main' }}
         >
           <WhatsAppIcon sx={{ mr: 1 }} fontSize="small" />
-          {ordineSelezionato?.stato === 'completato' ? 'Già pronto' : '✅ Segna come Pronto (invia WhatsApp)'}
+          {ordineSelezionato?.stato === 'completato' ? 'Già pronto' : 'Segna come Pronto (invia WhatsApp)'}
         </MenuItem>
         
         <MenuItem 
           onClick={() => inviaPromemoria(ordineSelezionato?._id)}
         >
           <NotificationsActiveIcon sx={{ mr: 1 }} fontSize="small" />
-          📱 Invia Promemoria WhatsApp
+          Invia Promemoria WhatsApp
         </MenuItem>
         
         <Divider />
@@ -388,7 +446,7 @@ const OrdiniList = ({
           onClick={() => handleCambiaStato('in_lavorazione')}
           disabled={ordineSelezionato?.stato === 'in_lavorazione'}
         >
-          ⚙️ In Lavorazione
+          In Lavorazione
         </MenuItem>
         
         <MenuItem 
@@ -396,7 +454,7 @@ const OrdiniList = ({
           disabled={ordineSelezionato?.stato === 'completato'}
           sx={{ color: 'success.main' }}
         >
-          ✅ Completato (invia WhatsApp)
+          Completato (invia WhatsApp)
         </MenuItem>
         
         <MenuItem 
@@ -404,7 +462,7 @@ const OrdiniList = ({
           disabled={ordineSelezionato?.stato === 'annullato'}
           sx={{ color: 'error.main' }}
         >
-          ❌ Annulla Ordine
+          Annulla Ordine
         </MenuItem>
       </Menu>
     </Paper>
