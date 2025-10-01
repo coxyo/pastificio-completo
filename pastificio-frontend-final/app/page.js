@@ -1,43 +1,56 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { OrdiniProvider } from '@/contexts/OrdiniContext';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { Container, Box, Typography, CircularProgress } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
-// Import dinamico per evitare errori SSR
+// Import dinamico per evitare errori SSR con localStorage
 const GestoreOrdini = dynamic(
   () => import('@/components/GestoreOrdini'),
   { 
     ssr: false,
     loading: () => (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Caricamento...</Typography>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <CircularProgress size={60} />
+        <Typography sx={{ mt: 2 }}>Caricamento sistema ordini...</Typography>
       </Box>
     )
   }
 );
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-  },
-});
-
 export default function Home() {
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <OrdiniProvider>
-        <GestoreOrdini />
-      </OrdiniProvider>
-    </ThemeProvider>
-  );
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    
+    // Registra service worker per PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(
+        (registration) => {
+          console.log('Service Worker registrato:', registration);
+        },
+        (error) => {
+          console.error('Service Worker registrazione fallita:', error);
+        }
+      );
+    }
+
+    // Richiedi permessi per notifiche
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  return <GestoreOrdini />;
 }

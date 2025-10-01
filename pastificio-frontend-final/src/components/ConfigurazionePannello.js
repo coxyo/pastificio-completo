@@ -1,921 +1,705 @@
+// src/components/ConfigurazionePannello.js
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card } from './ui/card';
-import { LoggingService } from '../services/loggingService';
-import { BackupService } from '../services/backupService';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  Save, 
+  Download, 
+  Upload, 
+  RefreshCw,
+  Settings,
+  Database,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  AlertCircle,
+  Shield,
+  Bell,
+  Mail,
+  MessageSquare,
+  Calendar,
+  Clock,
+  Palette
+} from 'lucide-react';
+import { LoggingService } from '@/services/loggingService'; // Corretto l'import
+import { BackupService } from '@/services/backupService';  // Aggiunto import
 
 const ConfigurazionePannello = () => {
-  // Configurazione pastificio
-  const [configurazionePastificio, setConfigurazionePastificio] = useState({
-    nome: 'Pastificio',
-    indirizzo: '',
-    telefono: '',
-    email: '',
-    partitaIva: ''
-  });
-  
-  // Configurazione orari
-  const [orariApertura, setOrariApertura] = useState({
-    lunedi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-    martedi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-    mercoledi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-    giovedi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-    venerdi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-    sabato: { aperto: true, apertura: '08:00', chiusura: '14:00' },
-    domenica: { aperto: false, apertura: '08:00', chiusura: '14:00' }
-  });
-  
-  // Configurazione backup
-  const [configurazioneBackup, setConfigurazioneBackup] = useState({
-    backupAutomatico: true,
-    frequenza: 'giornaliero',
-    oraBackup: '23:00',
-    conservazione: 30 // giorni
-  });
-  
-  // Configurazione notifiche
-  const [configurazioneNotifiche, setConfigurazioneNotifiche] = useState({
-    nuovoOrdine: true,
-    modificaOrdine: true,
-    eliminazioneOrdine: true,
-    backupCompletato: true,
-    erroreSincronizzazione: true
-  });
-  
-  // Configurazione utenti
-  const [utenti, setUtenti] = useState([]);
-  const [nuovoUtente, setNuovoUtente] = useState({
-    username: '',
-    password: '',
-    ruolo: 'operatore'
-  });
-  
-  // Notifiche e stato
-  const [notifica, setNotifica] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [tabAttiva, setTabAttiva] = useState('pastificio');
-  
-  // Inizializza configurazioni se non esistono
-  const inizializzaConfigurazioni = useCallback(() => {
-    try {
-      // Verifica e inizializza configurazione pastificio
-      if (!localStorage.getItem('configurazione_pastificio')) {
-        const configPastificioDefault = {
-          nome: 'Pastificio',
-          indirizzo: '',
-          telefono: '',
-          email: '',
-          partitaIva: ''
-        };
-        localStorage.setItem('configurazione_pastificio', JSON.stringify(configPastificioDefault));
-        LoggingService.info('Configurazione pastificio inizializzata');
-      }
-      
-      // Verifica e inizializza configurazione orari
-      if (!localStorage.getItem('configurazione_orari')) {
-        const configOrariDefault = {
-          lunedi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-          martedi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-          mercoledi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-          giovedi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-          venerdi: { aperto: true, apertura: '08:00', chiusura: '19:00' },
-          sabato: { aperto: true, apertura: '08:00', chiusura: '14:00' },
-          domenica: { aperto: false, apertura: '08:00', chiusura: '14:00' }
-        };
-        localStorage.setItem('configurazione_orari', JSON.stringify(configOrariDefault));
-        LoggingService.info('Configurazione orari inizializzata');
-      }
-      
-      // Verifica e inizializza configurazione backup
-      if (!localStorage.getItem('configurazione_backup')) {
-        const configBackupDefault = {
-          backupAutomatico: true,
-          frequenza: 'giornaliero',
-          oraBackup: '23:00',
-          conservazione: 30
-        };
-        localStorage.setItem('configurazione_backup', JSON.stringify(configBackupDefault));
-        LoggingService.info('Configurazione backup inizializzata');
-      }
-      
-      // Verifica e inizializza configurazione notifiche
-      if (!localStorage.getItem('configurazione_notifiche')) {
-        const configNotificheDefault = {
-          nuovoOrdine: true,
-          modificaOrdine: true,
-          eliminazioneOrdine: true,
-          backupCompletato: true,
-          erroreSincronizzazione: true
-        };
-        localStorage.setItem('configurazione_notifiche', JSON.stringify(configNotificheDefault));
-        LoggingService.info('Configurazione notifiche inizializzata');
-      }
-    } catch (error) {
-      LoggingService.error('Errore inizializzazione configurazioni', error);
+  const [config, setConfig] = useState({
+    azienda: {
+      nome: 'Pastificio Nonna Claudia',
+      indirizzo: 'Via Roma 123',
+      telefono: '+39 123 456789',
+      email: 'info@pastificiononna.it',
+      piva: '12345678901',
+      logo: null
+    },
+    sistema: {
+      sincronizzazione: true,
+      intervalloSync: 10000,
+      backupAutomatico: true,
+      orarioBackup: '02:00',
+      modalitaOffline: true,
+      cache: true,
+      logging: true,
+      debug: false
+    },
+    notifiche: {
+      email: true,
+      whatsapp: true,
+      push: false,
+      ordiniNuovi: true,
+      scorteMinime: true,
+      scadenze: true,
+      backup: true
+    },
+    interfaccia: {
+      tema: 'light',
+      lingua: 'it',
+      formatoData: 'DD/MM/YYYY',
+      formatoOra: 'HH:mm',
+      valuta: 'EUR',
+      decimali: 2
+    },
+    sicurezza: {
+      autenticazione: true,
+      sessioneMinuti: 60,
+      passwordComplessa: true,
+      backup2FA: false
     }
-  }, []);
-  
-  // Carica le configurazioni esistenti
-  const caricaConfigurazioni = useCallback(async () => {
-    try {
-      LoggingService.info('Caricamento configurazioni');
-      
-      // Inizializza configurazioni se non esistono
-      inizializzaConfigurazioni();
-      
-      // Carica configurazione pastificio
-      try {
-        const configPastificio = localStorage.getItem('configurazione_pastificio');
-        if (configPastificio) {
-          setConfigurazionePastificio(JSON.parse(configPastificio));
-        }
-      } catch (error) {
-        LoggingService.error('Errore parsing configurazione pastificio', error);
-        mostraNotifica('Errore nel formato della configurazione pastificio', 'error');
-      }
-      
-      // Carica configurazione orari
-      try {
-        const configOrari = localStorage.getItem('configurazione_orari');
-        if (configOrari) {
-          setOrariApertura(JSON.parse(configOrari));
-        }
-      } catch (error) {
-        LoggingService.error('Errore parsing configurazione orari', error);
-        mostraNotifica('Errore nel formato della configurazione orari', 'error');
-      }
-      
-      // Carica configurazione backup
-      try {
-        const configBackup = localStorage.getItem('configurazione_backup');
-        if (configBackup) {
-          setConfigurazioneBackup(JSON.parse(configBackup));
-        }
-      } catch (error) {
-        LoggingService.error('Errore parsing configurazione backup', error);
-        mostraNotifica('Errore nel formato della configurazione backup', 'error');
-      }
-      
-      // Carica configurazione notifiche
-      try {
-        const configNotifiche = localStorage.getItem('configurazione_notifiche');
-        if (configNotifiche) {
-          setConfigurazioneNotifiche(JSON.parse(configNotifiche));
-        }
-      } catch (error) {
-        LoggingService.error('Errore parsing configurazione notifiche', error);
-        mostraNotifica('Errore nel formato della configurazione notifiche', 'error');
-      }
-      
-      // Carica utenti dal server
-      if (navigator.onLine) {
-        try {
-          const token = localStorage.getItem('token');
-          if (token) {
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/users', {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              setUtenti(data.users || []);
-            } else {
-              throw new Error('Errore caricamento utenti');
-            }
-          }
-        } catch (error) {
-          LoggingService.error('Errore caricamento utenti', error);
-          // Non mostrare notifica per questo errore, è meno critico
-        }
-      }
-      
-      LoggingService.info('Configurazioni caricate con successo');
-    } catch (error) {
-      LoggingService.error('Errore caricamento configurazioni', error);
-      mostraNotifica('Errore durante il caricamento delle configurazioni', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [inizializzaConfigurazioni]);
-  
-  // Carica le configurazioni all'avvio
+  });
+
+  const [saveStatus, setSaveStatus] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('online');
+
   useEffect(() => {
-    caricaConfigurazioni();
-  }, [caricaConfigurazioni]);
-  
-  // Mostra notifica
-  const mostraNotifica = (messaggio, tipo = 'info') => {
-    setNotifica({ messaggio, tipo });
+    // Carica configurazione salvata
+    const savedConfig = localStorage.getItem('app_config');
+    if (savedConfig) {
+      setConfig(JSON.parse(savedConfig));
+    }
+
+    // Monitora connessione
+    const handleOnline = () => setConnectionStatus('online');
+    const handleOffline = () => setConnectionStatus('offline');
     
-    // Auto-chiusura dopo 5 secondi
-    setTimeout(() => {
-      setNotifica(null);
-    }, 5000);
-  };
-  
-  // Salva impostazioni pastificio
-  const salvaPastificio = () => {
-    try {
-      localStorage.setItem('configurazione_pastificio', JSON.stringify(configurazionePastificio));
-      LoggingService.info('Configurazione pastificio salvata');
-      mostraNotifica('Configurazione pastificio salvata', 'success');
-    } catch (error) {
-      LoggingService.error('Errore salvataggio configurazione pastificio', error);
-      mostraNotifica('Errore durante il salvataggio della configurazione', 'error');
-    }
-  };
-  
-  // Salva impostazioni orari
-  const salvaOrari = () => {
-    try {
-      localStorage.setItem('configurazione_orari', JSON.stringify(orariApertura));
-      LoggingService.info('Configurazione orari salvata');
-      mostraNotifica('Configurazione orari salvata', 'success');
-    } catch (error) {
-      LoggingService.error('Errore salvataggio configurazione orari', error);
-      mostraNotifica('Errore durante il salvataggio degli orari', 'error');
-    }
-  };
-  
-  // Salva impostazioni backup
-  const salvaBackup = () => {
-    try {
-      localStorage.setItem('configurazione_backup', JSON.stringify(configurazioneBackup));
-      LoggingService.info('Configurazione backup salvata');
-      
-      // Configura il servizio di backup con le nuove impostazioni
-      try {
-        BackupService.configura(configurazioneBackup);
-      } catch (error) {
-        LoggingService.error('Errore configurazione servizio backup', error);
-        // Non interrompiamo il flusso principale per questo errore
-      }
-      
-      mostraNotifica('Configurazione backup salvata', 'success');
-    } catch (error) {
-      LoggingService.error('Errore salvataggio configurazione backup', error);
-      mostraNotifica('Errore durante il salvataggio della configurazione backup', 'error');
-    }
-  };
-  
-  // Salva impostazioni notifiche
-  const salvaNotifiche = () => {
-    try {
-      localStorage.setItem('configurazione_notifiche', JSON.stringify(configurazioneNotifiche));
-      LoggingService.info('Configurazione notifiche salvata');
-      mostraNotifica('Configurazione notifiche salvata', 'success');
-    } catch (error) {
-      LoggingService.error('Errore salvataggio configurazione notifiche', error);
-      mostraNotifica('Errore durante il salvataggio delle notifiche', 'error');
-    }
-  };
-  
-  // Aggiunta nuovo utente
-  const aggiungiUtente = async () => {
-    if (!nuovoUtente.username || !nuovoUtente.password) {
-      mostraNotifica('Username e password sono obbligatori', 'warning');
-      return;
-    }
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleSave = async () => {
     try {
-      if (navigator.onLine) {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          mostraNotifica('Sessione scaduta, effettua nuovamente il login', 'error');
-          return;
-        }
-        
-        const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(nuovoUtente)
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Errore creazione utente');
-        }
-        
-        const data = await response.json();
-        setUtenti([...utenti, data.user]);
-        setNuovoUtente({
-          username: '',
-          password: '',
-          ruolo: 'operatore'
-        });
-        
-        LoggingService.info('Nuovo utente creato', { username: nuovoUtente.username });
-        mostraNotifica('Nuovo utente creato con successo', 'success');
-      } else {
-        mostraNotifica('Impossibile creare utenti in modalità offline', 'warning');
-      }
-    } catch (error) {
-      LoggingService.error('Errore creazione utente', error);
-      mostraNotifica('Errore durante la creazione dell\'utente: ' + (error.message || 'Errore sconosciuto'), 'error');
-    }
-  };
-  
-  // Elimina utente
-  const eliminaUtente = async (id) => {
-    try {
-      if (navigator.onLine) {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          mostraNotifica('Sessione scaduta, effettua nuovamente il login', 'error');
-          return;
-        }
-        
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/users/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Errore eliminazione utente');
-        }
-        
-        setUtenti(utenti.filter(user => user._id !== id));
-        LoggingService.info('Utente eliminato', { id });
-        mostraNotifica('Utente eliminato con successo', 'success');
-      } else {
-        mostraNotifica('Impossibile eliminare utenti in modalità offline', 'warning');
-      }
-    } catch (error) {
-      LoggingService.error('Errore eliminazione utente', error);
-      mostraNotifica('Errore durante l\'eliminazione dell\'utente: ' + (error.message || 'Errore sconosciuto'), 'error');
-    }
-  };
-  
-  // Esegui backup manuale
-  const eseguiBackupManuale = async () => {
-    try {
-      setLoading(true);
+      // Salva in localStorage
+      localStorage.setItem('app_config', JSON.stringify(config));
       
-      if (!BackupService || typeof BackupService.eseguiBackup !== 'function') {
-        throw new Error('Servizio di backup non disponibile');
+      // Salva sul server
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      const response = await fetch(`${apiUrl}/api/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`
+        },
+        body: JSON.stringify(config)
+      });
+
+      if (response.ok) {
+        setSaveStatus('success');
+        LoggingService.success('Configurazione salvata', config);
+      } else {
+        setSaveStatus('error');
+        LoggingService.error('Errore salvataggio configurazione');
       }
-      
-      const risultato = await BackupService.eseguiBackup();
-      LoggingService.info('Backup manuale eseguito', risultato);
-      mostraNotifica('Backup eseguito con successo', 'success');
     } catch (error) {
-      LoggingService.error('Errore esecuzione backup manuale', error);
-      mostraNotifica('Errore durante l\'esecuzione del backup: ' + (error.message || 'Errore sconosciuto'), 'error');
-    } finally {
-      setLoading(false);
+      setSaveStatus('error');
+      LoggingService.error('Errore salvataggio:', error);
     }
-  };
-  
-  // Gestione delle modifiche agli orari
-  const handleOrarioChange = (giorno, campo, valore) => {
-    setOrariApertura({
-      ...orariApertura,
-      [giorno]: {
-        ...orariApertura[giorno],
-        [campo]: valore
-      }
-    });
+
+    setTimeout(() => setSaveStatus(''), 3000);
   };
 
-  // Render delle tabs
-  const renderTab = () => {
-    switch(tabAttiva) {
-      case 'pastificio':
-        return (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Nome azienda</label>
-              <input 
-                type="text" 
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                placeholder="Pastificio"
-                value={configurazionePastificio.nome}
-                onChange={(e) => setConfigurazionePastificio({
-                  ...configurazionePastificio,
-                  nome: e.target.value
-                })}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Indirizzo</label>
-              <input 
-                type="text" 
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                placeholder="Via Roma, 123"
-                value={configurazionePastificio.indirizzo}
-                onChange={(e) => setConfigurazionePastificio({
-                  ...configurazionePastificio,
-                  indirizzo: e.target.value
-                })}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Telefono</label>
-              <input 
-                type="text" 
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                placeholder="+39 0123456789"
-                value={configurazionePastificio.telefono}
-                onChange={(e) => setConfigurazionePastificio({
-                  ...configurazionePastificio,
-                  telefono: e.target.value
-                })}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input 
-                type="email" 
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                placeholder="info@pastificio.it"
-                value={configurazionePastificio.email}
-                onChange={(e) => setConfigurazionePastificio({
-                  ...configurazionePastificio,
-                  email: e.target.value
-                })}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Partita IVA</label>
-              <input 
-                type="text" 
-                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                placeholder="IT12345678910"
-                value={configurazionePastificio.partitaIva}
-                onChange={(e) => setConfigurazionePastificio({
-                  ...configurazionePastificio,
-                  partitaIva: e.target.value
-                })}
-              />
-            </div>
-            
-            <div className="mt-6">
-              <button 
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                onClick={salvaPastificio}
-              >
-                Salva impostazioni
-              </button>
-            </div>
-          </div>
-        );
-        
-      case 'orari':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium">Orari di apertura</h3>
-            
-            {Object.keys(orariApertura).map(giorno => (
-              <div key={giorno} className="flex items-center space-x-4 border-b pb-4">
-                <div className="w-1/4">
-                  <span className="capitalize">{giorno}</span>
-                </div>
-                <div className="w-1/4">
-                  <label className="inline-flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2 h-4 w-4"
-                      checked={orariApertura[giorno].aperto}
-                      onChange={(e) => handleOrarioChange(giorno, 'aperto', e.target.checked)}
-                    />
-                    Aperto
-                  </label>
-                </div>
-                <div className="w-1/4">
-                  <input 
-                    type="time" 
-                    className="block w-full p-2 border border-gray-300 rounded-md"
-                    value={orariApertura[giorno].apertura}
-                    onChange={(e) => handleOrarioChange(giorno, 'apertura', e.target.value)}
-                    disabled={!orariApertura[giorno].aperto}
-                  />
-                </div>
-                <div className="w-1/4">
-                  <input 
-                    type="time" 
-                    className="block w-full p-2 border border-gray-300 rounded-md"
-                    value={orariApertura[giorno].chiusura}
-                    onChange={(e) => handleOrarioChange(giorno, 'chiusura', e.target.value)}
-                    disabled={!orariApertura[giorno].aperto}
-                  />
-                </div>
-              </div>
-            ))}
-            
-            <div className="mt-6">
-              <button 
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                onClick={salvaOrari}
-              >
-                Salva orari
-              </button>
-            </div>
-          </div>
-        );
-        
-      case 'backup':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium">Configurazione backup</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="inline-flex items-center">
-                  <input 
-                    type="checkbox" 
-                    className="mr-2 h-4 w-4"
-                    checked={configurazioneBackup.backupAutomatico}
-                    onChange={(e) => setConfigurazioneBackup({
-                      ...configurazioneBackup,
-                      backupAutomatico: e.target.checked
-                    })}
-                  />
-                  Backup automatico
-                </label>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Frequenza</label>
-                <select 
-                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                  value={configurazioneBackup.frequenza}
-                  onChange={(e) => setConfigurazioneBackup({
-                    ...configurazioneBackup,
-                    frequenza: e.target.value
-                  })}
-                  disabled={!configurazioneBackup.backupAutomatico}
-                >
-                  <option value="giornaliero">Giornaliero</option>
-                  <option value="settimanale">Settimanale</option>
-                  <option value="mensile">Mensile</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Ora backup</label>
-                <input 
-                  type="time" 
-                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                  value={configurazioneBackup.oraBackup}
-                  onChange={(e) => setConfigurazioneBackup({
-                    ...configurazioneBackup,
-                    oraBackup: e.target.value
-                  })}
-                  disabled={!configurazioneBackup.backupAutomatico}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Giorni di conservazione</label>
-                <input 
-                  type="number" 
-                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                  value={configurazioneBackup.conservazione}
-                  onChange={(e) => setConfigurazioneBackup({
-                    ...configurazioneBackup,
-                    conservazione: parseInt(e.target.value)
-                  })}
-                  min="1"
-                  max="365"
-                />
-              </div>
-              
-              <div className="flex space-x-4 mt-6">
-                <button 
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  onClick={salvaBackup}
-                >
-                  Salva configurazione
-                </button>
-                
-                <button 
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                  onClick={eseguiBackupManuale}
-                  disabled={loading}
-                >
-                  {loading ? 'Backup in corso...' : 'Esegui backup manuale'}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-        
-      case 'notifiche':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium">Configurazione notifiche</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="inline-flex items-center">
-                  <input 
-                    type="checkbox" 
-                    className="mr-2 h-4 w-4"
-                    checked={configurazioneNotifiche.nuovoOrdine}
-                    onChange={(e) => setConfigurazioneNotifiche({
-                      ...configurazioneNotifiche,
-                      nuovoOrdine: e.target.checked
-                    })}
-                  />
-                  Notifica nuovo ordine
-                </label>
-              </div>
-              
-              <div>
-                <label className="inline-flex items-center">
-                  <input 
-                    type="checkbox" 
-                    className="mr-2 h-4 w-4"
-                    checked={configurazioneNotifiche.modificaOrdine}
-                    onChange={(e) => setConfigurazioneNotifiche({
-                      ...configurazioneNotifiche,
-                      modificaOrdine: e.target.checked
-                    })}
-                  />
-                  Notifica modifica ordine
-                </label>
-              </div>
-              
-              <div>
-                <label className="inline-flex items-center">
-                  <input 
-                    type="checkbox" 
-                    className="mr-2 h-4 w-4"
-                    checked={configurazioneNotifiche.eliminazioneOrdine}
-                    onChange={(e) => setConfigurazioneNotifiche({
-                      ...configurazioneNotifiche,
-                      eliminazioneOrdine: e.target.checked
-                    })}
-                  />
-                  Notifica eliminazione ordine
-                </label>
-              </div>
-              
-              <div>
-                <label className="inline-flex items-center">
-                  <input 
-                    type="checkbox" 
-                    className="mr-2 h-4 w-4"
-                    checked={configurazioneNotifiche.backupCompletato}
-                    onChange={(e) => setConfigurazioneNotifiche({
-                      ...configurazioneNotifiche,
-                      backupCompletato: e.target.checked
-                    })}
-                  />
-                  Notifica backup completato
-                </label>
-              </div>
-              
-              <div>
-                <label className="inline-flex items-center">
-                  <input 
-                    type="checkbox" 
-                    className="mr-2 h-4 w-4"
-                    checked={configurazioneNotifiche.erroreSincronizzazione}
-                    onChange={(e) => setConfigurazioneNotifiche({
-                      ...configurazioneNotifiche,
-                      erroreSincronizzazione: e.target.checked
-                    })}
-                  />
-                  Notifica errore sincronizzazione
-                </label>
-              </div>
-              
-              <div className="mt-6">
-                <button 
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  onClick={salvaNotifiche}
-                >
-                  Salva configurazione notifiche
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-        
-      case 'utenti':
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium">Gestione utenti</h3>
-            
-            <div className="bg-white rounded-md shadow overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ruolo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {utenti.length > 0 ? (
-                    utenti.map(utente => (
-                      <tr key={utente._id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{utente.username}</td>
-                        <td className="px-6 py-4 whitespace-nowrap capitalize">{utente.ruolo}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <button 
-                            className="text-red-600 hover:text-red-900"
-                            onClick={() => eliminaUtente(utente._id)}
-                          >
-                            Elimina
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="3" className="px-6 py-4 text-center text-gray-500">
-                       {navigator.onLine 
-                          ? 'Nessun utente trovato o errore di caricamento'
-                          : 'Connessione offline. Impossibile caricare gli utenti'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="mt-6 bg-gray-50 p-4 rounded-md">
-              <h4 className="text-md font-medium mb-4">Aggiungi nuovo utente</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Username</label>
-                  <input 
-                    type="text" 
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                    value={nuovoUtente.username}
-                    onChange={(e) => setNuovoUtente({
-                      ...nuovoUtente,
-                      username: e.target.value
-                    })}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Password</label>
-                  <input 
-                    type="password" 
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                    value={nuovoUtente.password}
-                    onChange={(e) => setNuovoUtente({
-                      ...nuovoUtente,
-                      password: e.target.value
-                    })}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Ruolo</label>
-                  <select 
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                    value={nuovoUtente.ruolo}
-                    onChange={(e) => setNuovoUtente({
-                      ...nuovoUtente,
-                      ruolo: e.target.value
-                    })}
-                  >
-                    <option value="operatore">Operatore</option>
-                    <option value="admin">Amministratore</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="mt-4">
-                <button 
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  onClick={aggiungiUtente}
-                  disabled={!navigator.onLine}
-                >
-                  Aggiungi utente
-                </button>
-                {!navigator.onLine && (
-                  <p className="mt-2 text-sm text-yellow-600">
-                    La creazione di utenti è disponibile solo quando sei online
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-        
-      default:
-        return null;
+  const handleExport = () => {
+    const dataStr = JSON.stringify(config, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `config-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    LoggingService.info('Configurazione esportata');
+  };
+
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const importedConfig = JSON.parse(event.target.result);
+          setConfig(importedConfig);
+          LoggingService.info('Configurazione importata');
+          setSaveStatus('imported');
+          setTimeout(() => setSaveStatus(''), 3000);
+        } catch (error) {
+          LoggingService.error('Errore importazione:', error);
+          setSaveStatus('error');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleBackupNow = async () => {
+    try {
+      await BackupService.createBackup();
+      setSaveStatus('backup_success');
+      setTimeout(() => setSaveStatus(''), 3000);
+    } catch (error) {
+      LoggingService.error('Errore backup:', error);
+      setSaveStatus('backup_error');
+      setTimeout(() => setSaveStatus(''), 3000);
     }
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Impostazioni</h1>
-      
-      {/* Notifica */}
-      {notifica && (
-        <div className={`mb-4 p-4 rounded ${
-          notifica.tipo === 'success' ? 'bg-green-100 text-green-800' :
-          notifica.tipo === 'error' ? 'bg-red-100 text-red-800' :
-          notifica.tipo === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-blue-100 text-blue-800'
-        }`}>
-          {notifica.messaggio}
-        </div>
-      )}
-      
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              tabAttiva === 'pastificio'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setTabAttiva('pastificio')}
-          >
-            Informazioni Pastificio
-          </button>
-          <button
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              tabAttiva === 'orari'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setTabAttiva('orari')}
-          >
-            Orari di Apertura
-          </button>
-          <button
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              tabAttiva === 'backup'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setTabAttiva('backup')}
-          >
-            Backup
-          </button>
-          <button
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              tabAttiva === 'notifiche'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setTabAttiva('notifiche')}
-          >
-            Notifiche
-          </button>
-          <button
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              tabAttiva === 'utenti'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-            onClick={() => setTabAttiva('utenti')}
-          >
-            Utenti
-          </button>
-        </nav>
-      </div>
-      
-      {/* Contenuto principale */}
-      <Card>
-        <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">
-            {tabAttiva === 'pastificio' ? 'Configurazione Pastificio' : 
-             tabAttiva === 'orari' ? 'Configurazione Orari' :
-             tabAttiva === 'backup' ? 'Configurazione Backup' :
-             tabAttiva === 'notifiche' ? 'Configurazione Notifiche' :
-             'Gestione Utenti'}
-          </h2>
-          <p className="text-gray-600 mb-4">
-            {tabAttiva === 'pastificio' ? 'Configura le informazioni principali del pastificio che verranno mostrate nei documenti e nelle stampe.' : 
-             tabAttiva === 'orari' ? 'Gestisci gli orari di apertura del tuo pastificio.' :
-             tabAttiva === 'backup' ? 'Configura il sistema di backup automatico e gestisci i backup manuali.' :
-             tabAttiva === 'notifiche' ? 'Personalizza le notifiche del sistema.' :
-             'Gestisci gli utenti che possono accedere al sistema e i loro permessi.'}
-          </p>
-          
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    <div className="p-6 max-w-6xl mx-auto">
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Settings className="w-6 h-6" />
+              Configurazione Sistema
             </div>
-          ) : (
-            renderTab()
+            <div className="flex items-center gap-2">
+              {connectionStatus === 'online' ? (
+                <div className="flex items-center gap-1 text-green-600">
+                  <Wifi className="w-4 h-4" />
+                  <span className="text-sm">Online</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-orange-600">
+                  <WifiOff className="w-4 h-4" />
+                  <span className="text-sm">Offline</span>
+                </div>
+              )}
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="azienda">
+            <TabsList className="grid grid-cols-5 w-full">
+              <TabsTrigger value="azienda">Azienda</TabsTrigger>
+              <TabsTrigger value="sistema">Sistema</TabsTrigger>
+              <TabsTrigger value="notifiche">Notifiche</TabsTrigger>
+              <TabsTrigger value="interfaccia">Interfaccia</TabsTrigger>
+              <TabsTrigger value="sicurezza">Sicurezza</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="azienda" className="space-y-4">
+              <div>
+                <Label htmlFor="nome">Nome Azienda</Label>
+                <Input
+                  id="nome"
+                  value={config.azienda.nome}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    azienda: { ...config.azienda, nome: e.target.value }
+                  })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="indirizzo">Indirizzo</Label>
+                <Input
+                  id="indirizzo"
+                  value={config.azienda.indirizzo}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    azienda: { ...config.azienda, indirizzo: e.target.value }
+                  })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="telefono">Telefono</Label>
+                  <Input
+                    id="telefono"
+                    value={config.azienda.telefono}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      azienda: { ...config.azienda, telefono: e.target.value }
+                    })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={config.azienda.email}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      azienda: { ...config.azienda, email: e.target.value }
+                    })}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="piva">Partita IVA</Label>
+                <Input
+                  id="piva"
+                  value={config.azienda.piva}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    azienda: { ...config.azienda, piva: e.target.value }
+                  })}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="sistema" className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Sincronizzazione Automatica</Label>
+                    <p className="text-sm text-gray-500">
+                      Sincronizza dati tra dispositivi
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.sistema.sincronizzazione}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      sistema: { ...config.sistema, sincronizzazione: checked }
+                    })}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Backup Automatico</Label>
+                    <p className="text-sm text-gray-500">
+                      Backup giornaliero alle {config.sistema.orarioBackup}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.sistema.backupAutomatico}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      sistema: { ...config.sistema, backupAutomatico: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Modalità Offline</Label>
+                    <p className="text-sm text-gray-500">
+                      Funziona anche senza connessione
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.sistema.modalitaOffline}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      sistema: { ...config.sistema, modalitaOffline: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Cache Locale</Label>
+                    <p className="text-sm text-gray-500">
+                      Migliora le prestazioni
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.sistema.cache}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      sistema: { ...config.sistema, cache: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Logging</Label>
+                    <p className="text-sm text-gray-500">
+                      Registra attività sistema
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.sistema.logging}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      sistema: { ...config.sistema, logging: checked }
+                    })}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="notifiche" className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    <div>
+                      <Label>Email</Label>
+                      <p className="text-sm text-gray-500">Notifiche via email</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.notifiche.email}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      notifiche: { ...config.notifiche, email: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    <div>
+                      <Label>WhatsApp</Label>
+                      <p className="text-sm text-gray-500">Notifiche WhatsApp</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.notifiche.whatsapp}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      notifiche: { ...config.notifiche, whatsapp: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4" />
+                    <div>
+                      <Label>Push</Label>
+                      <p className="text-sm text-gray-500">Notifiche browser</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.notifiche.push}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      notifiche: { ...config.notifiche, push: checked }
+                    })}
+                  />
+                </div>
+
+                <hr />
+
+                <div className="flex items-center justify-between">
+                  <Label>Nuovi Ordini</Label>
+                  <Switch
+                    checked={config.notifiche.ordiniNuovi}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      notifiche: { ...config.notifiche, ordiniNuovi: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label>Scorte Minime</Label>
+                  <Switch
+                    checked={config.notifiche.scorteMinime}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      notifiche: { ...config.notifiche, scorteMinime: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label>Scadenze Prodotti</Label>
+                  <Switch
+                    checked={config.notifiche.scadenze}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      notifiche: { ...config.notifiche, scadenze: checked }
+                    })}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="interfaccia" className="space-y-4">
+              <div>
+                <Label>Tema</Label>
+                <select
+                  className="w-full p-2 border rounded"
+                  value={config.interfaccia.tema}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    interfaccia: { ...config.interfaccia, tema: e.target.value }
+                  })}
+                >
+                  <option value="light">Chiaro</option>
+                  <option value="dark">Scuro</option>
+                  <option value="auto">Automatico</option>
+                </select>
+              </div>
+
+              <div>
+                <Label>Lingua</Label>
+                <select
+                  className="w-full p-2 border rounded"
+                  value={config.interfaccia.lingua}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    interfaccia: { ...config.interfaccia, lingua: e.target.value }
+                  })}
+                >
+                  <option value="it">Italiano</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Formato Data</Label>
+                  <select
+                    className="w-full p-2 border rounded"
+                    value={config.interfaccia.formatoData}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      interfaccia: { ...config.interfaccia, formatoData: e.target.value }
+                    })}
+                  >
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label>Formato Ora</Label>
+                  <select
+                    className="w-full p-2 border rounded"
+                    value={config.interfaccia.formatoOra}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      interfaccia: { ...config.interfaccia, formatoOra: e.target.value }
+                    })}
+                  >
+                    <option value="HH:mm">24 ore</option>
+                    <option value="hh:mm A">12 ore</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Valuta</Label>
+                  <select
+                    className="w-full p-2 border rounded"
+                    value={config.interfaccia.valuta}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      interfaccia: { ...config.interfaccia, valuta: e.target.value }
+                    })}
+                  >
+                    <option value="EUR">€ Euro</option>
+                    <option value="USD">$ Dollaro</option>
+                    <option value="GBP">£ Sterlina</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label>Decimali</Label>
+                  <select
+                    className="w-full p-2 border rounded"
+                    value={config.interfaccia.decimali}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      interfaccia: { ...config.interfaccia, decimali: parseInt(e.target.value) }
+                    })}
+                  >
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="sicurezza" className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    <div>
+                      <Label>Autenticazione Obbligatoria</Label>
+                      <p className="text-sm text-gray-500">
+                        Richiedi login per accedere
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.sicurezza.autenticazione}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      sicurezza: { ...config.sicurezza, autenticazione: checked }
+                    })}
+                  />
+                </div>
+
+                <div>
+                  <Label>Timeout Sessione (minuti)</Label>
+                  <Input
+                    type="number"
+                    value={config.sicurezza.sessioneMinuti}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      sicurezza: { ...config.sicurezza, sessioneMinuti: parseInt(e.target.value) }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Password Complesse</Label>
+                    <p className="text-sm text-gray-500">
+                      Richiedi almeno 8 caratteri, numeri e simboli
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.sicurezza.passwordComplessa}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      sicurezza: { ...config.sicurezza, passwordComplessa: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Autenticazione 2FA</Label>
+                    <p className="text-sm text-gray-500">
+                      Richiedi codice aggiuntivo
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.sicurezza.backup2FA}
+                    onCheckedChange={(checked) => setConfig({
+                      ...config,
+                      sicurezza: { ...config.sicurezza, backup2FA: checked }
+                    })}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="mt-6 flex justify-between">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                className="flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Esporta
+              </Button>
+              
+              <label>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  asChild
+                >
+                  <span>
+                    <Upload className="w-4 h-4" />
+                    Importa
+                  </span>
+                </Button>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImport}
+                  className="hidden"
+                />
+              </label>
+
+              <Button
+                variant="outline"
+                onClick={handleBackupNow}
+                className="flex items-center gap-2"
+              >
+                <Database className="w-4 h-4" />
+                Backup Ora
+              </Button>
+            </div>
+
+            <Button
+              onClick={handleSave}
+              className="flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              Salva Configurazione
+            </Button>
+          </div>
+
+          {saveStatus && (
+            <Alert className="mt-4">
+              <AlertDescription>
+                {saveStatus === 'success' && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle className="w-4 h-4" />
+                    Configurazione salvata con successo
+                  </div>
+                )}
+                {saveStatus === 'error' && (
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertCircle className="w-4 h-4" />
+                    Errore nel salvataggio della configurazione
+                  </div>
+                )}
+                {saveStatus === 'imported' && (
+                  <div className="flex items-center gap-2 text-blue-600">
+                    <CheckCircle className="w-4 h-4" />
+                    Configurazione importata con successo
+                  </div>
+                )}
+                {saveStatus === 'backup_success' && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle className="w-4 h-4" />
+                    Backup completato con successo
+                  </div>
+                )}
+                {saveStatus === 'backup_error' && (
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertCircle className="w-4 h-4" />
+                    Errore durante il backup
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
           )}
-        </div>
+        </CardContent>
       </Card>
     </div>
   );

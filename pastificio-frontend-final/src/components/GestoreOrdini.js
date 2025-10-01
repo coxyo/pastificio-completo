@@ -1,56 +1,40 @@
-// components/GestoreOrdini.js
+// src/components/GestoreOrdini.js
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useOrdini } from '@/contexts/OrdiniContext';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Box, Container, Grid, Paper, Typography, 
   Snackbar, Alert, CircularProgress, IconButton, Chip, Button,
-  LinearProgress, Badge, Menu, MenuItem, Divider, Dialog, DialogTitle, 
-  DialogContent, DialogActions, TextField
+  LinearProgress, Menu, MenuItem, Divider, Dialog, DialogTitle, 
+  DialogContent, DialogActions, TextField, Fab, Tooltip
 } from '@mui/material';
 import { 
   Wifi as WifiIcon,
   WifiOff as WifiOffIcon,
   Refresh as RefreshIcon,
   CleaningServices as CleanIcon,
-  Notifications as NotificationsIcon,
-  NotificationsOff as NotificationsOffIcon,
-  Download as DownloadIcon,
   WhatsApp as WhatsAppIcon,
-  TrendingUp as TrendingUpIcon,
-  Euro as EuroIcon,
-  Schedule as ScheduleIcon,
-  CheckCircle as CheckCircleIcon,
   FileDownload as ExportIcon,
   Print as PrintIcon,
   Analytics as AnalyticsIcon,
-  Sync as SyncIcon,
-  SyncDisabled as SyncDisabledIcon,
   Storage as StorageIcon,
   Speed as SpeedIcon,
-  ListAlt as ListAltIcon
+  ListAlt as ListAltIcon,
+  Add as AddIcon,
+  CloudUpload as CloudUploadIcon,
+  CloudOff as CloudOffIcon,
+  Sync as SyncIcon
 } from '@mui/icons-material';
 
-// Importa i componenti esistenti
+// Importa componenti
 import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
-import WhatsAppHelper from '../utils/whatsappHelper';
-
-// Importa il widget statistiche
 import StatisticheWidget from './widgets/StatisticheWidget';
 
-// Importa i servizi
-import { loggingService } from '../services/loggingService';
-import webSocketService from '../services/webSocketService';
-import notificationService from '../services/notificationService';
-import dashboardService from '../services/dashboardService';
-
-// Importa gli stili
-import '../styles/modern-theme.css';
+// Configurazione API
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com';
 
 // Prodotti disponibili
 const prodottiDisponibili = {
@@ -91,142 +75,311 @@ const prodottiDisponibili = {
   ]
 };
 
+// Token di autenticazione demo (da sostituire con login reale)
+const DEMO_TOKEN = 'demo-token-' + Date.now();
+
 export default function GestoreOrdini() {
-  const { ordini, setOrdini, isConnected, setIsConnected } = useOrdini();
-  const searchParams = useSearchParams();
-  
-  // Stati
+  // Stati principali
+  const [ordini, setOrdini] = useState([]);
   const [dataSelezionata, setDataSelezionata] = useState(new Date().toISOString().split('T')[0]);
   const [dialogoNuovoOrdineAperto, setDialogoNuovoOrdineAperto] = useState(false);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
   const [caricamento, setCaricamento] = useState(false);
   const [ultimaSync, setUltimaSync] = useState(null);
-  const [hasToken, setHasToken] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const [submitInCorso, setSubmitInCorso] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   const [menuExport, setMenuExport] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [storageUsed, setStorageUsed] = useState(0);
   const [performanceScore, setPerformanceScore] = useState(100);
+  const [notifica, setNotifica] = useState({ aperta: false, messaggio: '', tipo: 'info' });
+  
   const syncIntervalRef = useRef(null);
   
-  // Audio per notifiche
-  const [audio] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCh2Gy/DagTMGHW/A7OWeTRAMUazt8KtgGAg5k9r0wHkoCyZ+zPLSizoIHWq57OihUBELTKXh8bllHgg2kNb0x3wqCh1hy+7hnjUKFiuUw+DFgjwKHq7t559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCh2Gy/DagTMGHW/A7OWeTRAMUazt8KtgGAg5k9r0wHkoCyZ+zPLSizoIHWq57OihUBELTKXh8bllHgg2kNb0x3wqCh1hy+7hnjUKFiuUw+DFgjwKHq3t559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhCh2Gy/DagTMGHW/A7OWeTRAMUazt8KtgGAg5k9r0wHkoCyZ+zPLSizoIHWq57OihUBELTKXh8bllHgg2kNb0x3wqCh1hy+7hnjUKFl+z558e';
-      const audio = new Audio(audioData);
-      audio.volume = 0.5;
-      return audio;
-    }
-    return null;
-  });
-  
-  // Notifiche
-  const [notifica, setNotifica] = useState({
-    aperta: false,
-    messaggio: '',
-    tipo: 'info'
-  });
-
-  // Gestione parametro URL 'nuovo'
-  useEffect(() => {
-    if (searchParams.get('nuovo') === 'true') {
-      setDialogoNuovoOrdineAperto(true);
-      const url = new URL(window.location);
-      url.searchParams.delete('nuovo');
-      window.history.replaceState({}, '', url);
-    }
-  }, [searchParams]);
-
-  // Calcola statistiche
-  const calcolaStatistiche = () => {
-    const oggi = new Date().toDateString();
-    const ordiniOggi = ordini.filter(o => {
-      const dataOrdine = new Date(o.dataRitiro || o.createdAt).toDateString();
-      return dataOrdine === oggi;
-    });
-
-    const totaleOggi = ordiniOggi.reduce((sum, o) => sum + (o.totale || 0), 0);
-    const completati = ordiniOggi.filter(o => o.stato === 'completato').length;
-    const inLavorazione = ordiniOggi.filter(o => o.stato === 'in_lavorazione').length;
-    const nuovi = ordiniOggi.filter(o => o.stato === 'nuovo').length;
-
-    return {
-      totaleOrdini: ordini.length,
-      ordiniOggi: ordiniOggi.length,
-      ordiniOffline: ordini.filter(o => o._isOffline).length,
-      totaleOggi,
-      completati,
-      inLavorazione,
-      nuovi,
-      percentualeCompletamento: ordiniOggi.length > 0 ? (completati / ordiniOggi.length * 100) : 0,
-      mediaOrdine: ordiniOggi.length > 0 ? (totaleOggi / ordiniOggi.length) : 0
-    };
-  };
-
-  const statistiche = calcolaStatistiche();
-
-  // Monitora storage locale
-  useEffect(() => {
-    const checkStorage = () => {
-      if (navigator.storage && navigator.storage.estimate) {
-        navigator.storage.estimate().then(estimate => {
-          const usedMB = (estimate.usage / 1024 / 1024).toFixed(2);
-          setStorageUsed(parseFloat(usedMB));
-        });
-      }
-    };
-    
-    checkStorage();
-    const interval = setInterval(checkStorage, 30000);
-    return () => clearInterval(interval);
-  }, [ordini]);
-
-  // Performance monitoring
-  useEffect(() => {
-    const measurePerformance = () => {
-      if (window.performance && window.performance.memory) {
-        const memoryUsage = (window.performance.memory.usedJSHeapSize / window.performance.memory.jsHeapSizeLimit) * 100;
-        setPerformanceScore(Math.max(0, 100 - memoryUsage));
-      }
-    };
-    
-    measurePerformance();
-    const interval = setInterval(measurePerformance, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Inizializzazione - MODALITÀ OFFLINE
-  useEffect(() => {
-    console.log('🚀 Inizializzazione GestoreOrdini - MODALITÀ OFFLINE');
-    setHasToken(false);
-    setIsConnected(false);
-    caricaOrdiniDaCache();
-    mostraNotifica('Modalità offline attiva', 'info');
-  }, []);
-
-  const caricaOrdiniDaCache = () => {
+  // Funzione per sincronizzare con MongoDB
+  const sincronizzaConMongoDB = useCallback(async () => {
     try {
-      const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-      if (ordiniCache.length > 0) {
-        setOrdini(ordiniCache);
-        console.log(`📂 Caricati ${ordiniCache.length} ordini dalla cache`);
-        mostraNotifica(`Caricati ${ordiniCache.length} ordini dalla cache`, 'info');
+      setSyncInProgress(true);
+      
+      const response = await fetch(`${API_URL}/api/ordini`, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const ordiniBackend = Array.isArray(data) ? data : (data.data || []);
+        
+        // Salva in localStorage per cache offline
+        localStorage.setItem('ordini', JSON.stringify(ordiniBackend));
+        setOrdini(ordiniBackend);
+        
+        setIsConnected(true);
+        setUltimaSync(new Date());
+        
+        console.log(`✅ Sincronizzati ${ordiniBackend.length} ordini dal server`);
+        
+        // Invia ordini offline pendenti
+        await inviaOrdiniOffline();
+        
+        return true;
+      } else {
+        throw new Error('Errore risposta server');
       }
     } catch (error) {
-      console.error('Errore caricamento cache:', error);
+      console.error('Errore sincronizzazione:', error);
+      setIsConnected(false);
+      
+      // Carica dalla cache locale se offline
+      const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
+      setOrdini(ordiniCache);
+      
+      mostraNotifica('Modalità offline - usando cache locale', 'warning');
+      return false;
+    } finally {
+      setSyncInProgress(false);
+    }
+  }, []);
+  
+  // Invia ordini offline al server
+  const inviaOrdiniOffline = async () => {
+    const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
+    
+    if (ordiniOffline.length === 0) return;
+    
+    console.log(`📤 Invio ${ordiniOffline.length} ordini offline...`);
+    
+    for (const ordine of ordiniOffline) {
+      try {
+        const response = await fetch(`${API_URL}/api/ordini`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(ordine)
+        });
+        
+        if (response.ok) {
+          console.log(`✅ Ordine offline sincronizzato:`, ordine.nomeCliente);
+        }
+      } catch (error) {
+        console.error('Errore invio ordine offline:', error);
+      }
+    }
+    
+    // Pulisci ordini offline dopo invio
+    localStorage.removeItem('ordiniOffline');
+  };
+  
+  // Inizializzazione
+  useEffect(() => {
+    console.log('🚀 Inizializzazione GestoreOrdini con sincronizzazione');
+    
+    // Prima sincronizzazione
+    sincronizzaConMongoDB();
+  }, []);
+  
+  // Auto-sync ogni 10 secondi
+  useEffect(() => {
+    syncIntervalRef.current = setInterval(() => {
+      sincronizzaConMongoDB();
+    }, 10000); // Ogni 10 secondi
+    
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+      }
+    };
+  }, [sincronizzaConMongoDB]);
+  
+  // Monitora connessione
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('🌐 Connessione ripristinata');
+      mostraNotifica('Connessione ripristinata', 'success');
+      sincronizzaConMongoDB();
+    };
+    
+    const handleOffline = () => {
+      console.log('📴 Connessione persa');
+      setIsConnected(false);
+      mostraNotifica('Modalità offline attiva', 'warning');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [sincronizzaConMongoDB]);
+  
+  // Crea ordine
+  const creaOrdine = async (ordine) => {
+    const nuovoOrdine = {
+      ...ordine,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    try {
+      // Prova a inviare al server
+      const response = await fetch(`${API_URL}/api/ordini`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(nuovoOrdine)
+      });
+      
+      if (response.ok) {
+        const ordineCreato = await response.json();
+        
+        // Aggiorna lista locale
+        setOrdini(prev => [ordineCreato, ...prev]);
+        
+        // Aggiorna cache
+        const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
+        ordiniCache.unshift(ordineCreato);
+        localStorage.setItem('ordini', JSON.stringify(ordiniCache));
+        
+        mostraNotifica('Ordine salvato e sincronizzato', 'success');
+      } else {
+        throw new Error('Errore server');
+      }
+    } catch (error) {
+      console.error('Errore creazione ordine:', error);
+      
+      // Salva offline
+      const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
+      ordiniOffline.push(nuovoOrdine);
+      localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
+      
+      // Aggiungi temporaneamente alla lista locale
+      const tempId = 'temp_' + Date.now();
+      setOrdini(prev => [{ ...nuovoOrdine, _id: tempId }, ...prev]);
+      
+      mostraNotifica('Ordine salvato localmente (verrà sincronizzato)', 'warning');
     }
   };
-
-  const caricaOrdini = async () => {
-    caricaOrdiniDaCache();
+  
+  // Aggiorna ordine
+  const aggiornaOrdine = async (ordine) => {
+    try {
+      const response = await fetch(`${API_URL}/api/ordini/${ordine._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(ordine)
+      });
+      
+      if (response.ok) {
+        // Aggiorna lista locale
+        setOrdini(prev => prev.map(o => o._id === ordine._id ? ordine : o));
+        
+        // Aggiorna cache
+        const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
+        const index = ordiniCache.findIndex(o => o._id === ordine._id);
+        if (index !== -1) {
+          ordiniCache[index] = ordine;
+          localStorage.setItem('ordini', JSON.stringify(ordiniCache));
+        }
+        
+        mostraNotifica('Ordine aggiornato', 'success');
+      }
+    } catch (error) {
+      console.error('Errore aggiornamento:', error);
+      mostraNotifica('Errore aggiornamento', 'error');
+    }
   };
-
-  // Export functions
+  
+  // Elimina ordine
+  const eliminaOrdine = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/api/ordini/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        // Rimuovi dalla lista locale
+        setOrdini(prev => prev.filter(o => o._id !== id));
+        
+        // Aggiorna cache
+        const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
+        const filtered = ordiniCache.filter(o => o._id !== id);
+        localStorage.setItem('ordini', JSON.stringify(filtered));
+        
+        mostraNotifica('Ordine eliminato', 'success');
+      }
+    } catch (error) {
+      console.error('Errore eliminazione:', error);
+      mostraNotifica('Errore eliminazione', 'error');
+    }
+  };
+  
+  const salvaOrdine = async (nuovoOrdine) => {
+    if (submitInCorso) return;
+    
+    setSubmitInCorso(true);
+    
+    try {
+      if (ordineSelezionato) {
+        await aggiornaOrdine({ ...nuovoOrdine, _id: ordineSelezionato._id });
+      } else {
+        await creaOrdine(nuovoOrdine);
+      }
+      
+      setOrdineSelezionato(null);
+      setDialogoNuovoOrdineAperto(false);
+      
+    } catch (error) {
+      console.error('Errore salvataggio ordine:', error);
+      mostraNotifica('Errore durante il salvataggio', 'error');
+    } finally {
+      setTimeout(() => setSubmitInCorso(false), 1000);
+    }
+  };
+  
+  const rimuoviDuplicati = () => {
+    setOrdini(prevOrdini => {
+      const ordiniUnici = [];
+      const visti = new Set();
+      
+      prevOrdini.forEach(ordine => {
+        const chiave = `${ordine.nomeCliente}-${ordine.telefono}-${ordine.dataRitiro}`;
+        
+        if (!visti.has(chiave)) {
+          visti.add(chiave);
+          ordiniUnici.push(ordine);
+        }
+      });
+      
+      if (ordiniUnici.length !== prevOrdini.length) {
+        localStorage.setItem('ordini', JSON.stringify(ordiniUnici));
+        mostraNotifica(`Rimossi ${prevOrdini.length - ordiniUnici.length} ordini duplicati`, 'info');
+      }
+      
+      return ordiniUnici;
+    });
+  };
+  
+  const mostraNotifica = (messaggio, tipo = 'info') => {
+    setNotifica({ aperta: true, messaggio, tipo });
+  };
+  
+  const chiudiNotifica = () => {
+    setNotifica(prev => ({ ...prev, aperta: false }));
+  };
+  
+  // Export functions (mantieni le stesse)
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -235,12 +388,12 @@ export default function GestoreOrdini() {
         const dataOrdine = o.dataRitiro || o.createdAt;
         return dataOrdine && dataOrdine.startsWith(dataSelezionata);
       });
-
+      
       if (ordiniExport.length === 0) {
         mostraNotifica('Nessun ordine da esportare per questa data', 'warning');
         return;
       }
-
+      
       switch (formato) {
         case 'csv':
           exportToCSV(ordiniExport);
@@ -262,7 +415,7 @@ export default function GestoreOrdini() {
       mostraNotifica('Errore durante l\'export', 'error');
     }
   };
-
+  
   const exportToCSV = (ordiniData) => {
     const headers = ['Cliente', 'Telefono', 'Data Ritiro', 'Ora', 'Prodotti', 'Totale', 'Stato', 'Note'];
     const rows = ordiniData.map(o => [
@@ -275,35 +428,34 @@ export default function GestoreOrdini() {
       o.stato || 'nuovo',
       o.note || ''
     ]);
-
-    let csv = headers.join(',') + '\n';
+    
+    let csv = '\uFEFF' + headers.join(',') + '\n';
     rows.forEach(row => {
       csv += row.map(cell => `"${cell}"`).join(',') + '\n';
     });
-
+    
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `ordini_${dataSelezionata}.csv`;
     link.click();
   };
-
+  
   const exportToExcel = (ordiniData) => {
     exportToCSV(ordiniData);
-    mostraNotifica('Export Excel: usando formato CSV', 'info');
   };
-
+  
   const exportToPDF = (ordiniData) => {
     printOrdini(ordiniData);
-    mostraNotifica('Export PDF: usando stampa browser', 'info');
   };
-
+  
   const printOrdini = (ordiniData) => {
     const printWindow = window.open('', '_blank');
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="UTF-8">
         <title>Ordini ${dataSelezionata}</title>
         <style>
           body { font-family: Arial, sans-serif; }
@@ -352,227 +504,50 @@ export default function GestoreOrdini() {
     printWindow.document.write(html);
     printWindow.document.close();
   };
-
-  const salvaOrdine = async (nuovoOrdine) => {
-    if (submitInCorso) {
-      console.log('⚠️ Submit già in corso, ignoro...');
-      return;
-    }
-
-    setSubmitInCorso(true);
+  
+  // Calcola statistiche
+  const calcolaStatistiche = () => {
+    const oggi = new Date().toDateString();
+    const ordiniOggi = ordini.filter(o => {
+      const dataOrdine = new Date(o.dataRitiro || o.createdAt).toDateString();
+      return dataOrdine === oggi;
+    });
     
-    try {
-      console.log('💾 Salvataggio ordine:', nuovoOrdine);
-      
-      if (ordineSelezionato) {
-        await aggiornaOrdine({ ...nuovoOrdine, _id: ordineSelezionato._id });
-      } else {
-        await creaOrdine(nuovoOrdine);
-      }
-      
-      setOrdineSelezionato(null);
-      setDialogoNuovoOrdineAperto(false);
-      mostraNotifica('Ordine salvato con successo', 'success');
-      
-    } catch (error) {
-      console.error('❌ Errore salvataggio ordine:', error);
-      mostraNotifica('Errore durante il salvataggio', 'error');
-    } finally {
-      setTimeout(() => {
-        setSubmitInCorso(false);
-      }, 1000);
-    }
+    const totaleOggi = ordiniOggi.reduce((sum, o) => sum + (o.totale || 0), 0);
+    const completati = ordiniOggi.filter(o => o.stato === 'completato').length;
+    const inLavorazione = ordiniOggi.filter(o => o.stato === 'in_lavorazione').length;
+    const nuovi = ordiniOggi.filter(o => o.stato === 'nuovo').length;
+    
+    return {
+      totaleOrdini: ordini.length,
+      ordiniOggi: ordiniOggi.length,
+      totaleOggi,
+      completati,
+      inLavorazione,
+      nuovi,
+      percentualeCompletamento: ordiniOggi.length > 0 ? (completati / ordiniOggi.length * 100) : 0,
+      mediaOrdine: ordiniOggi.length > 0 ? (totaleOggi / ordiniOggi.length) : 0
+    };
   };
-
-  const creaOrdine = async (ordine) => {
-    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const ordineConId = { 
-      ...ordine, 
-      _id: tempId,
-      tempId,
-      _isOffline: true,
-      createdAt: new Date().toISOString()
+  
+  const statistiche = calcolaStatistiche();
+  
+  // Monitora storage
+  useEffect(() => {
+    const checkStorage = () => {
+      if (navigator.storage && navigator.storage.estimate) {
+        navigator.storage.estimate().then(estimate => {
+          const usedMB = (estimate.usage / 1024 / 1024).toFixed(2);
+          setStorageUsed(parseFloat(usedMB));
+        });
+      }
     };
     
-    setOrdini(prev => {
-      const nuoviOrdini = [ordineConId, ...prev];
-      localStorage.setItem('ordini', JSON.stringify(nuoviOrdini));
-      return nuoviOrdini;
-    });
-    
-    console.log('💾 Ordine salvato localmente (offline)');
-    mostraNotifica('Ordine salvato localmente', 'success');
-  };
+    checkStorage();
+    const interval = setInterval(checkStorage, 30000);
+    return () => clearInterval(interval);
+  }, [ordini]);
   
-  const aggiornaOrdine = async (ordine) => {
-    setOrdini(prev => {
-      const nuoviOrdini = prev.map(o => o._id === ordine._id ? ordine : o);
-      localStorage.setItem('ordini', JSON.stringify(nuoviOrdini));
-      return nuoviOrdini;
-    });
-    
-    console.log('✅ Ordine aggiornato localmente');
-    mostraNotifica('Ordine aggiornato con successo', 'success');
-  };
-  
-  const eliminaOrdine = async (id) => {
-    setOrdini(prev => {
-      const nuoviOrdini = prev.filter(o => o._id !== id);
-      localStorage.setItem('ordini', JSON.stringify(nuoviOrdini));
-      return nuoviOrdini;
-    });
-    
-    console.log('🗑️ Ordine eliminato localmente');
-    mostraNotifica('Ordine eliminato con successo', 'success');
-  };
-
-  const rimuoviDuplicati = () => {
-    setOrdini(prevOrdini => {
-      const ordiniUnici = [];
-      const visti = new Set();
-      
-      prevOrdini.forEach(ordine => {
-        const chiave = `${ordine.nomeCliente}-${ordine.telefono}-${ordine.dataRitiro}`;
-        
-        if (!visti.has(chiave)) {
-          visti.add(chiave);
-          ordiniUnici.push(ordine);
-        } else {
-          console.log('🗑️ Rimosso ordine duplicato:', ordine.nomeCliente);
-        }
-      });
-      
-      if (ordiniUnici.length !== prevOrdini.length) {
-        mostraNotifica(`Rimossi ${prevOrdini.length - ordiniUnici.length} ordini duplicati`, 'info');
-      }
-      
-      return ordiniUnici;
-    });
-  };
-  
-  const mostraNotifica = (messaggio, tipo = 'info') => {
-    setNotifica({
-      aperta: true,
-      messaggio,
-      tipo
-    });
-    console.log(`📢 Notifica [${tipo}]: ${messaggio}`);
-  };
-  
-  const chiudiNotifica = () => {
-    setNotifica(prev => ({ ...prev, aperta: false }));
-  };
-
-  const apriDialogoNuovoOrdine = () => {
-    setOrdineSelezionato(null);
-    setDialogoNuovoOrdineAperto(true);
-  };
-
-  const chiudiDialogoNuovoOrdine = () => {
-    setDialogoNuovoOrdineAperto(false);
-    setOrdineSelezionato(null);
-  };
-
-  const modificaOrdine = (ordine) => {
-    setOrdineSelezionato(ordine);
-    setDialogoNuovoOrdineAperto(true);
-  };
-
-  // Componente WhatsApp Helper semplificato
-  const WhatsAppHelperComponent = ({ ordini }) => {
-    const [ordineSelezionato, setOrdineSelezionato] = useState(null);
-    const [messaggio, setMessaggio] = useState('');
-
-    const handleSelectOrdine = (ordine) => {
-      setOrdineSelezionato(ordine);
-      const msg = WhatsAppHelper.formatMessage({
-        numeroOrdine: ordine.numeroOrdine || ordine._id?.substr(-6),
-        cliente: ordine.nomeCliente,
-        telefono: ordine.telefono,
-        dataConsegna: ordine.dataRitiro,
-        orarioConsegna: ordine.oraRitiro,
-        prodotti: ordine.prodotti,
-        totale: ordine.totale,
-        note: ordine.note
-      });
-      setMessaggio(msg);
-    };
-
-    const handleCopy = async () => {
-      if (!messaggio) {
-        alert('Seleziona prima un ordine');
-        return;
-      }
-      
-      const success = await WhatsAppHelper.copyToClipboard(messaggio);
-      if (success) {
-        alert('✅ Messaggio copiato! Incollalo su WhatsApp');
-        window.open('https://web.whatsapp.com/', '_blank');
-      } else {
-        alert('❌ Errore nella copia del messaggio');
-      }
-    };
-
-    return (
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Seleziona un ordine per generare il messaggio WhatsApp
-        </Typography>
-        
-        <Grid container spacing={2}>
-          <Grid item xs={6}>
-            <Paper sx={{ p: 2, maxHeight: 400, overflow: 'auto' }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Ordini del giorno
-              </Typography>
-              {ordini.map(ordine => (
-                <Button
-                  key={ordine._id}
-                  fullWidth
-                  variant={ordineSelezionato?._id === ordine._id ? 'contained' : 'outlined'}
-                  sx={{ mb: 1, justifyContent: 'flex-start' }}
-                  onClick={() => handleSelectOrdine(ordine)}
-                >
-                  {ordine.nomeCliente} - €{ordine.totale || 0}
-                </Button>
-              ))}
-            </Paper>
-          </Grid>
-          
-          <Grid item xs={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Anteprima messaggio
-              </Typography>
-              <TextField
-                multiline
-                rows={10}
-                fullWidth
-                value={messaggio}
-                onChange={(e) => setMessaggio(e.target.value)}
-                variant="outlined"
-              />
-              
-              <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={<WhatsAppIcon />}
-                  onClick={handleCopy}
-                  disabled={!messaggio}
-                  fullWidth
-                >
-                  Copia e Apri WhatsApp
-                </Button>
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-      </Box>
-    );
-  };
-
   return (
     <Container maxWidth="xl">
       {/* Widget Statistiche */}
@@ -580,13 +555,25 @@ export default function GestoreOrdini() {
       
       {/* Header con indicatori di stato */}
       <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h4" component="h1">
             Gestione Ordini
           </Typography>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <InstallPWA />
+            
+            {/* Bottone sync manuale */}
+            <Tooltip title={isConnected ? "Sincronizza ora" : "Offline"}>
+              <IconButton 
+                onClick={sincronizzaConMongoDB} 
+                disabled={syncInProgress}
+                color={isConnected ? 'success' : 'warning'}
+              >
+                {syncInProgress ? <CircularProgress size={24} /> : 
+                 isConnected ? <SyncIcon /> : <CloudOffIcon />}
+              </IconButton>
+            </Tooltip>
             
             {/* Bottone WhatsApp Helper */}
             <Button
@@ -596,10 +583,10 @@ export default function GestoreOrdini() {
               startIcon={<WhatsAppIcon />}
               onClick={() => setWhatsappHelperAperto(true)}
             >
-              WhatsApp Helper
+              WhatsApp
             </Button>
             
-            {/* Bottone Riepilogo Giornaliero */}
+            {/* Bottone Riepilogo */}
             <Button
               variant="contained"
               size="small"
@@ -641,13 +628,8 @@ export default function GestoreOrdini() {
             
             {/* Statistiche rapide */}
             <Chip 
-              label={`${statistiche.totaleOrdini} ordini totali`}
+              label={`${statistiche.totaleOrdini} ordini`}
               variant="outlined"
-              size="small"
-            />
-            <Chip 
-              label={`${statistiche.ordiniOggi} oggi`}
-              color="primary"
               size="small"
             />
             
@@ -659,10 +641,10 @@ export default function GestoreOrdini() {
               onClick={rimuoviDuplicati}
               disabled={caricamento}
             >
-              Rimuovi Duplicati
+              Pulisci
             </Button>
             
-            <IconButton onClick={caricaOrdini} disabled={caricamento}>
+            <IconButton onClick={sincronizzaConMongoDB} disabled={syncInProgress}>
               <RefreshIcon />
             </IconButton>
           </Box>
@@ -711,22 +693,29 @@ export default function GestoreOrdini() {
           </Grid>
         </Box>
         
-        {/* Indicatore connessione - SEMPRE OFFLINE */}
+        {/* Indicatore connessione */}
         <Paper 
           elevation={1}
           sx={{ 
             p: 2,
-            bgcolor: 'warning.light',
-            color: 'warning.contrastText'
+            bgcolor: isConnected ? 'success.light' : 'warning.light',
+            color: isConnected ? 'success.contrastText' : 'warning.contrastText'
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <WifiOffIcon />
+              {isConnected ? <WifiIcon /> : <WifiOffIcon />}
               <Typography variant="body2">
-                Modalità Offline - I dati sono salvati localmente
+                {isConnected 
+                  ? '✅ Sincronizzazione attiva - Ordini visibili su tutti i dispositivi' 
+                  : '⚠️ Modalità Offline - I dati verranno sincronizzati al ripristino della connessione'}
               </Typography>
             </Box>
+            {ultimaSync && (
+              <Typography variant="caption">
+                Ultima sync: {new Date(ultimaSync).toLocaleTimeString()}
+              </Typography>
+            )}
           </Box>
         </Paper>
       </Box>
@@ -745,49 +734,72 @@ export default function GestoreOrdini() {
             <OrdiniList 
               ordini={ordini}
               onDelete={eliminaOrdine}
-              onEdit={modificaOrdine}
+              onEdit={(ordine) => {
+                setOrdineSelezionato(ordine);
+                setDialogoNuovoOrdineAperto(true);
+              }}
               onDateChange={setDataSelezionata}
-              onNuovoOrdine={apriDialogoNuovoOrdine}
+              onNuovoOrdine={() => {
+                setOrdineSelezionato(null);
+                setDialogoNuovoOrdineAperto(true);
+              }}
               dataSelezionata={dataSelezionata}
-              isConnected={false}
+              isConnected={isConnected}
             />
           </Grid>
         </Grid>
       )}
       
-      {/* Dialog per nuovo ordine o modifica */}
+      {/* FAB per nuovo ordine */}
+      <Fab 
+        color="primary" 
+        aria-label="Nuovo ordine"
+        sx={{ position: 'fixed', bottom: 16, right: 16 }}
+        onClick={() => {
+          setOrdineSelezionato(null);
+          setDialogoNuovoOrdineAperto(true);
+        }}
+      >
+        <AddIcon />
+      </Fab>
+      
+      {/* Dialog per nuovo ordine */}
       {dialogoNuovoOrdineAperto && (
         <NuovoOrdine 
           open={dialogoNuovoOrdineAperto}
-          onClose={chiudiDialogoNuovoOrdine}
+          onClose={() => {
+            setDialogoNuovoOrdineAperto(false);
+            setOrdineSelezionato(null);
+          }}
           onSave={salvaOrdine}
           ordineIniziale={ordineSelezionato}
-          isConnected={false}
+          isConnected={isConnected}
           prodotti={prodottiDisponibili}
           submitInCorso={submitInCorso}
         />
       )}
       
-      {/* Dialog per Riepilogo Giornaliero */}
+      {/* Dialog per Riepilogo */}
       <Dialog 
         open={riepilogoAperto} 
         onClose={() => setRiepilogoAperto(false)}
         maxWidth="lg" 
         fullWidth
-        PaperProps={{
-          sx: { height: '90vh' }
-        }}
+        PaperProps={{ sx: { height: '90vh' } }}
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Riepilogo Giornaliero Ordini</Typography>
+            <Typography variant="h6">Riepilogo Giornaliero</Typography>
             <IconButton onClick={() => setRiepilogoAperto(false)} size="small">
               ×
             </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent sx={{ p: 0 }}>
-          <RiepilogoGiornaliero />
+        <DialogContent>
+          <RiepilogoGiornaliero 
+            ordini={ordini} 
+            dataSelezionata={dataSelezionata}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRiepilogoAperto(false)}>Chiudi</Button>
@@ -803,7 +815,7 @@ export default function GestoreOrdini() {
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">WhatsApp Helper - Invio Facilitato</Typography>
+            <Typography variant="h6">WhatsApp Helper</Typography>
             <IconButton onClick={() => setWhatsappHelperAperto(false)} size="small">
               ×
             </IconButton>
@@ -820,7 +832,7 @@ export default function GestoreOrdini() {
       {/* Notifiche */}
       <Snackbar
         open={notifica.aperta}
-        autoHideDuration={10000}
+        autoHideDuration={6000}
         onClose={chiudiNotifica}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
@@ -834,5 +846,121 @@ export default function GestoreOrdini() {
         </Alert>
       </Snackbar>
     </Container>
+  );
+}
+
+// WhatsApp Helper Component (rimane uguale)
+function WhatsAppHelperComponent({ ordini }) {
+  const [ordineSelezionato, setOrdineSelezionato] = useState(null);
+  const [messaggio, setMessaggio] = useState('');
+  
+  const formatMessage = (ordine) => {
+    if (!ordine) return '';
+    
+    const numeroOrdine = ordine.numeroOrdine || ordine._id?.substr(-6);
+    const prodotti = (ordine.prodotti || [])
+      .map(p => `• ${p.nome} x${p.quantita} ${p.unita || 'Kg'}`)
+      .join('\n');
+    
+    return `🍝 *PASTIFICIO NONNA CLAUDIA*
+📝 *Ordine #${numeroOrdine}*
+
+👤 *Cliente:* ${ordine.nomeCliente}
+📅 *Ritiro:* ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
+⏰ *Ora:* ${ordine.oraRitiro || 'Da definire'}
+
+📦 *Prodotti:*
+${prodotti}
+
+💰 *Totale:* €${ordine.totale?.toFixed(2) || '0.00'}
+${ordine.note ? `\n📌 *Note:* ${ordine.note}` : ''}
+
+✅ Il suo ordine è confermato!
+📍 Via Carmine 20/B, Assemini
+📞 Per info: 3898879833
+
+Grazie per averci scelto! 🙏`;
+  };
+  
+  const handleSelectOrdine = (ordine) => {
+    setOrdineSelezionato(ordine);
+    setMessaggio(formatMessage(ordine));
+  };
+  
+  const handleCopy = async () => {
+    if (!messaggio) {
+      alert('Seleziona prima un ordine');
+      return;
+    }
+    
+    try {
+      await navigator.clipboard.writeText(messaggio);
+      alert('✅ Messaggio copiato! Incollalo su WhatsApp');
+      window.open('https://web.whatsapp.com/', '_blank');
+    } catch (error) {
+      alert('❌ Errore nella copia del messaggio');
+    }
+  };
+  
+  return (
+    <Box sx={{ p: 2 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, maxHeight: 400, overflow: 'auto' }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Seleziona un ordine
+            </Typography>
+            {ordini.map(ordine => (
+              <Button
+                key={ordine._id}
+                fullWidth
+                variant={ordineSelezionato?._id === ordine._id ? 'contained' : 'outlined'}
+                sx={{ mb: 1, justifyContent: 'flex-start', textAlign: 'left' }}
+                onClick={() => handleSelectOrdine(ordine)}
+              >
+                <Box>
+                  <Typography variant="body2">
+                    {ordine.nomeCliente}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    €{ordine.totale?.toFixed(2) || '0'} - {ordine.dataRitiro}
+                  </Typography>
+                </Box>
+              </Button>
+            ))}
+          </Paper>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Anteprima messaggio
+            </Typography>
+            <TextField
+              multiline
+              rows={15}
+              fullWidth
+              value={messaggio}
+              onChange={(e) => setMessaggio(e.target.value)}
+              variant="outlined"
+              sx={{ fontFamily: 'monospace', fontSize: '0.9rem' }}
+            />
+            
+            <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<WhatsAppIcon />}
+                onClick={handleCopy}
+                disabled={!messaggio}
+                fullWidth
+              >
+                Copia e Apri WhatsApp
+              </Button>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
   );
 }

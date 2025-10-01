@@ -1,5 +1,4 @@
 {
-  "version": "1.0.2",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -17,7 +16,6 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"**/*.{js,jsx,json,css,md}\"",
     "precommit": "lint-staged",
-    "prepare": "husky install || true",
     "cypress": "cypress open",
     "cypress:run": "cypress run"
   },
@@ -72,7 +70,6 @@
     "cypress-file-upload": "^5.0.8",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
-    "husky": "^8.0.3",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",
@@ -91,4 +88,3 @@
     "*.{json,css,md}": "prettier --write"
   }
 }
-
