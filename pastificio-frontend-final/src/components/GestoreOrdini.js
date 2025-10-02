@@ -26,18 +26,18 @@ import {
   Sync as SyncIcon
 } from '@mui/icons-material';
 
-// Importa componenti
+// Importa componenti (assicurati che esistano)
 import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
-import RiepilogoGiornaliero from './RiepilogoGiornaliero';
+// import RiepilogoGiornaliero from './RiepilogoGiornaliero'; // Commenta se non esiste
 import StatisticheWidget from './widgets/StatisticheWidget';
 
-// Configurazione API
+// Configurazione API - CORREGGIAMO GLI ENDPOINT
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com';
 
-// Token di autenticazione - usa un token base per ora
-const DEMO_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImRlbW8iLCJuYW1lIjoiRGVtbyBVc2VyIiwiaWF0IjoxNzM1NzQ0ODAwfQ.demo';
+// WebSocket URL corretto
+const WS_URL = API_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
 // Prodotti disponibili
 const prodottiDisponibili = {
@@ -78,6 +78,178 @@ const prodottiDisponibili = {
   ]
 };
 
+// Componente RiepilogoGiornaliero semplificato (per evitare l'errore)
+function RiepilogoGiornaliero({ ordini, dataSelezionata }) {
+  const ordiniFiltrati = ordini.filter(o => {
+    const dataOrdine = o.dataRitiro || o.createdAt || '';
+    return dataOrdine.startsWith(dataSelezionata);
+  });
+
+  const totale = ordiniFiltrati.reduce((sum, o) => sum + (o.totale || 0), 0);
+
+  return (
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        Riepilogo del {new Date(dataSelezionata).toLocaleDateString('it-IT')}
+      </Typography>
+      
+      <Grid container spacing={2}>
+        <Grid item xs={6}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="subtitle2">Ordini Totali</Typography>
+            <Typography variant="h4">{ordiniFiltrati.length}</Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={6}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="subtitle2">Incasso Totale</Typography>
+            <Typography variant="h4">€{totale.toFixed(2)}</Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
+        Dettaglio Ordini:
+      </Typography>
+      
+      {ordiniFiltrati.map((ordine, index) => (
+        <Paper key={ordine._id || index} sx={{ p: 2, mb: 1 }}>
+          <Grid container alignItems="center">
+            <Grid item xs={6}>
+              <Typography>{ordine.nomeCliente}</Typography>
+              <Typography variant="caption">{ordine.telefono}</Typography>
+            </Grid>
+            <Grid item xs={3}>
+              <Typography>{ordine.oraRitiro || 'N/D'}</Typography>
+            </Grid>
+            <Grid item xs={3} sx={{ textAlign: 'right' }}>
+              <Typography variant="h6">€{(ordine.totale || 0).toFixed(2)}</Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+      ))}
+    </Box>
+  );
+}
+
+// Componente WhatsAppHelper
+function WhatsAppHelperComponent({ ordini }) {
+  const [ordineSelezionato, setOrdineSelezionato] = useState(null);
+  const [messaggio, setMessaggio] = useState('');
+  
+  const formatMessage = (ordine) => {
+    if (!ordine) return '';
+    
+    const numeroOrdine = ordine.numeroOrdine || ordine._id?.substr(-6) || 'N/A';
+    const prodotti = (ordine.prodotti || [])
+      .map(p => `• ${p.nome} x${p.quantita} ${p.unita || 'Kg'}`)
+      .join('\n');
+    
+    return `🍝 PASTIFICIO NONNA CLAUDIA
+📋 Ordine #${numeroOrdine}
+
+👤 Cliente: ${ordine.nomeCliente}
+📅 Ritiro: ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
+⏰ Ora: ${ordine.oraRitiro || 'Da definire'}
+
+📦 Prodotti:
+${prodotti}
+
+💰 Totale: €${ordine.totale?.toFixed(2) || '0.00'}
+${ordine.note ? `\n📝 Note: ${ordine.note}` : ''}
+
+✅ Il suo ordine è confermato!
+📍 Via Carmine 20/B, Assemini
+📞 Per info: 3898879833
+
+Grazie per averci scelto! 🙏`;
+  };
+  
+  const handleSelectOrdine = (ordine) => {
+    setOrdineSelezionato(ordine);
+    setMessaggio(formatMessage(ordine));
+  };
+  
+  const handleCopy = async () => {
+    if (!messaggio) {
+      alert('Seleziona prima un ordine');
+      return;
+    }
+    
+    try {
+      await navigator.clipboard.writeText(messaggio);
+      alert('Messaggio copiato! Incollalo su WhatsApp');
+      
+      // Apri WhatsApp Web
+      window.open('https://web.whatsapp.com/', '_blank');
+    } catch (error) {
+      alert('Errore nella copia del messaggio');
+    }
+  };
+  
+  return (
+    <Box sx={{ p: 2 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, maxHeight: 400, overflow: 'auto' }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Seleziona un ordine
+            </Typography>
+            {ordini.map(ordine => (
+              <Button
+                key={ordine._id || ordine.id}
+                fullWidth
+                variant={ordineSelezionato?._id === ordine._id ? 'contained' : 'outlined'}
+                sx={{ mb: 1, justifyContent: 'flex-start', textAlign: 'left' }}
+                onClick={() => handleSelectOrdine(ordine)}
+              >
+                <Box>
+                  <Typography variant="body2">
+                    {ordine.nomeCliente}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    €{ordine.totale?.toFixed(2) || '0'} - {ordine.dataRitiro}
+                  </Typography>
+                </Box>
+              </Button>
+            ))}
+          </Paper>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Anteprima messaggio
+            </Typography>
+            <TextField
+              multiline
+              rows={15}
+              fullWidth
+              value={messaggio}
+              onChange={(e) => setMessaggio(e.target.value)}
+              variant="outlined"
+              sx={{ fontFamily: 'monospace', fontSize: '0.9rem' }}
+            />
+            
+            <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<WhatsAppIcon />}
+                onClick={handleCopy}
+                disabled={!messaggio}
+                fullWidth
+              >
+                Copia e Apri WhatsApp
+              </Button>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+}
+
 export default function GestoreOrdini() {
   // Stati principali
   const [ordini, setOrdini] = useState([]);
@@ -96,77 +268,180 @@ export default function GestoreOrdini() {
   const [performanceScore, setPerformanceScore] = useState(100);
   const [notifica, setNotifica] = useState({ aperta: false, messaggio: '', tipo: 'info' });
   
+  const wsRef = useRef(null);
   const syncIntervalRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
   
-  // Funzione per sincronizzare con MongoDB
-  const sincronizzaConMongoDB = useCallback(async () => {
+  // 🔧 WEBSOCKET CONNECTION MIGLIORATA
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    
     try {
-      setSyncInProgress(true);
+      console.log('Tentativo connessione WebSocket...');
+      wsRef.current = new WebSocket(WS_URL);
       
-      const response = await fetch(`${API_URL}/api/ordini`, {
-        headers: {
-          'Content-Type': 'application/json'
-          // Non inviare token per ora se il backend non lo richiede
-          // 'Authorization': `Bearer ${DEMO_TOKEN}`
+      wsRef.current.onopen = () => {
+        console.log('✅ WebSocket connesso');
+        setIsConnected(true);
+        mostraNotifica('Connesso in tempo reale', 'success');
+        
+        // Sincronizza subito dopo la connessione
+        sincronizzaConMongoDB();
+      };
+      
+      wsRef.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📨 WebSocket messaggio:', data);
+          
+          // Gestisci diversi tipi di messaggi
+          switch(data.type) {
+            case 'ordine_aggiornato':
+            case 'ordine_creato':
+            case 'ordine_eliminato':
+              sincronizzaConMongoDB();
+              break;
+            case 'ping':
+              // Rispondi con pong per mantenere la connessione
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({ type: 'pong' }));
+              }
+              break;
+          }
+        } catch (error) {
+          console.error('Errore parsing messaggio WebSocket:', error);
         }
-      });
+      };
       
-      // Gestisci diversi tipi di risposta
-      if (response.status === 401) {
-        // Backend richiede autenticazione - usa modalità offline
-        console.log('Backend richiede autenticazione - modalità offline');
+      wsRef.current.onerror = (error) => {
+        console.error('❌ WebSocket errore:', error);
+        setIsConnected(false);
+      };
+      
+      wsRef.current.onclose = () => {
+        console.log('🔌 WebSocket disconnesso');
         setIsConnected(false);
         
-        // Usa cache locale
-        const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-        setOrdini(ordiniCache);
-        
-        mostraNotifica('Modalità offline - usando cache locale', 'warning');
-        return false;
-      }
+        // Riconnetti dopo 5 secondi
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectWebSocket();
+        }, 5000);
+      };
+    } catch (error) {
+      console.error('Errore creazione WebSocket:', error);
+      setIsConnected(false);
+    }
+  }, []);
+  
+  // 🔄 SINCRONIZZAZIONE MONGODB CORRETTA
+  const sincronizzaConMongoDB = useCallback(async () => {
+    if (syncInProgress) return;
+    
+    try {
+      setSyncInProgress(true);
+      console.log('🔄 Sincronizzazione in corso...');
+      
+      const response = await fetch(`${API_URL}/api/ordini`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        // Aggiungi timeout
+        signal: AbortSignal.timeout(10000)
+      });
       
       if (response.ok) {
         const data = await response.json();
-        const ordiniBackend = Array.isArray(data) ? data : (data.data || []);
         
-        // Salva in localStorage per cache offline
-        localStorage.setItem('ordini', JSON.stringify(ordiniBackend));
-        setOrdini(ordiniBackend);
+        // Gestisci diversi formati di risposta
+        let ordiniBackend = [];
+        if (Array.isArray(data)) {
+          ordiniBackend = data;
+        } else if (data.data && Array.isArray(data.data)) {
+          ordiniBackend = data.data;
+        } else if (data.ordini && Array.isArray(data.ordini)) {
+          ordiniBackend = data.ordini;
+        }
+        
+        console.log(`✅ Sincronizzati ${ordiniBackend.length} ordini dal server`);
+        
+        // Merge con ordini offline
+        const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
+        
+        // Crea una mappa per evitare duplicati
+        const ordiniMap = new Map();
+        
+        // Aggiungi ordini dal backend
+        ordiniBackend.forEach(ordine => {
+          const key = ordine._id || ordine.id;
+          if (key) ordiniMap.set(key, ordine);
+        });
+        
+        // Aggiungi ordini offline non sincronizzati
+        ordiniOffline.forEach(ordine => {
+          const key = ordine._id || ordine.id || `temp_${ordine.nomeCliente}_${ordine.dataRitiro}`;
+          if (!ordiniMap.has(key)) {
+            ordiniMap.set(key, { ...ordine, _syncPending: true });
+          }
+        });
+        
+        const ordiniFinali = Array.from(ordiniMap.values());
+        
+        // Ordina per data creazione (più recenti prima)
+        ordiniFinali.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.dataRitiro);
+          const dateB = new Date(b.createdAt || b.dataRitiro);
+          return dateB - dateA;
+        });
+        
+        // Salva in localStorage per cache
+        localStorage.setItem('ordini', JSON.stringify(ordiniFinali));
+        setOrdini(ordiniFinali);
         
         setIsConnected(true);
         setUltimaSync(new Date());
         
-        console.log(`Sincronizzati ${ordiniBackend.length} ordini dal server`);
-        
-        // Invia ordini offline pendenti
-        await inviaOrdiniOffline();
+        // Se ci sono ordini offline, prova a inviarli
+        if (ordiniOffline.length > 0) {
+          await inviaOrdiniOffline();
+        }
         
         return true;
+      } else if (response.status === 404) {
+        console.log('⚠️ Endpoint non trovato, usando dati locali');
+        throw new Error('Endpoint not found');
       } else {
-        throw new Error('Errore risposta server');
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
-      console.error('Errore sincronizzazione:', error);
+      console.error('❌ Errore sincronizzazione:', error);
       setIsConnected(false);
       
-      // Carica dalla cache locale se offline
+      // Carica dalla cache locale
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       setOrdini(ordiniCache);
       
-      mostraNotifica('Modalità offline - usando cache locale', 'warning');
+      if (ordiniCache.length === 0) {
+        mostraNotifica('Nessun ordine in cache locale', 'info');
+      } else {
+        mostraNotifica(`Modalità offline - ${ordiniCache.length} ordini in cache`, 'warning');
+      }
+      
       return false;
     } finally {
       setSyncInProgress(false);
     }
-  }, []);
+  }, [syncInProgress]);
   
-  // Invia ordini offline al server
+  // 📤 INVIA ORDINI OFFLINE
   const inviaOrdiniOffline = async () => {
     const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
     
     if (ordiniOffline.length === 0) return;
     
-    console.log(`Invio ${ordiniOffline.length} ordini offline...`);
+    console.log(`📤 Invio ${ordiniOffline.length} ordini offline...`);
+    let successCount = 0;
     
     for (const ordine of ordiniOffline) {
       try {
@@ -174,54 +449,70 @@ export default function GestoreOrdini() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
-            // 'Authorization': `Bearer ${DEMO_TOKEN}`
           },
           body: JSON.stringify(ordine)
         });
         
         if (response.ok) {
-          console.log(`Ordine offline sincronizzato:`, ordine.nomeCliente);
+          successCount++;
+          console.log(`✅ Ordine sincronizzato: ${ordine.nomeCliente}`);
         }
       } catch (error) {
         console.error('Errore invio ordine offline:', error);
       }
     }
     
-    // Pulisci ordini offline dopo invio
-    localStorage.removeItem('ordiniOffline');
+    if (successCount > 0) {
+      // Pulisci ordini offline sincronizzati
+      localStorage.removeItem('ordiniOffline');
+      mostraNotifica(`Sincronizzati ${successCount} ordini offline`, 'success');
+      
+      // Ricarica lista
+      await sincronizzaConMongoDB();
+    }
   };
   
-  // Inizializzazione
+  // 🚀 INIZIALIZZAZIONE
   useEffect(() => {
-    console.log('Inizializzazione GestoreOrdini con sincronizzazione');
+    console.log('🚀 Inizializzazione GestoreOrdini...');
     
-    // Prima sincronizzazione
+    // Carica prima dalla cache locale per mostrare subito qualcosa
+    const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
+    if (ordiniCache.length > 0) {
+      setOrdini(ordiniCache);
+      console.log(`📦 Caricati ${ordiniCache.length} ordini dalla cache`);
+    }
+    
+    // Poi sincronizza con il server
     sincronizzaConMongoDB();
-  }, []);
-  
-  // Auto-sync ogni 10 secondi
-  useEffect(() => {
+    
+    // Connetti WebSocket
+    connectWebSocket();
+    
+    // Auto-sync ogni 30 secondi
     syncIntervalRef.current = setInterval(() => {
       sincronizzaConMongoDB();
-    }, 10000); // Ogni 10 secondi
+    }, 30000);
     
     return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (wsRef.current) wsRef.current.close();
     };
-  }, [sincronizzaConMongoDB]);
+  }, []);
   
-  // Monitora connessione
+ // 📡 GESTIONE ONLINE/OFFLINE
   useEffect(() => {
     const handleOnline = () => {
-      console.log('Connessione ripristinata');
+      console.log('🌐 Connessione ripristinata');
       mostraNotifica('Connessione ripristinata', 'success');
+      setIsConnected(true);
       sincronizzaConMongoDB();
+      connectWebSocket();
     };
     
     const handleOffline = () => {
-      console.log('Connessione persa');
+      console.log('📵 Connessione persa');
       setIsConnected(false);
       mostraNotifica('Modalità offline attiva', 'warning');
     };
@@ -229,27 +520,36 @@ export default function GestoreOrdini() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
+    // Controlla stato iniziale
+    setIsConnected(navigator.onLine);
+    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [sincronizzaConMongoDB]);
+  }, [sincronizzaConMongoDB, connectWebSocket]);
   
-  // Crea ordine
+  // ➕ CREA ORDINE
   const creaOrdine = async (ordine) => {
     const nuovoOrdine = {
       ...ordine,
+      _id: undefined, // Lascia che MongoDB generi l'ID
+      id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      totale: ordine.totale || 0,
+      stato: ordine.stato || 'nuovo'
     };
     
     try {
-      // Prova a inviare al server
+      if (!navigator.onLine || !isConnected) {
+        throw new Error('Offline mode');
+      }
+      
       const response = await fetch(`${API_URL}/api/ordini`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-          // 'Authorization': `Bearer ${DEMO_TOKEN}`
         },
         body: JSON.stringify(nuovoOrdine)
       });
@@ -265,107 +565,159 @@ export default function GestoreOrdini() {
         ordiniCache.unshift(ordineCreato);
         localStorage.setItem('ordini', JSON.stringify(ordiniCache));
         
-        mostraNotifica('Ordine salvato e sincronizzato', 'success');
-      } else if (response.status === 401) {
-        // Salva solo localmente se non autorizzato
-        salvaOrdineOffline(nuovoOrdine);
+        // Notifica via WebSocket
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            type: 'ordine_creato',
+            ordine: ordineCreato
+          }));
+        }
+        
+        mostraNotifica('✅ Ordine salvato e sincronizzato', 'success');
       } else {
-        throw new Error('Errore server');
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('Errore creazione ordine:', error);
-      salvaOrdineOffline(nuovoOrdine);
+      
+      // Salva offline
+      const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
+      ordiniOffline.push(nuovoOrdine);
+      localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
+      
+      // Aggiungi alla lista locale con flag
+      const ordineConFlag = { ...nuovoOrdine, _syncPending: true };
+      setOrdini(prev => [ordineConFlag, ...prev]);
+      
+      // Aggiorna cache principale
+      const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
+      ordiniCache.unshift(ordineConFlag);
+      localStorage.setItem('ordini', JSON.stringify(ordiniCache));
+      
+      mostraNotifica('💾 Ordine salvato localmente (verrà sincronizzato)', 'warning');
     }
   };
   
-  // Salva ordine offline
-  const salvaOrdineOffline = (ordine) => {
-    // Salva offline
-    const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
-    ordiniOffline.push(ordine);
-    localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
-    
-    // Aggiungi temporaneamente alla lista locale con ID temporaneo
-    const tempId = 'temp_' + Date.now();
-    const ordineConTempId = { ...ordine, _id: tempId };
-    
-    setOrdini(prev => [ordineConTempId, ...prev]);
-    
-    // Aggiorna anche la cache principale
-    const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-    ordiniCache.unshift(ordineConTempId);
-    localStorage.setItem('ordini', JSON.stringify(ordiniCache));
-    
-    mostraNotifica('Ordine salvato localmente (verrà sincronizzato quando possibile)', 'warning');
-  };
-  
-  // Aggiorna ordine
+  // 📝 AGGIORNA ORDINE
   const aggiornaOrdine = async (ordine) => {
+    const ordineAggiornato = {
+      ...ordine,
+      updatedAt: new Date().toISOString()
+    };
+    
     try {
-      const response = await fetch(`${API_URL}/api/ordini/${ordine._id}`, {
+      if (!navigator.onLine || !isConnected) {
+        throw new Error('Offline mode');
+      }
+      
+      const response = await fetch(`${API_URL}/api/ordini/${ordine._id || ordine.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
-          // 'Authorization': `Bearer ${DEMO_TOKEN}`
         },
-        body: JSON.stringify(ordine)
+        body: JSON.stringify(ordineAggiornato)
       });
       
-      if (response.ok || response.status === 401) {
-        // Aggiorna lista locale anche se non autorizzato
-        setOrdini(prev => prev.map(o => o._id === ordine._id ? ordine : o));
+      if (response.ok) {
+        const ordineRisposta = await response.json();
+        
+        setOrdini(prev => prev.map(o => 
+          (o._id === ordine._id || o.id === ordine.id) ? ordineRisposta : o
+        ));
         
         // Aggiorna cache
         const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-        const index = ordiniCache.findIndex(o => o._id === ordine._id);
+        const index = ordiniCache.findIndex(o => o._id === ordine._id || o.id === ordine.id);
         if (index !== -1) {
-          ordiniCache[index] = ordine;
+          ordiniCache[index] = ordineRisposta;
           localStorage.setItem('ordini', JSON.stringify(ordiniCache));
         }
         
-        mostraNotifica('Ordine aggiornato', 'success');
+        mostraNotifica('✅ Ordine aggiornato', 'success');
+      } else {
+        throw new Error('Update failed');
       }
     } catch (error) {
       console.error('Errore aggiornamento:', error);
-      mostraNotifica('Errore aggiornamento', 'error');
+      
+      // Aggiorna solo localmente con flag
+      const ordineConFlag = { ...ordineAggiornato, _syncPending: true };
+      
+      setOrdini(prev => prev.map(o => 
+        (o._id === ordine._id || o.id === ordine.id) ? ordineConFlag : o
+      ));
+      
+      // Salva in cache
+      const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
+      const index = ordiniCache.findIndex(o => o._id === ordine._id || o.id === ordine.id);
+      if (index !== -1) {
+        ordiniCache[index] = ordineConFlag;
+        localStorage.setItem('ordini', JSON.stringify(ordiniCache));
+      }
+      
+      // Aggiungi a lista offline per sincronizzazione futura
+      const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
+      const offlineIndex = ordiniOffline.findIndex(o => o._id === ordine._id || o.id === ordine.id);
+      if (offlineIndex !== -1) {
+        ordiniOffline[offlineIndex] = ordineConFlag;
+      } else {
+        ordiniOffline.push(ordineConFlag);
+      }
+      localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
+      
+      mostraNotifica('💾 Ordine aggiornato localmente', 'warning');
     }
   };
   
-  // Elimina ordine
+  // 🗑️ ELIMINA ORDINE
   const eliminaOrdine = async (id) => {
+    if (!confirm('Confermi eliminazione ordine?')) return;
+    
     try {
+      if (!navigator.onLine || !isConnected) {
+        throw new Error('Offline mode');
+      }
+      
       const response = await fetch(`${API_URL}/api/ordini/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
-          // 'Authorization': `Bearer ${DEMO_TOKEN}`
         }
       });
       
-      if (response.ok || response.status === 401) {
-        // Rimuovi dalla lista locale anche se non autorizzato
-        setOrdini(prev => prev.filter(o => o._id !== id));
+      if (response.ok) {
+        setOrdini(prev => prev.filter(o => o._id !== id && o.id !== id));
         
         // Aggiorna cache
         const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-        const filtered = ordiniCache.filter(o => o._id !== id);
+        const filtered = ordiniCache.filter(o => o._id !== id && o.id !== id);
         localStorage.setItem('ordini', JSON.stringify(filtered));
         
-        mostraNotifica('Ordine eliminato', 'success');
+        mostraNotifica('✅ Ordine eliminato', 'success');
+      } else {
+        throw new Error('Delete failed');
       }
     } catch (error) {
       console.error('Errore eliminazione:', error);
       
-      // Elimina comunque localmente
-      setOrdini(prev => prev.filter(o => o._id !== id));
+      // Elimina localmente
+      setOrdini(prev => prev.filter(o => o._id !== id && o.id !== id));
+      
+      // Aggiorna cache
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-      const filtered = ordiniCache.filter(o => o._id !== id);
+      const filtered = ordiniCache.filter(o => o._id !== id && o.id !== id);
       localStorage.setItem('ordini', JSON.stringify(filtered));
       
-      mostraNotifica('Ordine eliminato localmente', 'warning');
+      // Rimuovi da ordini offline se presente
+      const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
+      const filteredOffline = ordiniOffline.filter(o => o._id !== id && o.id !== id);
+      localStorage.setItem('ordiniOffline', JSON.stringify(filteredOffline));
+      
+      mostraNotifica('💾 Ordine eliminato localmente', 'warning');
     }
   };
   
+  // 💾 SALVA ORDINE
   const salvaOrdine = async (nuovoOrdine) => {
     if (submitInCorso) return;
     
@@ -373,7 +725,7 @@ export default function GestoreOrdini() {
     
     try {
       if (ordineSelezionato) {
-        await aggiornaOrdine({ ...nuovoOrdine, _id: ordineSelezionato._id });
+        await aggiornaOrdine({ ...ordineSelezionato, ...nuovoOrdine });
       } else {
         await creaOrdine(nuovoOrdine);
       }
@@ -382,20 +734,23 @@ export default function GestoreOrdini() {
       setDialogoNuovoOrdineAperto(false);
       
     } catch (error) {
-      console.error('Errore salvataggio ordine:', error);
-      mostraNotifica('Errore durante il salvataggio', 'error');
+      console.error('Errore salvataggio:', error);
+      mostraNotifica('❌ Errore durante il salvataggio', 'error');
     } finally {
       setTimeout(() => setSubmitInCorso(false), 1000);
     }
   };
   
+  // 🧹 RIMUOVI DUPLICATI
   const rimuoviDuplicati = () => {
     setOrdini(prevOrdini => {
       const ordiniUnici = [];
       const visti = new Set();
       
       prevOrdini.forEach(ordine => {
-        const chiave = `${ordine.nomeCliente}-${ordine.telefono}-${ordine.dataRitiro}`;
+        // Usa ID se disponibile, altrimenti crea chiave univoca
+        const chiave = ordine._id || ordine.id || 
+          `${ordine.nomeCliente}-${ordine.telefono}-${ordine.dataRitiro}-${ordine.totale}`;
         
         if (!visti.has(chiave)) {
           visti.add(chiave);
@@ -405,12 +760,17 @@ export default function GestoreOrdini() {
       
       if (ordiniUnici.length !== prevOrdini.length) {
         localStorage.setItem('ordini', JSON.stringify(ordiniUnici));
-        mostraNotifica(`Rimossi ${prevOrdini.length - ordiniUnici.length} ordini duplicati`, 'info');
+        mostraNotifica(`✅ Rimossi ${prevOrdini.length - ordiniUnici.length} ordini duplicati`, 'info');
+      } else {
+        mostraNotifica('Nessun duplicato trovato', 'info');
       }
       
       return ordiniUnici;
     });
   };
+  
+  // Resto del codice rimane uguale...
+  // (Export functions, calcola statistiche, etc.)
   
   const mostraNotifica = (messaggio, tipo = 'info') => {
     setNotifica({ aperta: true, messaggio, tipo });
@@ -419,8 +779,8 @@ export default function GestoreOrdini() {
   const chiudiNotifica = () => {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
-  
-  // Export functions
+
+// Export functions
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -887,121 +1247,5 @@ export default function GestoreOrdini() {
         </Alert>
       </Snackbar>
     </Container>
-  );
-}
-
-// WhatsApp Helper Component
-function WhatsAppHelperComponent({ ordini }) {
-  const [ordineSelezionato, setOrdineSelezionato] = useState(null);
-  const [messaggio, setMessaggio] = useState('');
-  
-  const formatMessage = (ordine) => {
-    if (!ordine) return '';
-    
-    const numeroOrdine = ordine.numeroOrdine || ordine._id?.substr(-6);
-    const prodotti = (ordine.prodotti || [])
-      .map(p => `• ${p.nome} x${p.quantita} ${p.unita || 'Kg'}`)
-      .join('\n');
-    
-    return `PASTIFICIO NONNA CLAUDIA
-Ordine #${numeroOrdine}
-
-Cliente: ${ordine.nomeCliente}
-Ritiro: ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
-Ora: ${ordine.oraRitiro || 'Da definire'}
-
-Prodotti:
-${prodotti}
-
-Totale: €${ordine.totale?.toFixed(2) || '0.00'}
-${ordine.note ? `\nNote: ${ordine.note}` : ''}
-
-Il suo ordine è confermato!
-Via Carmine 20/B, Assemini
-Per info: 3898879833
-
-Grazie per averci scelto!`;
-  };
-  
-  const handleSelectOrdine = (ordine) => {
-    setOrdineSelezionato(ordine);
-    setMessaggio(formatMessage(ordine));
-  };
-  
-  const handleCopy = async () => {
-    if (!messaggio) {
-      alert('Seleziona prima un ordine');
-      return;
-    }
-    
-    try {
-      await navigator.clipboard.writeText(messaggio);
-      alert('Messaggio copiato! Incollalo su WhatsApp');
-      window.open('https://web.whatsapp.com/', '_blank');
-    } catch (error) {
-      alert('Errore nella copia del messaggio');
-    }
-  };
-  
-  return (
-    <Box sx={{ p: 2 }}>
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, maxHeight: 400, overflow: 'auto' }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Seleziona un ordine
-            </Typography>
-            {ordini.map(ordine => (
-              <Button
-                key={ordine._id}
-                fullWidth
-                variant={ordineSelezionato?._id === ordine._id ? 'contained' : 'outlined'}
-                sx={{ mb: 1, justifyContent: 'flex-start', textAlign: 'left' }}
-                onClick={() => handleSelectOrdine(ordine)}
-              >
-                <Box>
-                  <Typography variant="body2">
-                    {ordine.nomeCliente}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    €{ordine.totale?.toFixed(2) || '0'} - {ordine.dataRitiro}
-                  </Typography>
-                </Box>
-              </Button>
-            ))}
-          </Paper>
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Anteprima messaggio
-            </Typography>
-            <TextField
-              multiline
-              rows={15}
-              fullWidth
-              value={messaggio}
-              onChange={(e) => setMessaggio(e.target.value)}
-              variant="outlined"
-              sx={{ fontFamily: 'monospace', fontSize: '0.9rem' }}
-            />
-            
-            <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<WhatsAppIcon />}
-                onClick={handleCopy}
-                disabled={!messaggio}
-                fullWidth
-              >
-                Copia e Apri WhatsApp
-              </Button>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Box>
   );
 }
