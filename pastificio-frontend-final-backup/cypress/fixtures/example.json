@@ -1,0 +1,95 @@
+{
+  "ordini": [
+    {
+      "id": "1",
+      "dataConsegna": "2025-08-30",
+      "cliente": "Mario Rossi",
+      "prodotti": [
+        {
+          "nome": "Spaghetti",
+          "quantita": 10,
+          "prezzo": 3.5
+        }
+      ],
+      "totale": 35,
+      "stato": "in_preparazione"
+    }
+  ],
+  "clienti": [
+    {
+      "id": "1",
+      "codiceCliente": "CL250001",
+      "nome": "Mario Rossi",
+      "telefono": "3331234567",
+      "email": "mario.rossi@example.com",
+      "punti": 150
+    }
+  ],
+  "prodotti": [
+    {
+      "id": "1",
+      "nome": "Spaghetti",
+      "prezzo": 3.5,
+      "unitaMisura": "kg"
+    },
+    {
+      "id": "2", 
+      "nome": "Penne",
+      "prezzo": 3.5,
+      "unitaMisura": "kg"
+    },
+    {
+      "id": "3",
+      "nome": "Rigatoni",
+      "prezzo": 3.5,
+      "unitaMisura": "kg"
+    },
+    {
+      "id": "4",
+      "nome": "Fusilli",
+      "prezzo": 3.5,
+      "unitaMisura": "kg"
+    },
+    {
+      "id": "5",
+      "nome": "Farfalle",
+      "prezzo": 4.0,
+      "unitaMisura": "kg"
+    }
+  ],
+  "ingredienti": [
+    {
+      "id": "1",
+      "nome": "Farina 00",
+      "unitaMisura": "kg",
+      "giacenza": 500,
+      "scorta_minima": 100
+    },
+    {
+      "id": "2",
+      "nome": "Uova",
+      "unitaMisura": "pz",
+      "giacenza": 200,
+      "scorta_minima": 50
+    },
+    {
+      "id": "3",
+      "nome": "Semola",
+      "unitaMisura": "kg",
+      "giacenza": 300,
+      "scorta_minima": 80
+    }
+  ],
+  "users": [
+    {
+      "email": "admin@pastificio.it",
+      "password": "admin123",
+      "role": "admin"
+    },
+    {
+      "email": "user@pastificio.it",
+      "password": "user123",
+      "role": "user"
+    }
+  ]
+}

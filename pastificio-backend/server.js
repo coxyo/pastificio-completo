@@ -65,10 +65,32 @@ mongoose.set('strictQuery', false);
 const app = express();
 const server = createServer(app);
 
-// Configura Socket.IO con CORS permissivo
+// Configura Socket.IO con CORS sicuro
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: function(origin, callback) {
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://pastificio-frontend-final.vercel.app',
+        'https://pastificio-nonna-claudia.vercel.app'
+      ];
+      
+      // Permetti richieste senza origin (Postman, server-to-server)
+      if (!origin) return callback(null, true);
+      
+      // Permetti tutti i domini Vercel per preview deployments
+      if (origin.includes('.vercel.app')) {
+        return callback(null, true);
+      }
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        logger.warn('WebSocket CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }
@@ -77,28 +99,46 @@ const io = new Server(server, {
 // Rendi io disponibile globalmente
 global.io = io;
 
-// CORS Middleware - VERSIONE PERMISSIVA PER SVILUPPO
-app.use(cors({
+// CORS Middleware - VERSIONE SICURA PER PRODUZIONE
+const corsOptions = {
   origin: function (origin, callback) {
-    // Permetti SEMPRE qualsiasi origine
-    callback(null, true);
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://pastificio-frontend-final.vercel.app',
+      'https://pastificio-nonna-claudia.vercel.app'
+    ];
+    
+    // Permetti richieste senza origin (es. Postman, app mobile, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Permetti tutti i domini Vercel per preview deployments
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      logger.warn('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400
-}));
+  maxAge: 86400 // Cache preflight per 24 ore
+};
+
+app.use(cors(corsOptions));
 
 // Gestione OPTIONS per preflight
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(204);
-});
+app.options('*', cors(corsOptions));
 
+// Middleware parsing
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(compression());
@@ -146,10 +186,13 @@ dirs.forEach(dir => {
 
 // Logging middleware
 app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('user-agent')
-  });
+  // Log solo in development o per errori
+  if (process.env.NODE_ENV === 'development' || res.statusCode >= 400) {
+    logger.info(`${req.method} ${req.path}`, {
+      ip: req.ip,
+      userAgent: req.get('user-agent')?.substring(0, 50)
+    });
+  }
   next();
 });
 
@@ -167,27 +210,30 @@ app.get('/api/health', (req, res) => {
 // Auth routes - NON PROTETTE
 app.use('/api/auth', authRoutes);
 
-// Routes che possono funzionare senza autenticazione per test
-app.use('/api/ordini', ordiniRoutes); // Temporaneamente senza protect per test
+// Routes pubbliche per test (TEMPORANEO - aggiungere protect in produzione)
+app.use('/api/ordini', ordiniRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/backup', backupRoutes);
-app.use('/api/magazzino', magazzinoRoutes);
-app.use('/api/magazzino/ingredienti', ingredientiRoutes);
-app.use('/api/fornitori', fornitoriRoutes);
-app.use('/api/report', reportRoutes);
-app.use('/api/notifiche', notificheRoutes);
-app.use('/api/export', exportRoutes);
-app.use('/api/statistics', statisticsRoutes);
 app.use('/api/clienti', clientiRoutes);
-app.use('/api/comunicazioni', comunicazioniRoutes);
-app.use('/api/whatsapp', whatsappRoutes);
-app.use('/api/templates', templateRoutes);
+
+// Routes protette
+app.use('/api/backup', protect, backupRoutes);
+app.use('/api/magazzino', protect, magazzinoRoutes);
+app.use('/api/magazzino/ingredienti', protect, ingredientiRoutes);
+app.use('/api/fornitori', protect, fornitoriRoutes);
+app.use('/api/report', protect, reportRoutes);
+app.use('/api/notifiche', protect, notificheRoutes);
+app.use('/api/export', protect, exportRoutes);
+app.use('/api/statistics', protect, statisticsRoutes);
+app.use('/api/comunicazioni', protect, comunicazioniRoutes);
+app.use('/api/whatsapp', protect, whatsappRoutes);
+app.use('/api/templates', protect, templateRoutes);
 app.use('/api/test', testRoutes);
 
 // Test route
 app.get('/api/test', (req, res) => {
   res.json({ 
     message: 'API funzionante!',
+    timestamp: new Date().toISOString(),
     services: {
       whatsapp: whatsappService.isReady(),
       scheduler: schedulerService.jobs ? schedulerService.jobs.size > 0 : false,
@@ -547,6 +593,7 @@ cron.schedule('0 * * * *', () => {
       fs.stat(filePath, (err, stat) => {
         if (err) return;
         
+        // Rimuovi file più vecchi di 1 ora
         if (now - stat.mtime.getTime() > 3600000) {
           fs.unlink(filePath, (err) => {
             if (err) {
@@ -560,12 +607,14 @@ cron.schedule('0 * * * *', () => {
     });
   });
 
+  // Pulizia PDF temporanei
   if (pdfService && pdfService.cleanupTempFiles) {
     pdfService.cleanupTempFiles(24).catch(err => {
       logger.error('Errore pulizia PDF temporanei', { error: err });
     });
   }
 
+  // Pulizia export vecchi
   if (exportService && exportService.cleanupOldExports) {
     exportService.cleanupOldExports(7).catch(err => {
       logger.error('Errore pulizia export:', err);
@@ -662,7 +711,7 @@ const startServer = async () => {
     // Connetti al database
     await connectDB();
     
-    // Inizializza servizio backup - commenta se causa problemi
+    // Inizializza servizio backup - non bloccare se fallisce
     try {
       if (backupService && backupService.initialize) {
         await backupService.initialize();
@@ -703,7 +752,7 @@ const startServer = async () => {
     // Avvia server
     server.listen(PORT, () => {
       logger.info(`Server in esecuzione sulla porta ${PORT}`, {
-        environment: process.env.NODE_ENV,
+        environment: process.env.NODE_ENV || 'development',
         mongoUri: process.env.MONGODB_URI?.substring(0, 20) + '...',
         whatsapp: whatsappService.isReady() ? 'connesso' : 'non connesso',
         schedulerWhatsApp: schedulerWhatsApp && schedulerWhatsApp.jobs ? schedulerWhatsApp.jobs.size : 0
@@ -718,6 +767,9 @@ const startServer = async () => {
             clearInterval(checkWhatsApp);
           }
         }, 10000); // Controlla ogni 10 secondi
+        
+        // Timeout dopo 5 minuti
+        setTimeout(() => clearInterval(checkWhatsApp), 300000);
       }
     });
   } catch (error) {
@@ -796,7 +848,8 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (err) => {
   logger.error('Promise rejection non gestita', { error: err });
-  gracefulShutdown();
+  // Non chiudere immediatamente per rejection non gestite
+  logger.error('Stack trace:', err);
 });
 
 // ====================

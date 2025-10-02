@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 300px;
+        }
+        button {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>Test Login HTML</h1>
+        <p>Clicca il bottone per fare login</p>
+        <button onclick="doLogin()">LOGIN E VAI ALLA DASHBOARD</button>
+        <br><br>
+        <button onclick="testAlert()">TEST ALERT</button>
+    </div>
+
+    <script>
+        function testAlert() {
+            alert('Il JavaScript funziona!');
+        }
+
+        function doLogin() {
+            console.log('Login clicked');
+            localStorage.setItem('token', 'test-token-123');
+            localStorage.setItem('user', JSON.stringify({
+                id: '1',
+                username: 'admin',
+                ruolo: 'admin'
+            }));
+            alert('Login effettuato, ora vado alla dashboard...');
+            window.location.href = '/dashboard';
+        }
+    </script>
+</body>
+</html>

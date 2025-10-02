@@ -53,7 +53,7 @@ class LoggingServiceClass {
 
   async sendToServer(logEntry) {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com';
       
       await fetch(`${apiUrl}/api/logs`, {
         method: 'POST',
