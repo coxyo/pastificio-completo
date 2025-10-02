@@ -36,6 +36,9 @@ import StatisticheWidget from './widgets/StatisticheWidget';
 // Configurazione API
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com';
 
+// Token di autenticazione demo
+const DEMO_TOKEN = 'demo-token';
+
 // Prodotti disponibili
 const prodottiDisponibili = {
   dolci: [
@@ -75,9 +78,6 @@ const prodottiDisponibili = {
   ]
 };
 
-// Token di autenticazione demo (da sostituire con login reale)
-const DEMO_TOKEN = 'demo-token-' + Date.now();
-
 export default function GestoreOrdini() {
   // Stati principali
   const [ordini, setOrdini] = useState([]);
@@ -105,7 +105,8 @@ export default function GestoreOrdini() {
       
       const response = await fetch(`${API_URL}/api/ordini`, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEMO_TOKEN}` // FIX: Aggiunto token
         }
       });
       
@@ -157,7 +158,8 @@ export default function GestoreOrdini() {
         const response = await fetch(`${API_URL}/api/ordini`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${DEMO_TOKEN}` // FIX: Aggiunto token
           },
           body: JSON.stringify(ordine)
         });
@@ -204,7 +206,7 @@ export default function GestoreOrdini() {
     };
     
     const handleOffline = () => {
-      console.log('📴 Connessione persa');
+      console.log('🔴 Connessione persa');
       setIsConnected(false);
       mostraNotifica('Modalità offline attiva', 'warning');
     };
@@ -231,7 +233,8 @@ export default function GestoreOrdini() {
       const response = await fetch(`${API_URL}/api/ordini`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEMO_TOKEN}` // FIX: Aggiunto token
         },
         body: JSON.stringify(nuovoOrdine)
       });
@@ -273,7 +276,8 @@ export default function GestoreOrdini() {
       const response = await fetch(`${API_URL}/api/ordini/${ordine._id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEMO_TOKEN}` // FIX: Aggiunto token
         },
         body: JSON.stringify(ordine)
       });
@@ -304,7 +308,8 @@ export default function GestoreOrdini() {
       const response = await fetch(`${API_URL}/api/ordini/${id}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEMO_TOKEN}` // FIX: Aggiunto token
         }
       });
       
@@ -379,7 +384,7 @@ export default function GestoreOrdini() {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
   
-  // Export functions (mantieni le stesse)
+  // Export functions
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -849,7 +854,7 @@ export default function GestoreOrdini() {
   );
 }
 
-// WhatsApp Helper Component (rimane uguale)
+// WhatsApp Helper Component
 function WhatsAppHelperComponent({ ordini }) {
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
   const [messaggio, setMessaggio] = useState('');
@@ -863,7 +868,7 @@ function WhatsAppHelperComponent({ ordini }) {
       .join('\n');
     
     return `🍝 *PASTIFICIO NONNA CLAUDIA*
-📝 *Ordine #${numeroOrdine}*
+📋 *Ordine #${numeroOrdine}*
 
 👤 *Cliente:* ${ordine.nomeCliente}
 📅 *Ritiro:* ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
