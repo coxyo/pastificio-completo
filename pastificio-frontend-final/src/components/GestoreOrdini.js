@@ -357,8 +357,7 @@ export default function GestoreOrdini() {
       setSyncInProgress(true);
       console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/3)`);
       
-      const response = await fetch(`${API_URL}/api/ordini`, {
-        method: 'GET',
+const response = await fetch(`${API_URL}/ordini`, {        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
@@ -470,7 +469,7 @@ export default function GestoreOrdini() {
     
     for (const ordine of ordiniOffline) {
       try {
-        const response = await fetch(`${API_URL}/api/ordini`, {
+const response = await fetch(`${API_URL}/ordini`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -588,7 +587,7 @@ export default function GestoreOrdini() {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/api/ordini`, {
+      const response = await fetch(`${API_URL}/ordini`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -652,7 +651,7 @@ export default function GestoreOrdini() {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/api/ordini/${ordine._id || ordine.id}`, {
+      const response = await fetch(`${API_URL}/ordini/${ordine._id || ordine.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -720,7 +719,7 @@ export default function GestoreOrdini() {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/api/ordini/${id}`, {
+      const response = await fetch(`${API_URL}/ordini/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
