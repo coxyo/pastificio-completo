@@ -196,7 +196,65 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
+/ Health check endpoint - DEVE ESSERE PUBBLICO E VELOCE
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    server: 'Pastificio Backend',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Root endpoint per wake up
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Pastificio Backend</title>
+      <style>
+        body { font-family: Arial; padding: 40px; background: #f0f0f0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        h1 { color: #333; }
+        .status { color: green; font-weight: bold; }
+        .info { margin: 20px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #4CAF50; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>🍝 Pastificio Nonna Claudia Backend</h1>
+        <p class="status">✅ Server Online e Operativo</p>
+        <div class="info">
+          <p><strong>Uptime:</strong> ${Math.floor(process.uptime() / 60)} minuti</p>
+          <p><strong>Avviato:</strong> ${new Date(Date.now() - process.uptime() * 1000).toLocaleString()}</p>
+          <p><strong>Environment:</strong> ${process.env.NODE_ENV || 'development'}</p>
+        </div>
+        <p>API Endpoint: <code>/api/*</code></p>
+        <p>Health Check: <code>/health</code></p>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// Health check pubblico per UptimeRobot
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    server: 'Pastificio Backend'
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send('🍝 Pastificio Backend is running!');
+});
+
+// Routes API esistenti
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
