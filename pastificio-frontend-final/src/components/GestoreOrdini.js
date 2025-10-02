@@ -30,7 +30,6 @@ import {
 import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
-// import RiepilogoGiornaliero from './RiepilogoGiornaliero'; // Commenta se non esiste
 import StatisticheWidget from './widgets/StatisticheWidget';
 
 // Configurazione API - CORREGGIAMO GLI ENDPOINT
@@ -272,6 +271,23 @@ export default function GestoreOrdini() {
   const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   
+  // 🏓 KEEP-ALIVE PER MANTENERE IL SERVER SVEGLIO
+  useEffect(() => {
+    const keepAlive = setInterval(async () => {
+      try {
+        await fetch(`${API_URL}/health`, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(5000)
+        });
+        console.log('🏓 Keep-alive ping inviato');
+      } catch (error) {
+        console.log('Keep-alive fallito:', error.message);
+      }
+    }, 4 * 60 * 1000); // Ogni 4 minuti
+
+    return () => clearInterval(keepAlive);
+  }, []);
+  
   // 🔧 WEBSOCKET CONNECTION MIGLIORATA
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -333,13 +349,13 @@ export default function GestoreOrdini() {
     }
   }, []);
   
-  // 🔄 SINCRONIZZAZIONE MONGODB CORRETTA
-  const sincronizzaConMongoDB = useCallback(async () => {
+  // 🔄 SINCRONIZZAZIONE MONGODB CON RETRY LOGIC
+  const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
     try {
       setSyncInProgress(true);
-      console.log('🔄 Sincronizzazione in corso...');
+      console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/3)`);
       
       const response = await fetch(`${API_URL}/api/ordini`, {
         method: 'GET',
@@ -347,8 +363,7 @@ export default function GestoreOrdini() {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        // Aggiungi timeout
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(30000) // 30 secondi per dare tempo al server di svegliarsi
       });
       
       if (response.ok) {
@@ -416,6 +431,16 @@ export default function GestoreOrdini() {
       }
     } catch (error) {
       console.error('❌ Errore sincronizzazione:', error);
+      
+      // RETRY LOGIC
+      if (retry < 2 && navigator.onLine) {
+        console.log(`🔁 Riprovo tra 3 secondi... (tentativo ${retry + 2}/3)`);
+        setTimeout(() => {
+          sincronizzaConMongoDB(retry + 1);
+        }, 3000);
+        return;
+      }
+      
       setIsConnected(false);
       
       // Carica dalla cache locale
@@ -472,7 +497,7 @@ export default function GestoreOrdini() {
     }
   };
   
-  // 🚀 INIZIALIZZAZIONE
+  // 🚀 INIZIALIZZAZIONE CON WAKE-UP DEL SERVER
   useEffect(() => {
     console.log('🚀 Inizializzazione GestoreOrdini...');
     
@@ -483,8 +508,25 @@ export default function GestoreOrdini() {
       console.log(`📦 Caricati ${ordiniCache.length} ordini dalla cache`);
     }
     
-    // Poi sincronizza con il server
-    sincronizzaConMongoDB();
+    // Wake up del server prima di sincronizzare
+    const wakeUpServer = async () => {
+      try {
+        await fetch(`${API_URL}/health`, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(5000)
+        });
+        console.log('🌅 Server svegliato');
+      } catch (error) {
+        console.log('Wake up server fallito:', error.message);
+      }
+      
+      // Poi sincronizza
+      setTimeout(() => {
+        sincronizzaConMongoDB();
+      }, 1000);
+    };
+    
+    wakeUpServer();
     
     // Connetti WebSocket
     connectWebSocket();
@@ -769,9 +811,6 @@ export default function GestoreOrdini() {
     });
   };
   
-  // Resto del codice rimane uguale...
-  // (Export functions, calcola statistiche, etc.)
-  
   const mostraNotifica = (messaggio, tipo = 'info') => {
     setNotifica({ aperta: true, messaggio, tipo });
   };
@@ -780,7 +819,7 @@ export default function GestoreOrdini() {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
 
-// Export functions
+  // Export functions
   const handleExport = async (formato) => {
     setMenuExport(null);
     
