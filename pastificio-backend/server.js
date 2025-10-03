@@ -76,7 +76,7 @@ const io = new Server(server, {
         'https://pastificio-nonna-claudia.vercel.app'
       ];
       
-      // Permetti richieste senza origin (Postman, server-to-server)
+      // IMPORTANTE: Permetti SEMPRE le richieste senza origin per Render
       if (!origin) return callback(null, true);
       
       // Permetti tutti i domini Vercel per preview deployments
@@ -87,13 +87,21 @@ const io = new Server(server, {
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        logger.warn('WebSocket CORS blocked origin:', origin);
-        callback(new Error('Not allowed by CORS'));
+        // NON BLOCCARE, solo loggare
+        logger.warn('WebSocket request from unknown origin:', origin);
+        callback(null, true); // PERMETTI COMUNQUE per debug
       }
     },
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
-  }
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["*"],
+    transports: ['polling', 'websocket'] // IMPORTANTE: polling prima per Render
+  },
+  // Configurazioni aggiuntive per Render.com
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['polling', 'websocket'], // Supporta entrambi
+  allowEIO3: true
 });
 
 // Rendi io disponibile globalmente
@@ -196,7 +204,7 @@ app.use((req, res, next) => {
   next();
 });
 
-/ Health check endpoint - DEVE ESSERE PUBBLICO E VELOCE
+// Health check endpoint - DEVE ESSERE PUBBLICO E VELOCE
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'ok', 
@@ -238,20 +246,6 @@ app.get('/', (req, res) => {
     </body>
     </html>
   `);
-});
-
-// Health check pubblico per UptimeRobot
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    server: 'Pastificio Backend'
-  });
-});
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.send('🍝 Pastificio Backend is running!');
 });
 
 // Routes API esistenti
@@ -300,12 +294,24 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// WebSocket
+// ============================
+// WEBSOCKET HANDLERS COMPLETI
+// ============================
 const connectedUsers = new Map();
 
 io.on('connection', (socket) => {
-  logger.info('Nuova connessione WebSocket', { socketId: socket.id });
+  logger.info('✅ Nuova connessione WebSocket', { 
+    socketId: socket.id,
+    transport: socket.conn.transport.name 
+  });
 
+  // IMPORTANTE: Conferma immediata di connessione
+  socket.emit('connected', { 
+    socketId: socket.id,
+    timestamp: new Date().toISOString() 
+  });
+
+  // Handler autenticazione
   socket.on('authenticate', (data) => {
     if (data.userId) {
       connectedUsers.set(socket.id, {
@@ -326,6 +332,79 @@ io.on('connection', (socket) => {
     }
   });
 
+  // NUOVO: Handler per ping/pong
+  socket.on('ping', () => {
+    socket.emit('pong', { timestamp: Date.now() });
+  });
+
+  // NUOVO: Handler per sincronizzazione
+  socket.on('request-sync', async () => {
+    try {
+      logger.info(`🔄 Sincronizzazione richiesta da ${socket.id}`);
+      
+      // Recupera ultimi dati
+      const [ordini, movimenti] = await Promise.all([
+        Ordine.find().sort('-createdAt').limit(50).lean(),
+        Movimento.find().sort('-createdAt').limit(50).lean()
+      ]);
+      
+      socket.emit('sync-data', {
+        ordini,
+        movimenti,
+        timestamp: new Date().toISOString()
+      });
+      
+      logger.info(`✅ Dati sincronizzati inviati a ${socket.id}`);
+    } catch (error) {
+      logger.error('❌ Errore durante sincronizzazione:', error);
+      socket.emit('sync-error', { message: error.message });
+    }
+  });
+
+  // NUOVO: Handler per eventi ordini
+  socket.on('ordine-creato', (data) => {
+    logger.info('📦 Nuovo ordine ricevuto via WebSocket:', data);
+    // Broadcast a tutti TRANNE il mittente
+    socket.broadcast.emit('ordine-creato', data);
+  });
+
+  socket.on('ordine-aggiornato', (data) => {
+    logger.info('📝 Ordine aggiornato via WebSocket:', data);
+    socket.broadcast.emit('ordine-aggiornato', data);
+  });
+
+  socket.on('ordine-eliminato', (data) => {
+    logger.info('🗑️ Ordine eliminato via WebSocket:', data);
+    socket.broadcast.emit('ordine-eliminato', data);
+  });
+
+  // NUOVO: Handler per eventi magazzino
+  socket.on('movimento-creato', (data) => {
+    logger.info('📦 Nuovo movimento magazzino:', data);
+    socket.broadcast.emit('movimento-creato', data);
+  });
+
+  socket.on('inventario_aggiornato', (data) => {
+    logger.info('📊 Inventario aggiornato:', data);
+    socket.broadcast.emit('inventario_aggiornato', data);
+  });
+
+  socket.on('movimento_aggiunto', (data) => {
+    logger.info('➕ Movimento aggiunto:', data);
+    socket.broadcast.emit('movimento_aggiunto', data);
+  });
+
+  socket.on('movimento_eliminato', (data) => {
+    logger.info('🗑️ Movimento eliminato:', data);
+    socket.broadcast.emit('movimento_eliminato', data);
+  });
+
+  socket.on('movimenti_caricati', (data) => {
+    logger.info('📋 Movimenti caricati:', data);
+    socket.broadcast.emit('movimenti_caricati', data);
+  });
+
+  // Handler room
   socket.on('join', (room) => {
     socket.join(room);
     logger.info('Socket joined room', { socketId: socket.id, room });
@@ -336,9 +415,18 @@ io.on('connection', (socket) => {
     logger.info('Socket left room', { socketId: socket.id, room });
   });
 
-  socket.on('disconnect', () => {
+  // Handler disconnessione
+  socket.on('disconnect', (reason) => {
     connectedUsers.delete(socket.id);
-    logger.info('Disconnessione WebSocket', { socketId: socket.id });
+    logger.info('❌ Disconnessione WebSocket', { 
+      socketId: socket.id,
+      reason: reason 
+    });
+  });
+
+  // Handler errori
+  socket.on('error', (error) => {
+    logger.error(`⚠️ Errore socket ${socket.id}:`, error);
   });
 });
 
