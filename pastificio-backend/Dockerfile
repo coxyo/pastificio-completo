@@ -1,34 +1,36 @@
-# Use Node 20 Alpine for smaller image
+# Usa Node 20
 FROM node:20-alpine
 
-# Install dependencies for Puppeteer
+# Installa dipendenze per Puppeteer
 RUN apk add --no-cache \
     chromium \
     nss \
     freetype \
-    freetype-dev \
     harfbuzz \
     ca-certificates \
     ttf-freefont
 
-# Tell Puppeteer to use installed Chromium
+# Imposta variabili per Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Set working directory
+# Directory di lavoro
 WORKDIR /app
 
-# Copy package files
+# Copia package files
 COPY package*.json ./
 
-# Install dependencies
+# Installa dipendenze
 RUN npm ci --omit=dev
 
-# Copy application code
+# Copia tutto il codice
 COPY . .
 
-# Expose port
+# Crea directory per WhatsApp
+RUN mkdir -p .wwebjs_auth
+
+# Porta
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+# Comando di avvio
+CMD ["node", "server.js"]
