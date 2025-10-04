@@ -38,7 +38,7 @@ import { protect } from './middleware/auth.js';
 import logger from './config/logger.js';
 
 // Import models per i cron jobs
-import Movimento from './models/movimento.js';
+import Movimento from './models/Movimento.js';
 import Ordine from './models/Ordine.js';
 
 // Import services
