@@ -1,6 +1,6 @@
 // controllers/inventarioController.js
 import Inventario from '../models/Inventario.js';
-import Movimento from '../models/movimento.js';
+import Movimento from '../models/Movimento.js';
 import logger from '../config/logger.js';
 
 const inventarioController = {

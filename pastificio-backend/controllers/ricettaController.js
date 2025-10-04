@@ -1,6 +1,6 @@
 // controllers/ricettaController.js
 import Ricetta from '../models/ricetta.js';
-import Ingrediente from '../models/ingrediente.js';
+import Ingrediente from '../models/Ingrediente.js';
 import logger from '../config/logger.js';
 
 // Get all recipes

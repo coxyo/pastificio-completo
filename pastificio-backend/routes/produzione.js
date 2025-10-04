@@ -4,8 +4,8 @@ import { protect } from '../middleware/auth.js';
 import logger from '../config/logger.js';
 import Ricetta from '../models/ricetta.js';
 import PianoProduzione from '../models/pianoProduzione.js';
-import Ingrediente from '../models/ingrediente.js';
-import Movimento from '../models/movimento.js';
+import Ingrediente from '../models/Ingrediente.js';
+import Movimento from '../models/Movimento.js';
 import mongoose from 'mongoose';
 
 const router = express.Router();

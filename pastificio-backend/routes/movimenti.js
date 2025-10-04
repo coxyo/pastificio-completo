@@ -1,7 +1,7 @@
 // routes/movimenti.js
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import Movimento from '../models/movimento.js';
+import Movimento from '../models/Movimento.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();

@@ -324,7 +324,7 @@ export const getClientiTop = async (req, res) => {
 export const getOrdiniCliente = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    const Ordine = mongoose.models.Ordine || (await import('../models/ordine.js')).default;
+    const Ordine = mongoose.models.Ordine || (await import('../models/Ordine.js')).default;
     
     const ordini = await Ordine.find({ cliente: req.params.id })
       .sort({ createdAt: -1 })

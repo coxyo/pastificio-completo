@@ -16,7 +16,7 @@ async function inspectOrdineModel() {
     console.log('✅ Connesso a MongoDB\n');
 
     // Importa il modello Ordine
-    const Ordine = (await import('./models/ordine.js')).default;
+    const Ordine = (await import('./models/Ordine.js')).default;
     
     console.log('📋 SCHEMA ORDINE:\n');
     

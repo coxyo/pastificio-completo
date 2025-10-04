@@ -1,5 +1,5 @@
 // controllers/ingredientiController.js
-import Ingrediente from '../models/ingrediente.js';
+import Ingrediente from '../models/Ingrediente.js';
 import logger from '../config/logger.js';
 
 // Ottieni tutti gli ingredienti

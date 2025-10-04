@@ -1,6 +1,6 @@
 // controllers/movimentoController.js
-import Movimento from '../models/movimento.js';
-import Ingrediente from '../models/ingrediente.js';
+import Movimento from '../models/Movimento.js';
+import Ingrediente from '../models/Ingrediente.js';
 import { logger } from '../config/logger.js';
 
 // Ottiene tutti i movimenti

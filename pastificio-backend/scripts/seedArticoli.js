@@ -1,6 +1,6 @@
 // pastificio-backend/scripts/seedArticoli.js
 import mongoose from 'mongoose';
-import Articolo from '../models/articolo.js';
+import Articolo from '../models/Articolo.js';
 import dotenv from 'dotenv';
 
 dotenv.config();

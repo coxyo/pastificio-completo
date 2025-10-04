@@ -1,8 +1,8 @@
 // controllers/ordineFornitoreController.js
 import OrdineFornitore from '../models/ordineFornitore.js';
-import Ingrediente from '../models/ingrediente.js';
+import Ingrediente from '../models/Ingrediente.js';
 import Fornitore from '../models/fornitore.js';
-import Movimento from '../models/movimento.js';
+import Movimento from '../models/Movimento.js';
 import logger from '../config/logger.js';
 import mongoose from 'mongoose';
 

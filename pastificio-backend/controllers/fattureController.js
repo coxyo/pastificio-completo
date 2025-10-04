@@ -1,5 +1,5 @@
 // controllers/fatturaController.js
-import Fattura from '../models/fattura.js';
+import Fattura from '../models/Fattura.js';
 import Ordine from '../models/Ordine.js';
 import logger from '../config/logger.js';
 import { format } from 'date-fns';
