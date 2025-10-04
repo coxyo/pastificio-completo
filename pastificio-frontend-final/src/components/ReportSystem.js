@@ -84,7 +84,7 @@ const ReportSystem = ({ ordini: ordiniProp = [] }) => {
         } else {
           // Altrimenti carica dal server o dalla cache
           try {
-            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', {
+            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/ordini', {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
               }

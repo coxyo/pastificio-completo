@@ -4,7 +4,7 @@ import { LoggingService } from './loggingService'; // Corretto l'import
 
 class BackupServiceClass {
   constructor() {
-    this.apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com';
+    this.apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
     this.backupHistory = [];
     this.isBackingUp = false;
   }

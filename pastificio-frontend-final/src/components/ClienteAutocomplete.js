@@ -31,7 +31,7 @@ const ClienteAutocomplete = ({
     setLoading(true);
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}'}/api/clienti`,
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}'}/api/clienti`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`

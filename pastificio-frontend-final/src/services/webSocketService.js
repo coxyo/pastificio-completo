@@ -11,7 +11,7 @@ class WebSocketService {
     this.pendingEmits = [];
     
     // URL backend da variabili ambiente
-    this.BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://pastificio-backend.onrender.com';
+    this.BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://pastificio-backend-production.up.railway.app';
     
     console.log('🚀 WebSocket Service inizializzato con URL:', this.BACKEND_URL);
   }

@@ -33,7 +33,7 @@ import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 
 // Configurazione API - CORREGGIAMO GLI ENDPOINT
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
 
 // WebSocket URL corretto
 const WS_URL = API_URL.replace('https://', 'wss://').replace('http://', 'ws://');

@@ -45,7 +45,7 @@ const StoricoNotifiche = ({ showAlert, onRefresh }) => {
     setError(null);
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
       const token = localStorage.getItem('token');
       
       if (!token) {

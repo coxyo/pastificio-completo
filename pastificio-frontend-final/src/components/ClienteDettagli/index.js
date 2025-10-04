@@ -51,7 +51,7 @@ import StatisticheCliente from './StatisticheCliente';
 import TimelineAttivita from './TimelineAttivita';
 import AzioniRapide from './AzioniRapide';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api';
 
 function TabPanel({ children, value, index }) {
   return (

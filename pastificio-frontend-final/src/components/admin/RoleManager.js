@@ -88,7 +88,7 @@ const RoleManager = () => {
   
   // Auth state
   const authToken = localStorage.getItem('token');
-  const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+  const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
   
   // Fetch roles
   const fetchRoles = async () => {

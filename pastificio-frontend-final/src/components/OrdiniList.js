@@ -14,7 +14,7 @@ import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
-const API_URL = 'https://pastificio-backend.onrender.com';
+const API_URL = 'https://pastificio-backend-production.up.railway.app';
 
 const OrdiniList = ({ 
   ordini, 

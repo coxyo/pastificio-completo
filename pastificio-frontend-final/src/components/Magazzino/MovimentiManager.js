@@ -38,7 +38,7 @@ import itLocale from 'date-fns/locale/it';
 import { format } from 'date-fns';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
+const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api';
 
 const MovimentiManager = () => {
   const [movimenti, setMovimenti] = useState([]);

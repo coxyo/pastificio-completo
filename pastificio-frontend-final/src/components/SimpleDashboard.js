@@ -47,7 +47,7 @@ const SimpleDashboard = () => {
       };
 
       // Prova a caricare le statistiche
-      const statsResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/dashboard/stats', { headers });
+      const statsResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/dashboard/stats', { headers });
       
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
@@ -56,7 +56,7 @@ const SimpleDashboard = () => {
         }
       } else if (statsResponse.status === 404) {
         // Se l'endpoint non esiste, usa dati di fallback
-        const ordiniResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', { headers });
+        const ordiniResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/ordini', { headers });
         if (ordiniResponse.ok) {
           const ordiniData = await ordiniResponse.json();
           if (ordiniData.success) {

@@ -124,7 +124,7 @@ export default function ReportSystem({ ordini = [] }) {
 
     try {
       let url = '';
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
       const token = localStorage.getItem('token');
 
       switch (selectedReport) {
@@ -188,7 +188,7 @@ export default function ReportSystem({ ordini = [] }) {
     setError(null);
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
       const token = localStorage.getItem('token');
       
       let url = '';

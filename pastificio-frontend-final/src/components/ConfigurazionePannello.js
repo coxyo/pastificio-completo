@@ -105,7 +105,7 @@ const ConfigurazionePannello = () => {
       localStorage.setItem('app_config', JSON.stringify(config));
       
       // Salva sul server
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
       const response = await fetch(`${apiUrl}/api/config`, {
         method: 'POST',
         headers: {

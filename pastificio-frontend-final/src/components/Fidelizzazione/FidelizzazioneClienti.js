@@ -185,7 +185,7 @@ const FidelizzazioneClienti = ({ ordini }) => {
     
     // Se hai un servizio WhatsApp configurato
     try {
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/whatsapp/send', {
+      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/whatsapp/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

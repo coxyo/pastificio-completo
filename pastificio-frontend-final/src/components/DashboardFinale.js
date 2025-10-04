@@ -32,7 +32,7 @@ const DashboardFinale = () => {
       }
 
       // Carica gli ordini
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', {
+      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/ordini', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

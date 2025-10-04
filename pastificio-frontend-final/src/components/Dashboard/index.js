@@ -20,7 +20,7 @@ export default function Dashboard() {
   const fetchData = async () => {
     try {
       // Step 1: Login
-      const loginResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/auth/login', {
+      const loginResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -32,7 +32,7 @@ export default function Dashboard() {
       const { token } = await loginResponse.json();
       
       // Step 2: Get Orders
-      const ordersResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api/ordini', {
+      const ordersResponse = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/ordini', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

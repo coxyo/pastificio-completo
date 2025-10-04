@@ -2,9 +2,9 @@
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 const config = {
-  API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com',
-  API_BASE: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com',
-  WS_URL: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com',
+  API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app',
+  API_BASE: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app',
+  WS_URL: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app',
 };
 
 // Funzione helper per ottenere URL completo

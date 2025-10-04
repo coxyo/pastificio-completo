@@ -1,5 +1,5 @@
 // services/whatsappAPI.js
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
 
 class WhatsAppAPI {
   async getStatus() {

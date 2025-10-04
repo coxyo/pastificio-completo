@@ -92,7 +92,7 @@ export default function FornitoriManager() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
       
       const response = await fetch(`${backendUrl}/api/fornitori`, {
         headers: { 
@@ -200,7 +200,7 @@ export default function FornitoriManager() {
   const salvaFornitore = async () => {
     try {
       const token = localStorage.getItem('token');
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
       
       const url = fornitoreSelezionato 
         ? `${backendUrl}/api/fornitori/${fornitoreSelezionato._id}`
@@ -252,7 +252,7 @@ export default function FornitoriManager() {
     
     try {
       const token = localStorage.getItem('token');
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
       
       await fetch(`${backendUrl}/api/fornitori/${id}`, {
         method: 'DELETE',

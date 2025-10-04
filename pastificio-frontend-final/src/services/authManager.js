@@ -1,7 +1,7 @@
-﻿// src/services/authManager.js
+// src/services/authManager.js
 class AuthManager {
   constructor() {
-    this.baseURL = 'https://pastificio-backend.onrender.com/api';
+    this.baseURL = 'https://pastificio-backend-production.up.railway.app/api';
   }
 
   // Pulisce tutto e fa un login fresco
@@ -29,7 +29,7 @@ class AuthManager {
         const data = await response.json();
         
         if (data.success && data.token) {
-          console.log('âœ… Login riuscito con:', cred.email);
+          console.log('✅ Login riuscito con:', cred.email);
           
           // Salva i dati corretti
           localStorage.setItem('token', data.token);
@@ -62,7 +62,7 @@ class AuthManager {
   getValidToken() {
     const token = localStorage.getItem('token');
     
-    // Se il token Ã¨ "testuser" o simile, Ã¨ invalido
+    // Se il token è "testuser" o simile, è invalido
     if (!token || token === 'testuser' || token.includes('test')) {
       return null;
     }

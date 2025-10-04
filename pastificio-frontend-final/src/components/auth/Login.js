@@ -22,7 +22,7 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend.onrender.com"}/api';
+      const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api';
       
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',

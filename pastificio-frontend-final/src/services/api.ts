@@ -1,5 +1,5 @@
 // src/services/api.ts
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com/api';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
   const token = localStorage.getItem('token');
