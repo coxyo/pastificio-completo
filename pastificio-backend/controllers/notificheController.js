@@ -1,5 +1,5 @@
 // pastificio-backend/controllers/notificheController.js
-import Notifica from '../models/notifica.js';
+import Notifica from '../models/Notifica.js';
 import logger from '../config/logger.js';
 
 const notificheController = {

@@ -2,8 +2,8 @@
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import logger from '../config/logger.js';
-import Ricetta from '../models/ricetta.js';
-import PianoProduzione from '../models/pianoProduzione.js';
+import Ricetta from '../models/Ricetta.js';
+import PianoProduzione from '../models/PianoProduzione.js';
 import Ingrediente from '../models/Ingrediente.js';
 import Movimento from '../models/Movimento.js';
 import mongoose from 'mongoose';

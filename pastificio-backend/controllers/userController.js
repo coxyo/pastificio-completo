@@ -1,6 +1,6 @@
 // controllers/userController.js
 import User from '../models/User.js';
-import Role from '../models/role.js';
+import Role from '../models/Role.js';
 import logger from '../config/logger.js';
 
 // Ottieni tutti gli utenti

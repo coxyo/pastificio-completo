@@ -1,6 +1,6 @@
 // controllers/fornitoreController.js
 import Fornitore from '../models/fornitore.js';
-import OrdineFornitore from '../models/ordineFornitore.js';
+import OrdineFornitore from '../models/OrdineFornitore.js';
 import logger from '../config/logger.js';
 import mongoose from 'mongoose';
 

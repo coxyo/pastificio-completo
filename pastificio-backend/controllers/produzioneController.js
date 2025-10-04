@@ -1,6 +1,6 @@
 // controllers/produzioneController.js
-import PianoProduzione from '../models/pianoProduzione.js';
-import Ricetta from '../models/ricetta.js';
+import PianoProduzione from '../models/PianoProduzione.js';
+import Ricetta from '../models/Ricetta.js';
 import Ingrediente from '../models/Ingrediente.js';
 import Movimento from '../models/Movimento.js';
 import logger from '../config/logger.js';

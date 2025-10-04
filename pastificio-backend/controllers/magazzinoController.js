@@ -1,7 +1,7 @@
 // controllers/magazzinoController.js
 import mongoose from 'mongoose';
 import Movimento from '../models/Movimento.js';
-import Prodotto from '../models/prodotto.js';
+import Prodotto from '../models/Prodotto.js';
 import notificationService from '../services/NotificationService.js';
 import logger from '../config/logger.js';
 
