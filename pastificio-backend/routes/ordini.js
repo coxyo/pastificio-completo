@@ -7,8 +7,7 @@ import whatsappService from '../services/whatsappService.js';
 
 const router = express.Router();
 
-// Middleware di autenticazione per tutte le route
-router.use(protect);
+// RIMOSSO: router.use(protect) - la protezione è gestita in server.js
 
 // GET /api/ordini
 router.get('/', async (req, res) => {
