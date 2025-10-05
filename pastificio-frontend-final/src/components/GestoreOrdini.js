@@ -26,19 +26,14 @@ import {
   Sync as SyncIcon
 } from '@mui/icons-material';
 
-// Importa componenti (assicurati che esistano)
 import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 
-// Configurazione API - CORREGGIAMO GLI ENDPOINT
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
-
-// WebSocket URL corretto
 const WS_URL = API_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
-// Prodotti disponibili
 const prodottiDisponibili = {
   dolci: [
     { nome: "Pardulas", prezzo: 19.00, unita: "Kg", descrizione: "Ricotta, zucchero, uova, aromi vari, farina 00, strutto, lievito" },
@@ -77,7 +72,6 @@ const prodottiDisponibili = {
   ]
 };
 
-// Componente RiepilogoGiornaliero semplificato (per evitare l'errore)
 function RiepilogoGiornaliero({ ordini, dataSelezionata }) {
   const ordiniFiltrati = ordini.filter(o => {
     const dataOrdine = o.dataRitiro || o.createdAt || '';
@@ -131,7 +125,6 @@ function RiepilogoGiornaliero({ ordini, dataSelezionata }) {
   );
 }
 
-// Componente WhatsAppHelper
 function WhatsAppHelperComponent({ ordini }) {
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
   const [messaggio, setMessaggio] = useState('');
@@ -178,8 +171,6 @@ Grazie per averci scelto! 🙏`;
     try {
       await navigator.clipboard.writeText(messaggio);
       alert('Messaggio copiato! Incollalo su WhatsApp');
-      
-      // Apri WhatsApp Web
       window.open('https://web.whatsapp.com/', '_blank');
     } catch (error) {
       alert('Errore nella copia del messaggio');
@@ -250,7 +241,6 @@ Grazie per averci scelto! 🙏`;
 }
 
 export default function GestoreOrdini() {
-  // Stati principali
   const [ordini, setOrdini] = useState([]);
   const [dataSelezionata, setDataSelezionata] = useState(new Date().toISOString().split('T')[0]);
   const [dialogoNuovoOrdineAperto, setDialogoNuovoOrdineAperto] = useState(false);
@@ -271,7 +261,6 @@ export default function GestoreOrdini() {
   const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   
-  // 🏓 KEEP-ALIVE PER MANTENERE IL SERVER SVEGLIO
   useEffect(() => {
     const keepAlive = setInterval(async () => {
       try {
@@ -279,16 +268,15 @@ export default function GestoreOrdini() {
           method: 'GET',
           signal: AbortSignal.timeout(5000)
         });
-        console.log('🏓 Keep-alive ping inviato');
+        console.log('Keep-alive ping inviato');
       } catch (error) {
         console.log('Keep-alive fallito:', error.message);
       }
-    }, 4 * 60 * 1000); // Ogni 4 minuti
+    }, 4 * 60 * 1000);
 
     return () => clearInterval(keepAlive);
   }, []);
   
-  // 🔧 WEBSOCKET CONNECTION MIGLIORATA
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     
@@ -297,20 +285,17 @@ export default function GestoreOrdini() {
       wsRef.current = new WebSocket(WS_URL);
       
       wsRef.current.onopen = () => {
-        console.log('✅ WebSocket connesso');
+        console.log('WebSocket connesso');
         setIsConnected(true);
         mostraNotifica('Connesso in tempo reale', 'success');
-        
-        // Sincronizza subito dopo la connessione
         sincronizzaConMongoDB();
       };
       
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('📨 WebSocket messaggio:', data);
+          console.log('WebSocket messaggio:', data);
           
-          // Gestisci diversi tipi di messaggi
           switch(data.type) {
             case 'ordine_aggiornato':
             case 'ordine_creato':
@@ -318,7 +303,6 @@ export default function GestoreOrdini() {
               sincronizzaConMongoDB();
               break;
             case 'ping':
-              // Rispondi con pong per mantenere la connessione
               if (wsRef.current?.readyState === WebSocket.OPEN) {
                 wsRef.current.send(JSON.stringify({ type: 'pong' }));
               }
@@ -330,15 +314,14 @@ export default function GestoreOrdini() {
       };
       
       wsRef.current.onerror = (error) => {
-        console.error('❌ WebSocket errore:', error);
+        console.error('WebSocket errore:', error);
         setIsConnected(false);
       };
       
       wsRef.current.onclose = () => {
-        console.log('🔌 WebSocket disconnesso');
+        console.log('WebSocket disconnesso');
         setIsConnected(false);
         
-        // Riconnetti dopo 5 secondi
         reconnectTimeoutRef.current = setTimeout(() => {
           connectWebSocket();
         }, 5000);
@@ -349,26 +332,25 @@ export default function GestoreOrdini() {
     }
   }, []);
   
-  // 🔄 SINCRONIZZAZIONE MONGODB CON RETRY LOGIC
   const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
     try {
       setSyncInProgress(true);
-      console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/3)`);
+      console.log(`Sincronizzazione in corso... (tentativo ${retry + 1}/3)`);
       
-const response = await fetch(`${API_URL}/ordini`, {        method: 'GET',
+      const response = await fetch(`${API_URL}/api/ordini`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        signal: AbortSignal.timeout(30000) // 30 secondi per dare tempo al server di svegliarsi
+        signal: AbortSignal.timeout(30000)
       });
       
       if (response.ok) {
         const data = await response.json();
         
-        // Gestisci diversi formati di risposta
         let ordiniBackend = [];
         if (Array.isArray(data)) {
           ordiniBackend = data;
@@ -378,21 +360,16 @@ const response = await fetch(`${API_URL}/ordini`, {        method: 'GET',
           ordiniBackend = data.ordini;
         }
         
-        console.log(`✅ Sincronizzati ${ordiniBackend.length} ordini dal server`);
+        console.log(`Sincronizzati ${ordiniBackend.length} ordini dal server`);
         
-        // Merge con ordini offline
         const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
-        
-        // Crea una mappa per evitare duplicati
         const ordiniMap = new Map();
         
-        // Aggiungi ordini dal backend
         ordiniBackend.forEach(ordine => {
           const key = ordine._id || ordine.id;
           if (key) ordiniMap.set(key, ordine);
         });
         
-        // Aggiungi ordini offline non sincronizzati
         ordiniOffline.forEach(ordine => {
           const key = ordine._id || ordine.id || `temp_${ordine.nomeCliente}_${ordine.dataRitiro}`;
           if (!ordiniMap.has(key)) {
@@ -402,38 +379,34 @@ const response = await fetch(`${API_URL}/ordini`, {        method: 'GET',
         
         const ordiniFinali = Array.from(ordiniMap.values());
         
-        // Ordina per data creazione (più recenti prima)
         ordiniFinali.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.dataRitiro);
           const dateB = new Date(b.createdAt || b.dataRitiro);
           return dateB - dateA;
         });
         
-        // Salva in localStorage per cache
         localStorage.setItem('ordini', JSON.stringify(ordiniFinali));
         setOrdini(ordiniFinali);
         
         setIsConnected(true);
         setUltimaSync(new Date());
         
-        // Se ci sono ordini offline, prova a inviarli
         if (ordiniOffline.length > 0) {
           await inviaOrdiniOffline();
         }
         
         return true;
       } else if (response.status === 404) {
-        console.log('⚠️ Endpoint non trovato, usando dati locali');
+        console.log('Endpoint non trovato, usando dati locali');
         throw new Error('Endpoint not found');
       } else {
         throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
-      console.error('❌ Errore sincronizzazione:', error);
+      console.error('Errore sincronizzazione:', error);
       
-      // RETRY LOGIC
       if (retry < 2 && navigator.onLine) {
-        console.log(`🔁 Riprovo tra 3 secondi... (tentativo ${retry + 2}/3)`);
+        console.log(`Riprovo tra 3 secondi... (tentativo ${retry + 2}/3)`);
         setTimeout(() => {
           sincronizzaConMongoDB(retry + 1);
         }, 3000);
@@ -442,7 +415,6 @@ const response = await fetch(`${API_URL}/ordini`, {        method: 'GET',
       
       setIsConnected(false);
       
-      // Carica dalla cache locale
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       setOrdini(ordiniCache);
       
@@ -458,18 +430,17 @@ const response = await fetch(`${API_URL}/ordini`, {        method: 'GET',
     }
   }, [syncInProgress]);
   
-  // 📤 INVIA ORDINI OFFLINE
   const inviaOrdiniOffline = async () => {
     const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
     
     if (ordiniOffline.length === 0) return;
     
-    console.log(`📤 Invio ${ordiniOffline.length} ordini offline...`);
+    console.log(`Invio ${ordiniOffline.length} ordini offline...`);
     let successCount = 0;
     
     for (const ordine of ordiniOffline) {
       try {
-const response = await fetch(`${API_URL}/ordini`, {
+        const response = await fetch(`${API_URL}/api/ordini`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -479,7 +450,7 @@ const response = await fetch(`${API_URL}/ordini`, {
         
         if (response.ok) {
           successCount++;
-          console.log(`✅ Ordine sincronizzato: ${ordine.nomeCliente}`);
+          console.log(`Ordine sincronizzato: ${ordine.nomeCliente}`);
         }
       } catch (error) {
         console.error('Errore invio ordine offline:', error);
@@ -487,50 +458,40 @@ const response = await fetch(`${API_URL}/ordini`, {
     }
     
     if (successCount > 0) {
-      // Pulisci ordini offline sincronizzati
       localStorage.removeItem('ordiniOffline');
       mostraNotifica(`Sincronizzati ${successCount} ordini offline`, 'success');
-      
-      // Ricarica lista
       await sincronizzaConMongoDB();
     }
   };
   
-  // 🚀 INIZIALIZZAZIONE CON WAKE-UP DEL SERVER
   useEffect(() => {
-    console.log('🚀 Inizializzazione GestoreOrdini...');
+    console.log('Inizializzazione GestoreOrdini...');
     
-    // Carica prima dalla cache locale per mostrare subito qualcosa
     const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
     if (ordiniCache.length > 0) {
       setOrdini(ordiniCache);
-      console.log(`📦 Caricati ${ordiniCache.length} ordini dalla cache`);
+      console.log(`Caricati ${ordiniCache.length} ordini dalla cache`);
     }
     
-    // Wake up del server prima di sincronizzare
     const wakeUpServer = async () => {
       try {
         await fetch(`${API_URL}/health`, { 
           method: 'GET',
           signal: AbortSignal.timeout(5000)
         });
-        console.log('🌅 Server svegliato');
+        console.log('Server svegliato');
       } catch (error) {
         console.log('Wake up server fallito:', error.message);
       }
       
-      // Poi sincronizza
       setTimeout(() => {
         sincronizzaConMongoDB();
       }, 1000);
     };
     
     wakeUpServer();
-    
-    // Connetti WebSocket
     connectWebSocket();
     
-    // Auto-sync ogni 30 secondi
     syncIntervalRef.current = setInterval(() => {
       sincronizzaConMongoDB();
     }, 30000);
@@ -542,10 +503,9 @@ const response = await fetch(`${API_URL}/ordini`, {
     };
   }, []);
   
- // 📡 GESTIONE ONLINE/OFFLINE
   useEffect(() => {
     const handleOnline = () => {
-      console.log('🌐 Connessione ripristinata');
+      console.log('Connessione ripristinata');
       mostraNotifica('Connessione ripristinata', 'success');
       setIsConnected(true);
       sincronizzaConMongoDB();
@@ -553,7 +513,7 @@ const response = await fetch(`${API_URL}/ordini`, {
     };
     
     const handleOffline = () => {
-      console.log('📵 Connessione persa');
+      console.log('Connessione persa');
       setIsConnected(false);
       mostraNotifica('Modalità offline attiva', 'warning');
     };
@@ -561,7 +521,6 @@ const response = await fetch(`${API_URL}/ordini`, {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Controlla stato iniziale
     setIsConnected(navigator.onLine);
     
     return () => {
@@ -570,11 +529,10 @@ const response = await fetch(`${API_URL}/ordini`, {
     };
   }, [sincronizzaConMongoDB, connectWebSocket]);
   
-  // ➕ CREA ORDINE
   const creaOrdine = async (ordine) => {
     const nuovoOrdine = {
       ...ordine,
-      _id: undefined, // Lascia che MongoDB generi l'ID
+      _id: undefined,
       id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -587,7 +545,7 @@ const response = await fetch(`${API_URL}/ordini`, {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/ordini`, {
+      const response = await fetch(`${API_URL}/api/ordini`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -598,15 +556,12 @@ const response = await fetch(`${API_URL}/ordini`, {
       if (response.ok) {
         const ordineCreato = await response.json();
         
-        // Aggiorna lista locale
         setOrdini(prev => [ordineCreato, ...prev]);
         
-        // Aggiorna cache
         const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
         ordiniCache.unshift(ordineCreato);
         localStorage.setItem('ordini', JSON.stringify(ordiniCache));
         
-        // Notifica via WebSocket
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({
             type: 'ordine_creato',
@@ -614,32 +569,28 @@ const response = await fetch(`${API_URL}/ordini`, {
           }));
         }
         
-        mostraNotifica('✅ Ordine salvato e sincronizzato', 'success');
+        mostraNotifica('Ordine salvato e sincronizzato', 'success');
       } else {
         throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('Errore creazione ordine:', error);
       
-      // Salva offline
       const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
       ordiniOffline.push(nuovoOrdine);
       localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
       
-      // Aggiungi alla lista locale con flag
       const ordineConFlag = { ...nuovoOrdine, _syncPending: true };
       setOrdini(prev => [ordineConFlag, ...prev]);
       
-      // Aggiorna cache principale
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       ordiniCache.unshift(ordineConFlag);
       localStorage.setItem('ordini', JSON.stringify(ordiniCache));
       
-      mostraNotifica('💾 Ordine salvato localmente (verrà sincronizzato)', 'warning');
+      mostraNotifica('Ordine salvato localmente (verrà sincronizzato)', 'warning');
     }
   };
   
-  // 📝 AGGIORNA ORDINE
   const aggiornaOrdine = async (ordine) => {
     const ordineAggiornato = {
       ...ordine,
@@ -651,7 +602,7 @@ const response = await fetch(`${API_URL}/ordini`, {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/ordini/${ordine._id || ordine.id}`, {
+      const response = await fetch(`${API_URL}/api/ordini/${ordine._id || ordine.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -666,7 +617,6 @@ const response = await fetch(`${API_URL}/ordini`, {
           (o._id === ordine._id || o.id === ordine.id) ? ordineRisposta : o
         ));
         
-        // Aggiorna cache
         const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
         const index = ordiniCache.findIndex(o => o._id === ordine._id || o.id === ordine.id);
         if (index !== -1) {
@@ -674,21 +624,19 @@ const response = await fetch(`${API_URL}/ordini`, {
           localStorage.setItem('ordini', JSON.stringify(ordiniCache));
         }
         
-        mostraNotifica('✅ Ordine aggiornato', 'success');
+        mostraNotifica('Ordine aggiornato', 'success');
       } else {
         throw new Error('Update failed');
       }
     } catch (error) {
       console.error('Errore aggiornamento:', error);
       
-      // Aggiorna solo localmente con flag
       const ordineConFlag = { ...ordineAggiornato, _syncPending: true };
       
       setOrdini(prev => prev.map(o => 
         (o._id === ordine._id || o.id === ordine.id) ? ordineConFlag : o
       ));
       
-      // Salva in cache
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       const index = ordiniCache.findIndex(o => o._id === ordine._id || o.id === ordine.id);
       if (index !== -1) {
@@ -696,7 +644,6 @@ const response = await fetch(`${API_URL}/ordini`, {
         localStorage.setItem('ordini', JSON.stringify(ordiniCache));
       }
       
-      // Aggiungi a lista offline per sincronizzazione futura
       const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
       const offlineIndex = ordiniOffline.findIndex(o => o._id === ordine._id || o.id === ordine.id);
       if (offlineIndex !== -1) {
@@ -706,11 +653,10 @@ const response = await fetch(`${API_URL}/ordini`, {
       }
       localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
       
-      mostraNotifica('💾 Ordine aggiornato localmente', 'warning');
+      mostraNotifica('Ordine aggiornato localmente', 'warning');
     }
   };
   
-  // 🗑️ ELIMINA ORDINE
   const eliminaOrdine = async (id) => {
     if (!confirm('Confermi eliminazione ordine?')) return;
     
@@ -719,7 +665,7 @@ const response = await fetch(`${API_URL}/ordini`, {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/ordini/${id}`, {
+      const response = await fetch(`${API_URL}/api/ordini/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -729,36 +675,31 @@ const response = await fetch(`${API_URL}/ordini`, {
       if (response.ok) {
         setOrdini(prev => prev.filter(o => o._id !== id && o.id !== id));
         
-        // Aggiorna cache
         const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
         const filtered = ordiniCache.filter(o => o._id !== id && o.id !== id);
         localStorage.setItem('ordini', JSON.stringify(filtered));
         
-        mostraNotifica('✅ Ordine eliminato', 'success');
+        mostraNotifica('Ordine eliminato', 'success');
       } else {
         throw new Error('Delete failed');
       }
     } catch (error) {
       console.error('Errore eliminazione:', error);
       
-      // Elimina localmente
       setOrdini(prev => prev.filter(o => o._id !== id && o.id !== id));
       
-      // Aggiorna cache
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       const filtered = ordiniCache.filter(o => o._id !== id && o.id !== id);
       localStorage.setItem('ordini', JSON.stringify(filtered));
       
-      // Rimuovi da ordini offline se presente
       const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
       const filteredOffline = ordiniOffline.filter(o => o._id !== id && o.id !== id);
       localStorage.setItem('ordiniOffline', JSON.stringify(filteredOffline));
       
-      mostraNotifica('💾 Ordine eliminato localmente', 'warning');
+      mostraNotifica('Ordine eliminato localmente', 'warning');
     }
   };
   
-  // 💾 SALVA ORDINE
   const salvaOrdine = async (nuovoOrdine) => {
     if (submitInCorso) return;
     
@@ -776,20 +717,18 @@ const response = await fetch(`${API_URL}/ordini`, {
       
     } catch (error) {
       console.error('Errore salvataggio:', error);
-      mostraNotifica('❌ Errore durante il salvataggio', 'error');
+      mostraNotifica('Errore durante il salvataggio', 'error');
     } finally {
       setTimeout(() => setSubmitInCorso(false), 1000);
     }
   };
   
-  // 🧹 RIMUOVI DUPLICATI
   const rimuoviDuplicati = () => {
     setOrdini(prevOrdini => {
       const ordiniUnici = [];
       const visti = new Set();
       
       prevOrdini.forEach(ordine => {
-        // Usa ID se disponibile, altrimenti crea chiave univoca
         const chiave = ordine._id || ordine.id || 
           `${ordine.nomeCliente}-${ordine.telefono}-${ordine.dataRitiro}-${ordine.totale}`;
         
@@ -801,7 +740,7 @@ const response = await fetch(`${API_URL}/ordini`, {
       
       if (ordiniUnici.length !== prevOrdini.length) {
         localStorage.setItem('ordini', JSON.stringify(ordiniUnici));
-        mostraNotifica(`✅ Rimossi ${prevOrdini.length - ordiniUnici.length} ordini duplicati`, 'info');
+        mostraNotifica(`Rimossi ${prevOrdini.length - ordiniUnici.length} ordini duplicati`, 'info');
       } else {
         mostraNotifica('Nessun duplicato trovato', 'info');
       }
@@ -818,7 +757,6 @@ const response = await fetch(`${API_URL}/ordini`, {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
 
-  // Export functions
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -944,7 +882,6 @@ const response = await fetch(`${API_URL}/ordini`, {
     printWindow.document.close();
   };
   
-  // Calcola statistiche
   const calcolaStatistiche = () => {
     const oggi = new Date().toDateString();
     const ordiniOggi = ordini.filter(o => {
@@ -971,7 +908,6 @@ const response = await fetch(`${API_URL}/ordini`, {
   
   const statistiche = calcolaStatistiche();
   
-  // Monitora storage
   useEffect(() => {
     const checkStorage = () => {
       if (navigator.storage && navigator.storage.estimate) {
@@ -989,10 +925,8 @@ const response = await fetch(`${API_URL}/ordini`, {
   
   return (
     <Container maxWidth="xl">
-      {/* Widget Statistiche */}
       <StatisticheWidget ordini={ordini} />
       
-      {/* Header con indicatori di stato */}
       <Box sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h4" component="h1">
@@ -1002,7 +936,6 @@ const response = await fetch(`${API_URL}/ordini`, {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <InstallPWA />
             
-            {/* Bottone sync manuale */}
             <Tooltip title={isConnected ? "Sincronizza ora" : "Offline"}>
               <IconButton 
                 onClick={sincronizzaConMongoDB} 
@@ -1014,7 +947,6 @@ const response = await fetch(`${API_URL}/ordini`, {
               </IconButton>
             </Tooltip>
             
-            {/* Bottone WhatsApp Helper */}
             <Button
               variant="contained"
               size="small"
@@ -1025,7 +957,6 @@ const response = await fetch(`${API_URL}/ordini`, {
               WhatsApp
             </Button>
             
-            {/* Bottone Riepilogo */}
             <Button
               variant="contained"
               size="small"
@@ -1036,7 +967,6 @@ const response = await fetch(`${API_URL}/ordini`, {
               Riepilogo
             </Button>
             
-            {/* Menu Export */}
             <Button
               variant="outlined"
               size="small"
@@ -1065,14 +995,12 @@ const response = await fetch(`${API_URL}/ordini`, {
               </MenuItem>
             </Menu>
             
-            {/* Statistiche rapide */}
             <Chip 
               label={`${statistiche.totaleOrdini} ordini`}
               variant="outlined"
               size="small"
             />
             
-            {/* Controlli */}
             <Button
               variant="outlined"
               size="small"
@@ -1089,7 +1017,6 @@ const response = await fetch(`${API_URL}/ordini`, {
           </Box>
         </Box>
         
-        {/* Barra performance */}
         <Box sx={{ mb: 2 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={4}>
@@ -1132,7 +1059,6 @@ const response = await fetch(`${API_URL}/ordini`, {
           </Grid>
         </Box>
         
-        {/* Indicatore connessione */}
         <Paper 
           elevation={1}
           sx={{ 
@@ -1159,7 +1085,6 @@ const response = await fetch(`${API_URL}/ordini`, {
         </Paper>
       </Box>
       
-      {/* Contenuto principale */}
       {caricamento ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress size={60} />
@@ -1189,7 +1114,6 @@ const response = await fetch(`${API_URL}/ordini`, {
         </Grid>
       )}
       
-      {/* FAB per nuovo ordine */}
       <Fab 
         color="primary" 
         aria-label="Nuovo ordine"
@@ -1202,7 +1126,6 @@ const response = await fetch(`${API_URL}/ordini`, {
         <AddIcon />
       </Fab>
       
-      {/* Dialog per nuovo ordine */}
       {dialogoNuovoOrdineAperto && (
         <NuovoOrdine 
           open={dialogoNuovoOrdineAperto}
@@ -1218,7 +1141,6 @@ const response = await fetch(`${API_URL}/ordini`, {
         />
       )}
       
-      {/* Dialog per Riepilogo */}
       <Dialog 
         open={riepilogoAperto} 
         onClose={() => setRiepilogoAperto(false)}
@@ -1245,7 +1167,6 @@ const response = await fetch(`${API_URL}/ordini`, {
         </DialogActions>
       </Dialog>
       
-      {/* Dialog per WhatsApp Helper */}
       <Dialog 
         open={whatsappHelperAperto} 
         onClose={() => setWhatsappHelperAperto(false)}
@@ -1268,7 +1189,6 @@ const response = await fetch(`${API_URL}/ordini`, {
         </DialogActions>
       </Dialog>
       
-      {/* Notifiche */}
       <Snackbar
         open={notifica.aperta}
         autoHideDuration={6000}
