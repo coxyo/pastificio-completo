@@ -14,7 +14,8 @@ import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
-const API_URL = 'https://pastificio-backend-production.up.railway.app';
+// FIXATO - Aggiunto /api
+const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
 
 const OrdiniList = ({ 
   ordini, 
@@ -43,10 +44,8 @@ const OrdiniList = ({
     setOrdineSelezionato(null);
   };
 
-  // FUNZIONE WHATSAPP CON MESSAGGIO DETTAGLIATO
   const inviaWhatsApp = (ordine, tipo = 'conferma') => {
     try {
-      // Prepara il messaggio dettagliato
       let messaggio = '';
       
       if (tipo === 'pronto') {
@@ -80,7 +79,6 @@ Grazie e a presto!
 Pastificio Nonna Claudia`;
 
       } else {
-        // Messaggio conferma ordine dettagliato
         const prodottiDettaglio = ordine.prodotti.map(p => 
           `• ${p.nome || p.prodotto}: ${p.quantita} ${p.unitaMisura || p.unita || 'Kg'} - €${((p.prezzo * p.quantita) || 0).toFixed(2)}`
         ).join('\n');
@@ -108,12 +106,10 @@ Grazie e a presto!
 Pastificio Nonna Claudia`;
       }
 
-      // Numero di telefono
       const numeroCliente = ordine.telefono || ordine.cliente?.telefono || '3898879833';
       const numeroClean = numeroCliente.replace(/\D/g, '');
       const numeroWhatsApp = numeroClean.startsWith('39') ? numeroClean : '39' + numeroClean;
       
-      // Apri WhatsApp Web
       const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(messaggio)}`;
       window.open(url, '_blank');
       
@@ -127,7 +123,6 @@ Pastificio Nonna Claudia`;
 
   const segnaComePronto = async (ordineId) => {
     try {
-      // Aggiorna lo stato localmente
       const ordiniAggiornati = ordini.map(o => 
         o._id === ordineId 
           ? { ...o, stato: 'completato' }
@@ -135,7 +130,6 @@ Pastificio Nonna Claudia`;
       );
       localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
       
-      // Invia WhatsApp
       const ordine = ordini.find(o => o._id === ordineId);
       if (ordine) {
         inviaWhatsApp(ordine, 'pronto');
