@@ -75,11 +75,9 @@ router.get('/whatsapp-status', async (req, res) => {
 // POST /api/ordini
 router.post('/', async (req, res) => {
   try {
-    // Normalizza i dati
+    // Normalizza i dati - FIXATO: req.user può essere undefined
     const ordineData = {
       ...req.body,
-      creatoDa: req.user._id,
-      modificatoDa: req.user._id,
       prodotti: req.body.prodotti?.map(p => ({
         ...p,
         unita: p.unita || p.unitaMisura || 'kg',
@@ -87,6 +85,12 @@ router.post('/', async (req, res) => {
         nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim()
       }))
     };
+
+    // Aggiungi campi utente solo se autenticato
+    if (req.user) {
+      ordineData.creatoDa = req.user._id;
+      ordineData.modificatoDa = req.user._id;
+    }
 
     // Rimuovi ID temporanei
     delete ordineData._id;
@@ -189,8 +193,6 @@ router.put('/:id', async (req, res) => {
       
       const ordineData = {
         ...req.body,
-        creatoDa: req.user._id,
-        modificatoDa: req.user._id,
         prodotti: req.body.prodotti?.map(p => ({
           ...p,
           unita: p.unita || p.unitaMisura || 'kg',
@@ -198,6 +200,12 @@ router.put('/:id', async (req, res) => {
           nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim()
         }))
       };
+
+      // Aggiungi campi utente solo se autenticato
+      if (req.user) {
+        ordineData.creatoDa = req.user._id;
+        ordineData.modificatoDa = req.user._id;
+      }
       
       // Rimuovi ID temporaneo
       delete ordineData._id;
@@ -262,7 +270,11 @@ router.put('/:id', async (req, res) => {
       }
       
       Object.assign(ordine, req.body);
-      ordine.modificatoDa = req.user._id;
+      
+      // Aggiungi campi utente solo se autenticato
+      if (req.user) {
+        ordine.modificatoDa = req.user._id;
+      }
       ordine.dataModifica = new Date();
       
       await ordine.save();
