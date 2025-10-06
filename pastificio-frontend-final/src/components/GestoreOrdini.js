@@ -541,7 +541,7 @@ export default function GestoreOrdini() {
     };
     
     try {
-      if (!navigator.onLine || !isConnected) {
+      if (!navigator.onLine)  {
         throw new Error('Offline mode');
       }
       
@@ -598,7 +598,7 @@ export default function GestoreOrdini() {
     };
     
     try {
-      if (!navigator.onLine || !isConnected) {
+      if (!navigator.onLine)  {
         throw new Error('Offline mode');
       }
       
@@ -661,7 +661,7 @@ export default function GestoreOrdini() {
     if (!confirm('Confermi eliminazione ordine?')) return;
     
     try {
-      if (!navigator.onLine || !isConnected) {
+      if (!navigator.onLine)  {
         throw new Error('Offline mode');
       }
       
