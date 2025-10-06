@@ -14,12 +14,12 @@ const prodottoSchema = new mongoose.Schema({
   },
   unita: {
     type: String,
-    enum: ['kg', 'pezzi', '€', 'g', 'l'],
+    enum: ['kg', 'Kg', 'pezzi', 'unità', 'unitÃ ', '€', 'g', 'l'],
     default: 'kg'
   },
   unitaMisura: {
     type: String,
-    enum: ['kg', 'pezzi', '€', 'g', 'l'],
+    enum: ['kg', 'Kg', 'pezzi', 'unità', 'unitÃ ', '€', 'g', 'l'],
     default: 'kg'
   },
   prezzo: {
@@ -29,7 +29,7 @@ const prodottoSchema = new mongoose.Schema({
   },
   categoria: {
     type: String,
-    enum: ['pasta', 'dolci', 'pane', 'altro'],
+    enum: ['pasta', 'dolci', 'pane', 'panadas', 'altro'],
     default: 'altro'
   }
 });
@@ -72,7 +72,7 @@ const ordineSchema = new mongoose.Schema({
   },
   stato: {
     type: String,
-    enum: ['nuovo', 'inLavorazione', 'pronto', 'completato', 'annullato'],
+    enum: ['nuovo', 'inLavorazione', 'pronto', 'completato', 'annullato', 'in_lavorazione'],
     default: 'nuovo'
   },
   metodoPagamento: {
@@ -136,6 +136,14 @@ ordineSchema.pre('save', function(next) {
       p.nome = p.nome.replace(/\s*\(\d+.*?\)\s*$/, '').trim();
     }
     
+    // Normalizza unità di misura (converte tutto in minuscolo)
+    if (p.unita) {
+      p.unita = p.unita.toLowerCase();
+    }
+    if (p.unitaMisura) {
+      p.unitaMisura = p.unitaMisura.toLowerCase();
+    }
+    
     // Assicura che unita e unitaMisura siano allineati
     if (p.unita && !p.unitaMisura) {
       p.unitaMisura = p.unita;
@@ -158,6 +166,10 @@ ordineSchema.pre('save', function(next) {
 ordineSchema.methods.getCategoriaProdotto = function(nomeProdotto) {
   const nome = nomeProdotto?.toLowerCase() || '';
   
+  if (nome.includes('panada') || nome.includes('panadine')) {
+    return 'panadas';
+  }
+  
   if (nome.includes('malloreddus') || nome.includes('culurgiones') || 
       nome.includes('ravioli') || nome.includes('gnocch') || 
       nome.includes('fregola') || nome.includes('tagliatelle') ||
@@ -170,7 +182,7 @@ ordineSchema.methods.getCategoriaProdotto = function(nomeProdotto) {
       nome.includes('amaretti') || nome.includes('bianchini') ||
       nome.includes('gueffus') || nome.includes('candelaus') ||
       nome.includes('pabassinas') || nome.includes('dolci') ||
-      nome.includes('ciambelle')) {
+      nome.includes('ciambelle') || nome.includes('zeppole')) {
     return 'dolci';
   }
   
