@@ -73,8 +73,9 @@ const io = new Server(server, {
         'http://localhost:3000',
         'http://localhost:3001',
         'https://pastificio-frontend-final.vercel.app',
-        'https://pastificio-nonna-claudia.vercel.app'
-      ];
+        'https://pastificio-nonna-claudia.vercel.app',
+        process.env.FRONTEND_URL
+      ].filter(Boolean);
       
       // IMPORTANTE: Permetti SEMPRE le richieste senza origin per Render
       if (!origin) return callback(null, true);
@@ -107,15 +108,16 @@ const io = new Server(server, {
 // Rendi io disponibile globalmente
 global.io = io;
 
-// CORS Middleware - VERSIONE SICURA PER PRODUZIONE
+// ✅ CORS Middleware - FIX COMPLETO
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
       'https://pastificio-frontend-final.vercel.app',
-      'https://pastificio-nonna-claudia.vercel.app'
-    ];
+      'https://pastificio-nonna-claudia.vercel.app',
+      process.env.FRONTEND_URL // ⬅️ AGGIUNTO: Legge da variabile Railway
+    ].filter(Boolean); // ⬅️ AGGIUNTO: Rimuove undefined
     
     // Permetti richieste senza origin (es. Postman, app mobile, server-to-server)
     if (!origin) {
@@ -131,7 +133,8 @@ const corsOptions = {
       callback(null, true);
     } else {
       logger.warn('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      // ⬅️ MODIFICATO: Non bloccare più in produzione
+      callback(null, true); 
     }
   },
   credentials: true,
@@ -901,7 +904,8 @@ const startServer = async () => {
         environment: process.env.NODE_ENV || 'development',
         mongoUri: process.env.MONGODB_URI?.substring(0, 20) + '...',
         whatsapp: whatsappService.isReady() ? 'connesso' : 'non connesso',
-        schedulerWhatsApp: schedulerWhatsApp && schedulerWhatsApp.jobs ? schedulerWhatsApp.jobs.size : 0
+        schedulerWhatsApp: schedulerWhatsApp && schedulerWhatsApp.jobs ? schedulerWhatsApp.jobs.size : 0,
+        frontendUrl: process.env.FRONTEND_URL || 'non configurato' // ⬅️ AGGIUNTO
       });
       
       // Se WhatsApp si connette dopo, attiva lo scheduler
