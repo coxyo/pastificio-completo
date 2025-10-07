@@ -2,7 +2,7 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { OrdiniProvider } from '@/contexts/OrdiniContext';
-import ClientLayout from '@/components/ClientLayout';
+import ClientLayout from './ClientLayout'; // ⬅️ CAMBIATO: import locale
 
 const inter = Inter({ subsets: ['latin'] });
 

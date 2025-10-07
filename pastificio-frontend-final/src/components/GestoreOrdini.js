@@ -32,7 +32,8 @@ import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
-const WS_URL = API_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
+  API_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
 const prodottiDisponibili = {
   dolci: [
@@ -936,16 +937,13 @@ export default function GestoreOrdini() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <InstallPWA />
             
-            <Tooltip title={isConnected ? "Sincronizza ora" : "Offline"}>
-              <IconButton 
-                onClick={sincronizzaConMongoDB} 
-                disabled={syncInProgress}
-                color={isConnected ? 'success' : 'warning'}
-              >
-                {syncInProgress ? <CircularProgress size={24} /> : 
-                 isConnected ? <SyncIcon /> : <CloudOffIcon />}
-              </IconButton>
-            </Tooltip>
+            <Tooltip title={syncInProgress ? "Sincronizzazione in corso..." : "Sincronizza"}>
+  <span> {/* Wrappa in span */}
+    <IconButton disabled={syncInProgress}>
+      <SyncIcon />
+    </IconButton>
+  </span>
+</Tooltip>
             
             <Button
               variant="contained"

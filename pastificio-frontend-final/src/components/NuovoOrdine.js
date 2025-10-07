@@ -21,7 +21,8 @@ import {
   Paper,
   Alert,
   Divider,
-  Chip
+  Chip,
+  Autocomplete
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -74,6 +75,8 @@ const prodottiDisponibili = {
   ]
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+
 export default function NuovoOrdine({ open, onClose, onSave, ordineIniziale, submitInCorso }) {
   const [ordine, setOrdine] = useState({
     nomeCliente: '',
@@ -95,6 +98,33 @@ export default function NuovoOrdine({ open, onClose, onSave, ordineIniziale, sub
   });
 
   const [errori, setErrori] = useState({});
+  const [clienti, setClienti] = useState([]);
+  const [loadingClienti, setLoadingClienti] = useState(false);
+
+  // Carica clienti quando il dialog si apre
+  useEffect(() => {
+    const caricaClienti = async () => {
+      if (!open) return;
+      
+      setLoadingClienti(true);
+      try {
+        const response = await fetch(`${API_URL}/clienti`);
+        const data = await response.json();
+        
+        console.log('Clienti caricati:', data);
+        
+        if (data.success && Array.isArray(data.data)) {
+          setClienti(data.data);
+        }
+      } catch (error) {
+        console.error('Errore caricamento clienti:', error);
+      } finally {
+        setLoadingClienti(false);
+      }
+    };
+    
+    caricaClienti();
+  }, [open]);
 
   // Carica ordine se in modifica
   useEffect(() => {
@@ -104,13 +134,32 @@ export default function NuovoOrdine({ open, onClose, onSave, ordineIniziale, sub
         nomeCliente: ordineIniziale.nomeCliente || ordineIniziale.cliente?.nome || '',
         telefono: ordineIniziale.telefono || ordineIniziale.cliente?.telefono || ''
       });
+    } else {
+      // Reset quando si chiude il dialog
+      if (!open) {
+        setOrdine({
+          nomeCliente: '',
+          telefono: '',
+          dataRitiro: new Date().toISOString().split('T')[0],
+          oraRitiro: '',
+          prodotti: [],
+          note: '',
+          stato: 'nuovo',
+          cliente: { nome: '', telefono: '' }
+        });
+        setProdottoCorrente({
+          nome: '',
+          quantita: 1,
+          unita: 'Kg',
+          prezzo: 0,
+          categoria: ''
+        });
+        setErrori({});
+      }
     }
-  }, [ordineIniziale]);
+  }, [ordineIniziale, open]);
 
-  // Trova tutti i prodotti in un array piatto
-  const tuttiProdotti = [
-    ...Object.values(prodottiDisponibili).flat()
-  ];
+  const tuttiProdotti = Object.values(prodottiDisponibili).flat();
 
   const handleProdottoChange = (nomeProdotto) => {
     const prodotto = tuttiProdotti.find(p => p.nome === nomeProdotto);
@@ -135,7 +184,7 @@ export default function NuovoOrdine({ open, onClose, onSave, ordineIniziale, sub
 
     const nuovoProdotto = {
       ...prodottoCorrente,
-      prodotto: prodottoCorrente.nome, // Compatibilità con il backend
+      prodotto: prodottoCorrente.nome,
       totale: prodottoCorrente.quantita * prodottoCorrente.prezzo
     };
 
@@ -144,7 +193,6 @@ export default function NuovoOrdine({ open, onClose, onSave, ordineIniziale, sub
       prodotti: [...ordine.prodotti, nuovoProdotto]
     });
 
-    // Reset
     setProdottoCorrente({
       nome: '',
       quantita: 1,
@@ -247,18 +295,57 @@ Grazie per l'ordine! ✨
             </Typography>
           </Grid>
 
+          {/* AUTOCOMPLETE CLIENTI - VERSIONE CORRETTA */}
           <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Nome Cliente"
-              value={ordine.nomeCliente}
-              onChange={(e) => setOrdine({ ...ordine, nomeCliente: e.target.value })}
-              error={!!errori.nomeCliente}
-              helperText={errori.nomeCliente}
-              required
-              InputProps={{
-                startAdornment: <PersonIcon sx={{ mr: 1, color: 'action.active' }} />
+            <Autocomplete
+              options={clienti}
+              loading={loadingClienti}
+              value={null}
+              inputValue={ordine.nomeCliente}
+              onInputChange={(event, newInputValue) => {
+                setOrdine({ ...ordine, nomeCliente: newInputValue });
               }}
+              getOptionLabel={(option) => {
+                if (!option) return '';
+                if (typeof option === 'string') return option;
+                const nome = option.tipo === 'azienda' ? 
+                  option.ragioneSociale : 
+                  `${option.nome} ${option.cognome || ''}`.trim();
+                return `${nome} - ${option.telefono}`;
+              }}
+              onChange={(event, newValue) => {
+                if (newValue && typeof newValue === 'object') {
+                  const nomeCompleto = newValue.tipo === 'azienda' ? 
+                    newValue.ragioneSociale : 
+                    `${newValue.nome} ${newValue.cognome || ''}`.trim();
+                  
+                  setOrdine({
+                    ...ordine,
+                    nomeCliente: nomeCompleto,
+                    telefono: newValue.telefono,
+                    email: newValue.email || ''
+                  });
+                }
+              }}
+              freeSolo
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Cliente *"
+                  error={!!errori.nomeCliente}
+                  helperText={errori.nomeCliente || "Cerca cliente esistente o scrivi nuovo"}
+                  required
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <PersonIcon sx={{ mr: 1, color: 'action.active' }} />
+                        {params.InputProps.startAdornment}
+                      </>
+                    )
+                  }}
+                />
+              )}
             />
           </Grid>
 
