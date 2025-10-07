@@ -5,14 +5,12 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
 const UserSchema = new mongoose.Schema({
-  // Campo nome per compatibilità con auth.js
   nome: {
     type: String,
     required: [true, 'Nome richiesto'],
     trim: true,
     minlength: [2, 'Nome deve essere almeno 2 caratteri']
   },
-  // Username opzionale
   username: {
     type: String,
     unique: true,
@@ -20,7 +18,6 @@ const UserSchema = new mongoose.Schema({
     trim: true,
     minlength: [3, 'Username deve essere almeno 3 caratteri']
   },
-  // Email principale per autenticazione
   email: {
     type: String,
     required: [true, 'Email richiesta'],
@@ -34,13 +31,11 @@ const UserSchema = new mongoose.Schema({
     minlength: [6, 'Password deve essere almeno 6 caratteri'],
     select: false
   },
-  // Campo role (non ruolo) per compatibilità
   role: {
     type: String,
     enum: ['admin', 'superadmin', 'operatore', 'viewer', 'user'],
     default: 'operatore'
   },
-  // Campo isActive (non attivo) per compatibilità
   isActive: {
     type: Boolean,
     default: true
@@ -87,9 +82,7 @@ const UserSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indici
-UserSchema.index({ email: 1 });
-UserSchema.index({ username: 1 });
+// Indici - RIMOSSI DUPLICATI (unique: true crea già l'indice)
 UserSchema.index({ role: 1 });
 UserSchema.index({ isActive: 1 });
 

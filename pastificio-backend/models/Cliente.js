@@ -2,12 +2,10 @@
 import mongoose from 'mongoose';
 
 const clienteSchema = new mongoose.Schema({
-  // NUOVO: Codice cliente univoco per fidelizzazione
   codiceCliente: {
     type: String,
     unique: true,
-    required: false, // MODIFICA: Lo rendiamo opzionale perché lo generiamo automaticamente
-    index: true
+    required: false
   },
   
   tipo: {
@@ -44,8 +42,7 @@ const clienteSchema = new mongoose.Schema({
   telefono: {
     type: String,
     required: [true, 'Il telefono è obbligatorio'],
-    trim: true,
-    index: true
+    trim: true
   },
   telefonoSecondario: {
     type: String,
@@ -130,29 +127,24 @@ const clienteSchema = new mongoose.Schema({
 clienteSchema.pre('save', async function(next) {
   if (!this.codiceCliente) {
     try {
-      // Genera codice formato: CL + anno (2 cifre) + numero progressivo (es: CL250001)
       const anno = new Date().getFullYear().toString().substr(-2);
       
-      // Trova l'ultimo codice cliente per l'anno corrente
       const ultimoCliente = await this.constructor
         .findOne({ codiceCliente: new RegExp(`^CL${anno}`) })
         .sort({ codiceCliente: -1 });
       
       let numeroProgressivo = 1;
       if (ultimoCliente && ultimoCliente.codiceCliente) {
-        // Estrai il numero progressivo dall'ultimo codice
         const ultimoNumero = parseInt(ultimoCliente.codiceCliente.substring(4)) || 0;
         numeroProgressivo = ultimoNumero + 1;
       }
       
-      // Prova fino a 10 volte in caso di duplicati
       let tentativi = 0;
       let codiceGenerato = '';
       
       while (tentativi < 10) {
         codiceGenerato = `CL${anno}${numeroProgressivo.toString().padStart(4, '0')}`;
         
-        // Verifica se il codice esiste già
         const esistente = await this.constructor.findOne({ codiceCliente: codiceGenerato });
         if (!esistente) {
           this.codiceCliente = codiceGenerato;
@@ -163,7 +155,6 @@ clienteSchema.pre('save', async function(next) {
         tentativi++;
       }
       
-      // Se dopo 10 tentativi non trova un codice libero, usa timestamp
       if (!this.codiceCliente) {
         const timestamp = Date.now().toString().substr(-8);
         this.codiceCliente = `CL${anno}${timestamp}`;
@@ -173,7 +164,6 @@ clienteSchema.pre('save', async function(next) {
       
     } catch (error) {
       console.error('Errore generazione codice cliente:', error);
-      // Fallback se c'è un errore
       const timestamp = Date.now().toString().substr(-6);
       this.codiceCliente = `CL${timestamp}`;
     }
@@ -181,9 +171,8 @@ clienteSchema.pre('save', async function(next) {
   next();
 });
 
-// Indici per ricerca veloce
+// Indici - RIMOSSI DUPLICATI
 clienteSchema.index({ nome: 'text', cognome: 'text', ragioneSociale: 'text' });
-clienteSchema.index({ codiceCliente: 1 }, { unique: true });
 clienteSchema.index({ telefono: 1 });
 clienteSchema.index({ email: 1 });
 
@@ -191,12 +180,11 @@ clienteSchema.index({ email: 1 });
 clienteSchema.methods.aggiungiPunti = async function(punti, motivo) {
   this.punti += punti;
   
-  // Aggiorna livello fedeltà
-  if (this.punti >= 1000) {
+  if (this.punti >= 5000) {
     this.livelloFedelta = 'platino';
-  } else if (this.punti >= 500) {
+  } else if (this.punti >= 3000) {
     this.livelloFedelta = 'oro';
-  } else if (this.punti >= 200) {
+  } else if (this.punti >= 1000) {
     this.livelloFedelta = 'argento';
   } else {
     this.livelloFedelta = 'bronzo';
@@ -212,7 +200,6 @@ clienteSchema.methods.aggiornaStatistiche = async function(ordine) {
   this.statistiche.ultimoOrdine = new Date();
   this.statistiche.mediaOrdine = this.statistiche.totaleSpeso / this.statistiche.numeroOrdini;
   
-  // Aggiungi punti (1 punto per ogni euro speso)
   const puntiDaAggiungere = Math.floor(ordine.totale);
   await this.aggiungiPunti(puntiDaAggiungere, `Ordine #${ordine.numeroOrdine}`);
   

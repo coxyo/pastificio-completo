@@ -7,7 +7,12 @@ import whatsappService from '../services/whatsappService.js';
 
 const router = express.Router();
 
-// RIMOSSO: router.use(protect) - la protezione è gestita in server.js
+// Funzione helper per validare numero telefono
+const isValidPhoneNumber = (telefono) => {
+  if (!telefono) return false;
+  const numeroPulito = telefono.replace(/[\s\-\(\)]/g, '');
+  return /^[0-9]{6,15}$/.test(numeroPulito);
+};
 
 // GET /api/ordini
 router.get('/', async (req, res) => {
@@ -75,7 +80,6 @@ router.get('/whatsapp-status', async (req, res) => {
 // POST /api/ordini
 router.post('/', async (req, res) => {
   try {
-    // Normalizza i dati - FIXATO: req.user può essere undefined
     const ordineData = {
       ...req.body,
       prodotti: req.body.prodotti?.map(p => ({
@@ -86,13 +90,11 @@ router.post('/', async (req, res) => {
       }))
     };
 
-    // Aggiungi campi utente solo se autenticato
     if (req.user) {
       ordineData.creatoDa = req.user._id;
       ordineData.modificatoDa = req.user._id;
     }
 
-    // Rimuovi ID temporanei
     delete ordineData._id;
     delete ordineData.id;
     if (ordineData._id?.startsWith('temp_')) {
@@ -104,40 +106,43 @@ router.post('/', async (req, res) => {
     
     logger.info(`Nuovo ordine creato: ${ordine._id}`);
     
-    // Invio WhatsApp automatico
+    // Invio WhatsApp con validazione
     if (whatsappService && whatsappService.isReady() && ordine.telefono) {
-      try {
-        const listaProdotti = ordine.prodotti
-          .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'kg'} - €${(p.quantita * p.prezzo).toFixed(2)}`)
-          .join('\n');
-        
-        const dataFormattata = new Date(ordine.dataRitiro).toLocaleDateString('it-IT', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-        
-        await whatsappService.inviaMessaggioConTemplate(
-          ordine.telefono,
-          'conferma-ordine',
-          {
-            nomeCliente: ordine.nomeCliente,
-            dataRitiro: dataFormattata,
-            oraRitiro: ordine.oraRitiro,
-            prodotti: listaProdotti,
-            totale: ordine.totale || '0.00',
-            note: ordine.note ? `\n📝 Note: ${ordine.note}` : ''
-          }
-        );
-        
-        logger.info(`WhatsApp inviato a ${ordine.telefono}`);
-      } catch (whatsappError) {
-        logger.error('Errore invio WhatsApp:', whatsappError);
+      if (isValidPhoneNumber(ordine.telefono)) {
+        try {
+          const listaProdotti = ordine.prodotti
+            .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'kg'} - €${(p.quantita * p.prezzo).toFixed(2)}`)
+            .join('\n');
+          
+          const dataFormattata = new Date(ordine.dataRitiro).toLocaleDateString('it-IT', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+          
+          await whatsappService.inviaMessaggioConTemplate(
+            ordine.telefono,
+            'conferma-ordine',
+            {
+              nomeCliente: ordine.nomeCliente,
+              dataRitiro: dataFormattata,
+              oraRitiro: ordine.oraRitiro,
+              prodotti: listaProdotti,
+              totale: ordine.totale || '0.00',
+              note: ordine.note ? `\n📝 Note: ${ordine.note}` : ''
+            }
+          );
+          
+          logger.info(`WhatsApp inviato a ${ordine.telefono}`);
+        } catch (whatsappError) {
+          logger.error('Errore invio WhatsApp:', whatsappError);
+        }
+      } else {
+        logger.warn(`Numero WhatsApp non valido: ${ordine.telefono}`);
       }
     }
     
-    // Notifica WebSocket
     const io = req.app.get('io');
     if (io) {
       io.emit('nuovo-ordine', { 
@@ -159,7 +164,6 @@ router.post('/', async (req, res) => {
 // GET /api/ordini/:id
 router.get('/:id', async (req, res) => {
   try {
-    // Se è un ID temporaneo, restituisci errore
     if (req.params.id.startsWith('temp_')) {
       return res.status(400).json({ 
         success: false, 
@@ -187,7 +191,6 @@ router.put('/:id', async (req, res) => {
     let ordine;
     let isNew = false;
     
-    // Se l'ID è temporaneo, crea nuovo ordine
     if (ordineId.startsWith('temp_')) {
       isNew = true;
       
@@ -201,13 +204,11 @@ router.put('/:id', async (req, res) => {
         }))
       };
 
-      // Aggiungi campi utente solo se autenticato
       if (req.user) {
         ordineData.creatoDa = req.user._id;
         ordineData.modificatoDa = req.user._id;
       }
       
-      // Rimuovi ID temporaneo
       delete ordineData._id;
       delete ordineData.id;
       
@@ -216,41 +217,44 @@ router.put('/:id', async (req, res) => {
       
       logger.info(`Nuovo ordine da temp ID: ${ordine._id}`);
       
-      // Invio WhatsApp per nuovo ordine
+      // WhatsApp con validazione
       if (whatsappService && whatsappService.isReady() && ordine.telefono) {
-        try {
-          const listaProdotti = ordine.prodotti
-            .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'kg'} - €${(p.quantita * p.prezzo).toFixed(2)}`)
-            .join('\n');
-          
-          const dataFormattata = new Date(ordine.dataRitiro).toLocaleDateString('it-IT', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          });
-          
-          await whatsappService.inviaMessaggioConTemplate(
-            ordine.telefono,
-            'conferma-ordine',
-            {
-              nomeCliente: ordine.nomeCliente,
-              dataRitiro: dataFormattata,
-              oraRitiro: ordine.oraRitiro,
-              prodotti: listaProdotti,
-              totale: ordine.totale || '0.00',
-              note: ordine.note ? `\n📝 Note: ${ordine.note}` : ''
-            }
-          );
-          
-          logger.info(`WhatsApp inviato per nuovo ordine`);
-        } catch (whatsappError) {
-          logger.error('Errore invio WhatsApp:', whatsappError);
+        if (isValidPhoneNumber(ordine.telefono)) {
+          try {
+            const listaProdotti = ordine.prodotti
+              .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'kg'} - €${(p.quantita * p.prezzo).toFixed(2)}`)
+              .join('\n');
+            
+            const dataFormattata = new Date(ordine.dataRitiro).toLocaleDateString('it-IT', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+            
+            await whatsappService.inviaMessaggioConTemplate(
+              ordine.telefono,
+              'conferma-ordine',
+              {
+                nomeCliente: ordine.nomeCliente,
+                dataRitiro: dataFormattata,
+                oraRitiro: ordine.oraRitiro,
+                prodotti: listaProdotti,
+                totale: ordine.totale || '0.00',
+                note: ordine.note ? `\n📝 Note: ${ordine.note}` : ''
+              }
+            );
+            
+            logger.info(`WhatsApp inviato per nuovo ordine`);
+          } catch (whatsappError) {
+            logger.error('Errore invio WhatsApp:', whatsappError);
+          }
+        } else {
+          logger.warn(`Numero WhatsApp non valido: ${ordine.telefono}`);
         }
       }
       
     } else {
-      // Aggiorna ordine esistente
       ordine = await Ordine.findById(ordineId);
       if (!ordine) {
         return res.status(404).json({ success: false, error: 'Ordine non trovato' });
@@ -259,7 +263,6 @@ router.put('/:id', async (req, res) => {
       const vecchiaDataRitiro = ordine.dataRitiro;
       const vecchioOraRitiro = ordine.oraRitiro;
       
-      // Normalizza prodotti
       if (req.body.prodotti) {
         req.body.prodotti = req.body.prodotti.map(p => ({
           ...p,
@@ -271,7 +274,6 @@ router.put('/:id', async (req, res) => {
       
       Object.assign(ordine, req.body);
       
-      // Aggiungi campi utente solo se autenticato
       if (req.user) {
         ordine.modificatoDa = req.user._id;
       }
@@ -279,38 +281,41 @@ router.put('/:id', async (req, res) => {
       
       await ordine.save();
       
-      // Notifica modifiche via WhatsApp
+      // Notifica modifiche via WhatsApp con validazione
       if (whatsappService && whatsappService.isReady() && ordine.telefono) {
-        const dataOraCambiata = 
-          vecchiaDataRitiro?.getTime() !== ordine.dataRitiro?.getTime() ||
-          vecchioOraRitiro !== ordine.oraRitiro;
-        
-        if (dataOraCambiata) {
-          try {
-            const dataFormattata = new Date(ordine.dataRitiro).toLocaleDateString('it-IT', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            });
-            
-            const messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n` +
-              `Gentile ${ordine.nomeCliente},\n` +
-              `il suo ordine è stato modificato.\n\n` +
-              `📅 *Nuova data ritiro:* ${dataFormattata}\n` +
-              `⏰ *Nuovo orario:* ${ordine.oraRitiro}\n\n` +
-              `Per info: 📞 389 887 9833`;
-            
-            await whatsappService.inviaMessaggio(ordine.telefono, messaggio);
-            logger.info(`WhatsApp modifica inviato`);
-          } catch (error) {
-            logger.error('Errore invio WhatsApp:', error);
+        if (isValidPhoneNumber(ordine.telefono)) {
+          const dataOraCambiata = 
+            vecchiaDataRitiro?.getTime() !== ordine.dataRitiro?.getTime() ||
+            vecchioOraRitiro !== ordine.oraRitiro;
+          
+          if (dataOraCambiata) {
+            try {
+              const dataFormattata = new Date(ordine.dataRitiro).toLocaleDateString('it-IT', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+              
+              const messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n` +
+                `Gentile ${ordine.nomeCliente},\n` +
+                `il suo ordine è stato modificato.\n\n` +
+                `📅 *Nuova data ritiro:* ${dataFormattata}\n` +
+                `⏰ *Nuovo orario:* ${ordine.oraRitiro}\n\n` +
+                `Per info: 📞 389 887 9833`;
+              
+              await whatsappService.inviaMessaggio(ordine.telefono, messaggio);
+              logger.info(`WhatsApp modifica inviato`);
+            } catch (error) {
+              logger.error('Errore invio WhatsApp:', error);
+            }
           }
+        } else {
+          logger.warn(`Numero WhatsApp non valido: ${ordine.telefono}`);
         }
       }
     }
     
-    // Notifica WebSocket
     const io = req.app.get('io');
     if (io) {
       io.emit('ordine-aggiornato', { 
@@ -338,7 +343,6 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/ordini/:id
 router.delete('/:id', async (req, res) => {
   try {
-    // Se è un ID temporaneo, ignora
     if (req.params.id.startsWith('temp_')) {
       return res.json({ success: true, data: {} });
     }
@@ -348,25 +352,28 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Ordine non trovato' });
     }
 
-    // Notifica cancellazione via WhatsApp
+    // Notifica cancellazione con validazione
     if (whatsappService && whatsappService.isReady() && ordine.telefono) {
-      try {
-        const messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n` +
-          `Gentile ${ordine.nomeCliente},\n` +
-          `il suo ordine del ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')} ` +
-          `è stato annullato.\n\n` +
-          `Per info: 📞 389 887 9833`;
-        
-        await whatsappService.inviaMessaggio(ordine.telefono, messaggio);
-        logger.info(`WhatsApp cancellazione inviato`);
-      } catch (error) {
-        logger.error('Errore invio WhatsApp:', error);
+      if (isValidPhoneNumber(ordine.telefono)) {
+        try {
+          const messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n` +
+            `Gentile ${ordine.nomeCliente},\n` +
+            `il suo ordine del ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')} ` +
+            `è stato annullato.\n\n` +
+            `Per info: 📞 389 887 9833`;
+          
+          await whatsappService.inviaMessaggio(ordine.telefono, messaggio);
+          logger.info(`WhatsApp cancellazione inviato`);
+        } catch (error) {
+          logger.error('Errore invio WhatsApp:', error);
+        }
+      } else {
+        logger.warn(`Numero WhatsApp non valido: ${ordine.telefono}`);
       }
     }
 
     await ordine.deleteOne();
 
-    // Notifica WebSocket
     const io = req.app.get('io');
     if (io) {
       io.emit('ordine-eliminato', { id: req.params.id });
@@ -406,6 +413,13 @@ router.post('/invio-promemoria/:id', async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         error: 'Numero di telefono mancante' 
+      });
+    }
+
+    if (!isValidPhoneNumber(ordine.telefono)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Numero di telefono non valido'
       });
     }
 
@@ -463,6 +477,13 @@ router.post('/invio-ordine-pronto/:id', async (req, res) => {
       });
     }
 
+    if (!isValidPhoneNumber(ordine.telefono)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Numero di telefono non valido'
+      });
+    }
+
     await whatsappService.inviaMessaggioConTemplate(
       ordine.telefono,
       'ordine-pronto',
@@ -472,7 +493,6 @@ router.post('/invio-ordine-pronto/:id', async (req, res) => {
       }
     );
 
-    // Aggiorna stato
     ordine.stato = 'pronto';
     await ordine.save();
 

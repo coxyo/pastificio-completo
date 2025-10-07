@@ -1,8 +1,7 @@
-// models/ingrediente.js
+// models/Ingrediente.js
 import mongoose from 'mongoose';
 import logger from '../config/logger.js';
 
-// Schema per l'ingrediente
 const IngredienteSchema = new mongoose.Schema({
   codice: {
     type: String,
@@ -166,13 +165,11 @@ const IngredienteSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Indici per ricerche efficienti
+// Indici - RIMOSSI DUPLICATI (unique/sparse già creano indici)
 IngredienteSchema.index({ nome: 1 });
-IngredienteSchema.index({ codice: 1 });
 IngredienteSchema.index({ categoria: 1 });
 IngredienteSchema.index({ attivo: 1 });
 IngredienteSchema.index({ allergenico: 1 });
-IngredienteSchema.index({ barcode: 1 });
 IngredienteSchema.index({ 'lotti.dataScadenza': 1 });
 
 // Virtual per ottenere le scorte attuali
@@ -238,7 +235,6 @@ IngredienteSchema.virtual('statoScorta').get(function() {
 IngredienteSchema.pre('save', function(next) {
   // Generazione automatica codice se non presente
   if (!this.codice) {
-    // Crea un codice basato sulla categoria e nome
     const prefixMap = {
       'farina': 'FA',
       'latticini': 'LA',
@@ -256,8 +252,6 @@ IngredienteSchema.pre('save', function(next) {
     
     const prefix = prefixMap[this.categoria] || 'XX';
     const namePart = this.nome.substring(0, 3).toUpperCase();
-    
-    // Usa timestamp per rendere il codice unico
     const timestamp = Date.now().toString().substring(8, 13);
     
     this.codice = `${prefix}${namePart}${timestamp}`;
@@ -316,7 +310,6 @@ IngredienteSchema.statics.getInScadenza = async function(giorniMax = 30) {
   }).sort('lotti.dataScadenza');
 };
 
-// Crea il modello
 const Ingrediente = mongoose.model('Ingrediente', IngredienteSchema);
 
 export default Ingrediente;
