@@ -2,7 +2,7 @@
 import config from '../config/config.js';
 
 const API_URL = config.API_URL + '/api';
-const USE_MOCK = false; // Disabilita mock per produzione
+const USE_MOCK = false;
 
 // Mock data per test
 const mockOrdini = [];
@@ -31,6 +31,67 @@ const getHeaders = (includeContentType = true) => {
   }
   
   return headers;
+};
+
+// ✅ CLIENTI (AGGIUNTO)
+export const caricaClienti = async (filtri = {}) => {
+  try {
+    const queryParams = new URLSearchParams(filtri).toString();
+    const url = `${API_URL}/clienti${queryParams ? `?${queryParams}` : ''}`;
+    
+    const response = await fetch(url, {
+      headers: getHeaders()
+    });
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Errore caricaClienti:', error);
+    return { success: false, data: [], error: error.message };
+  }
+};
+
+export const salvaCliente = async (cliente) => {
+  try {
+    const response = await fetch(`${API_URL}/clienti`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(cliente)
+    });
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Errore salvaCliente:', error);
+    throw error;
+  }
+};
+
+export const aggiornaCliente = async (id, data) => {
+  try {
+    const response = await fetch(`${API_URL}/clienti/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Errore aggiornaCliente:', error);
+    throw error;
+  }
+};
+
+export const eliminaCliente = async (id) => {
+  try {
+    const response = await fetch(`${API_URL}/clienti/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Errore eliminaCliente:', error);
+    throw error;
+  }
 };
 
 // MOVIMENTI MAGAZZINO
@@ -143,8 +204,12 @@ export const api = {
   aggiornaOrdine,
   eliminaOrdine,
   caricaMovimenti,
-  salvaMovimentoBackend
+  salvaMovimentoBackend,
+  // ✅ AGGIUNTO
+  caricaClienti,
+  salvaCliente,
+  aggiornaCliente,
+  eliminaCliente
 };
 
 export default api;
-
