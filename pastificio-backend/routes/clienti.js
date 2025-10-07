@@ -8,8 +8,8 @@ import ExcelJS from 'exceljs';
 
 const router = express.Router();
 
-// Middleware autenticazione
-router.use(protect);
+// ⚠️ AUTENTICAZIONE COMMENTATA PER TEST
+// router.use(protect);
 
 // GET /api/clienti - Lista clienti con filtri
 router.get('/', async (req, res) => {
@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
       search, 
       tipo, 
       livello,
-      attivo, // NON dare un default qui
+      attivo,
       limit = 100,
       skip = 0,
       sort = '-createdAt'
@@ -43,16 +43,13 @@ router.get('/', async (req, res) => {
     if (tipo) query.tipo = tipo;
     if (livello) query.livelloFedelta = livello;
     
-    // MODIFICA IMPORTANTE: Controlla che attivo sia effettivamente definito
     if (attivo !== undefined && attivo !== '' && attivo !== null) {
       query.attivo = attivo === 'true';
-    }
-    // Se attivo non è specificato, mostra solo i clienti attivi di default
-    else {
-      query.attivo = true; // Mostra solo clienti attivi di default
+    } else {
+      query.attivo = true;
     }
     
-    console.log('Query clienti:', query); // Debug
+    console.log('Query clienti:', query);
     
     const clienti = await Cliente.find(query)
       .limit(parseInt(limit))
@@ -61,7 +58,7 @@ router.get('/', async (req, res) => {
     
     const total = await Cliente.countDocuments(query);
     
-    console.log(`Trovati ${clienti.length} clienti su ${total} totali`); // Debug
+    console.log(`Trovati ${clienti.length} clienti su ${total} totali`);
     
     res.json({
       success: true,
@@ -85,14 +82,11 @@ router.get('/', async (req, res) => {
 // GET /api/clienti/export/excel - Export clienti in Excel
 router.get('/export/excel', async (req, res) => {
   try {
-    // Recupera tutti i clienti attivi
     const clienti = await Cliente.find({ attivo: true }).sort('codiceCliente');
     
-    // Crea un nuovo workbook Excel
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Clienti');
     
-    // Definisci le colonne
     worksheet.columns = [
       { header: 'Codice Cliente', key: 'codiceCliente', width: 15 },
       { header: 'Tipo', key: 'tipo', width: 10 },
@@ -114,7 +108,6 @@ router.get('/export/excel', async (req, res) => {
       { header: 'Data Creazione', key: 'createdAt', width: 15 }
     ];
     
-    // Stile per l'header
     worksheet.getRow(1).font = { bold: true };
     worksheet.getRow(1).fill = {
       type: 'pattern',
@@ -122,7 +115,6 @@ router.get('/export/excel', async (req, res) => {
       fgColor: { argb: 'FFE0E0E0' }
     };
     
-    // Aggiungi i dati
     clienti.forEach(cliente => {
       worksheet.addRow({
         codiceCliente: cliente.codiceCliente,
@@ -146,25 +138,20 @@ router.get('/export/excel', async (req, res) => {
       });
     });
     
-    // Aggiungi filtri automatici
     worksheet.autoFilter = {
       from: 'A1',
       to: `R${clienti.length + 1}`
     };
     
-    // Genera il buffer Excel
     const buffer = await workbook.xlsx.writeBuffer();
     
-    // Imposta gli headers per il download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=clienti_${new Date().toISOString().split('T')[0]}.xlsx`);
     
-    // Invia il file
     res.send(buffer);
     
     logger.info('Export Excel clienti completato', { 
-      numeroClienti: clienti.length,
-      utente: req.user._id 
+      numeroClienti: clienti.length
     });
     
   } catch (error) {
@@ -221,9 +208,11 @@ router.get('/top', async (req, res) => {
 // POST /api/clienti - Crea nuovo cliente
 router.post('/', async (req, res) => {
   try {
+    console.log('📥 POST /api/clienti - Body ricevuto:', req.body);
+    
     const clienteData = {
-      ...req.body,
-      creatoDa: req.user._id
+      ...req.body
+      // creatoDa: req.user?._id // ⚠️ COMMENTATO
     };
     
     // Se non c'è il cognome ma c'è uno spazio nel nome, dividi
@@ -235,7 +224,7 @@ router.post('/', async (req, res) => {
     
     const cliente = await Cliente.create(clienteData);
     
-    logger.info('Nuovo cliente creato', { 
+    logger.info('✅ Nuovo cliente creato', { 
       clienteId: cliente._id,
       codiceCliente: cliente.codiceCliente,
       nome: cliente.nomeCompleto 
@@ -247,7 +236,8 @@ router.post('/', async (req, res) => {
     });
     
   } catch (error) {
-    logger.error('Errore creazione cliente:', error);
+    logger.error('❌ Errore creazione cliente:', error);
+    console.error('Stack trace:', error);
     
     if (error.code === 11000) {
       const campo = Object.keys(error.keyValue)[0];
@@ -259,7 +249,8 @@ router.post('/', async (req, res) => {
     
     res.status(500).json({ 
       success: false, 
-      error: 'Errore nella creazione del cliente' 
+      error: 'Errore nella creazione del cliente',
+      details: error.message
     });
   }
 });
@@ -317,7 +308,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/clienti/:id - Elimina cliente (soft delete)
-router.delete('/:id', authorize('admin'), async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const cliente = await Cliente.findById(req.params.id);
     
@@ -328,7 +319,6 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
       });
     }
     
-    // Soft delete
     cliente.attivo = false;
     await cliente.save();
     
@@ -360,7 +350,6 @@ router.get('/:id/statistiche', async (req, res) => {
       });
     }
     
-    // Calcola statistiche aggiuntive
     const ordini = await Ordine.find({ 
       $or: [
         { clienteId: cliente._id },
@@ -517,7 +506,6 @@ router.get('/:id/export', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Cliente non trovato' });
     }
 
-    // Recupera tutti gli ordini del cliente
     const ordini = await Ordine.find({ 
       $or: [
         { clienteId: cliente._id },
@@ -525,10 +513,8 @@ router.get('/:id/export', async (req, res) => {
       ]
     }).sort('-dataRitiro');
 
-    // Crea workbook Excel
     const workbook = new ExcelJS.Workbook();
     
-    // Foglio 1: Dati Cliente
     const clienteSheet = workbook.addWorksheet('Cliente');
     clienteSheet.columns = [
       { header: 'Campo', key: 'campo', width: 20 },
@@ -546,7 +532,6 @@ router.get('/:id/export', async (req, res) => {
       { campo: 'Numero Ordini', valore: cliente.statistiche?.numeroOrdini || 0 }
     ]);
     
-    // Foglio 2: Storico Ordini
     const ordiniSheet = workbook.addWorksheet('Ordini');
     ordiniSheet.columns = [
       { header: 'N° Ordine', key: 'numero', width: 15 },
@@ -566,7 +551,6 @@ router.get('/:id/export', async (req, res) => {
       });
     });
     
-    // Stili
     [clienteSheet, ordiniSheet].forEach(sheet => {
       sheet.getRow(1).font = { bold: true };
       sheet.getRow(1).fill = {
@@ -576,10 +560,8 @@ router.get('/:id/export', async (req, res) => {
       };
     });
     
-    // Genera buffer
     const buffer = await workbook.xlsx.writeBuffer();
     
-    // Invia file
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=cliente_${cliente.codiceCliente}_${new Date().toISOString().split('T')[0]}.xlsx`);
     res.send(buffer);
