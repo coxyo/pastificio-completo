@@ -1,4 +1,4 @@
-// models/Ordine.js
+// models/Ordine.js - FIX DEFINITIVO
 import mongoose from 'mongoose';
 
 const prodottoSchema = new mongoose.Schema({
@@ -12,14 +12,15 @@ const prodottoSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  // ✅ FIX: Accetta TUTTE le varianti maiuscole/minuscole
   unita: {
     type: String,
-    enum: ['kg', 'Kg', 'pezzi', 'unità', 'unitÃ ', 'unitÃƒ ', '€', 'g', 'l'],
+    enum: ['kg', 'Kg', 'KG', 'pezzi', 'Pezzi', 'PEZZI', 'unità', 'Unità', 'unitÃ ', 'unitÃƒ ', '€', 'EUR', 'g', 'G', 'l', 'L'],
     default: 'kg'
   },
   unitaMisura: {
     type: String,
-    enum: ['kg', 'Kg', 'pezzi', 'unità', 'unitÃ ', 'unitÃƒ ', '€', 'g', 'l'],
+    enum: ['kg', 'Kg', 'KG', 'pezzi', 'Pezzi', 'PEZZI', 'unità', 'Unità', 'unitÃ ', 'unitÃƒ ', '€', 'EUR', 'g', 'G', 'l', 'L'],
     default: 'kg'
   },
   prezzo: {
@@ -27,12 +28,12 @@ const prodottoSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  // ✅ FIX: Rimuove enum rigido - accetta QUALSIASI stringa
   categoria: {
     type: String,
-    enum: ['pasta', 'dolci', 'pane', 'panadas', 'altro'],
+    trim: true,
     default: 'altro'
   },
-  // ✅ NUOVO: Supporto per varianti (es. Ravioli ricotta, Ravioli carne)
   variante: {
     type: String,
     trim: true
@@ -89,7 +90,6 @@ const ordineSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  // ✅ NUOVO: Campo daViaggio per identificare ordini da viaggio
   daViaggio: {
     type: Boolean,
     default: false
@@ -105,7 +105,6 @@ const ordineSchema = new mongoose.Schema({
   dataModifica: {
     type: Date
   },
-  // Campi per sincronizzazione
   modificatoOffline: {
     type: Boolean,
     default: false
@@ -113,16 +112,17 @@ const ordineSchema = new mongoose.Schema({
   ultimaSincronizzazione: {
     type: Date
   },
-  // ✅ NUOVO: Numero ordine progressivo
   numeroOrdine: {
     type: String,
     unique: true,
     sparse: true
   },
-  // ✅ NUOVO: Riferimento al cliente (se esiste nell'anagrafica)
+  // ✅ FIX: Campo cliente OPZIONALE (può essere null)
   cliente: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Cliente'
+    ref: 'Cliente',
+    required: false,
+    default: null
   }
 }, {
   timestamps: true
@@ -134,7 +134,7 @@ ordineSchema.index({ nomeCliente: 1 });
 ordineSchema.index({ stato: 1 });
 ordineSchema.index({ createdAt: -1 });
 ordineSchema.index({ numeroOrdine: 1 });
-ordineSchema.index({ daViaggio: 1 }); // ✅ NUOVO: Indice per filtrare ordini da viaggio
+ordineSchema.index({ daViaggio: 1 });
 
 // Metodo per calcolare il totale
 ordineSchema.methods.calcolaTotale = function() {
@@ -145,26 +145,34 @@ ordineSchema.methods.calcolaTotale = function() {
   return this.totale;
 };
 
-// Hook pre-save per calcolare il totale e normalizzare i dati
+// ✅ Hook pre-save MIGLIORATO - Normalizza e pulisce dati
 ordineSchema.pre('save', function(next) {
   // Calcola totale se non presente
   if (!this.totale || this.totale === 0) {
     this.calcolaTotale();
   }
   
-  // Normalizza prodotti
+  // ✅ NORMALIZZA PRODOTTI - Risolve problemi enum
   this.prodotti = this.prodotti.map(p => {
     // Rimuovi quantità dal nome se presente
     if (p.nome) {
       p.nome = p.nome.replace(/\s*\(\d+.*?\)\s*$/, '').trim();
     }
     
-    // Normalizza unità di misura (converte tutto in minuscolo)
+    // ✅ NORMALIZZA unità di misura (accetta maiuscole/minuscole)
     if (p.unita) {
-      p.unita = p.unita.toLowerCase();
+      // Converte "Pezzi" → "pezzi", "Kg" → "kg"
+      const unitaNormalized = p.unita.toLowerCase();
+      if (['kg', 'pezzi', 'unità', '€', 'g', 'l'].includes(unitaNormalized)) {
+        p.unita = unitaNormalized;
+      }
     }
+    
     if (p.unitaMisura) {
-      p.unitaMisura = p.unitaMisura.toLowerCase();
+      const unitaMisuraNormalized = p.unitaMisura.toLowerCase();
+      if (['kg', 'pezzi', 'unità', '€', 'g', 'l'].includes(unitaMisuraNormalized)) {
+        p.unitaMisura = unitaMisuraNormalized;
+      }
     }
     
     // Assicura che unita e unitaMisura siano allineati
@@ -174,9 +182,12 @@ ordineSchema.pre('save', function(next) {
       p.unita = p.unitaMisura;
     }
     
-    // Determina categoria se non presente
-    if (!p.categoria) {
+    // ✅ NORMALIZZA CATEGORIA - Determina automaticamente
+    if (!p.categoria || p.categoria === 'altro' || p.categoria === p.nome) {
       p.categoria = this.getCategoriaProdotto(p.nome);
+    } else {
+      // Se categoria è un nome prodotto, normalizza
+      p.categoria = this.getCategoriaProdotto(p.categoria);
     }
     
     return p;
@@ -185,21 +196,25 @@ ordineSchema.pre('save', function(next) {
   next();
 });
 
-// Metodo per determinare la categoria di un prodotto
+// ✅ Metodo MIGLIORATO per determinare la categoria
 ordineSchema.methods.getCategoriaProdotto = function(nomeProdotto) {
   const nome = nomeProdotto?.toLowerCase() || '';
   
+  // Panadas
   if (nome.includes('panada') || nome.includes('panadine')) {
     return 'panadas';
   }
   
+  // Pasta
   if (nome.includes('malloreddus') || nome.includes('culurgiones') || 
       nome.includes('ravioli') || nome.includes('gnocch') || 
       nome.includes('fregola') || nome.includes('tagliatelle') ||
-      nome.includes('lasagne') || nome.includes('cannelloni')) {
+      nome.includes('lasagne') || nome.includes('cannelloni') ||
+      nome.includes('pasta')) {
     return 'pasta';
   }
   
+  // Dolci
   if (nome.includes('seadas') || nome.includes('sebadas') || 
       nome.includes('pardulas') || nome.includes('papassin') || 
       nome.includes('amaretti') || nome.includes('bianchini') ||
@@ -209,6 +224,7 @@ ordineSchema.methods.getCategoriaProdotto = function(nomeProdotto) {
     return 'dolci';
   }
   
+  // Pane
   if (nome.includes('pane') || nome.includes('carasau') || 
       nome.includes('civraxiu') || nome.includes('coccoi') ||
       nome.includes('pistoccu') || nome.includes('moddizzosu')) {
@@ -224,7 +240,7 @@ ordineSchema.virtual('dataRitiroFormattata').get(function() {
 });
 
 ordineSchema.virtual('isTemporary').get(function() {
-  return false; // Gli ordini salvati nel DB non sono mai temporanei
+  return false;
 });
 
 const Ordine = mongoose.model('Ordine', ordineSchema);
