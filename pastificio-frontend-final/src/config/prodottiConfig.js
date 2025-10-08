@@ -1,5 +1,5 @@
 // config/prodottiConfig.js
-// Configurazione completa prodotti con VARIANTI
+// Configurazione completa prodotti - PULITA
 
 export const MODALITA_VENDITA = {
   SOLO_KG: 'solo_kg',
@@ -15,25 +15,13 @@ export const UNITA_MISURA = {
   EURO: '€'
 };
 
-// ✅ CONFIGURAZIONE PRODOTTI CON VARIANTI
+// ✅ CONFIGURAZIONE PRODOTTI - PULITA
 export const PRODOTTI_CONFIG = {
-  // ========== RAVIOLI CON VARIANTI ==========
+  // ========== RAVIOLI CON VARIANTI (PULITI - no duplicati €14) ==========
   'Ravioli': {
     categoria: 'Ravioli',
     hasVarianti: true,
     varianti: [
-      {
-        nome: 'ricotta',
-        label: 'Ravioli ricotta',
-        prezzoKg: 14.00,
-        pezziPerKg: 30
-      },
-      {
-        nome: 'ricotta e spinaci',
-        label: 'Ravioli ricotta e spinaci',
-        prezzoKg: 14.00,
-        pezziPerKg: 30
-      },
       {
         nome: 'ricotta e zafferano',
         label: 'Ravioli ricotta e zafferano',
@@ -195,15 +183,9 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
     categoria: 'Panadas',
     unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
-  },
-
-  // ========== PANE ==========
-  'Pane panada/pizza': {
-    prezzoKg: 8.00,
-    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
-    categoria: 'Pane',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
   }
+
+  // ✅ RIMOSSO: "Pane panada/pizza" eliminato dalla lista
 };
 
 // ✅ Funzione per ottenere config prodotto (gestisce varianti)
