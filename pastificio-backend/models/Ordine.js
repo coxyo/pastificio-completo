@@ -14,12 +14,12 @@ const prodottoSchema = new mongoose.Schema({
   },
   unita: {
     type: String,
-    enum: ['kg', 'Kg', 'pezzi', 'unità', 'unitÃ ', '€', 'g', 'l'],
+    enum: ['kg', 'Kg', 'pezzi', 'unità', 'unitÃ ', 'unitÃƒ ', '€', 'g', 'l'],
     default: 'kg'
   },
   unitaMisura: {
     type: String,
-    enum: ['kg', 'Kg', 'pezzi', 'unità', 'unitÃ ', '€', 'g', 'l'],
+    enum: ['kg', 'Kg', 'pezzi', 'unità', 'unitÃ ', 'unitÃƒ ', '€', 'g', 'l'],
     default: 'kg'
   },
   prezzo: {
@@ -31,6 +31,11 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     enum: ['pasta', 'dolci', 'pane', 'panadas', 'altro'],
     default: 'altro'
+  },
+  // ✅ NUOVO: Supporto per varianti (es. Ravioli ricotta, Ravioli carne)
+  variante: {
+    type: String,
+    trim: true
   }
 });
 
@@ -84,6 +89,11 @@ const ordineSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // ✅ NUOVO: Campo daViaggio per identificare ordini da viaggio
+  daViaggio: {
+    type: Boolean,
+    default: false
+  },
   creatoDa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -102,6 +112,17 @@ const ordineSchema = new mongoose.Schema({
   },
   ultimaSincronizzazione: {
     type: Date
+  },
+  // ✅ NUOVO: Numero ordine progressivo
+  numeroOrdine: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  // ✅ NUOVO: Riferimento al cliente (se esiste nell'anagrafica)
+  cliente: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Cliente'
   }
 }, {
   timestamps: true
@@ -112,6 +133,8 @@ ordineSchema.index({ dataRitiro: 1, oraRitiro: 1 });
 ordineSchema.index({ nomeCliente: 1 });
 ordineSchema.index({ stato: 1 });
 ordineSchema.index({ createdAt: -1 });
+ordineSchema.index({ numeroOrdine: 1 });
+ordineSchema.index({ daViaggio: 1 }); // ✅ NUOVO: Indice per filtrare ordini da viaggio
 
 // Metodo per calcolare il totale
 ordineSchema.methods.calcolaTotale = function() {
@@ -125,7 +148,7 @@ ordineSchema.methods.calcolaTotale = function() {
 // Hook pre-save per calcolare il totale e normalizzare i dati
 ordineSchema.pre('save', function(next) {
   // Calcola totale se non presente
-  if (!this.totale) {
+  if (!this.totale || this.totale === 0) {
     this.calcolaTotale();
   }
   
