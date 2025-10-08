@@ -1,478 +1,426 @@
-// components/RiepilogoGiornaliero.js
-import React, { useMemo } from 'react';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import { 
-  Package, Euro, Users, Clock, TrendingUp, 
-  ShoppingCart, Cookie, ChefHat, Coffee, FileText,
-  Download, Printer
-} from 'lucide-react';
-import { Button } from './ui/button';
+// components/RiepilogoGiornaliero.js - CON COLONNE MULTI E VIAGGIO
+import React, { useState, useMemo } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Divider,
+  Grid
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  Print as PrintIcon,
+  CalendarToday as CalendarIcon,
+  CheckCircle as CheckIcon,
+  ArrowForward as ArrowIcon
+} from '@mui/icons-material';
 
-const RiepilogoGiornaliero = ({ ordini = [], data }) => {
-  
-  // Funzione per convertire unità in kg
-  const convertiInKg = (quantita, unita, nomeProdotto) => {
-    // Se l'unità è già kg, ritorna la quantità
-    if (unita === 'kg') return quantita;
-    
-    // Se l'unità è €, non convertire
-    if (unita === '€') return 0;
-    
-    // Conversioni specifiche per prodotti in pezzi
-    if (unita === 'pezzi') {
-      const conversioni = {
-        'Seadas': 0.15,        // 150g per seada
-        'Sebadas': 0.15,       // 150g per sebada
-        'Pardulas': 0.04,      // 40g per pardula (25 pardulas = 1kg)
-        'Formaggelle': 0.08,   // 80g per formaggella
-        'Panadas': 0.2,        // 200g per panada
-        'Culurgiones': 0.001,  // 1g per culurgione (se venduti singoli)
-        'Ravioli': 0.001       // 1g per raviolo (se venduti singoli)
-      };
-      
-      // Cerca corrispondenza nel nome del prodotto
-      for (const [prodotto, peso] of Object.entries(conversioni)) {
-        if (nomeProdotto?.toLowerCase().includes(prodotto.toLowerCase())) {
-          return quantita * peso;
-        }
-      }
-      
-      // Default per pezzi non specificati
-      return quantita * 0.1; // 100g di default
-    }
-    
-    return 0;
-  };
-  
-  // Calcola statistiche
-  const stats = useMemo(() => {
-    if (!ordini || ordini.length === 0) {
-      return {
-        totaleOrdini: 0,
-        totaleIncasso: 0,
-        numeroClienti: 0,
-        prodottiVenduti: {},
-        prodottiInKg: {},
-        orariPiuRichiesti: {},
-        categorieTotali: {}
-      };
-    }
+export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
+  const [dataSelezionata, setDataSelezionata] = useState(
+    new Date().toISOString().split('T')[0]
+  );
 
-    const prodottiVenduti = {};
-    const prodottiInKg = {};
-    const orariPiuRichiesti = {};
-    const clientiUnici = new Set();
-    const categorieTotali = {
-      pasta: 0,
-      dolci: 0,
-      pane: 0,
-      altro: 0
+  // Filtra ordini per data selezionata
+  const ordiniFiltrati = useMemo(() => {
+    return ordini.filter(ordine => {
+      const dataOrdine = ordine.dataRitiro || ordine.createdAt || '';
+      return dataOrdine.startsWith(dataSelezionata);
+    }).sort((a, b) => {
+      const oraA = a.oraRitiro || '00:00';
+      const oraB = b.oraRitiro || '00:00';
+      return oraA.localeCompare(oraB);
+    });
+  }, [ordini, dataSelezionata]);
+
+  // Raggruppa ordini per categoria prodotto
+  const ordiniPerCategoria = useMemo(() => {
+    const categorie = {
+      'Ravioli': [],
+      'Dolci': [],
+      'Panadas': [],
+      'Altro': []
     };
 
-    let totaleIncasso = 0;
+    ordiniFiltrati.forEach(ordine => {
+      const prodottiPerCategoria = {};
 
-    ordini.forEach(ordine => {
-      // Conta clienti unici
-      if (ordine.nomeCliente) {
-        clientiUnici.add(ordine.nomeCliente);
-      }
-
-      // Conta orari
-      if (ordine.oraRitiro) {
-        const ora = ordine.oraRitiro.split(':')[0] + ':00';
-        orariPiuRichiesti[ora] = (orariPiuRichiesti[ora] || 0) + 1;
-      }
-
-      // Analizza prodotti
+      // Raggruppa prodotti dell'ordine per categoria
       ordine.prodotti?.forEach(prodotto => {
-        const nomePulito = prodotto.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim();
-        const unita = prodotto.unita || prodotto.unitaMisura || 'kg';
-        const quantita = prodotto.quantita || 0;
-        const prezzo = prodotto.prezzo || 0;
+        // Normalizza categoria
+        let categoria = 'Altro';
+        const nomeProdotto = prodotto.nome?.toLowerCase() || '';
         
-        // Conta prodotti venduti
-        if (!prodottiVenduti[nomePulito]) {
-          prodottiVenduti[nomePulito] = {
-            quantita: 0,
-            unita: unita,
-            incasso: 0
-          };
+        if (nomeProdotto.includes('ravioli') || nomeProdotto.includes('culurgiones')) {
+          categoria = 'Ravioli';
+        } else if (nomeProdotto.includes('panada')) {
+          categoria = 'Panadas';
+        } else if (nomeProdotto.includes('pardulas') || nomeProdotto.includes('dolci') || 
+                   nomeProdotto.includes('sebadas') || nomeProdotto.includes('amaretti') ||
+                   nomeProdotto.includes('bianchini') || nomeProdotto.includes('gueffus') ||
+                   nomeProdotto.includes('torta') || nomeProdotto.includes('zeppole')) {
+          categoria = 'Dolci';
         }
-        prodottiVenduti[nomePulito].quantita += quantita;
-        prodottiVenduti[nomePulito].incasso += (quantita * prezzo);
-        
-        // Converti in kg per il totale
-        const quantitaInKg = convertiInKg(quantita, unita, nomePulito);
-        prodottiInKg[nomePulito] = (prodottiInKg[nomePulito] || 0) + quantitaInKg;
-        
-        // Categorizza
-        const categoria = getCategoria(nomePulito);
-        if (unita === '€') {
-          categorieTotali[categoria] += quantita; // Per € usa direttamente il valore
-        } else {
-          categorieTotali[categoria] += quantitaInKg;
+
+        if (!prodottiPerCategoria[categoria]) {
+          prodottiPerCategoria[categoria] = [];
         }
+        prodottiPerCategoria[categoria].push(prodotto);
       });
 
-      // Calcola totale incasso
-      totaleIncasso += ordine.totale || 0;
+      // Aggiungi ordine a ogni categoria in cui ha prodotti
+      Object.entries(prodottiPerCategoria).forEach(([categoria, prodottiCategoria]) => {
+        if (categorie[categoria]) {
+          categorie[categoria].push({
+            ...ordine,
+            prodottiCategoria: prodottiCategoria,
+            altreCategorie: Object.keys(prodottiPerCategoria).filter(c => c !== categoria)
+          });
+        }
+      });
     });
 
-    return {
-      totaleOrdini: ordini.length,
-      totaleIncasso,
-      numeroClienti: clientiUnici.size,
-      prodottiVenduti,
-      prodottiInKg,
-      orariPiuRichiesti,
-      categorieTotali
-    };
-  }, [ordini]);
+    return categorie;
+  }, [ordiniFiltrati]);
 
-  // Funzione per determinare la categoria
-  const getCategoria = (nomeProdotto) => {
-    const nome = nomeProdotto?.toLowerCase() || '';
-    
-    if (nome.includes('malloreddus') || nome.includes('culurgiones') || 
-        nome.includes('ravioli') || nome.includes('gnocch') || 
-        nome.includes('fregola') || nome.includes('tagliatelle') ||
-        nome.includes('lasagne') || nome.includes('cannelloni')) {
-      return 'pasta';
-    }
-    
-    if (nome.includes('seadas') || nome.includes('sebadas') || 
-        nome.includes('pardulas') || nome.includes('papassin') || 
-        nome.includes('amaretti') || nome.includes('bianchini') ||
-        nome.includes('gueffus') || nome.includes('candelaus') ||
-        nome.includes('pabassinas') || nome.includes('dolci') ||
-        nome.includes('ciambelle')) {
-      return 'dolci';
-    }
-    
-    if (nome.includes('pane') || nome.includes('carasau') || 
-        nome.includes('civraxiu') || nome.includes('coccoi') ||
-        nome.includes('pistoccu') || nome.includes('moddizzosu')) {
-      return 'pane';
-    }
-    
-    return 'altro';
+  // Calcola totali per categoria
+  const calcolaTotaliCategoria = (ordiniCategoria) => {
+    const totali = {};
+
+    ordiniCategoria.forEach(ordine => {
+      ordine.prodottiCategoria?.forEach(prodotto => {
+        const chiave = prodotto.nome;
+        if (!totali[chiave]) {
+          totali[chiave] = {
+            nome: prodotto.nome,
+            quantitaTotale: 0,
+            unita: prodotto.unita || 'Kg',
+            kg: 0,
+            pezzi: 0
+          };
+        }
+
+        totali[chiave].quantitaTotale += prodotto.quantita || 0;
+        
+        if (prodotto.dettagliCalcolo) {
+          totali[chiave].kg += prodotto.dettagliCalcolo.kg || 0;
+          totali[chiave].pezzi += prodotto.dettagliCalcolo.pezzi || 0;
+        }
+      });
+    });
+
+    return Object.values(totali);
   };
 
-  // Funzione per esportare
-  const esportaRiepilogo = () => {
-    const content = `RIEPILOGO GIORNALIERO - ${new Date(data).toLocaleDateString('it-IT')}
-    
-STATISTICHE GENERALI
-- Totale Ordini: ${stats.totaleOrdini}
-- Totale Incasso: €${stats.totaleIncasso.toFixed(2)}
-- Numero Clienti: ${stats.numeroClienti}
-- Media per Ordine: €${stats.totaleOrdini > 0 ? (stats.totaleIncasso / stats.totaleOrdini).toFixed(2) : '0.00'}
-
-PRODOTTI VENDUTI
-${Object.entries(stats.prodottiVenduti)
-  .map(([nome, data]) => `- ${nome}: ${data.quantita} ${data.unita} (€${data.incasso.toFixed(2)})`)
-  .join('\n')}
-
-TOTALI PER CATEGORIA (in kg equivalenti)
-- Pasta: ${stats.categorieTotali.pasta.toFixed(2)} kg
-- Dolci: ${stats.categorieTotali.dolci.toFixed(2)} kg
-- Pane: ${stats.categorieTotali.pane.toFixed(2)} kg
-- Altro: ${stats.categorieTotali.altro.toFixed(2)} kg
-
-ORARI PIÙ RICHIESTI
-${Object.entries(stats.orariPiuRichiesti)
-  .sort((a, b) => b[1] - a[1])
-  .map(([ora, count]) => `- ${ora}: ${count} ordini`)
-  .join('\n')}`;
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `riepilogo_${data}.txt`;
-    a.click();
+  const stampa = () => {
+    window.print();
   };
-
-  if (!ordini || ordini.length === 0) {
-    return (
-      <Card className="p-8 text-center">
-        <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-600 text-lg">Nessun ordine per questa data</p>
-        <p className="text-gray-500 text-sm mt-2">
-          {new Date(data).toLocaleDateString('it-IT', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </p>
-      </Card>
-    );
-  }
 
   return (
-    <div className="space-y-6">
-      {/* Header con azioni */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <FileText className="h-6 w-6 text-blue-600" />
-          Riepilogo del {new Date(data).toLocaleDateString('it-IT')}
-        </h2>
-        <div className="flex gap-2">
-          <Button onClick={esportaRiepilogo} variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Esporta
-          </Button>
-          <Button onClick={() => window.print()} variant="outline" size="sm">
-            <Printer className="h-4 w-4 mr-2" />
-            Stampa
-          </Button>
-        </div>
-      </div>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="lg" 
+      fullWidth
+      fullScreen
+    >
+      <DialogTitle className="no-print">
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Box display="flex" alignItems="center" gap={2}>
+            <CalendarIcon />
+            <Typography variant="h6">Riepilogo Giornaliero Stampabile</Typography>
+          </Box>
+          <Box display="flex" gap={1}>
+            <TextField
+              type="date"
+              value={dataSelezionata}
+              onChange={(e) => setDataSelezionata(e.target.value)}
+              size="small"
+              InputLabelProps={{ shrink: true }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<PrintIcon />}
+              onClick={stampa}
+            >
+              Stampa
+            </Button>
+            <IconButton onClick={onClose} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </Box>
+      </DialogTitle>
 
-      {/* Cards statistiche principali */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Ordini Totali</p>
-              <p className="text-2xl font-bold text-blue-900">{stats.totaleOrdini}</p>
-            </div>
-            <ShoppingCart className="h-8 w-8 text-blue-500" />
-          </div>
-        </Card>
+      <DialogContent>
+        <Box className="printable-content">
+          {/* Riepilogo Generale - Prima Pagina */}
+          <Paper elevation={0} sx={{ p: 3, mb: 3, pageBreakAfter: 'always' }}>
+            <Box sx={{ textAlign: 'center', mb: 3 }}>
+              <Typography variant="h4" gutterBottom>
+                🍝 PASTIFICIO NONNA CLAUDIA
+              </Typography>
+              <Typography variant="h5" color="primary">
+                Riepilogo Produzione Giornaliera
+              </Typography>
+              <Typography variant="h6" color="text.secondary">
+                {new Date(dataSelezionata).toLocaleDateString('it-IT', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </Typography>
+            </Box>
 
-        <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-600 font-medium">Incasso Totale</p>
-              <p className="text-2xl font-bold text-green-900">€{stats.totaleIncasso.toFixed(2)}</p>
-            </div>
-            <Euro className="h-8 w-8 text-green-500" />
-          </div>
-        </Card>
+            <Divider sx={{ my: 2 }} />
 
-        <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-purple-600 font-medium">Clienti</p>
-              <p className="text-2xl font-bold text-purple-900">{stats.numeroClienti}</p>
-            </div>
-            <Users className="h-8 w-8 text-purple-500" />
-          </div>
-        </Card>
+            <Grid container spacing={3}>
+              <Grid item xs={4}>
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.light' }}>
+                  <Typography variant="h3">{ordiniFiltrati.length}</Typography>
+                  <Typography variant="subtitle1">Ordini Totali</Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={4}>
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'success.light' }}>
+                  <Typography variant="h3">
+                    €{ordiniFiltrati.reduce((sum, o) => sum + (o.totale || 0), 0).toFixed(2)}
+                  </Typography>
+                  <Typography variant="subtitle1">Incasso Totale</Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={4}>
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'warning.light' }}>
+                  <Typography variant="h3">
+                    {ordiniFiltrati.filter(o => o.daViaggio).length}
+                  </Typography>
+                  <Typography variant="subtitle1">Da Viaggio</Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+          </Paper>
 
-        <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-orange-600 font-medium">Media/Ordine</p>
-              <p className="text-2xl font-bold text-orange-900">
-                €{stats.totaleOrdini > 0 ? (stats.totaleIncasso / stats.totaleOrdini).toFixed(2) : '0.00'}
-              </p>
-            </div>
-            <TrendingUp className="h-8 w-8 text-orange-500" />
-          </div>
-        </Card>
-      </div>
+          {/* Pagine per Categoria */}
+          {Object.entries(ordiniPerCategoria).map(([categoria, ordiniCategoria]) => {
+            if (ordiniCategoria.length === 0) return null;
 
-      {/* Prodotti più venduti */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          Prodotti Venduti
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-sm font-medium">Prodotto</th>
-                <th className="px-4 py-2 text-center text-sm font-medium">Quantità</th>
-                <th className="px-4 py-2 text-center text-sm font-medium">Unità</th>
-                <th className="px-4 py-2 text-center text-sm font-medium">Kg Equiv.</th>
-                <th className="px-4 py-2 text-right text-sm font-medium">Incasso</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {Object.entries(stats.prodottiVenduti)
-                .sort((a, b) => b[1].incasso - a[1].incasso)
-                .map(([nome, data]) => (
-                  <tr key={nome} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 text-sm font-medium">{nome}</td>
-                    <td className="px-4 py-2 text-center text-sm">{data.quantita}</td>
-                    <td className="px-4 py-2 text-center text-sm">{data.unita}</td>
-                    <td className="px-4 py-2 text-center text-sm">
-                      {stats.prodottiInKg[nome]?.toFixed(2) || '0.00'}
-                    </td>
-                    <td className="px-4 py-2 text-right text-sm font-semibold text-green-600">
-                      €{data.incasso.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-            <tfoot className="bg-gray-100">
-              <tr>
-                <td className="px-4 py-3 font-semibold">Totali</td>
-                <td colSpan="3" className="px-4 py-3 text-center font-semibold">
-                  {Object.values(stats.prodottiInKg).reduce((sum, kg) => sum + kg, 0).toFixed(2)} kg totali
-                </td>
-                <td className="px-4 py-3 text-right font-bold text-green-600">
-                  €{stats.totaleIncasso.toFixed(2)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </Card>
+            const totaliCategoria = calcolaTotaliCategoria(ordiniCategoria);
 
-      {/* Categorie */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Totali per categoria */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <ChefHat className="h-5 w-5" />
-            Produzione per Categoria (kg)
-          </h3>
-          <div className="space-y-3">
-            {Object.entries(stats.categorieTotali)
-              .filter(([_, kg]) => kg > 0)
-              .sort((a, b) => b[1] - a[1])
-              .map(([categoria, kg]) => {
-                const percentuale = Object.values(stats.categorieTotali).reduce((sum, v) => sum + v, 0) > 0
-                  ? (kg / Object.values(stats.categorieTotali).reduce((sum, v) => sum + v, 0) * 100).toFixed(1)
-                  : 0;
-                
-                const icons = {
-                  pasta: '🍝',
-                  dolci: '🍰',
-                  pane: '🍞',
-                  altro: '📦'
-                };
-                
-                return (
-                  <div key={categoria} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl">{icons[categoria]}</span>
-                      <span className="font-medium capitalize">{categoria}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${percentuale}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-semibold w-20 text-right">
-                        {kg.toFixed(2)} kg
-                      </span>
-                      <Badge variant="secondary">{percentuale}%</Badge>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </Card>
+            return (
+              <Paper 
+                key={categoria} 
+                elevation={0} 
+                sx={{ p: 3, mb: 3, pageBreakAfter: 'always' }}
+              >
+                {/* Intestazione Pagina Categoria */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h4" gutterBottom>
+                    📋 {categoria.toUpperCase()}
+                  </Typography>
+                  <Typography variant="subtitle1" color="text.secondary">
+                    {new Date(dataSelezionata).toLocaleDateString('it-IT')} - {ordiniCategoria.length} ordini
+                  </Typography>
+                </Box>
 
-        {/* Orari più richiesti */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Orari di Ritiro
-          </h3>
-          <div className="space-y-2">
-            {Object.entries(stats.orariPiuRichiesti)
-              .sort((a, b) => a[0].localeCompare(b[0]))
-              .map(([ora, count]) => (
-                <div key={ora} className="flex items-center justify-between p-2 rounded hover:bg-gray-50">
-                  <span className="font-medium">{ora}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-orange-500 h-2 rounded-full"
-                        style={{ 
-                          width: `${(count / Math.max(...Object.values(stats.orariPiuRichiesti))) * 100}%` 
-                        }}
-                      />
-                    </div>
-                    <Badge>{count} {count === 1 ? 'ordine' : 'ordini'}</Badge>
-                  </div>
-                </div>
-              ))}
-            {Object.keys(stats.orariPiuRichiesti).length === 0 && (
-              <p className="text-gray-500 text-sm text-center py-4">
-                Nessun orario specificato
-              </p>
-            )}
-          </div>
-        </Card>
-      </div>
+                {/* Tabella Ordini Categoria */}
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'grey.200' }}>
+                        <TableCell><strong>ORA</strong></TableCell>
+                        <TableCell><strong>CLIENTE</strong></TableCell>
+                        <TableCell><strong>PRODOTTO</strong></TableCell>
+                        <TableCell align="center"><strong>QUANTITÀ</strong></TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <strong>MULTI</strong>
+                            <ArrowIcon fontSize="small" />
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <strong>VIAGGIO</strong>
+                            <CheckIcon fontSize="small" />
+                          </Box>
+                        </TableCell>
+                        <TableCell><strong>NOTE</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {ordiniCategoria.map((ordine, index) => {
+                        const prodottiAltreCategorie = ordine.altreCategorie.length > 0;
+                        
+                        return ordine.prodottiCategoria?.map((prodotto, pIdx) => (
+                          <TableRow 
+                            key={`${ordine._id || ordine.id}-${pIdx}`}
+                            sx={{ 
+                              borderLeft: ordine.daViaggio ? '4px solid orange' : 'none',
+                              bgcolor: pIdx === 0 && index % 2 === 0 ? 'grey.50' : 'white'
+                            }}
+                          >
+                            {/* Ora - solo prima riga per ordine */}
+                            {pIdx === 0 ? (
+                              <TableCell rowSpan={ordine.prodottiCategoria.length}>
+                                <Typography variant="h6">
+                                  {ordine.oraRitiro || 'N/D'}
+                                </Typography>
+                              </TableCell>
+                            ) : null}
 
-      {/* Lista ordini dettagliata */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Dettaglio Ordini ({ordini.length})
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-2 text-left">Ora</th>
-                <th className="px-3 py-2 text-left">Cliente</th>
-                <th className="px-3 py-2 text-left">Prodotti</th>
-                <th className="px-3 py-2 text-right">Totale</th>
-                <th className="px-3 py-2 text-center">Stato</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {ordini
-                .sort((a, b) => (a.oraRitiro || '').localeCompare(b.oraRitiro || ''))
-                .map((ordine) => (
-                  <tr key={ordine._id || ordine.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2">{ordine.oraRitiro || '-'}</td>
-                    <td className="px-3 py-2 font-medium">{ordine.nomeCliente}</td>
-                    <td className="px-3 py-2">
-                      <div className="max-w-md">
-                        {ordine.prodotti?.map(p => {
-                          const nomePulito = p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim();
-                          const unita = p.unita || p.unitaMisura || 'kg';
-                          return `${nomePulito} (${p.quantita} ${unita})`;
-                        }).join(', ')}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right font-semibold">
-                      €{ordine.totale?.toFixed(2) || '0.00'}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <Badge variant={ordine.stato === 'completato' ? 'success' : 'default'}>
-                        {ordine.stato || 'nuovo'}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                            {/* Cliente - solo prima riga per ordine */}
+                            {pIdx === 0 ? (
+                              <TableCell rowSpan={ordine.prodottiCategoria.length}>
+                                <Typography variant="body1" fontWeight="bold">
+                                  {ordine.nomeCliente}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {ordine.telefono}
+                                </Typography>
+                              </TableCell>
+                            ) : null}
 
-      {/* Note di conversione */}
-      <Card className="p-4 bg-blue-50 border-blue-200">
-        <div className="flex items-start gap-2">
-          <Coffee className="h-5 w-5 text-blue-600 mt-0.5" />
-          <div className="text-sm text-blue-800">
-            <p className="font-semibold mb-1">Note sulle conversioni:</p>
-            <ul className="space-y-1 ml-4">
-              <li>• 1 Seada/Sebada = 150g</li>
-              <li>• 1 Pardula = 40g (25 pardulas = 1kg)</li>
-              <li>• 1 Formaggella = 80g</li>
-              <li>• 1 Panada = 200g</li>
-              <li>• Prodotti venduti a € non vengono convertiti in kg</li>
-            </ul>
-          </div>
-        </div>
-      </Card>
-    </div>
+                            {/* Prodotto */}
+                            <TableCell>
+                              <Typography variant="body2">
+                                {prodotto.nome}
+                              </Typography>
+                            </TableCell>
+
+                            {/* Quantità */}
+                            <TableCell align="center">
+                              <Typography variant="body2">
+                                {prodotto.dettagliCalcolo?.dettagli || 
+                                 `${prodotto.quantita} ${prodotto.unita}`}
+                              </Typography>
+                            </TableCell>
+
+                            {/* ✅ MULTI-PRODOTTO - solo prima riga */}
+                            {pIdx === 0 ? (
+                              <TableCell align="center" rowSpan={ordine.prodottiCategoria.length}>
+                                {prodottiAltreCategorie && (
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                                    <ArrowIcon color="warning" sx={{ fontSize: 32, fontWeight: 'bold' }} />
+                                    <Typography variant="caption" color="warning.main" fontWeight="bold">
+                                      {ordine.altreCategorie.join(', ')}
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </TableCell>
+                            ) : null}
+
+                            {/* ✅ DA VIAGGIO - solo prima riga */}
+                            {pIdx === 0 ? (
+                              <TableCell align="center" rowSpan={ordine.prodottiCategoria.length}>
+                                {ordine.daViaggio && (
+                                  <CheckIcon color="success" sx={{ fontSize: 32 }} />
+                                )}
+                              </TableCell>
+                            ) : null}
+
+                            {/* Note - solo prima riga */}
+                            {pIdx === 0 ? (
+                              <TableCell rowSpan={ordine.prodottiCategoria.length}>
+                                <Typography variant="caption">
+                                  {ordine.note || '-'}
+                                </Typography>
+                              </TableCell>
+                            ) : null}
+                          </TableRow>
+                        ));
+                      })}
+
+                      {/* Riga Totali Categoria */}
+                      <TableRow sx={{ bgcolor: 'success.light', fontWeight: 'bold' }}>
+                        <TableCell colSpan={2}>
+                          <Typography variant="h6">TOTALI {categoria.toUpperCase()}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="bold">PRODOTTO</Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Typography variant="body2" fontWeight="bold">QUANTITÀ TOTALE</Typography>
+                        </TableCell>
+                        <TableCell colSpan={3}></TableCell>
+                      </TableRow>
+                      {totaliCategoria.map((totale, idx) => (
+                        <TableRow key={idx} sx={{ bgcolor: 'success.50' }}>
+                          <TableCell colSpan={2}></TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="medium">
+                              {totale.nome}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography variant="body2" fontWeight="bold">
+                              {totale.kg > 0 && `${totale.kg.toFixed(2)} kg`}
+                              {totale.kg > 0 && totale.pezzi > 0 && ' ≈ '}
+                              {totale.pezzi > 0 && `${totale.pezzi} pz`}
+                              {totale.kg === 0 && totale.pezzi === 0 && `${totale.quantitaTotale} ${totale.unita}`}
+                            </Typography>
+                          </TableCell>
+                          <TableCell colSpan={3}></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            );
+          })}
+
+          {/* Messaggio se nessun ordine */}
+          {ordiniFiltrati.length === 0 && (
+            <Paper sx={{ p: 5, textAlign: 'center' }}>
+              <Typography variant="h5" color="text.secondary">
+                Nessun ordine per {new Date(dataSelezionata).toLocaleDateString('it-IT')}
+              </Typography>
+            </Paper>
+          )}
+        </Box>
+      </DialogContent>
+
+      <DialogActions className="no-print">
+        <Button onClick={onClose}>Chiudi</Button>
+      </DialogActions>
+
+      {/* Stili per stampa */}
+      <style jsx global>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+          
+          .printable-content {
+            width: 100%;
+          }
+          
+          table {
+            page-break-inside: avoid;
+          }
+          
+          tr {
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
+    </Dialog>
   );
-};
-
-export default RiepilogoGiornaliero;
+}

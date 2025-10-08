@@ -1,592 +1,514 @@
-// components/NuovoOrdine.js
-import React, { useState, useEffect } from 'react';
+// components/NuovoOrdine.js - COMPLETO CON DA VIAGGIO
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
   Button,
-  Grid,
-  IconButton,
-  Typography,
+  TextField,
   Box,
+  Typography,
+  Autocomplete,
+  FormControlLabel,
+  Switch,
+  IconButton,
+  Chip,
+  Select,
   MenuItem,
+  FormControl,
+  InputLabel,
+  Paper,
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
-  TableRow,
-  Paper,
-  Alert,
-  Divider,
-  Chip,
-  Autocomplete
+  TableRow
 } from '@mui/material';
 import {
-  Close as CloseIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  Save as SaveIcon,
-  WhatsApp as WhatsAppIcon,
-  Person as PersonIcon,
-  Phone as PhoneIcon,
-  CalendarToday as CalendarIcon,
-  AccessTime as TimeIcon,
-  ShoppingCart as CartIcon
+  Luggage as LuggageIcon
 } from '@mui/icons-material';
-
-const prodottiDisponibili = {
-  dolci: [
-    { nome: "Pardulas", prezzo: 19.00, unita: "Kg", descrizione: "Ricotta, zucchero, uova, aromi vari, farina 00, strutto, lievito" },
-    { nome: "Amaretti", prezzo: 22.00, unita: "Kg", descrizione: "Mandorle, zucchero, uova, aromi vari" },
-    { nome: "Papassinas", prezzo: 22.00, unita: "Kg", descrizione: "Farina, mandorle, uva sultanina, noci, sapa, zucchero, strutto, aromi vari, lievito" },
-    { nome: "Ciambelle con marmellata", prezzo: 16.00, unita: "Kg", descrizione: "Farina 00, zucchero, strutto, margarina vegetale, uova, passata di albicocche" },
-    { nome: "Ciambelle con Nutella", prezzo: 16.00, unita: "Kg", descrizione: "Farina, zucchero, strutto, margarina vegetale, uova, cacao, aromi vari" },
-    { nome: "Cantucci", prezzo: 23.00, unita: "Kg", descrizione: "Mandorle, farina 00, zucchero, uova, aromi vari" },
-    { nome: "Bianchini", prezzo: 15.00, unita: "Kg", descrizione: "Zucchero, uova" },
-    { nome: "Gueffus", prezzo: 22.00, unita: "Kg", descrizione: "Mandorle, zucchero, aromi vari" },
-    { nome: "Dolci misti (Pardulas, ciambelle, papassinas, amaretti, gueffus, bianchini)", prezzo: 19.00, unita: "Kg", descrizione: "Mix di dolci tradizionali" },
-    { nome: "Dolci misti (Pardulas, ciambelle)", prezzo: 17.00, unita: "Kg", descrizione: "Mix pardulas e ciambelle" },
-    { nome: "Zeppole", prezzo: 21.00, unita: "Kg", descrizione: "Farina, latte, uova, ricotta, patate, aromi vari, lievito" },
-    { nome: "Pizzette sfoglia", prezzo: 16.00, unita: "Kg", descrizione: "Farina, passata di pomodoro, strutto, capperi, lievito" },
-    { nome: "Torta di sapa", prezzo: 23.00, unita: "Kg", descrizione: "Farina, sapa, zucchero, uova, noci, mandorle, uva sultanina" }
-  ],
-  panadas: [
-    { nome: "Panada di anguille", prezzo: 30.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
-    { nome: "Panada di Agnello", prezzo: 25.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
-    { nome: "Panada di Maiale", prezzo: 21.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
-    { nome: "Panada di Vitella", prezzo: 23.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
-    { nome: "Panada di verdure", prezzo: 17.00, unita: "Kg", descrizione: "Melanzane, patate e piselli (prodotto congelato)" },
-    { nome: "Panadine carne o verdura", prezzo: 0.80, unita: "unità", descrizione: "Prodotto congelato" }
-  ],
-  pasta: [
-    { nome: "Ravioli ricotta e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, sale, semola, farina" },
-    { nome: "Ravioli ricotta spinaci e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, spinaci, zafferano, uova, sale, semola, farina" },
-    { nome: "Ravioli ricotta spinaci", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, spinaci, uova, sale, semola, farina" },
-    { nome: "Ravioli ricotta dolci", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, zucchero, semola, farina" },
-    { nome: "Culurgiones", prezzo: 16.00, unita: "Kg", descrizione: "Patate, formaggio, aglio, menta, olio extra vergine, sale, semola, farina" },
-    { nome: "Ravioli formaggio", prezzo: 16.00, unita: "Kg", descrizione: "Formaggio pecorino, spinaci, uova, sale, semola, farina" },
-    { nome: "Sfoglie per Lasagne", prezzo: 5.00, unita: "Kg", descrizione: "Semola, farina, uova, sale" },
-    { nome: "Pasta per panadas", prezzo: 5.00, unita: "Kg", descrizione: "Semola, farina, strutto naturale, sale" },
-    { nome: "Pasta per pizza", prezzo: 5.00, unita: "Kg", descrizione: "Farina, latte, olio, lievito, sale" },
-    { nome: "Fregola", prezzo: 10.00, unita: "Kg", descrizione: "Semola, zafferano, sale" }
-  ]
-};
+import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
+import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
-export default function NuovoOrdine({ open, onClose, onSave, ordineIniziale, submitInCorso }) {
-  const [ordine, setOrdine] = useState({
+export default function NuovoOrdine({ 
+  open, 
+  onClose, 
+  onSave, 
+  ordineIniziale = null,
+  isConnected = true
+}) {
+  const [clienti, setClienti] = useState([]);
+  const [loadingClienti, setLoadingClienti] = useState(false);
+
+  // ✅ STATO FORM CON CAMPO daViaggio
+  const [formData, setFormData] = useState({
+    cliente: null,
     nomeCliente: '',
     telefono: '',
     dataRitiro: new Date().toISOString().split('T')[0],
     oraRitiro: '',
     prodotti: [],
     note: '',
-    stato: 'nuovo',
-    cliente: { nome: '', telefono: '' }
+    daViaggio: false // ✅ NUOVO CAMPO
   });
 
+  // Stato prodotto corrente
   const [prodottoCorrente, setProdottoCorrente] = useState({
     nome: '',
+    variante: '',
     quantita: 1,
     unita: 'Kg',
-    prezzo: 0,
-    categoria: ''
+    prezzo: 0
   });
 
-  const [errori, setErrori] = useState({});
-  const [clienti, setClienti] = useState([]);
-  const [loadingClienti, setLoadingClienti] = useState(false);
-
-  // Carica clienti quando il dialog si apre
-  useEffect(() => {
-    const caricaClienti = async () => {
-      if (!open) return;
-      
-      setLoadingClienti(true);
-      try {
-        const response = await fetch(`${API_URL}/clienti`);
-        const data = await response.json();
-        
-        console.log('Clienti caricati:', data);
-        
-        if (data.success && Array.isArray(data.data)) {
-          setClienti(data.data);
-        }
-      } catch (error) {
-        console.error('Errore caricamento clienti:', error);
-      } finally {
-        setLoadingClienti(false);
-      }
-    };
-    
-    caricaClienti();
-  }, [open]);
-
-  // Carica ordine se in modifica
+  // Reset form quando cambia ordineIniziale
   useEffect(() => {
     if (ordineIniziale) {
-      setOrdine({
-        ...ordineIniziale,
-        nomeCliente: ordineIniziale.nomeCliente || ordineIniziale.cliente?.nome || '',
-        telefono: ordineIniziale.telefono || ordineIniziale.cliente?.telefono || ''
+      setFormData({
+        cliente: ordineIniziale.cliente || null,
+        nomeCliente: ordineIniziale.nomeCliente || '',
+        telefono: ordineIniziale.telefono || '',
+        dataRitiro: ordineIniziale.dataRitiro?.split('T')[0] || new Date().toISOString().split('T')[0],
+        oraRitiro: ordineIniziale.oraRitiro || '',
+        prodotti: ordineIniziale.prodotti || [],
+        note: ordineIniziale.note || '',
+        daViaggio: ordineIniziale.daViaggio || false // ✅ CARICA daViaggio
       });
     } else {
-      // Reset quando si chiude il dialog
-      if (!open) {
-        setOrdine({
-          nomeCliente: '',
-          telefono: '',
-          dataRitiro: new Date().toISOString().split('T')[0],
-          oraRitiro: '',
-          prodotti: [],
-          note: '',
-          stato: 'nuovo',
-          cliente: { nome: '', telefono: '' }
-        });
-        setProdottoCorrente({
-          nome: '',
-          quantita: 1,
-          unita: 'Kg',
-          prezzo: 0,
-          categoria: ''
-        });
-        setErrori({});
-      }
+      setFormData({
+        cliente: null,
+        nomeCliente: '',
+        telefono: '',
+        dataRitiro: new Date().toISOString().split('T')[0],
+        oraRitiro: '',
+        prodotti: [],
+        note: '',
+        daViaggio: false
+      });
     }
-  }, [ordineIniziale, open]);
+  }, [ordineIniziale]);
 
-  const tuttiProdotti = Object.values(prodottiDisponibili).flat();
+  // Carica clienti
+  useEffect(() => {
+    if (open && isConnected) {
+      caricaClienti();
+    }
+  }, [open, isConnected]);
 
-  const handleProdottoChange = (nomeProdotto) => {
-    const prodotto = tuttiProdotti.find(p => p.nome === nomeProdotto);
-    if (prodotto) {
-      setProdottoCorrente({
-        nome: prodotto.nome,
-        prezzo: prodotto.prezzo,
-        unita: prodotto.unita,
-        quantita: 1,
-        categoria: Object.entries(prodottiDisponibili).find(([_, prods]) => 
-          prods.some(p => p.nome === prodotto.nome)
-        )?.[0] || ''
+  const caricaClienti = async () => {
+    try {
+      setLoadingClienti(true);
+      const response = await fetch(`${API_URL}/clienti?attivo=true`, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setClienti(data.data || data.clienti || data || []);
+      }
+    } catch (error) {
+      console.error('Errore caricamento clienti:', error);
+    } finally {
+      setLoadingClienti(false);
+    }
+  };
+
+  // Gestione selezione cliente
+  const handleClienteChange = (event, cliente) => {
+    if (cliente) {
+      setFormData({
+        ...formData,
+        cliente: cliente,
+        nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
+        telefono: cliente.telefono || ''
+      });
+    } else {
+      setFormData({
+        ...formData,
+        cliente: null,
+        nomeCliente: '',
+        telefono: ''
       });
     }
   };
 
-  const aggiungiProdotto = () => {
-    if (!prodottoCorrente.nome) {
-      setErrori({ prodotto: 'Seleziona un prodotto' });
+  // ✅ Gestione prodotto base (con varianti)
+  const prodottoConfig = useMemo(() => {
+    if (!prodottoCorrente.nome) return null;
+    return getProdottoConfig(prodottoCorrente.nome);
+  }, [prodottoCorrente.nome]);
+
+  const hasVarianti = prodottoConfig?.hasVarianti || false;
+  const varianti = prodottoConfig?.varianti || [];
+
+  // Gestione cambio prodotto
+  const handleProdottoChange = (event, prodottoNome) => {
+    if (!prodottoNome) {
+      setProdottoCorrente({
+        nome: '',
+        variante: '',
+        quantita: 1,
+        unita: 'Kg',
+        prezzo: 0
+      });
       return;
     }
 
-    const nuovoProdotto = {
-      ...prodottoCorrente,
-      prodotto: prodottoCorrente.nome,
-      totale: prodottoCorrente.quantita * prodottoCorrente.prezzo
-    };
-
-    setOrdine({
-      ...ordine,
-      prodotti: [...ordine.prodotti, nuovoProdotto]
-    });
+    const config = getProdottoConfig(prodottoNome);
+    if (!config) return;
 
     setProdottoCorrente({
-      nome: '',
+      nome: prodottoNome,
+      variante: '',
       quantita: 1,
-      unita: 'Kg',
-      prezzo: 0,
-      categoria: ''
-    });
-    setErrori({});
-  };
-
-  const rimuoviProdotto = (index) => {
-    setOrdine({
-      ...ordine,
-      prodotti: ordine.prodotti.filter((_, i) => i !== index)
+      unita: config.unitaMisuraDisponibili?.[0] || 'Kg',
+      prezzo: 0
     });
   };
 
-  const calcolaTotale = () => {
-    return ordine.prodotti.reduce((sum, p) => sum + (p.quantita * p.prezzo), 0);
+  // Gestione variante
+  const handleVarianteChange = (event) => {
+    const varianteNome = event.target.value;
+    const variante = varianti.find(v => v.nome === varianteNome);
+
+    if (variante) {
+      setProdottoCorrente({
+        ...prodottoCorrente,
+        variante: varianteNome
+      });
+    }
   };
 
-  const handleSubmit = () => {
-    const erroriValidazione = {};
-    
-    if (!ordine.nomeCliente) {
-      erroriValidazione.nomeCliente = 'Nome cliente obbligatorio';
-    }
-    if (ordine.prodotti.length === 0) {
-      erroriValidazione.prodotti = 'Aggiungi almeno un prodotto';
-    }
-    if (!ordine.dataRitiro) {
-      erroriValidazione.dataRitiro = 'Data ritiro obbligatoria';
-    }
-    if (!ordine.oraRitiro) {
-      erroriValidazione.oraRitiro = 'Ora ritiro obbligatoria';
-    }
+  // Calcola prezzo quando cambiano quantità/unità/variante
+  useEffect(() => {
+    if (!prodottoCorrente.nome || prodottoCorrente.quantita <= 0) return;
 
-    if (Object.keys(erroriValidazione).length > 0) {
-      setErrori(erroriValidazione);
+    try {
+      let nomeProdottoCompleto = prodottoCorrente.nome;
+
+      // Se ha variante, componi nome completo
+      if (prodottoCorrente.variante) {
+        const variante = varianti.find(v => v.nome === prodottoCorrente.variante);
+        nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
+      }
+
+      const risultato = calcolaPrezzoOrdine(
+        nomeProdottoCompleto,
+        prodottoCorrente.quantita,
+        prodottoCorrente.unita
+      );
+
+      setProdottoCorrente(prev => ({
+        ...prev,
+        prezzo: risultato.prezzoTotale
+      }));
+    } catch (error) {
+      console.error('Errore calcolo prezzo:', error);
+      setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
+    }
+  }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.quantita, prodottoCorrente.unita, varianti]);
+
+  // Aggiungi prodotto
+  const handleAggiungiProdotto = () => {
+    if (!prodottoCorrente.nome || prodottoCorrente.quantita <= 0) {
+      alert('Seleziona un prodotto e inserisci una quantità valida');
       return;
     }
 
-    const ordineCompleto = {
-      ...ordine,
-      cliente: {
-        nome: ordine.nomeCliente,
-        telefono: ordine.telefono
-      },
-      totale: calcolaTotale(),
-      createdAt: ordine.createdAt || new Date().toISOString()
+    // Se ha varianti, deve selezionare una variante
+    if (hasVarianti && !prodottoCorrente.variante) {
+      alert('Seleziona una variante');
+      return;
+    }
+
+    let nomeProdottoCompleto = prodottoCorrente.nome;
+    if (prodottoCorrente.variante) {
+      const variante = varianti.find(v => v.nome === prodottoCorrente.variante);
+      nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
+    }
+
+    const risultato = calcolaPrezzoOrdine(
+      nomeProdottoCompleto,
+      prodottoCorrente.quantita,
+      prodottoCorrente.unita
+    );
+
+    const nuovoProdotto = {
+      nome: nomeProdottoCompleto,
+      quantita: prodottoCorrente.quantita,
+      unita: prodottoCorrente.unita,
+      unitaMisura: prodottoCorrente.unita,
+      prezzo: risultato.prezzoTotale,
+      categoria: prodottoConfig?.categoria || 'Altro',
+      dettagliCalcolo: risultato
     };
 
-    onSave(ordineCompleto);
+    setFormData({
+      ...formData,
+      prodotti: [...formData.prodotti, nuovoProdotto]
+    });
+
+    // Reset prodotto corrente
+    setProdottoCorrente({
+      nome: '',
+      variante: '',
+      quantita: 1,
+      unita: 'Kg',
+      prezzo: 0
+    });
   };
 
-  const handleWhatsApp = () => {
-    const testoOrdine = `
-🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
+  // Rimuovi prodotto
+  const handleRimuoviProdotto = (index) => {
+    setFormData({
+      ...formData,
+      prodotti: formData.prodotti.filter((_, i) => i !== index)
+    });
+  };
 
-📋 *NUOVO ORDINE*
-👤 Cliente: ${ordine.nomeCliente}
-📅 Ritiro: ${ordine.dataRitiro}
-⏰ Ora: ${ordine.oraRitiro}
+  // Calcola totale ordine
+  const calcolaTotale = () => {
+    return formData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
+  };
 
-📦 *PRODOTTI:*
-${ordine.prodotti.map(p => `• ${p.nome}: ${p.quantita} ${p.unita}`).join('\n')}
+  // Salva ordine
+  const handleSalva = () => {
+    if (!formData.nomeCliente || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
+      alert('Compila tutti i campi obbligatori: cliente, data ritiro, ora ritiro e almeno un prodotto');
+      return;
+    }
 
-💰 *TOTALE: €${calcolaTotale().toFixed(2)}*
+    const ordineData = {
+      ...formData,
+      cliente: formData.cliente?._id || null,
+      totale: calcolaTotale(),
+      daViaggio: formData.daViaggio // ✅ INCLUDI daViaggio
+    };
 
-${ordine.note ? `📝 Note: ${ordine.note}` : ''}
-
-Grazie per l'ordine! ✨
-    `.trim();
-
-    const numeroWhatsApp = ordine.telefono?.replace(/\D/g, '');
-    const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(testoOrdine)}`;
-    window.open(url, '_blank');
+    onSave(ordineData);
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6">
-            {ordineIniziale ? 'Modifica Ordine' : 'Nuovo Ordine'}
-          </Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
+        {ordineIniziale ? 'Modifica Ordine' : 'Nuovo Ordine'}
       </DialogTitle>
 
-      <DialogContent dividers>
-        <Grid container spacing={3}>
-          {/* Dati Cliente */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-              <PersonIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Dati Cliente
-            </Typography>
-          </Grid>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          {/* Cliente */}
+          <Autocomplete
+            options={clienti}
+            getOptionLabel={(option) => 
+              `${option.nome} ${option.cognome || ''} - ${option.telefono}`.trim()
+            }
+            value={formData.cliente}
+            onChange={handleClienteChange}
+            loading={loadingClienti}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Cliente *"
+                placeholder="Cerca cliente esistente o scrivi nuovo"
+              />
+            )}
+          />
 
-          {/* AUTOCOMPLETE CLIENTI - VERSIONE CORRETTA */}
-          <Grid item xs={12} md={6}>
-            <Autocomplete
-              options={clienti}
-              loading={loadingClienti}
-              value={null}
-              inputValue={ordine.nomeCliente}
-              onInputChange={(event, newInputValue) => {
-                setOrdine({ ...ordine, nomeCliente: newInputValue });
-              }}
-              getOptionLabel={(option) => {
-                if (!option) return '';
-                if (typeof option === 'string') return option;
-                const nome = option.tipo === 'azienda' ? 
-                  option.ragioneSociale : 
-                  `${option.nome} ${option.cognome || ''}`.trim();
-                return `${nome} - ${option.telefono}`;
-              }}
-              onChange={(event, newValue) => {
-                if (newValue && typeof newValue === 'object') {
-                  const nomeCompleto = newValue.tipo === 'azienda' ? 
-                    newValue.ragioneSociale : 
-                    `${newValue.nome} ${newValue.cognome || ''}`.trim();
-                  
-                  setOrdine({
-                    ...ordine,
-                    nomeCliente: nomeCompleto,
-                    telefono: newValue.telefono,
-                    email: newValue.email || ''
-                  });
-                }
-              }}
-              freeSolo
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Cliente *"
-                  error={!!errori.nomeCliente}
-                  helperText={errori.nomeCliente || "Cerca cliente esistente o scrivi nuovo"}
-                  required
-                  InputProps={{
-                    ...params.InputProps,
-                    startAdornment: (
-                      <>
-                        <PersonIcon sx={{ mr: 1, color: 'action.active' }} />
-                        {params.InputProps.startAdornment}
-                      </>
-                    )
-                  }}
-                />
-              )}
-            />
-          </Grid>
+          {/* Nome e Telefono (se non cliente esistente) */}
+          {!formData.cliente && (
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                fullWidth
+                label="Nome Cliente *"
+                value={formData.nomeCliente}
+                onChange={(e) => setFormData({ ...formData, nomeCliente: e.target.value })}
+              />
+              <TextField
+                fullWidth
+                label="Telefono"
+                value={formData.telefono}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+              />
+            </Box>
+          )}
 
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Telefono"
-              value={ordine.telefono}
-              onChange={(e) => setOrdine({ ...ordine, telefono: e.target.value })}
-              InputProps={{
-                startAdornment: <PhoneIcon sx={{ mr: 1, color: 'action.active' }} />
-              }}
-            />
-          </Grid>
-
-          {/* Data e Ora */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-              <CalendarIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Data e Ora Ritiro
-            </Typography>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
+          {/* Data e Ora Ritiro */}
+          <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField
               fullWidth
               type="date"
-              label="Data Ritiro"
-              value={ordine.dataRitiro}
-              onChange={(e) => setOrdine({ ...ordine, dataRitiro: e.target.value })}
-              error={!!errori.dataRitiro}
-              helperText={errori.dataRitiro}
-              required
+              label="Data Ritiro *"
+              value={formData.dataRitiro}
+              onChange={(e) => setFormData({ ...formData, dataRitiro: e.target.value })}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
             <TextField
               fullWidth
               type="time"
-              label="Ora Ritiro"
-              value={ordine.oraRitiro}
-              onChange={(e) => setOrdine({ ...ordine, oraRitiro: e.target.value })}
-              error={!!errori.oraRitiro}
-              helperText={errori.oraRitiro}
-              required
+              label="Ora Ritiro *"
+              value={formData.oraRitiro}
+              onChange={(e) => setFormData({ ...formData, oraRitiro: e.target.value })}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid>
+          </Box>
 
-          {/* Prodotti */}
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-              <CartIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Prodotti
-            </Typography>
-          </Grid>
+          {/* ✅ SWITCH DA VIAGGIO */}
+          <Paper sx={{ p: 2, bgcolor: formData.daViaggio ? 'warning.light' : 'grey.100' }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.daViaggio}
+                  onChange={(e) => setFormData({ ...formData, daViaggio: e.target.checked })}
+                  color="warning"
+                />
+              }
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LuggageIcon />
+                  <Typography variant="body1" fontWeight="bold">
+                    Ordine Da Viaggio (sottovuoto)
+                  </Typography>
+                </Box>
+              }
+            />
+          </Paper>
 
-          {/* Form aggiungi prodotto */}
-          <Grid item xs={12}>
-            <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={4}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Seleziona Prodotto"
-                    value={prodottoCorrente.nome}
-                    onChange={(e) => handleProdottoChange(e.target.value)}
-                    error={!!errori.prodotto}
-                    helperText={errori.prodotto}
-                    size="small"
-                  >
-                    <MenuItem value="">-- Seleziona --</MenuItem>
-                    {Object.entries(prodottiDisponibili).map(([categoria, prodotti]) => [
-                      <MenuItem key={`header-${categoria}`} disabled>
-                        <Typography variant="overline">{categoria.toUpperCase()}</Typography>
-                      </MenuItem>,
-                      ...prodotti.map(p => (
-                        <MenuItem key={p.nome} value={p.nome}>
-                          {p.nome} - €{p.prezzo}/{p.unita}
-                        </MenuItem>
-                      ))
-                    ])}
-                  </TextField>
-                </Grid>
+          {/* Selezione Prodotto */}
+          <Typography variant="h6">Prodotti</Typography>
 
-                <Grid item xs={6} md={2}>
-                  <TextField
-                    fullWidth
-                    type="number"
-                    label="Quantità"
-                    value={prodottoCorrente.quantita}
-                    onChange={(e) => setProdottoCorrente({
-                      ...prodottoCorrente,
-                      quantita: parseFloat(e.target.value) || 0
-                    })}
-                    inputProps={{ min: 0, step: 0.1 }}
-                    size="small"
-                  />
-                </Grid>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+            {/* Prodotto */}
+            <Autocomplete
+              sx={{ flex: 2 }}
+              options={LISTA_PRODOTTI}
+              value={prodottoCorrente.nome || null}
+              onChange={handleProdottoChange}
+              renderInput={(params) => (
+                <TextField {...params} label="Prodotto" placeholder="Cerca..." size="small" />
+              )}
+            />
 
-                <Grid item xs={6} md={2}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Unità"
-                    value={prodottoCorrente.unita}
-                    onChange={(e) => setProdottoCorrente({
-                      ...prodottoCorrente,
-                      unita: e.target.value
-                    })}
-                    size="small"
-                  >
-                    <MenuItem value="Kg">Kg</MenuItem>
-                    <MenuItem value="unità">Unità</MenuItem>
-                    <MenuItem value="pezzi">Pezzi</MenuItem>
-                  </TextField>
-                </Grid>
+            {/* Variante (se necessario) */}
+            {hasVarianti && (
+              <FormControl sx={{ flex: 1.5 }} size="small">
+                <InputLabel>Variante *</InputLabel>
+                <Select
+                  value={prodottoCorrente.variante}
+                  onChange={handleVarianteChange}
+                  label="Variante *"
+                >
+                  {varianti.map((v) => (
+                    <MenuItem key={v.nome} value={v.nome}>
+                      {v.nome} - €{v.prezzoKg}/Kg
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
-                <Grid item xs={6} md={2}>
-                  <TextField
-                    fullWidth
-                    type="number"
-                    label="Prezzo"
-                    value={prodottoCorrente.prezzo}
-                    onChange={(e) => setProdottoCorrente({
-                      ...prodottoCorrente,
-                      prezzo: parseFloat(e.target.value) || 0
-                    })}
-                    inputProps={{ min: 0, step: 0.01 }}
-                    size="small"
-                  />
-                </Grid>
+            {/* Quantità */}
+            <TextField
+              sx={{ flex: 0.8 }}
+              type="number"
+              label="Quantità"
+              value={prodottoCorrente.quantita}
+              onChange={(e) => setProdottoCorrente({ ...prodottoCorrente, quantita: parseFloat(e.target.value) || 0 })}
+              inputProps={{ min: 0, step: 0.1 }}
+              size="small"
+            />
 
-                <Grid item xs={6} md={2}>
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    onClick={aggiungiProdotto}
-                    startIcon={<AddIcon />}
-                  >
-                    Aggiungi
-                  </Button>
-                </Grid>
-              </Grid>
+            {/* Unità */}
+            <FormControl sx={{ flex: 0.8 }} size="small">
+              <InputLabel>Unità</InputLabel>
+              <Select
+                value={prodottoCorrente.unita}
+                onChange={(e) => setProdottoCorrente({ ...prodottoCorrente, unita: e.target.value })}
+                label="Unità"
+              >
+                {(prodottoConfig?.unitaMisuraDisponibili || ['Kg']).map((u) => (
+                  <MenuItem key={u} value={u}>{u}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Prezzo */}
+            <TextField
+              sx={{ flex: 0.8 }}
+              label="Prezzo"
+              value={formattaPrezzo(prodottoCorrente.prezzo)}
+              size="small"
+              InputProps={{ readOnly: true }}
+            />
+
+            {/* Aggiungi */}
+            <IconButton color="primary" onClick={handleAggiungiProdotto} size="small">
+              <AddIcon />
+            </IconButton>
+          </Box>
+
+          {/* Lista Prodotti Aggiunti */}
+          {formData.prodotti.length > 0 && (
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>Prodotti Aggiunti:</Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Prodotto</TableCell>
+                    <TableCell align="center">Quantità</TableCell>
+                    <TableCell align="right">Prezzo</TableCell>
+                    <TableCell align="center">Azioni</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {formData.prodotti.map((p, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{p.nome}</TableCell>
+                      <TableCell align="center">
+                        {p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unita}`}
+                      </TableCell>
+                      <TableCell align="right">{formattaPrezzo(p.prezzo)}</TableCell>
+                      <TableCell align="center">
+                        <IconButton size="small" color="error" onClick={() => handleRimuoviProdotto(index)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={2}><strong>TOTALE</strong></TableCell>
+                    <TableCell align="right">
+                      <Typography variant="h6" color="primary">
+                        {formattaPrezzo(calcolaTotale())}
+                      </Typography>
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </Paper>
-          </Grid>
-
-          {/* Lista prodotti */}
-          {ordine.prodotti.length > 0 && (
-            <Grid item xs={12}>
-              <TableContainer component={Paper}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Prodotto</TableCell>
-                      <TableCell align="right">Quantità</TableCell>
-                      <TableCell>Unità</TableCell>
-                      <TableCell align="right">Prezzo/u</TableCell>
-                      <TableCell align="right">Totale</TableCell>
-                      <TableCell align="center">Azioni</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {ordine.prodotti.map((p, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{p.nome || p.prodotto}</TableCell>
-                        <TableCell align="right">{p.quantita}</TableCell>
-                        <TableCell>{p.unita}</TableCell>
-                        <TableCell align="right">€{p.prezzo.toFixed(2)}</TableCell>
-                        <TableCell align="right">€{(p.quantita * p.prezzo).toFixed(2)}</TableCell>
-                        <TableCell align="center">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => rimuoviProdotto(index)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow>
-                      <TableCell colSpan={4} align="right">
-                        <Typography variant="h6">Totale:</Typography>
-                      </TableCell>
-                      <TableCell align="right" colSpan={2}>
-                        <Typography variant="h6" color="primary">
-                          €{calcolaTotale().toFixed(2)}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Grid>
-          )}
-
-          {errori.prodotti && (
-            <Grid item xs={12}>
-              <Alert severity="error">{errori.prodotti}</Alert>
-            </Grid>
           )}
 
           {/* Note */}
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              label="Note"
-              value={ordine.note}
-              onChange={(e) => setOrdine({ ...ordine, note: e.target.value })}
-            />
-          </Grid>
-        </Grid>
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            label="Note"
+            value={formData.note}
+            onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+          />
+        </Box>
       </DialogContent>
 
       <DialogActions>
-        {ordine.telefono && ordine.prodotti.length > 0 && (
-          <Button
-            color="success"
-            startIcon={<WhatsAppIcon />}
-            onClick={handleWhatsApp}
-          >
-            Invia WhatsApp
-          </Button>
-        )}
-        <Box sx={{ flexGrow: 1 }} />
-        <Button onClick={onClose}>
-          Annulla
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={submitInCorso}
-          startIcon={<SaveIcon />}
-        >
-          {submitInCorso ? 'Salvataggio...' : 'Salva Ordine'}
+        <Button onClick={onClose}>Annulla</Button>
+        <Button variant="contained" onClick={handleSalva}>
+          Salva Ordine
         </Button>
       </DialogActions>
     </Dialog>

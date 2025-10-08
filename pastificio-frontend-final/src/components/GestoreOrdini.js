@@ -21,56 +21,88 @@ import {
   Speed as SpeedIcon,
   ListAlt as ListAltIcon,
   Add as AddIcon,
-  CloudUpload as CloudUploadIcon,
-  CloudOff as CloudOffIcon,
-  Sync as SyncIcon
+  Sync as SyncIcon,
+  LocalShipping as ShippingIcon
 } from '@mui/icons-material';
+
+// Import nuovi moduli di calcolo prezzi
+import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
+import { 
+  calcolaPrezzoOrdine, 
+  formattaPrezzo,
+  getUnitaMisuraDisponibili 
+} from '../utils/calcoliPrezzi';
 
 import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
-  API_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+  API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
 
+// Configurazione prodotti aggiornata con nuovo sistema
 const prodottiDisponibili = {
-  dolci: [
-    { nome: "Pardulas", prezzo: 19.00, unita: "Kg", descrizione: "Ricotta, zucchero, uova, aromi vari, farina 00, strutto, lievito" },
-    { nome: "Amaretti", prezzo: 22.00, unita: "Kg", descrizione: "Mandorle, zucchero, uova, aromi vari" },
-    { nome: "Papassinas", prezzo: 22.00, unita: "Kg", descrizione: "Farina, mandorle, uva sultanina, noci, sapa, zucchero, strutto, aromi vari, lievito" },
-    { nome: "Ciambelle con marmellata", prezzo: 16.00, unita: "Kg", descrizione: "Farina 00, zucchero, strutto, margarina vegetale, uova, passata di albicocche" },
-    { nome: "Ciambelle con Nutella", prezzo: 16.00, unita: "Kg", descrizione: "Farina, zucchero, strutto, margarina vegetale, uova, cacao, aromi vari" },
-    { nome: "Cantucci", prezzo: 23.00, unita: "Kg", descrizione: "Mandorle, farina 00, zucchero, uova, aromi vari" },
-    { nome: "Bianchini", prezzo: 15.00, unita: "Kg", descrizione: "Zucchero, uova" },
-    { nome: "Gueffus", prezzo: 22.00, unita: "Kg", descrizione: "Mandorle, zucchero, aromi vari" },
-    { nome: "Dolci misti (Pardulas, ciambelle, papassinas, amaretti, gueffus, bianchini)", prezzo: 19.00, unita: "Kg", descrizione: "Mix di dolci tradizionali" },
-    { nome: "Dolci misti (Pardulas, ciambelle)", prezzo: 17.00, unita: "Kg", descrizione: "Mix pardulas e ciambelle" },
-    { nome: "Zeppole", prezzo: 21.00, unita: "Kg", descrizione: "Farina, latte, uova, ricotta, patate, aromi vari, lievito" },
-    { nome: "Pizzette sfoglia", prezzo: 16.00, unita: "Kg", descrizione: "Farina, passata di pomodoro, strutto, capperi, lievito" },
-    { nome: "Torta di sapa", prezzo: 23.00, unita: "Kg", descrizione: "Farina, sapa, zucchero, uova, noci, mandorle, uva sultanina" }
-  ],
-  panadas: [
-    { nome: "Panada di anguille", prezzo: 30.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
-    { nome: "Panada di Agnello", prezzo: 25.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
-    { nome: "Panada di Maiale", prezzo: 21.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
-    { nome: "Panada di Vitella", prezzo: 23.00, unita: "Kg", descrizione: "Con patate o piselli (prodotto congelato)" },
-    { nome: "Panada di verdure", prezzo: 17.00, unita: "Kg", descrizione: "Melanzane, patate e piselli (prodotto congelato)" },
-    { nome: "Panadine carne o verdura", prezzo: 0.80, unita: "unità", descrizione: "Prodotto congelato" }
-  ],
-  pasta: [
-    { nome: "Ravioli ricotta e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, sale, semola, farina" },
-    { nome: "Ravioli ricotta spinaci e zafferano", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, spinaci, zafferano, uova, sale, semola, farina" },
-    { nome: "Ravioli ricotta spinaci", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, spinaci, uova, sale, semola, farina" },
-    { nome: "Ravioli ricotta dolci", prezzo: 11.00, unita: "Kg", descrizione: "Ricotta, zafferano, uova, zucchero, semola, farina" },
-    { nome: "Culurgiones", prezzo: 16.00, unita: "Kg", descrizione: "Patate, formaggio, aglio, menta, olio extra vergine, sale, semola, farina" },
-    { nome: "Ravioli formaggio", prezzo: 16.00, unita: "Kg", descrizione: "Formaggio pecorino, spinaci, uova, sale, semola, farina" },
-    { nome: "Sfoglie per Lasagne", prezzo: 5.00, unita: "Kg", descrizione: "Semola, farina, uova, sale" },
-    { nome: "Pasta per panadas", prezzo: 5.00, unita: "Kg", descrizione: "Semola, farina, strutto naturale, sale" },
-    { nome: "Pasta per pizza", prezzo: 5.00, unita: "Kg", descrizione: "Farina, latte, olio, lievito, sale" },
-    { nome: "Fregola", prezzo: 10.00, unita: "Kg", descrizione: "Semola, zafferano, sale" }
-  ]
+  pasta: LISTA_PRODOTTI.filter(p => {
+    const config = getProdottoConfig(p);
+    return config?.categoria === 'Ravioli' || p.includes('Culurgiones');
+  }).map(p => {
+    const config = getProdottoConfig(p);
+    return {
+      nome: p,
+      prezzo: config.prezzoKg || config.prezzoPezzo || 0,
+      unita: config.unitaMisuraDisponibili[0] || 'Kg',
+      descrizione: config.descrizione || '',
+      pezziPerKg: config.pezziPerKg,
+      config: config
+    };
+  }),
+  
+  dolci: LISTA_PRODOTTI.filter(p => {
+    const config = getProdottoConfig(p);
+    return config?.categoria === 'Dolci' || config?.categoria === 'Pardulas';
+  }).map(p => {
+    const config = getProdottoConfig(p);
+    return {
+      nome: p,
+      prezzo: config.prezzoKg || config.prezzoPezzo || 0,
+      unita: config.unitaMisuraDisponibili[0] || 'Kg',
+      descrizione: config.descrizione || '',
+      pezziPerKg: config.pezziPerKg,
+      config: config
+    };
+  }),
+  
+  panadas: LISTA_PRODOTTI.filter(p => {
+    const config = getProdottoConfig(p);
+    return config?.categoria === 'Panadas';
+  }).map(p => {
+    const config = getProdottoConfig(p);
+    return {
+      nome: p,
+      prezzo: config.prezzoKg || config.prezzoPezzo || 0,
+      unita: config.unitaMisuraDisponibili[0] || 'Kg',
+      descrizione: config.descrizione || '',
+      pezziPerKg: config.pezziPerKg,
+      config: config
+    };
+  }),
+  
+  altro: LISTA_PRODOTTI.filter(p => {
+    const config = getProdottoConfig(p);
+    return config?.categoria === 'Altro';
+  }).map(p => {
+    const config = getProdottoConfig(p);
+    return {
+      nome: p,
+      prezzo: config.prezzoKg || config.prezzoPezzo || 0,
+      unita: config.unitaMisuraDisponibili[0] || 'Kg',
+      descrizione: config.descrizione || '',
+      pezziPerKg: config.pezziPerKg,
+      config: config
+    };
+  })
 };
 
 function RiepilogoGiornaliero({ ordini, dataSelezionata }) {
@@ -120,6 +152,18 @@ function RiepilogoGiornaliero({ ordini, dataSelezionata }) {
               <Typography variant="h6">€{(ordine.totale || 0).toFixed(2)}</Typography>
             </Grid>
           </Grid>
+          
+          {/* Dettaglio prodotti con calcolo corretto */}
+          <Box sx={{ mt: 1, pl: 2 }}>
+            {(ordine.prodotti || []).map((p, idx) => {
+              const risultatoCalcolo = p.dettagliCalcolo || {};
+              return (
+                <Typography key={idx} variant="caption" display="block" color="text.secondary">
+                  • {p.nome}: {risultatoCalcolo.dettagli || `${p.quantita} ${p.unita}`} - {formattaPrezzo(p.prezzo || 0)}
+                </Typography>
+              );
+            })}
+          </Box>
         </Paper>
       ))}
     </Box>
@@ -135,7 +179,10 @@ function WhatsAppHelperComponent({ ordini }) {
     
     const numeroOrdine = ordine.numeroOrdine || ordine._id?.substr(-6) || 'N/A';
     const prodotti = (ordine.prodotti || [])
-      .map(p => `• ${p.nome} x${p.quantita} ${p.unita || 'Kg'}`)
+      .map(p => {
+        const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unita || 'Kg'}`;
+        return `• ${p.nome}: ${dettagli}`;
+      })
       .join('\n');
     
     return `🍝 PASTIFICIO NONNA CLAUDIA
@@ -262,10 +309,11 @@ export default function GestoreOrdini() {
   const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   
+  // Keep-alive per Railway
   useEffect(() => {
     const keepAlive = setInterval(async () => {
       try {
-        await fetch(`${API_URL}/health`, { 
+        await fetch(`${API_URL.replace('/api', '')}/health`, { 
           method: 'GET',
           signal: AbortSignal.timeout(5000)
         });
@@ -282,7 +330,7 @@ export default function GestoreOrdini() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     
     try {
-      console.log('Tentativo connessione WebSocket...');
+      console.log('Tentativo connessione WebSocket...', WS_URL);
       wsRef.current = new WebSocket(WS_URL);
       
       wsRef.current.onopen = () => {
@@ -340,7 +388,7 @@ export default function GestoreOrdini() {
       setSyncInProgress(true);
       console.log(`Sincronizzazione in corso... (tentativo ${retry + 1}/3)`);
       
-      const response = await fetch(`${API_URL}/api/ordini`, {
+      const response = await fetch(`${API_URL}/ordini`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -441,7 +489,7 @@ export default function GestoreOrdini() {
     
     for (const ordine of ordiniOffline) {
       try {
-        const response = await fetch(`${API_URL}/api/ordini`, {
+        const response = await fetch(`${API_URL}/ordini`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -476,7 +524,7 @@ export default function GestoreOrdini() {
     
     const wakeUpServer = async () => {
       try {
-        await fetch(`${API_URL}/health`, { 
+        await fetch(`${API_URL.replace('/api', '')}/health`, { 
           method: 'GET',
           signal: AbortSignal.timeout(5000)
         });
@@ -531,22 +579,36 @@ export default function GestoreOrdini() {
   }, [sincronizzaConMongoDB, connectWebSocket]);
   
   const creaOrdine = async (ordine) => {
+    // Calcola totale ordine con nuovo sistema
+    let totaleOrdine = 0;
+    const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
+      const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
+      totaleOrdine += risultato.prezzoTotale;
+      
+      return {
+        ...p,
+        prezzo: risultato.prezzoTotale,
+        dettagliCalcolo: risultato
+      };
+    });
+    
     const nuovoOrdine = {
       ...ordine,
+      prodotti: prodottiConCalcolo,
+      totale: totaleOrdine,
       _id: undefined,
       id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      totale: ordine.totale || 0,
       stato: ordine.stato || 'nuovo'
     };
     
     try {
-      if (!navigator.onLine)  {
+      if (!navigator.onLine) {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/api/ordini`, {
+      const response = await fetch(`${API_URL}/ordini`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -593,17 +655,32 @@ export default function GestoreOrdini() {
   };
   
   const aggiornaOrdine = async (ordine) => {
+    // Ricalcola totale con nuovo sistema
+    let totaleOrdine = 0;
+    const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
+      const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
+      totaleOrdine += risultato.prezzoTotale;
+      
+      return {
+        ...p,
+        prezzo: risultato.prezzoTotale,
+        dettagliCalcolo: risultato
+      };
+    });
+    
     const ordineAggiornato = {
       ...ordine,
+      prodotti: prodottiConCalcolo,
+      totale: totaleOrdine,
       updatedAt: new Date().toISOString()
     };
     
     try {
-      if (!navigator.onLine)  {
+      if (!navigator.onLine) {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/api/ordini/${ordine._id || ordine.id}`, {
+      const response = await fetch(`${API_URL}/ordini/${ordine._id || ordine.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -645,15 +722,6 @@ export default function GestoreOrdini() {
         localStorage.setItem('ordini', JSON.stringify(ordiniCache));
       }
       
-      const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
-      const offlineIndex = ordiniOffline.findIndex(o => o._id === ordine._id || o.id === ordine.id);
-      if (offlineIndex !== -1) {
-        ordiniOffline[offlineIndex] = ordineConFlag;
-      } else {
-        ordiniOffline.push(ordineConFlag);
-      }
-      localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
-      
       mostraNotifica('Ordine aggiornato localmente', 'warning');
     }
   };
@@ -662,11 +730,11 @@ export default function GestoreOrdini() {
     if (!confirm('Confermi eliminazione ordine?')) return;
     
     try {
-      if (!navigator.onLine)  {
+      if (!navigator.onLine) {
         throw new Error('Offline mode');
       }
       
-      const response = await fetch(`${API_URL}/api/ordini/${id}`, {
+      const response = await fetch(`${API_URL}/ordini/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -692,10 +760,6 @@ export default function GestoreOrdini() {
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       const filtered = ordiniCache.filter(o => o._id !== id && o.id !== id);
       localStorage.setItem('ordini', JSON.stringify(filtered));
-      
-      const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
-      const filteredOffline = ordiniOffline.filter(o => o._id !== id && o.id !== id);
-      localStorage.setItem('ordiniOffline', JSON.stringify(filteredOffline));
       
       mostraNotifica('Ordine eliminato localmente', 'warning');
     }
@@ -801,7 +865,10 @@ export default function GestoreOrdini() {
       o.telefono,
       o.dataRitiro,
       o.oraRitiro || '',
-      (o.prodotti || []).map(p => `${p.nome} x${p.quantita}`).join('; '),
+      (o.prodotti || []).map(p => {
+        const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unita}`;
+        return `${p.nome} (${dettagli})`;
+      }).join('; '),
       o.totale || 0,
       o.stato || 'nuovo',
       o.note || ''
@@ -839,14 +906,15 @@ export default function GestoreOrdini() {
           body { font-family: Arial, sans-serif; }
           h1 { color: #333; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
           th { background-color: #f2f2f2; }
           .totale { text-align: right; font-weight: bold; margin-top: 20px; }
+          .dettaglio-prodotto { font-size: 10px; color: #666; }
           @media print { button { display: none; } }
         </style>
       </head>
       <body>
-        <h1>Pastificio Nonna Claudia - Ordini del ${dataSelezionata}</h1>
+        <h1>Pastificio Nonna Claudia - Ordini del ${new Date(dataSelezionata).toLocaleDateString('it-IT')}</h1>
         <table>
           <thead>
             <tr>
@@ -864,17 +932,27 @@ export default function GestoreOrdini() {
                 <td>${o.nomeCliente}</td>
                 <td>${o.telefono}</td>
                 <td>${o.oraRitiro || ''}</td>
-                <td>${(o.prodotti || []).map(p => `${p.nome} x${p.quantita}`).join(', ')}</td>
-                <td>€${o.totale || 0}</td>
+                <td>
+                  ${(o.prodotti || []).map(p => {
+                    const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unita}`;
+                    return `${p.nome}<br><span class="dettaglio-prodotto">${dettagli} - €${(p.prezzo || 0).toFixed(2)}</span>`;
+                  }).join('<br>')}
+                </td>
+                <td>€${(o.totale || 0).toFixed(2)}</td>
                 <td>${o.stato || 'nuovo'}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
         <div class="totale">
-          Totale: €${ordiniData.reduce((sum, o) => sum + (o.totale || 0), 0).toFixed(2)}
+          Totale Giornata: €${ordiniData.reduce((sum, o) => sum + (o.totale || 0), 0).toFixed(2)}
         </div>
-        <button onclick="window.print()">Stampa</button>
+        <div class="totale">
+          Numero Ordini: ${ordiniData.length}
+        </div>
+        <button onclick="window.print()" style="margin-top: 20px; padding: 10px 20px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;">
+          Stampa
+        </button>
       </body>
       </html>
     `;
@@ -938,12 +1016,12 @@ export default function GestoreOrdini() {
             <InstallPWA />
             
             <Tooltip title={syncInProgress ? "Sincronizzazione in corso..." : "Sincronizza"}>
-  <span> {/* Wrappa in span */}
-    <IconButton disabled={syncInProgress}>
-      <SyncIcon />
-    </IconButton>
-  </span>
-</Tooltip>
+              <span>
+                <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress}>
+                  <SyncIcon className={syncInProgress ? 'rotating' : ''} />
+                </IconButton>
+              </span>
+            </Tooltip>
             
             <Button
               variant="contained"
@@ -1009,7 +1087,7 @@ export default function GestoreOrdini() {
               Pulisci
             </Button>
             
-            <IconButton onClick={sincronizzaConMongoDB} disabled={syncInProgress}>
+            <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress}>
               <RefreshIcon />
             </IconButton>
           </Box>
@@ -1070,7 +1148,7 @@ export default function GestoreOrdini() {
               {isConnected ? <WifiIcon /> : <WifiOffIcon />}
               <Typography variant="body2">
                 {isConnected 
-                  ? 'Sincronizzazione attiva - Ordini visibili su tutti i dispositivi' 
+                  ? '✅ Sistema Calcolo Prezzi Attivo - Sincronizzazione attiva' 
                   : 'Modalità Offline - I dati verranno sincronizzati al ripristino della connessione'}
               </Typography>
             </Box>
@@ -1205,3 +1283,16 @@ export default function GestoreOrdini() {
     </Container>
   );
 }
+
+// CSS per animazione rotazione
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .rotating {
+    animation: rotate 1s linear infinite;
+  }
+`;
+document.head.appendChild(style);
