@@ -153,7 +153,6 @@ function RiepilogoGiornaliero({ ordini, dataSelezionata }) {
             </Grid>
           </Grid>
           
-          {/* Dettaglio prodotti con calcolo corretto */}
           <Box sx={{ mt: 1, pl: 2 }}>
             {(ordine.prodotti || []).map((p, idx) => {
               const risultatoCalcolo = p.dettagliCalcolo || {};
@@ -309,7 +308,6 @@ export default function GestoreOrdini() {
   const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   
-  // Keep-alive per Railway
   useEffect(() => {
     const keepAlive = setInterval(async () => {
       try {
@@ -579,7 +577,6 @@ export default function GestoreOrdini() {
   }, [sincronizzaConMongoDB, connectWebSocket]);
   
   const creaOrdine = async (ordine) => {
-    // Calcola totale ordine con nuovo sistema
     let totaleOrdine = 0;
     const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
       const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
@@ -655,7 +652,6 @@ export default function GestoreOrdini() {
   };
   
   const aggiornaOrdine = async (ordine) => {
-    // Ricalcola totale con nuovo sistema
     let totaleOrdine = 0;
     const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
       const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
@@ -1003,296 +999,296 @@ export default function GestoreOrdini() {
   }, [ordini]);
   
   return (
-    <Container maxWidth="xl">
-      <StatisticheWidget ordini={ordini} />
+    <>
+      {/* ✅ STILE CSS INLINE PER ANIMAZIONE */}
+      <style jsx global>{`
+        @keyframes rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .rotating {
+          animation: rotate 1s linear infinite;
+        }
+      `}</style>
       
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-          <Typography variant="h4" component="h1">
-            Gestione Ordini
-          </Typography>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <InstallPWA />
-            
-            <Tooltip title={syncInProgress ? "Sincronizzazione in corso..." : "Sincronizza"}>
-              <span>
-                <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress}>
-                  <SyncIcon className={syncInProgress ? 'rotating' : ''} />
-                </IconButton>
-              </span>
-            </Tooltip>
-            
-            <Button
-              variant="contained"
-              size="small"
-              color="success"
-              startIcon={<WhatsAppIcon />}
-              onClick={() => setWhatsappHelperAperto(true)}
-            >
-              WhatsApp
-            </Button>
-            
-            <Button
-              variant="contained"
-              size="small"
-              color="primary"
-              startIcon={<ListAltIcon />}
-              onClick={() => setRiepilogoAperto(true)}
-            >
-              Riepilogo
-            </Button>
-            
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<ExportIcon />}
-              onClick={(e) => setMenuExport(e.currentTarget)}
-            >
-              Export
-            </Button>
-            <Menu
-              anchorEl={menuExport}
-              open={Boolean(menuExport)}
-              onClose={() => setMenuExport(null)}
-            >
-              <MenuItem onClick={() => handleExport('csv')}>
-                <ExportIcon sx={{ mr: 1 }} /> CSV
-              </MenuItem>
-              <MenuItem onClick={() => handleExport('excel')}>
-                <ExportIcon sx={{ mr: 1 }} /> Excel
-              </MenuItem>
-              <MenuItem onClick={() => handleExport('pdf')}>
-                <ExportIcon sx={{ mr: 1 }} /> PDF
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={() => handleExport('print')}>
-                <PrintIcon sx={{ mr: 1 }} /> Stampa
-              </MenuItem>
-            </Menu>
-            
-            <Chip 
-              label={`${statistiche.totaleOrdini} ordini`}
-              variant="outlined"
-              size="small"
-            />
-            
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<CleanIcon />}
-              onClick={rimuoviDuplicati}
-              disabled={caricamento}
-            >
-              Pulisci
-            </Button>
-            
-            <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress}>
-              <RefreshIcon />
-            </IconButton>
-          </Box>
-        </Box>
+      <Container maxWidth="xl">
+        <StatisticheWidget ordini={ordini} />
         
-        <Box sx={{ mb: 2 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <StorageIcon fontSize="small" />
-                <Typography variant="caption">Storage: {storageUsed} MB</Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={Math.min(storageUsed * 10, 100)} 
-                  sx={{ flexGrow: 1, ml: 1 }}
-                />
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SpeedIcon fontSize="small" />
-                <Typography variant="caption">Performance: {performanceScore.toFixed(0)}%</Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={performanceScore} 
-                  color={performanceScore > 80 ? 'success' : performanceScore > 50 ? 'warning' : 'error'}
-                  sx={{ flexGrow: 1, ml: 1 }}
-                />
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AnalyticsIcon fontSize="small" />
-                <Typography variant="caption">
-                  Completamento: {statistiche.percentualeCompletamento.toFixed(0)}%
-                </Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={statistiche.percentualeCompletamento} 
-                  color="success"
-                  sx={{ flexGrow: 1, ml: 1 }}
-                />
-              </Paper>
-            </Grid>
-          </Grid>
-        </Box>
-        
-        <Paper 
-          elevation={1}
-          sx={{ 
-            p: 2,
-            bgcolor: isConnected ? 'success.light' : 'warning.light',
-            color: isConnected ? 'success.contrastText' : 'warning.contrastText'
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {isConnected ? <WifiIcon /> : <WifiOffIcon />}
-              <Typography variant="body2">
-                {isConnected 
-                  ? '✅ Sistema Calcolo Prezzi Attivo - Sincronizzazione attiva' 
-                  : 'Modalità Offline - I dati verranno sincronizzati al ripristino della connessione'}
-              </Typography>
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+            <Typography variant="h4" component="h1">
+              Gestione Ordini
+            </Typography>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <InstallPWA />
+              
+              <Tooltip title={syncInProgress ? "Sincronizzazione in corso..." : "Sincronizza"}>
+                <span>
+                  <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress}>
+                    <SyncIcon className={syncInProgress ? 'rotating' : ''} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              
+              <Button
+                variant="contained"
+                size="small"
+                color="success"
+                startIcon={<WhatsAppIcon />}
+                onClick={() => setWhatsappHelperAperto(true)}
+              >
+                WhatsApp
+              </Button>
+              
+              <Button
+                variant="contained"
+                size="small"
+                color="primary"
+                startIcon={<ListAltIcon />}
+                onClick={() => setRiepilogoAperto(true)}
+              >
+                Riepilogo
+              </Button>
+              
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ExportIcon />}
+                onClick={(e) => setMenuExport(e.currentTarget)}
+              >
+                Export
+              </Button>
+              <Menu
+                anchorEl={menuExport}
+                open={Boolean(menuExport)}
+                onClose={() => setMenuExport(null)}
+              >
+                <MenuItem onClick={() => handleExport('csv')}>
+                  <ExportIcon sx={{ mr: 1 }} /> CSV
+                </MenuItem>
+                <MenuItem onClick={() => handleExport('excel')}>
+                  <ExportIcon sx={{ mr: 1 }} /> Excel
+                </MenuItem>
+                <MenuItem onClick={() => handleExport('pdf')}>
+                  <ExportIcon sx={{ mr: 1 }} /> PDF
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={() => handleExport('print')}>
+                  <PrintIcon sx={{ mr: 1 }} /> Stampa
+                </MenuItem>
+              </Menu>
+              
+              <Chip 
+                label={`${statistiche.totaleOrdini} ordini`}
+                variant="outlined"
+                size="small"
+              />
+              
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<CleanIcon />}
+                onClick={rimuoviDuplicati}
+                disabled={caricamento}
+              >
+                Pulisci
+              </Button>
+              
+              <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress}>
+                <RefreshIcon />
+              </IconButton>
             </Box>
-            {ultimaSync && (
-              <Typography variant="caption">
-                Ultima sync: {new Date(ultimaSync).toLocaleTimeString()}
-              </Typography>
-            )}
           </Box>
-        </Paper>
-      </Box>
-      
-      {caricamento ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress size={60} />
-          <Typography sx={{ ml: 2, alignSelf: 'center' }}>
-            Caricamento ordini...
-          </Typography>
+          
+          <Box sx={{ mb: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <StorageIcon fontSize="small" />
+                  <Typography variant="caption">Storage: {storageUsed} MB</Typography>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={Math.min(storageUsed * 10, 100)} 
+                    sx={{ flexGrow: 1, ml: 1 }}
+                  />
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <SpeedIcon fontSize="small" />
+                  <Typography variant="caption">Performance: {performanceScore.toFixed(0)}%</Typography>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={performanceScore} 
+                    color={performanceScore > 80 ? 'success' : performanceScore > 50 ? 'warning' : 'error'}
+                    sx={{ flexGrow: 1, ml: 1 }}
+                  />
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AnalyticsIcon fontSize="small" />
+                  <Typography variant="caption">
+                    Completamento: {statistiche.percentualeCompletamento.toFixed(0)}%
+                  </Typography>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={statistiche.percentualeCompletamento} 
+                    color="success"
+                    sx={{ flexGrow: 1, ml: 1 }}
+                  />
+                </Paper>
+              </Grid>
+            </Grid>
+          </Box>
+          
+          <Paper 
+            elevation={1}
+            sx={{ 
+              p: 2,
+              bgcolor: isConnected ? 'success.light' : 'warning.light',
+              color: isConnected ? 'success.contrastText' : 'warning.contrastText'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {isConnected ? <WifiIcon /> : <WifiOffIcon />}
+                <Typography variant="body2">
+                  {isConnected 
+                    ? '✅ Sistema Calcolo Prezzi Attivo - Sincronizzazione attiva' 
+                    : 'Modalità Offline - I dati verranno sincronizzati al ripristino della connessione'}
+                </Typography>
+              </Box>
+              {ultimaSync && (
+                <Typography variant="caption">
+                  Ultima sync: {new Date(ultimaSync).toLocaleTimeString()}
+                </Typography>
+              )}
+            </Box>
+          </Paper>
         </Box>
-      ) : (
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <OrdiniList 
-              ordini={ordini}
-              onDelete={eliminaOrdine}
-              onEdit={(ordine) => {
-                setOrdineSelezionato(ordine);
-                setDialogoNuovoOrdineAperto(true);
-              }}
-              onDateChange={setDataSelezionata}
-              onNuovoOrdine={() => {
-                setOrdineSelezionato(null);
-                setDialogoNuovoOrdineAperto(true);
-              }}
-              dataSelezionata={dataSelezionata}
-              isConnected={isConnected}
-            />
+        
+        {caricamento ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <CircularProgress size={60} />
+            <Typography sx={{ ml: 2, alignSelf: 'center' }}>
+              Caricamento ordini...
+            </Typography>
+          </Box>
+        ) : (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <OrdiniList 
+                ordini={ordini}
+                onDelete={eliminaOrdine}
+                onEdit={(ordine) => {
+                  setOrdineSelezionato(ordine);
+                  setDialogoNuovoOrdineAperto(true);
+                }}
+                onDateChange={setDataSelezionata}
+                onNuovoOrdine={() => {
+                  setOrdineSelezionato(null);
+                  setDialogoNuovoOrdineAperto(true);
+                }}
+                dataSelezionata={dataSelezionata}
+                isConnected={isConnected}
+              />
+            </Grid>
           </Grid>
-        </Grid>
-      )}
-      
-      <Fab 
-        color="primary" 
-        aria-label="Nuovo ordine"
-        sx={{ position: 'fixed', bottom: 16, right: 16 }}
-        onClick={() => {
-          setOrdineSelezionato(null);
-          setDialogoNuovoOrdineAperto(true);
-        }}
-      >
-        <AddIcon />
-      </Fab>
-      
-      {dialogoNuovoOrdineAperto && (
-        <NuovoOrdine 
-          open={dialogoNuovoOrdineAperto}
-          onClose={() => {
-            setDialogoNuovoOrdineAperto(false);
+        )}
+        
+        <Fab 
+          color="primary" 
+          aria-label="Nuovo ordine"
+          sx={{ position: 'fixed', bottom: 16, right: 16 }}
+          onClick={() => {
             setOrdineSelezionato(null);
+            setDialogoNuovoOrdineAperto(true);
           }}
-          onSave={salvaOrdine}
-          ordineIniziale={ordineSelezionato}
-          isConnected={isConnected}
-          prodotti={prodottiDisponibili}
-          submitInCorso={submitInCorso}
-        />
-      )}
-      
-      <Dialog 
-        open={riepilogoAperto} 
-        onClose={() => setRiepilogoAperto(false)}
-        maxWidth="lg" 
-        fullWidth
-        PaperProps={{ sx: { height: '90vh' } }}
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Riepilogo Giornaliero</Typography>
-            <IconButton onClick={() => setRiepilogoAperto(false)} size="small">
-              ×
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <RiepilogoGiornaliero 
-            ordini={ordini} 
-            dataSelezionata={dataSelezionata}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRiepilogoAperto(false)}>Chiudi</Button>
-        </DialogActions>
-      </Dialog>
-      
-      <Dialog 
-        open={whatsappHelperAperto} 
-        onClose={() => setWhatsappHelperAperto(false)}
-        maxWidth="lg" 
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">WhatsApp Helper</Typography>
-            <IconButton onClick={() => setWhatsappHelperAperto(false)} size="small">
-              ×
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <WhatsAppHelperComponent ordini={ordini} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setWhatsappHelperAperto(false)}>Chiudi</Button>
-        </DialogActions>
-      </Dialog>
-      
-      <Snackbar
-        open={notifica.aperta}
-        autoHideDuration={6000}
-        onClose={chiudiNotifica}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={chiudiNotifica} 
-          severity={notifica.tipo} 
-          sx={{ width: '100%' }}
-          variant="filled"
         >
-          {notifica.messaggio}
-        </Alert>
-      </Snackbar>
-    </Container>
+          <AddIcon />
+        </Fab>
+        
+        {dialogoNuovoOrdineAperto && (
+          <NuovoOrdine 
+            open={dialogoNuovoOrdineAperto}
+            onClose={() => {
+              setDialogoNuovoOrdineAperto(false);
+              setOrdineSelezionato(null);
+            }}
+            onSave={salvaOrdine}
+            ordineIniziale={ordineSelezionato}
+            isConnected={isConnected}
+            prodotti={prodottiDisponibili}
+            submitInCorso={submitInCorso}
+          />
+        )}
+        
+        <Dialog 
+          open={riepilogoAperto} 
+          onClose={() => setRiepilogoAperto(false)}
+          maxWidth="lg" 
+          fullWidth
+          PaperProps={{ sx: { height: '90vh' } }}
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">Riepilogo Giornaliero</Typography>
+              <IconButton onClick={() => setRiepilogoAperto(false)} size="small">
+                ×
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <RiepilogoGiornaliero 
+              ordini={ordini} 
+              dataSelezionata={dataSelezionata}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setRiepilogoAperto(false)}>Chiudi</Button>
+          </DialogActions>
+        </Dialog>
+        
+        <Dialog 
+          open={whatsappHelperAperto} 
+          onClose={() => setWhatsappHelperAperto(false)}
+          maxWidth="lg" 
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">WhatsApp Helper</Typography>
+              <IconButton onClick={() => setWhatsappHelperAperto(false)} size="small">
+                ×
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <WhatsAppHelperComponent ordini={ordini} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setWhatsappHelperAperto(false)}>Chiudi</Button>
+          </DialogActions>
+        </Dialog>
+        
+        <Snackbar
+          open={notifica.aperta}
+          autoHideDuration={6000}
+          onClose={chiudiNotifica}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert 
+            onClose={chiudiNotifica} 
+            severity={notifica.tipo} 
+            sx={{ width: '100%' }}
+            variant="filled"
+          >
+            {notifica.messaggio}
+          </Alert>
+        </Snackbar>
+      </Container>
+    </>
   );
 }
-
-// CSS per animazione rotazione
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  .rotating {
-    animation: rotate 1s linear infinite;
-  }
-`;
-document.head.appendChild(style);
