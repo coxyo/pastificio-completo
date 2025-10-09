@@ -1,4 +1,4 @@
-// components/RiepilogoGiornaliero.js - CON COLONNE MULTI E VIAGGIO
+// components/RiepilogoGiornaliero.js - MINIMAL COMPATTO (come OpenOffice Writer)
 import React, { useState, useMemo } from 'react';
 import {
   Dialog,
@@ -9,23 +9,19 @@ import {
   TextField,
   Box,
   Typography,
-  Paper,
+  IconButton,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
-  Divider,
-  Grid
+  Paper
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Print as PrintIcon,
-  CalendarToday as CalendarIcon,
-  CheckCircle as CheckIcon,
-  ArrowForward as ArrowIcon
+  CalendarToday as CalendarIcon
 } from '@mui/icons-material';
 
 export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
@@ -55,9 +51,6 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
     };
 
     ordiniFiltrati.forEach(ordine => {
-      const prodottiPerCategoria = {};
-
-      // Raggruppa prodotti dell'ordine per categoria
       ordine.prodotti?.forEach(prodotto => {
         // Normalizza categoria
         let categoria = 'Altro';
@@ -74,21 +67,17 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
           categoria = 'Dolci';
         }
 
-        if (!prodottiPerCategoria[categoria]) {
-          prodottiPerCategoria[categoria] = [];
-        }
-        prodottiPerCategoria[categoria].push(prodotto);
-      });
-
-      // Aggiungi ordine a ogni categoria in cui ha prodotti
-      Object.entries(prodottiPerCategoria).forEach(([categoria, prodottiCategoria]) => {
-        if (categorie[categoria]) {
-          categorie[categoria].push({
-            ...ordine,
-            prodottiCategoria: prodottiCategoria,
-            altreCategorie: Object.keys(prodottiPerCategoria).filter(c => c !== categoria)
-          });
-        }
+        categorie[categoria].push({
+          prodotto: prodotto.nome,
+          quantita: prodotto.quantita,
+          unita: prodotto.unita || 'Kg',
+          dettagli: prodotto.dettagliCalcolo?.dettagli || `${prodotto.quantita} ${prodotto.unita || 'Kg'}`,
+          orario: ordine.oraRitiro || 'N/D',
+          cliente: ordine.nomeCliente,
+          telefono: ordine.telefono,
+          daViaggio: ordine.daViaggio || false,
+          note: ordine.note || ''
+        });
       });
     });
 
@@ -96,29 +85,19 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
   }, [ordiniFiltrati]);
 
   // Calcola totali per categoria
-  const calcolaTotaliCategoria = (ordiniCategoria) => {
+  const calcolaTotaliCategoria = (righeCategoria) => {
     const totali = {};
 
-    ordiniCategoria.forEach(ordine => {
-      ordine.prodottiCategoria?.forEach(prodotto => {
-        const chiave = prodotto.nome;
-        if (!totali[chiave]) {
-          totali[chiave] = {
-            nome: prodotto.nome,
-            quantitaTotale: 0,
-            unita: prodotto.unita || 'Kg',
-            kg: 0,
-            pezzi: 0
-          };
-        }
-
-        totali[chiave].quantitaTotale += prodotto.quantita || 0;
-        
-        if (prodotto.dettagliCalcolo) {
-          totali[chiave].kg += prodotto.dettagliCalcolo.kg || 0;
-          totali[chiave].pezzi += prodotto.dettagliCalcolo.pezzi || 0;
-        }
-      });
+    righeCategoria.forEach(riga => {
+      const chiave = riga.prodotto;
+      if (!totali[chiave]) {
+        totali[chiave] = {
+          nome: riga.prodotto,
+          quantitaTotale: 0,
+          unita: riga.unita
+        };
+      }
+      totali[chiave].quantitaTotale += riga.quantita || 0;
     });
 
     return Object.values(totali);
@@ -166,225 +145,105 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
 
       <DialogContent>
         <Box className="printable-content">
-          {/* Riepilogo Generale - Prima Pagina */}
-          <Paper elevation={0} sx={{ p: 3, mb: 3, pageBreakAfter: 'always' }}>
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
-              <Typography variant="h4" gutterBottom>
-                🍝 PASTIFICIO NONNA CLAUDIA
-              </Typography>
-              <Typography variant="h5" color="primary">
-                Riepilogo Produzione Giornaliera
-              </Typography>
-              <Typography variant="h6" color="text.secondary">
-                {new Date(dataSelezionata).toLocaleDateString('it-IT', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </Typography>
-            </Box>
+          {/* Intestazione Generale */}
+          <Box sx={{ textAlign: 'center', mb: 2, pageBreakAfter: 'avoid' }}>
+            <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+              🍝 PASTIFICIO NONNA CLAUDIA
+            </Typography>
+            <Typography variant="h6">
+              Riepilogo Produzione {new Date(dataSelezionata).toLocaleDateString('it-IT', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </Typography>
+            <Typography variant="subtitle2" color="text.secondary">
+              {ordiniFiltrati.length} ordini totali
+            </Typography>
+          </Box>
 
-            <Divider sx={{ my: 2 }} />
+          {/* Tabelle per Categoria */}
+          {Object.entries(ordiniPerCategoria).map(([categoria, righeCategoria]) => {
+            if (righeCategoria.length === 0) return null;
 
-            <Grid container spacing={3}>
-              <Grid item xs={4}>
-                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.light' }}>
-                  <Typography variant="h3">{ordiniFiltrati.length}</Typography>
-                  <Typography variant="subtitle1">Ordini Totali</Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={4}>
-                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'success.light' }}>
-                  <Typography variant="h3">
-                    €{ordiniFiltrati.reduce((sum, o) => sum + (o.totale || 0), 0).toFixed(2)}
-                  </Typography>
-                  <Typography variant="subtitle1">Incasso Totale</Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={4}>
-                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'warning.light' }}>
-                  <Typography variant="h3">
-                    {ordiniFiltrati.filter(o => o.daViaggio).length}
-                  </Typography>
-                  <Typography variant="subtitle1">Da Viaggio</Typography>
-                </Paper>
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Pagine per Categoria */}
-          {Object.entries(ordiniPerCategoria).map(([categoria, ordiniCategoria]) => {
-            if (ordiniCategoria.length === 0) return null;
-
-            const totaliCategoria = calcolaTotaliCategoria(ordiniCategoria);
+            const totaliCategoria = calcolaTotaliCategoria(righeCategoria);
 
             return (
-              <Paper 
-                key={categoria} 
-                elevation={0} 
-                sx={{ p: 3, mb: 3, pageBreakAfter: 'always' }}
-              >
-                {/* Intestazione Pagina Categoria */}
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h4" gutterBottom>
-                    📋 {categoria.toUpperCase()}
-                  </Typography>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    {new Date(dataSelezionata).toLocaleDateString('it-IT')} - {ordiniCategoria.length} ordini
-                  </Typography>
-                </Box>
+              <Box key={categoria} sx={{ mb: 4, pageBreakInside: 'avoid' }}>
+                {/* Titolo Categoria */}
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    bgcolor: 'primary.main', 
+                    color: 'white', 
+                    p: 1, 
+                    mb: 1,
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {categoria.toUpperCase()}
+                </Typography>
 
-                {/* Tabella Ordini Categoria */}
-                <TableContainer>
-                  <Table size="small">
+                {/* Tabella Compatta */}
+                <TableContainer component={Paper} sx={{ mb: 2 }}>
+                  <Table size="small" sx={{ fontSize: '0.75rem' }}>
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'grey.200' }}>
-                        <TableCell><strong>ORA</strong></TableCell>
-                        <TableCell><strong>CLIENTE</strong></TableCell>
-                        <TableCell><strong>PRODOTTO</strong></TableCell>
-                        <TableCell align="center"><strong>QUANTITÀ</strong></TableCell>
-                        <TableCell align="center">
-                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <strong>MULTI</strong>
-                            <ArrowIcon fontSize="small" />
-                          </Box>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <strong>VIAGGIO</strong>
-                            <CheckIcon fontSize="small" />
-                          </Box>
-                        </TableCell>
-                        <TableCell><strong>NOTE</strong></TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }}>Prodotto</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }} align="center">Q.tà</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }} align="center">Orario</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }}>Nome Cliente</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }}>Telefono</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }} align="center">Viaggio</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {ordiniCategoria.map((ordine, index) => {
-                        const prodottiAltreCategorie = ordine.altreCategorie.length > 0;
-                        
-                        return ordine.prodottiCategoria?.map((prodotto, pIdx) => (
-                          <TableRow 
-                            key={`${ordine._id || ordine.id}-${pIdx}`}
-                            sx={{ 
-                              borderLeft: ordine.daViaggio ? '4px solid orange' : 'none',
-                              bgcolor: pIdx === 0 && index % 2 === 0 ? 'grey.50' : 'white'
-                            }}
-                          >
-                            {/* Ora - solo prima riga per ordine */}
-                            {pIdx === 0 ? (
-                              <TableCell rowSpan={ordine.prodottiCategoria.length}>
-                                <Typography variant="h6">
-                                  {ordine.oraRitiro || 'N/D'}
-                                </Typography>
-                              </TableCell>
-                            ) : null}
-
-                            {/* Cliente - solo prima riga per ordine */}
-                            {pIdx === 0 ? (
-                              <TableCell rowSpan={ordine.prodottiCategoria.length}>
-                                <Typography variant="body1" fontWeight="bold">
-                                  {ordine.nomeCliente}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {ordine.telefono}
-                                </Typography>
-                              </TableCell>
-                            ) : null}
-
-                            {/* Prodotto */}
-                            <TableCell>
-                              <Typography variant="body2">
-                                {prodotto.nome}
-                              </Typography>
-                            </TableCell>
-
-                            {/* Quantità */}
-                            <TableCell align="center">
-                              <Typography variant="body2">
-                                {prodotto.dettagliCalcolo?.dettagli || 
-                                 `${prodotto.quantita} ${prodotto.unita}`}
-                              </Typography>
-                            </TableCell>
-
-                            {/* ✅ MULTI-PRODOTTO - solo prima riga */}
-                            {pIdx === 0 ? (
-                              <TableCell align="center" rowSpan={ordine.prodottiCategoria.length}>
-                                {prodottiAltreCategorie && (
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-                                    <ArrowIcon color="warning" sx={{ fontSize: 32, fontWeight: 'bold' }} />
-                                    <Typography variant="caption" color="warning.main" fontWeight="bold">
-                                      {ordine.altreCategorie.join(', ')}
-                                    </Typography>
-                                  </Box>
-                                )}
-                              </TableCell>
-                            ) : null}
-
-                            {/* ✅ DA VIAGGIO - solo prima riga */}
-                            {pIdx === 0 ? (
-                              <TableCell align="center" rowSpan={ordine.prodottiCategoria.length}>
-                                {ordine.daViaggio && (
-                                  <CheckIcon color="success" sx={{ fontSize: 32 }} />
-                                )}
-                              </TableCell>
-                            ) : null}
-
-                            {/* Note - solo prima riga */}
-                            {pIdx === 0 ? (
-                              <TableCell rowSpan={ordine.prodottiCategoria.length}>
-                                <Typography variant="caption">
-                                  {ordine.note || '-'}
-                                </Typography>
-                              </TableCell>
-                            ) : null}
-                          </TableRow>
-                        ));
-                      })}
-
-                      {/* Riga Totali Categoria */}
-                      <TableRow sx={{ bgcolor: 'success.light', fontWeight: 'bold' }}>
-                        <TableCell colSpan={2}>
-                          <Typography variant="h6">TOTALI {categoria.toUpperCase()}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="bold">PRODOTTO</Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2" fontWeight="bold">QUANTITÀ TOTALE</Typography>
-                        </TableCell>
-                        <TableCell colSpan={3}></TableCell>
-                      </TableRow>
-                      {totaliCategoria.map((totale, idx) => (
-                        <TableRow key={idx} sx={{ bgcolor: 'success.50' }}>
-                          <TableCell colSpan={2}></TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight="medium">
-                              {totale.nome}
-                            </Typography>
+                      {righeCategoria.map((riga, index) => (
+                        <TableRow 
+                          key={index}
+                          sx={{ 
+                            '&:nth-of-type(odd)': { bgcolor: 'grey.50' },
+                            borderLeft: riga.daViaggio ? '3px solid orange' : 'none'
+                          }}
+                        >
+                          <TableCell sx={{ fontSize: '0.7rem', py: 0.3 }}>{riga.prodotto}</TableCell>
+                          <TableCell sx={{ fontSize: '0.7rem', py: 0.3 }} align="center">{riga.dettagli}</TableCell>
+                          <TableCell sx={{ fontSize: '0.7rem', py: 0.3, fontWeight: 'bold' }} align="center">
+                            {riga.orario}
                           </TableCell>
-                          <TableCell align="center">
-                            <Typography variant="body2" fontWeight="bold">
-                              {totale.kg > 0 && `${totale.kg.toFixed(2)} kg`}
-                              {totale.kg > 0 && totale.pezzi > 0 && ' ≈ '}
-                              {totale.pezzi > 0 && `${totale.pezzi} pz`}
-                              {totale.kg === 0 && totale.pezzi === 0 && `${totale.quantitaTotale} ${totale.unita}`}
-                            </Typography>
+                          <TableCell sx={{ fontSize: '0.7rem', py: 0.3 }}>{riga.cliente}</TableCell>
+                          <TableCell sx={{ fontSize: '0.7rem', py: 0.3 }}>{riga.telefono}</TableCell>
+                          <TableCell sx={{ fontSize: '0.7rem', py: 0.3 }} align="center">
+                            {riga.daViaggio ? '✓' : ''}
                           </TableCell>
-                          <TableCell colSpan={3}></TableCell>
                         </TableRow>
                       ))}
+
+                      {/* Riga Totali */}
+                      <TableRow sx={{ bgcolor: 'success.light', fontWeight: 'bold' }}>
+                        <TableCell sx={{ fontSize: '0.75rem', py: 0.5, fontWeight: 'bold' }}>
+                          TOTALI {categoria.toUpperCase()}
+                        </TableCell>
+                        <TableCell colSpan={5} sx={{ fontSize: '0.7rem', py: 0.5 }}>
+                          {totaliCategoria.map((totale, idx) => (
+                            <span key={idx} style={{ marginRight: '15px' }}>
+                              <strong>{totale.nome}:</strong> {totale.quantitaTotale.toFixed(2)} {totale.unita}
+                            </span>
+                          ))}
+                        </TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </Paper>
+              </Box>
             );
           })}
 
           {/* Messaggio se nessun ordine */}
           {ordiniFiltrati.length === 0 && (
             <Paper sx={{ p: 5, textAlign: 'center' }}>
-              <Typography variant="h5" color="text.secondary">
+              <Typography variant="h6" color="text.secondary">
                 Nessun ordine per {new Date(dataSelezionata).toLocaleDateString('it-IT')}
               </Typography>
             </Paper>
@@ -405,7 +264,11 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
           
           @page {
             size: A4;
-            margin: 15mm;
+            margin: 10mm;
+          }
+          
+          body {
+            font-size: 9pt;
           }
           
           .printable-content {
@@ -414,10 +277,27 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
           
           table {
             page-break-inside: avoid;
+            font-size: 8pt !important;
           }
           
           tr {
             page-break-inside: avoid;
+          }
+          
+          th, td {
+            padding: 2px 4px !important;
+            font-size: 8pt !important;
+          }
+        }
+        
+        /* Stili schermo */
+        @media screen {
+          table {
+            font-size: 0.75rem;
+          }
+          
+          th, td {
+            padding: 4px 8px;
           }
         }
       `}</style>
