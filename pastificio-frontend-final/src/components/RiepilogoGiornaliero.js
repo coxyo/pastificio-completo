@@ -23,6 +23,7 @@ import {
   Print as PrintIcon,
   CalendarToday as CalendarIcon
 } from '@mui/icons-material';
+import { getProdottoConfig } from '../config/prodottiConfig'; // ✅ IMPORT AGGIUNTO
 
 export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
   const [dataSelezionata, setDataSelezionata] = useState(
