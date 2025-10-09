@@ -1,4 +1,4 @@
-// components/RiepilogoGiornaliero.js - MINIMAL COMPATTO (come OpenOffice Writer)
+// components/RiepilogoGiornaliero.js - MINIMAL COMPATTO FINALE
 import React, { useState, useMemo } from 'react';
 import {
   Dialog,
@@ -72,6 +72,8 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
           quantita: prodotto.quantita,
           unita: prodotto.unita || 'Kg',
           dettagli: prodotto.dettagliCalcolo?.dettagli || `${prodotto.quantita} ${prodotto.unita || 'Kg'}`,
+          dettagliCalcolo: prodotto.dettagliCalcolo,
+          prezzo: prodotto.prezzo || 0,
           orario: ordine.oraRitiro || 'N/D',
           cliente: ordine.nomeCliente,
           telefono: ordine.telefono,
@@ -182,6 +184,9 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
             <Typography variant="subtitle2" color="text.secondary">
               {ordiniFiltrati.length} ordini totali
             </Typography>
+            <Typography variant="h6" sx={{ mt: 1, color: 'success.main', fontWeight: 'bold' }}>
+              Incasso Totale: €{ordiniFiltrati.reduce((sum, o) => sum + (o.totale || 0), 0).toFixed(2)}
+            </Typography>
           </Box>
 
           {/* Tabelle per Categoria */}
@@ -213,6 +218,7 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
                       <TableRow sx={{ bgcolor: 'grey.200' }}>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }}>Prodotto</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }} align="center">Q.tà</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }} align="right">Prezzo</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }} align="center">Orario</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }}>Nome Cliente</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', py: 0.5 }}>Telefono</TableCell>
@@ -230,6 +236,9 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
                         >
                           <TableCell sx={{ fontSize: '0.7rem', py: 0.3 }}>{riga.prodotto}</TableCell>
                           <TableCell sx={{ fontSize: '0.7rem', py: 0.3 }} align="center">{riga.dettagli}</TableCell>
+                          <TableCell sx={{ fontSize: '0.7rem', py: 0.3 }} align="right">
+                            €{(riga.prezzo || 0).toFixed(2)}
+                          </TableCell>
                           <TableCell sx={{ fontSize: '0.7rem', py: 0.3, fontWeight: 'bold' }} align="center">
                             {riga.orario}
                           </TableCell>
@@ -246,12 +255,30 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
                         <TableCell sx={{ fontSize: '0.75rem', py: 0.5, fontWeight: 'bold' }}>
                           TOTALI {categoria.toUpperCase()}
                         </TableCell>
-                        <TableCell colSpan={5} sx={{ fontSize: '0.7rem', py: 0.5 }}>
-                          {totaliCategoria.map((totale, idx) => (
-                            <span key={idx} style={{ marginRight: '15px' }}>
-                              <strong>{totale.nome}:</strong> {totale.quantitaTotale.toFixed(2)} {totale.unita}
-                            </span>
-                          ))}
+                        <TableCell colSpan={4} sx={{ fontSize: '0.7rem', py: 0.5 }}>
+                          {totaliCategoria.prodotti.map((totale, idx) => {
+                            let displayText = '';
+                            
+                            if (totale.kg > 0 && totale.pezzi > 0) {
+                              // Entrambi presenti
+                              displayText = `${totale.kg.toFixed(2)} kg ≈ ${totale.pezzi} pz`;
+                            } else if (totale.kg > 0) {
+                              // Solo kg
+                              displayText = `${totale.kg.toFixed(2)} kg`;
+                            } else if (totale.pezzi > 0) {
+                              // Solo pezzi
+                              displayText = `${totale.pezzi} pz`;
+                            }
+                            
+                            return (
+                              <span key={idx} style={{ marginRight: '15px' }}>
+                                <strong>{totale.nome}:</strong> {displayText}
+                              </span>
+                            );
+                          })}
+                        </TableCell>
+                        <TableCell colSpan={2} align="right" sx={{ fontSize: '0.75rem', py: 0.5, fontWeight: 'bold' }}>
+                          Totale €: {totaliCategoria.totaleEuro.toFixed(2)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
