@@ -87,20 +87,41 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
   // Calcola totali per categoria
   const calcolaTotaliCategoria = (righeCategoria) => {
     const totali = {};
+    let totaleEuroCategoria = 0;
 
     righeCategoria.forEach(riga => {
       const chiave = riga.prodotto;
+      
+      // Somma euro
+      totaleEuroCategoria += riga.prezzo || 0;
+      
       if (!totali[chiave]) {
         totali[chiave] = {
           nome: riga.prodotto,
-          quantitaTotale: 0,
+          kg: 0,
+          pezzi: 0,
           unita: riga.unita
         };
       }
-      totali[chiave].quantitaTotale += riga.quantita || 0;
+      
+      // Se il dettaglio calcolo ha kg e pezzi separati, usali
+      if (riga.dettagliCalcolo && riga.dettagliCalcolo.kg !== undefined) {
+        totali[chiave].kg += riga.dettagliCalcolo.kg || 0;
+        totali[chiave].pezzi += riga.dettagliCalcolo.pezzi || 0;
+      } else {
+        // Altrimenti usa la quantità standard
+        if (riga.unita === 'Kg') {
+          totali[chiave].kg += riga.quantita || 0;
+        } else {
+          totali[chiave].pezzi += riga.quantita || 0;
+        }
+      }
     });
 
-    return Object.values(totali);
+    return {
+      prodotti: Object.values(totali),
+      totaleEuro: totaleEuroCategoria
+    };
   };
 
   const stampa = () => {
