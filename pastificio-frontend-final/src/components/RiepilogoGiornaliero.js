@@ -74,6 +74,7 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
           dettagli: prodotto.dettagliCalcolo?.dettagli || `${prodotto.quantita} ${prodotto.unita || 'Kg'}`,
           dettagliCalcolo: prodotto.dettagliCalcolo,
           prezzo: prodotto.prezzo || 0,
+          pezziPerKg: prodotto.pezziPerKg, // ✅ AGGIUNTO per conversione
           orario: ordine.oraRitiro || 'N/D',
           cliente: ordine.nomeCliente,
           telefono: ordine.telefono,
@@ -86,7 +87,7 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
     return categorie;
   }, [ordiniFiltrati]);
 
-  // Calcola totali per categoria
+  // Calcola totali per categoria (TUTTO IN KG)
   const calcolaTotaliCategoria = (righeCategoria) => {
     const totali = {};
     let totaleEuroCategoria = 0;
@@ -100,22 +101,62 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
       if (!totali[chiave]) {
         totali[chiave] = {
           nome: riga.prodotto,
-          kg: 0,
-          pezzi: 0,
-          unita: riga.unita
+          kgTotali: 0
         };
       }
       
-      // Se il dettaglio calcolo ha kg e pezzi separati, usali
-      if (riga.dettagliCalcolo && riga.dettagliCalcolo.kg !== undefined) {
-        totali[chiave].kg += riga.dettagliCalcolo.kg || 0;
-        totali[chiave].pezzi += riga.dettagliCalcolo.pezzi || 0;
+      // Gestione Dolci Misti - Espandi in componenti
+      if (riga.prodotto.toLowerCase().includes('dolci misti')) {
+        // Dolci misti completo: 400g Pardulas, 300g Ciambelle, 200g Amaretti, resto vari
+        if (riga.prodotto.toLowerCase().includes('papassinas') || 
+            riga.prodotto.toLowerCase().includes('bianchini') ||
+            riga.prodotto.toLowerCase().includes('gueffus')) {
+          // Mix completo
+          const kgTotale = riga.dettagliCalcolo?.kg || riga.quantita || 0;
+          
+          // Aggiungi ai singoli prodotti
+          if (!totali['Pardulas']) totali['Pardulas'] = { nome: 'Pardulas', kgTotali: 0 };
+          if (!totali['Ciambelle']) totali['Ciambelle'] = { nome: 'Ciambelle', kgTotali: 0 };
+          if (!totali['Amaretti']) totali['Amaretti'] = { nome: 'Amaretti', kgTotali: 0 };
+          if (!totali['Vari (Gueffus, Papassinas, Bianchini)']) {
+            totali['Vari (Gueffus, Papassinas, Bianchini)'] = { nome: 'Vari (Gueffus, Papassinas, Bianchini)', kgTotali: 0 };
+          }
+          
+          totali['Pardulas'].kgTotali += kgTotale * 0.40;
+          totali['Ciambelle'].kgTotali += kgTotale * 0.30;
+          totali['Amaretti'].kgTotali += kgTotale * 0.20;
+          totali['Vari (Gueffus, Papassinas, Bianchini)'].kgTotali += kgTotale * 0.10;
+          
+          // Rimuovi la chiave "dolci misti" dai totali
+          delete totali[chiave];
+        } 
+        // Dolci misti solo Pardulas e Ciambelle
+        else {
+          const kgTotale = riga.dettagliCalcolo?.kg || riga.quantita || 0;
+          
+          if (!totali['Pardulas']) totali['Pardulas'] = { nome: 'Pardulas', kgTotali: 0 };
+          if (!totali['Ciambelle']) totali['Ciambelle'] = { nome: 'Ciambelle', kgTotali: 0 };
+          
+          totali['Pardulas'].kgTotali += kgTotale * 0.50;
+          totali['Ciambelle'].kgTotali += kgTotale * 0.50;
+          
+          delete totali[chiave];
+        }
       } else {
-        // Altrimenti usa la quantità standard
-        if (riga.unita === 'Kg') {
-          totali[chiave].kg += riga.quantita || 0;
+        // Prodotti normali - Converti tutto in kg
+        if (riga.dettagliCalcolo && riga.dettagliCalcolo.kg !== undefined) {
+          // Usa direttamente i kg dal dettaglio calcolo
+          totali[chiave].kgTotali += riga.dettagliCalcolo.kg || 0;
         } else {
-          totali[chiave].pezzi += riga.quantita || 0;
+          // Altrimenti calcola manualmente
+          if (riga.unita === 'Kg') {
+            totali[chiave].kgTotali += riga.quantita || 0;
+          } else if (riga.unita === 'Pezzi' || riga.unita === 'pz') {
+            // Converti pezzi in kg usando pezziPerKg
+            const pezziPerKg = riga.pezziPerKg || 20; // Default 20 pezzi/kg
+            const kg = (riga.quantita || 0) / pezziPerKg;
+            totali[chiave].kgTotali += kg;
+          }
         }
       }
     });
@@ -256,26 +297,11 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
                           TOTALI {categoria.toUpperCase()}
                         </TableCell>
                         <TableCell colSpan={4} sx={{ fontSize: '0.7rem', py: 0.5 }}>
-                          {totaliCategoria.prodotti.map((totale, idx) => {
-                            let displayText = '';
-                            
-                            if (totale.kg > 0 && totale.pezzi > 0) {
-                              // Entrambi presenti
-                              displayText = `${totale.kg.toFixed(2)} kg ≈ ${totale.pezzi} pz`;
-                            } else if (totale.kg > 0) {
-                              // Solo kg
-                              displayText = `${totale.kg.toFixed(2)} kg`;
-                            } else if (totale.pezzi > 0) {
-                              // Solo pezzi
-                              displayText = `${totale.pezzi} pz`;
-                            }
-                            
-                            return (
-                              <span key={idx} style={{ marginRight: '15px' }}>
-                                <strong>{totale.nome}:</strong> {displayText}
-                              </span>
-                            );
-                          })}
+                          {totaliCategoria.prodotti.map((totale, idx) => (
+                            <span key={idx} style={{ marginRight: '15px' }}>
+                              <strong>{totale.nome}:</strong> {totale.kgTotali.toFixed(2)} kg
+                            </span>
+                          ))}
                         </TableCell>
                         <TableCell colSpan={2} align="right" sx={{ fontSize: '0.75rem', py: 0.5, fontWeight: 'bold' }}>
                           Totale €: {totaliCategoria.totaleEuro.toFixed(2)}
