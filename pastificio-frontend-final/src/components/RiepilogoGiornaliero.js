@@ -68,6 +68,17 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
           categoria = 'Dolci';
         }
 
+        // ✅ Ottieni config prodotto per pezziPerKg
+        const configProdotto = getProdottoConfig(prodotto.nome);
+        
+        // DEBUG: Log struttura prodotto
+        console.log('Prodotto:', prodotto.nome, {
+          quantita: prodotto.quantita,
+          unita: prodotto.unita,
+          dettagliCalcolo: prodotto.dettagliCalcolo,
+          pezziPerKg: configProdotto?.pezziPerKg
+        });
+
         categorie[categoria].push({
           prodotto: prodotto.nome,
           quantita: prodotto.quantita,
@@ -75,7 +86,7 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
           dettagli: prodotto.dettagliCalcolo?.dettagli || `${prodotto.quantita} ${prodotto.unita || 'Kg'}`,
           dettagliCalcolo: prodotto.dettagliCalcolo,
           prezzo: prodotto.prezzo || 0,
-          pezziPerKg: prodotto.pezziPerKg, // ✅ AGGIUNTO per conversione
+          pezziPerKg: configProdotto?.pezziPerKg || 20, // ✅ USA CONFIG
           orario: ordine.oraRitiro || 'N/D',
           cliente: ordine.nomeCliente,
           telefono: ordine.telefono,
@@ -145,18 +156,27 @@ export default function RiepilogoGiornaliero({ open, onClose, ordini }) {
         }
       } else {
         // Prodotti normali - Converti tutto in kg
-        if (riga.dettagliCalcolo && riga.dettagliCalcolo.kg !== undefined) {
+        if (riga.dettagliCalcolo && typeof riga.dettagliCalcolo.kg === 'number') {
           // Usa direttamente i kg dal dettaglio calcolo
-          totali[chiave].kgTotali += riga.dettagliCalcolo.kg || 0;
+          totali[chiave].kgTotali += riga.dettagliCalcolo.kg;
         } else {
           // Altrimenti calcola manualmente
-          if (riga.unita === 'Kg') {
+          const unitaNormalizzata = (riga.unita || '').toLowerCase();
+          
+          if (unitaNormalizzata === 'kg' || unitaNormalizzata === 'kilogrammi') {
             totali[chiave].kgTotali += riga.quantita || 0;
-          } else if (riga.unita === 'Pezzi' || riga.unita === 'pz') {
-            // Converti pezzi in kg usando pezziPerKg
-            const pezziPerKg = riga.pezziPerKg || 20; // Default 20 pezzi/kg
+          } else if (unitaNormalizzata === 'pezzi' || unitaNormalizzata === 'pz' || unitaNormalizzata === 'pezzo') {
+            // Converti pezzi in kg usando pezziPerKg dalla config
+            const pezziPerKg = riga.pezziPerKg || 20; // Fallback 20 pezzi/kg
             const kg = (riga.quantita || 0) / pezziPerKg;
             totali[chiave].kgTotali += kg;
+            
+            console.log(`✅ Conversione ${riga.prodotto}: ${riga.quantita} pezzi / ${pezziPerKg} pz/kg = ${kg.toFixed(3)} kg`);
+          } else if (unitaNormalizzata === '€' || unitaNormalizzata === 'euro') {
+            // Se è in euro, skippa
+            console.warn(`⚠️ Prodotto ${riga.prodotto} con unità ${riga.unita} - conversione non supportata`);
+          } else {
+            console.warn(`⚠️ Unità sconosciuta per ${riga.prodotto}: "${riga.unita}"`);
           }
         }
       }
