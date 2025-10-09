@@ -22,7 +22,8 @@ import {
   ListAlt as ListAltIcon,
   Add as AddIcon,
   Sync as SyncIcon,
-  LocalShipping as ShippingIcon
+  LocalShipping as ShippingIcon,
+  Assessment as AssessmentIcon // ✅ AGGIUNTO
 } from '@mui/icons-material';
 
 // Import nuovi moduli di calcolo prezzi
@@ -37,6 +38,7 @@ import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
+import RiepilogoGiornaliero from './RiepilogoGiornaliero'; // ✅ IMPORT RIEPILOGO COMPLETO
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -105,7 +107,8 @@ const prodottiDisponibili = {
   })
 };
 
-function RiepilogoGiornaliero({ ordini, dataSelezionata }) {
+// ✅ COMPONENTE RIEPILOGO SEMPLICE INLINE (per compatibilità con vecchio dialog)
+function RiepilogoSemplice({ ordini, dataSelezionata }) {
   const ordiniFiltrati = ordini.filter(o => {
     const dataOrdine = o.dataRitiro || o.createdAt || '';
     return dataOrdine.startsWith(dataSelezionata);
@@ -297,6 +300,7 @@ export default function GestoreOrdini() {
   const [isConnected, setIsConnected] = useState(false);
   const [submitInCorso, setSubmitInCorso] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
+  const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false); // ✅ NUOVO STATE
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   const [menuExport, setMenuExport] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
@@ -1031,6 +1035,17 @@ export default function GestoreOrdini() {
                 </span>
               </Tooltip>
               
+              {/* ✅ PULSANTE RIEPILOGO STAMPABILE */}
+              <Button
+                variant="contained"
+                size="small"
+                color="secondary"
+                startIcon={<AssessmentIcon />}
+                onClick={() => setRiepilogoStampabileAperto(true)}
+              >
+                Riepilogo Stampabile
+              </Button>
+              
               <Button
                 variant="contained"
                 size="small"
@@ -1225,6 +1240,7 @@ export default function GestoreOrdini() {
           />
         )}
         
+        {/* ✅ DIALOG RIEPILOGO SEMPLICE (VECCHIO) */}
         <Dialog 
           open={riepilogoAperto} 
           onClose={() => setRiepilogoAperto(false)}
@@ -1241,7 +1257,7 @@ export default function GestoreOrdini() {
             </Box>
           </DialogTitle>
           <DialogContent>
-            <RiepilogoGiornaliero 
+            <RiepilogoSemplice 
               ordini={ordini} 
               dataSelezionata={dataSelezionata}
             />
@@ -1250,6 +1266,13 @@ export default function GestoreOrdini() {
             <Button onClick={() => setRiepilogoAperto(false)}>Chiudi</Button>
           </DialogActions>
         </Dialog>
+        
+        {/* ✅ DIALOG RIEPILOGO STAMPABILE (NUOVO - CON COLONNE MULTI E VIAGGIO) */}
+        <RiepilogoGiornaliero 
+          open={riepilogoStampabileAperto} 
+          onClose={() => setRiepilogoStampabileAperto(false)}
+          ordini={ordini}
+        />
         
         <Dialog 
           open={whatsappHelperAperto} 
