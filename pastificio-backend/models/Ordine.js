@@ -1,4 +1,4 @@
-// models/Ordine.js - FIX DEFINITIVO
+// models/Ordine.js - FIX CALCOLO TOTALE
 import mongoose from 'mongoose';
 
 const prodottoSchema = new mongoose.Schema({
@@ -12,15 +12,14 @@ const prodottoSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  // ✅ FIX: Accetta TUTTE le varianti maiuscole/minuscole
   unita: {
     type: String,
-    enum: ['kg', 'Kg', 'KG', 'pezzi', 'Pezzi', 'PEZZI', 'unità', 'Unità', 'unitÃ ', 'unitÃƒ ', '€', 'EUR', 'g', 'G', 'l', 'L'],
+    enum: ['kg', 'Kg', 'KG', 'pezzi', 'Pezzi', 'PEZZI', 'unità', 'Unità', '€', 'EUR', 'g', 'G', 'l', 'L'],
     default: 'kg'
   },
   unitaMisura: {
     type: String,
-    enum: ['kg', 'Kg', 'KG', 'pezzi', 'Pezzi', 'PEZZI', 'unità', 'Unità', 'unitÃ ', 'unitÃƒ ', '€', 'EUR', 'g', 'G', 'l', 'L'],
+    enum: ['kg', 'Kg', 'KG', 'pezzi', 'Pezzi', 'PEZZI', 'unità', 'Unità', '€', 'EUR', 'g', 'G', 'l', 'L'],
     default: 'kg'
   },
   prezzo: {
@@ -28,7 +27,6 @@ const prodottoSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  // ✅ FIX: Rimuove enum rigido - accetta QUALSIASI stringa
   categoria: {
     type: String,
     trim: true,
@@ -117,7 +115,6 @@ const ordineSchema = new mongoose.Schema({
     unique: true,
     sparse: true
   },
-  // ✅ FIX: Campo cliente OPZIONALE (può essere null)
   cliente: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Cliente',
@@ -136,32 +133,48 @@ ordineSchema.index({ createdAt: -1 });
 ordineSchema.index({ numeroOrdine: 1 });
 ordineSchema.index({ daViaggio: 1 });
 
-// Metodo per calcolare il totale
+// ✅ FIX: Metodo per calcolare il totale - SOLO SOMMA I PREZZI
 ordineSchema.methods.calcolaTotale = function() {
+  // Il prezzo di ogni prodotto è GIÀ il prezzo totale calcolato dal frontend
+  // Quindi dobbiamo solo SOMMARE, NON moltiplicare per quantità!
   this.totaleCalcolato = this.prodotti.reduce((sum, p) => {
-    return sum + (p.quantita * p.prezzo);
+    return sum + (p.prezzo || 0);  // ✅ SOLO SOMMA
   }, 0);
-  this.totale = this.totaleCalcolato;
+  
+  this.totale = parseFloat(this.totaleCalcolato.toFixed(2));
   return this.totale;
 };
 
-// ✅ Hook pre-save MIGLIORATO - Normalizza e pulisce dati
+// Hook pre-save
 ordineSchema.pre('save', function(next) {
-  // Calcola totale se non presente
+  // ✅ FIX: Usa il totale passato dal frontend se presente e valido
+  // Solo ricalcola se il totale è 0 o mancante
   if (!this.totale || this.totale === 0) {
     this.calcolaTotale();
+  } else {
+    // Verifica che il totale ricevuto sia sensato
+    const totaleCalcolato = this.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
+    
+    // Se la differenza è minima (dovuta ad arrotondamenti), usa il totale passato
+    if (Math.abs(totaleCalcolato - this.totale) < 0.1) {
+      this.totaleCalcolato = this.totale;
+    } else {
+      // Se c'è una differenza significativa, ricalcola e logga warning
+      console.warn(`⚠️ Differenza totale ordine: ricevuto ${this.totale}, calcolato ${totaleCalcolato}`);
+      this.totale = parseFloat(totaleCalcolato.toFixed(2));
+      this.totaleCalcolato = this.totale;
+    }
   }
   
-  // ✅ NORMALIZZA PRODOTTI - Risolve problemi enum
+  // Normalizza prodotti
   this.prodotti = this.prodotti.map(p => {
     // Rimuovi quantità dal nome se presente
     if (p.nome) {
       p.nome = p.nome.replace(/\s*\(\d+.*?\)\s*$/, '').trim();
     }
     
-    // ✅ NORMALIZZA unità di misura (accetta maiuscole/minuscole)
+    // Normalizza unità di misura
     if (p.unita) {
-      // Converte "Pezzi" → "pezzi", "Kg" → "kg"
       const unitaNormalized = p.unita.toLowerCase();
       if (['kg', 'pezzi', 'unità', '€', 'g', 'l'].includes(unitaNormalized)) {
         p.unita = unitaNormalized;
@@ -182,11 +195,10 @@ ordineSchema.pre('save', function(next) {
       p.unita = p.unitaMisura;
     }
     
-    // ✅ NORMALIZZA CATEGORIA - Determina automaticamente
+    // Normalizza categoria
     if (!p.categoria || p.categoria === 'altro' || p.categoria === p.nome) {
       p.categoria = this.getCategoriaProdotto(p.nome);
     } else {
-      // Se categoria è un nome prodotto, normalizza
       p.categoria = this.getCategoriaProdotto(p.categoria);
     }
     
@@ -196,7 +208,7 @@ ordineSchema.pre('save', function(next) {
   next();
 });
 
-// ✅ Metodo MIGLIORATO per determinare la categoria
+// Metodo per determinare la categoria
 ordineSchema.methods.getCategoriaProdotto = function(nomeProdotto) {
   const nome = nomeProdotto?.toLowerCase() || '';
   
