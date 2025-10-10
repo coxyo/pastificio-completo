@@ -171,6 +171,18 @@ router.post('/', async (req, res) => {
       : req.body.cliente
     );
     
+    // 🔥 DEBUG: Logga OGNI prodotto in dettaglio
+    if (req.body.prodotti && req.body.prodotti.length > 0) {
+      logger.info(`📦 PRODOTTI RICEVUTI (${req.body.prodotti.length}):`);
+      req.body.prodotti.forEach((p, idx) => {
+        logger.info(`  [${idx + 1}] ${p.nome}:`);
+        logger.info(`      - Quantità: ${p.quantita} ${p.unita}`);
+        logger.info(`      - Prezzo ricevuto: €${p.prezzo}`);
+        logger.info(`      - Dettagli calcolo:`, p.dettagliCalcolo ? JSON.stringify(p.dettagliCalcolo) : 'N/A');
+      });
+    }
+    logger.info(`💰 TOTALE ORDINE ricevuto: €${req.body.totale}`);
+    
     // 🔥 RISOLUZIONE CLIENTE FLESSIBILE
     let clienteId = null;
     let clienteObj = null;
