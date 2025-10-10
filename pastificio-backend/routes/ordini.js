@@ -204,6 +204,28 @@ router.post('/', async (req, res) => {
         nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim()
       }))
     };
+    
+    // 🔥 VALIDAZIONE TOTALE - Verifica che sia sensato
+    const totaleCalcolato = ordineData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
+    const totaleRicevuto = ordineData.totale || totaleCalcolato;
+    
+    // Se la differenza è > 10%, logga warning e usa il calcolato
+    const differenzaPercentuale = Math.abs((totaleRicevuto - totaleCalcolato) / totaleCalcolato * 100);
+    
+    if (differenzaPercentuale > 10) {
+      logger.warn(`⚠️ TOTALE SOSPETTO - Ricevuto: €${totaleRicevuto.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)} (diff: ${differenzaPercentuale.toFixed(1)}%)`);
+      logger.warn(`📦 Prodotti:`, JSON.stringify(ordineData.prodotti.map(p => ({
+        nome: p.nome,
+        quantita: p.quantita,
+        unita: p.unita,
+        prezzo: p.prezzo
+      }))));
+      
+      // 🚨 Usa il totale calcolato se la differenza è eccessiva
+      ordineData.totale = totaleCalcolato;
+    } else {
+      ordineData.totale = totaleRicevuto;
+    }
 
     if (req.user) {
       ordineData.creatoDa = req.user._id;
@@ -320,10 +342,14 @@ router.put('/:id', async (req, res) => {
       
       // 🔥 RISOLUZIONE CLIENTE FLESSIBILE
       let clienteId = null;
+      let clienteObj = null;
       if (req.body.cliente) {
         try {
           clienteId = await resolveClienteId(req.body.cliente);
           logger.info(`✅ Cliente risolto: ${clienteId}`);
+          
+          // Recupera i dati del cliente
+          clienteObj = await Cliente.findById(clienteId);
         } catch (clienteError) {
           logger.error(`❌ Errore risoluzione cliente: ${clienteError.message}`);
           return res.status(400).json({ 
@@ -336,6 +362,10 @@ router.put('/:id', async (req, res) => {
       const ordineData = {
         ...req.body,
         cliente: clienteId, // ✅ Sempre ObjectId valido o null
+        // 🔥 CAMPI LEGACY per retrocompatibilità
+        nomeCliente: clienteObj?.nome || req.body.nomeCliente || 'Cliente Sconosciuto',
+        telefono: clienteObj?.telefono || req.body.telefono || '',
+        email: clienteObj?.email || req.body.email || '',
         prodotti: req.body.prodotti?.map(p => ({
           ...p,
           unita: p.unita || p.unitaMisura || 'kg',
@@ -343,6 +373,18 @@ router.put('/:id', async (req, res) => {
           nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim()
         }))
       };
+      
+      // 🔥 VALIDAZIONE TOTALE
+      const totaleCalcolato = ordineData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
+      const totaleRicevuto = ordineData.totale || totaleCalcolato;
+      const differenzaPercentuale = Math.abs((totaleRicevuto - totaleCalcolato) / totaleCalcolato * 100);
+      
+      if (differenzaPercentuale > 10) {
+        logger.warn(`⚠️ TOTALE SOSPETTO (temp→new) - Ricevuto: €${totaleRicevuto.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)}`);
+        ordineData.totale = totaleCalcolato;
+      } else {
+        ordineData.totale = totaleRicevuto;
+      }
 
       if (req.user) {
         ordineData.creatoDa = req.user._id;

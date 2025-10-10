@@ -1,4 +1,4 @@
-// routes/clienti.js
+// routes/clienti.js - CON CACHE OTTIMIZZATA
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import Cliente from '../models/Cliente.js';
@@ -8,10 +8,22 @@ import ExcelJS from 'exceljs';
 
 const router = express.Router();
 
+// 🔥 CACHE IN-MEMORY PER LISTA CLIENTI
+let clientiCache = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
+
+// Funzione per invalidare cache
+function invalidateCache() {
+  clientiCache = null;
+  cacheTimestamp = null;
+  logger.info('🗑️ Cache clienti invalidata');
+}
+
 // ⚠️ AUTENTICAZIONE COMMENTATA PER TEST
 // router.use(protect);
 
-// GET /api/clienti - Lista clienti con filtri
+// GET /api/clienti - Lista clienti con filtri (CON CACHE)
 router.get('/', async (req, res) => {
   try {
     const { 
@@ -21,9 +33,38 @@ router.get('/', async (req, res) => {
       attivo,
       limit = 100,
       skip = 0,
-      sort = '-createdAt'
+      sort = '-createdAt',
+      noCache = false // Parametro per forzare bypass cache
     } = req.query;
     
+    // 🔥 CHECK CACHE - solo per query semplici senza filtri
+    const isSimpleQuery = !search && !tipo && !livello && skip === 0 && 
+                          (attivo === 'true' || attivo === undefined);
+    
+    if (isSimpleQuery && !noCache) {
+      const now = Date.now();
+      const cacheValid = clientiCache && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION);
+      
+      if (cacheValid) {
+        logger.debug(`✅ CACHE HIT - Clienti serviti dalla cache (età: ${Math.round((now - cacheTimestamp) / 1000)}s)`);
+        
+        return res.json({
+          success: true,
+          data: clientiCache,
+          pagination: {
+            total: clientiCache.length,
+            limit: parseInt(limit),
+            skip: 0
+          },
+          cached: true,
+          cacheAge: Math.round((now - cacheTimestamp) / 1000)
+        });
+      } else {
+        logger.debug('⚠️ CACHE MISS - Recupero da database');
+      }
+    }
+    
+    // Query normale con filtri
     let query = {};
     
     // Filtro ricerca
@@ -49,16 +90,24 @@ router.get('/', async (req, res) => {
       query.attivo = true;
     }
     
-    console.log('Query clienti:', query);
+    logger.debug('Query clienti:', query);
     
     const clienti = await Cliente.find(query)
       .limit(parseInt(limit))
       .skip(parseInt(skip))
-      .sort(sort);
+      .sort(sort)
+      .lean(); // ✅ Performance: usa lean() per oggetti JS plain
     
     const total = await Cliente.countDocuments(query);
     
-    console.log(`Trovati ${clienti.length} clienti su ${total} totali`);
+    // 🔥 AGGIORNA CACHE se query semplice
+    if (isSimpleQuery) {
+      clientiCache = clienti;
+      cacheTimestamp = Date.now();
+      logger.info(`💾 Cache clienti aggiornata: ${clienti.length} clienti`);
+    }
+    
+    logger.debug(`Trovati ${clienti.length} clienti su ${total} totali`);
     
     res.json({
       success: true,
@@ -67,7 +116,8 @@ router.get('/', async (req, res) => {
         total,
         limit: parseInt(limit),
         skip: parseInt(skip)
-      }
+      },
+      cached: false
     });
     
   } catch (error) {
@@ -208,11 +258,11 @@ router.get('/top', async (req, res) => {
 // POST /api/clienti - Crea nuovo cliente
 router.post('/', async (req, res) => {
   try {
-    console.log('📥 POST /api/clienti - Body ricevuto:', req.body);
+    logger.info('🔥 POST /api/clienti - Creazione nuovo cliente');
     
     const clienteData = {
       ...req.body
-      // creatoDa: req.user?._id // ⚠️ COMMENTATO
+      // creatoDa: req.user?._id
     };
     
     // Se non c'è il cognome ma c'è uno spazio nel nome, dividi
@@ -223,6 +273,9 @@ router.post('/', async (req, res) => {
     }
     
     const cliente = await Cliente.create(clienteData);
+    
+    // 🔥 INVALIDA CACHE dopo creazione
+    invalidateCache();
     
     logger.info('✅ Nuovo cliente creato', { 
       clienteId: cliente._id,
@@ -237,7 +290,6 @@ router.post('/', async (req, res) => {
     
   } catch (error) {
     logger.error('❌ Errore creazione cliente:', error);
-    console.error('Stack trace:', error);
     
     if (error.code === 11000) {
       const campo = Object.keys(error.keyValue)[0];
@@ -294,6 +346,9 @@ router.put('/:id', async (req, res) => {
       });
     }
     
+    // 🔥 INVALIDA CACHE dopo update
+    invalidateCache();
+    
     logger.info('Cliente aggiornato', { clienteId: cliente._id });
     
     res.json({ success: true, data: cliente });
@@ -321,6 +376,9 @@ router.delete('/:id', async (req, res) => {
     
     cliente.attivo = false;
     await cliente.save();
+    
+    // 🔥 INVALIDA CACHE dopo delete
+    invalidateCache();
     
     logger.info('Cliente disattivato', { clienteId: cliente._id });
     
@@ -352,7 +410,7 @@ router.get('/:id/statistiche', async (req, res) => {
     
     const ordini = await Ordine.find({ 
       $or: [
-        { clienteId: cliente._id },
+        { cliente: cliente._id },
         { telefono: cliente.telefono }
       ]
     }).sort('-dataRitiro');
@@ -403,6 +461,9 @@ router.post('/:id/punti', async (req, res) => {
     
     await cliente.aggiungiPunti(punti, motivo);
     
+    // 🔥 INVALIDA CACHE dopo modifica punti
+    invalidateCache();
+    
     logger.info('Punti modificati', { 
       clienteId: cliente._id,
       punti,
@@ -442,7 +503,7 @@ router.get('/:id/ordini', async (req, res) => {
     
     const ordini = await Ordine.find({ 
       $or: [
-        { clienteId: cliente._id },
+        { cliente: cliente._id },
         { telefono: cliente.telefono }
       ]
     })
@@ -508,7 +569,7 @@ router.get('/:id/export', async (req, res) => {
 
     const ordini = await Ordine.find({ 
       $or: [
-        { clienteId: cliente._id },
+        { cliente: cliente._id },
         { telefono: cliente.telefono }
       ]
     }).sort('-dataRitiro');
@@ -543,9 +604,9 @@ router.get('/:id/export', async (req, res) => {
     
     ordini.forEach(ordine => {
       ordiniSheet.addRow({
-        numero: ordine.numeroOrdine || ordine._id.slice(-6),
+        numero: ordine.numeroOrdine || ordine._id.toString().slice(-6),
         data: new Date(ordine.dataRitiro).toLocaleDateString('it-IT'),
-        prodotti: ordine.prodotti?.map(p => `${p.prodotto} (${p.quantita})`).join(', '),
+        prodotti: ordine.prodotti?.map(p => `${p.nome} (${p.quantita} ${p.unita})`).join(', '),
         totale: `€${ordine.totale?.toFixed(2) || '0.00'}`,
         stato: ordine.stato
       });
