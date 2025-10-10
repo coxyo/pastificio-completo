@@ -1,4 +1,4 @@
-// src/components/GestoreOrdini.js
+// src/components/GestoreOrdini.js - ✅ FIX COMPLETO
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -383,6 +383,7 @@ export default function GestoreOrdini() {
     }
   }, []);
   
+  // ✅ FIX PRINCIPALE: Sincronizzazione SENZA conversione prezzi
   const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
@@ -411,40 +412,35 @@ export default function GestoreOrdini() {
           ordiniBackend = data.ordini;
         }
         
-        console.log(`Sincronizzati ${ordiniBackend.length} ordini dal server`);
+        console.log(`✅ Sincronizzati ${ordiniBackend.length} ordini dal server`);
         
-        const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
-        const ordiniMap = new Map();
+        // ✅ FIX: USA I DATI DEL SERVER SENZA MODIFICHE
+        const ordiniFinali = ordiniBackend.map(ordine => ({
+          ...ordine,
+          // NON ricalcolare i prezzi, usa quelli del server
+          totale: ordine.totale,
+          prodotti: (ordine.prodotti || []).map(p => ({
+            ...p,
+            // NON ricalcolare, usa i dati del server
+            prezzo: p.prezzo
+          }))
+        }));
         
-        ordiniBackend.forEach(ordine => {
-          const key = ordine._id || ordine.id;
-          if (key) ordiniMap.set(key, ordine);
-        });
-        
-        ordiniOffline.forEach(ordine => {
-          const key = ordine._id || ordine.id || `temp_${ordine.nomeCliente}_${ordine.dataRitiro}`;
-          if (!ordiniMap.has(key)) {
-            ordiniMap.set(key, { ...ordine, _syncPending: true });
-          }
-        });
-        
-        const ordiniFinali = Array.from(ordiniMap.values());
-        
+        // Ordina per data di creazione (più recenti prima)
         ordiniFinali.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.dataRitiro);
           const dateB = new Date(b.createdAt || b.dataRitiro);
           return dateB - dateA;
         });
         
+        // ✅ FIX: Salva DIRETTAMENTE senza merge con cache
         localStorage.setItem('ordini', JSON.stringify(ordiniFinali));
         setOrdini(ordiniFinali);
         
         setIsConnected(true);
         setUltimaSync(new Date());
         
-        if (ordiniOffline.length > 0) {
-          await inviaOrdiniOffline();
-        }
+        console.log('✅ Ordini aggiornati dallo stato server');
         
         return true;
       } else if (response.status === 404) {
@@ -580,8 +576,8 @@ export default function GestoreOrdini() {
     };
   }, [sincronizzaConMongoDB, connectWebSocket]);
   
-  // 🔥 FIX PRINCIPALE - ESTRAZIONE clienteId
   const creaOrdine = async (ordine) => {
+    // ✅ Calcola i prezzi SOLO per inviarli al backend
     let totaleOrdine = 0;
     const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
       const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
@@ -594,23 +590,16 @@ export default function GestoreOrdini() {
       };
     });
     
-    // ✅ FIX: Estrai solo l'_id del cliente
     let clienteId = null;
     if (typeof ordine.cliente === 'string') {
-      // Già un ObjectId stringa
       clienteId = ordine.cliente;
     } else if (ordine.cliente && ordine.cliente._id) {
-      // Oggetto cliente completo - estrai solo _id
       clienteId = ordine.cliente._id;
-    } else if (ordine.cliente && ordine.cliente.nome) {
-      // Vecchio formato con nome/telefono - invia comunque solo i dati essenziali
-      console.warn('Cliente in formato vecchio:', ordine.cliente);
-      // In questo caso il backend dovrebbe gestire la creazione/ricerca
     }
     
     const nuovoOrdine = {
       ...ordine,
-      cliente: clienteId || ordine.cliente, // ✅ Solo _id MongoDB
+      cliente: clienteId || ordine.cliente,
       prodotti: prodottiConCalcolo,
       totale: totaleOrdine,
       _id: undefined,
@@ -620,7 +609,7 @@ export default function GestoreOrdini() {
       stato: ordine.stato || 'nuovo'
     };
     
-    console.log('📤 Invio ordine al backend:', nuovoOrdine); // Debug
+    console.log('📤 Invio ordine al backend:', nuovoOrdine);
     
     try {
       if (!navigator.onLine) {
@@ -639,11 +628,8 @@ export default function GestoreOrdini() {
         const ordineCreato = await response.json();
         console.log('✅ Ordine creato con successo:', ordineCreato);
         
-        setOrdini(prev => [ordineCreato, ...prev]);
-        
-        const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-        ordiniCache.unshift(ordineCreato);
-        localStorage.setItem('ordini', JSON.stringify(ordiniCache));
+        // ✅ Ricarica TUTTI gli ordini dal server
+        await sincronizzaConMongoDB();
         
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({
@@ -689,7 +675,6 @@ export default function GestoreOrdini() {
       };
     });
     
-    // ✅ FIX: Estrai solo l'_id del cliente anche per update
     let clienteId = null;
     if (typeof ordine.cliente === 'string') {
       clienteId = ordine.cliente;
@@ -699,7 +684,7 @@ export default function GestoreOrdini() {
     
     const ordineAggiornato = {
       ...ordine,
-      cliente: clienteId || ordine.cliente, // ✅ Solo _id MongoDB
+      cliente: clienteId || ordine.cliente,
       prodotti: prodottiConCalcolo,
       totale: totaleOrdine,
       updatedAt: new Date().toISOString()
@@ -719,39 +704,14 @@ export default function GestoreOrdini() {
       });
       
       if (response.ok) {
-        const ordineRisposta = await response.json();
-        
-        setOrdini(prev => prev.map(o => 
-          (o._id === ordine._id || o.id === ordine.id) ? ordineRisposta : o
-        ));
-        
-        const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-        const index = ordiniCache.findIndex(o => o._id === ordine._id || o.id === ordine.id);
-        if (index !== -1) {
-          ordiniCache[index] = ordineRisposta;
-          localStorage.setItem('ordini', JSON.stringify(ordiniCache));
-        }
-        
+        // ✅ Ricarica TUTTI gli ordini dal server
+        await sincronizzaConMongoDB();
         mostraNotifica('Ordine aggiornato', 'success');
       } else {
         throw new Error('Update failed');
       }
     } catch (error) {
       console.error('Errore aggiornamento:', error);
-      
-      const ordineConFlag = { ...ordineAggiornato, _syncPending: true };
-      
-      setOrdini(prev => prev.map(o => 
-        (o._id === ordine._id || o.id === ordine.id) ? ordineConFlag : o
-      ));
-      
-      const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-      const index = ordiniCache.findIndex(o => o._id === ordine._id || o.id === ordine.id);
-      if (index !== -1) {
-        ordiniCache[index] = ordineConFlag;
-        localStorage.setItem('ordini', JSON.stringify(ordiniCache));
-      }
-      
       mostraNotifica('Ordine aggiornato localmente', 'warning');
     }
   };
@@ -772,26 +732,15 @@ export default function GestoreOrdini() {
       });
       
       if (response.ok) {
-        setOrdini(prev => prev.filter(o => o._id !== id && o.id !== id));
-        
-        const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-        const filtered = ordiniCache.filter(o => o._id !== id && o.id !== id);
-        localStorage.setItem('ordini', JSON.stringify(filtered));
-        
+        // ✅ Ricarica TUTTI gli ordini dal server
+        await sincronizzaConMongoDB();
         mostraNotifica('Ordine eliminato', 'success');
       } else {
         throw new Error('Delete failed');
       }
     } catch (error) {
       console.error('Errore eliminazione:', error);
-      
-      setOrdini(prev => prev.filter(o => o._id !== id && o.id !== id));
-      
-      const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
-      const filtered = ordiniCache.filter(o => o._id !== id && o.id !== id);
-      localStorage.setItem('ordini', JSON.stringify(filtered));
-      
-      mostraNotifica('Ordine eliminato localmente', 'warning');
+      mostraNotifica('Errore eliminazione', 'error');
     }
   };
   
