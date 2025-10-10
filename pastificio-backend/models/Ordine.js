@@ -1,5 +1,7 @@
-// models/Ordine.js - MODELLO OTTIMIZZATO E COMPLETO
+// models/Ordine.js - ✅ MODELLO OTTIMIZZATO CON CALCOLO PREZZI CENTRALIZZATO
 import mongoose from 'mongoose';
+// ✅ FIX: Import sistema calcolo prezzi
+import calcoliPrezzi from '../utils/calcoliPrezzi.js';
 
 // Schema Prodotto nel carrello
 const prodottoSchema = new mongoose.Schema({
@@ -27,7 +29,7 @@ const prodottoSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0,
-    comment: 'Prezzo totale già calcolato dal frontend (quantità × prezzo unitario)'
+    comment: 'Prezzo totale calcolato dal backend (quantità × prezzo unitario)'
   },
   prezzoUnitario: {
     type: Number,
@@ -46,7 +48,7 @@ const prodottoSchema = new mongoose.Schema({
   },
   dettagliCalcolo: {
     type: mongoose.Schema.Types.Mixed,
-    comment: 'Dati di calcolo dal frontend per debug/audit'
+    comment: 'Dati di calcolo dal backend per debug/audit'
   }
 }, { _id: false });
 
@@ -116,7 +118,7 @@ const ordineSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0,
-    comment: 'Totale ordine finale'
+    comment: 'Totale ordine finale calcolato dal backend'
   },
   
   totaleCalcolato: {
@@ -254,20 +256,32 @@ ordineSchema.index({ createdAt: -1 });
 ordineSchema.index({ daViaggio: 1, stato: 1 });
 ordineSchema.index({ pagato: 1, dataRitiro: 1 });
 
-// ⚠️ RIMUOVI DUPLICATO - mantieni solo quello sopra
-// ordineSchema.index({ numeroOrdine: 1 }); // <-- RIMOSSO: già unique sopra
-
 // ==========================================
 // METODI INSTANCE
 // ==========================================
 
 /**
- * Calcola il totale ordine
- * ✅ I prezzi dei prodotti sono già totali (quantità × prezzo unitario)
- * Quindi facciamo solo la SOMMA
+ * ✅ FIX: Calcola il totale ordine usando il sistema centralizzato
+ * Ricalcola SEMPRE i prezzi usando calcoliPrezzi.js per garantire coerenza
  */
 ordineSchema.methods.calcolaTotale = function() {
-  // Somma i prezzi già calcolati
+  // ✅ RICALCOLA ogni prodotto usando il sistema centralizzato
+  this.prodotti = this.prodotti.map(p => {
+    const risultatoCalcolo = calcoliPrezzi.calcolaPrezzoOrdine(
+      p.nome,
+      p.quantita,
+      p.unita || p.unitaMisura || 'kg'
+    );
+    
+    // Aggiorna il prezzo con quello calcolato correttamente
+    p.prezzo = risultatoCalcolo.prezzoTotale;
+    p.prezzoUnitario = risultatoCalcolo.prezzoTotale / p.quantita;
+    p.dettagliCalcolo = risultatoCalcolo;
+    
+    return p;
+  });
+  
+  // Somma i prezzi ricalcolati
   this.totaleCalcolato = this.prodotti.reduce((sum, p) => {
     return sum + (p.prezzo || 0);
   }, 0);
@@ -282,6 +296,9 @@ ordineSchema.methods.calcolaTotale = function() {
   }
   
   this.totale = parseFloat(Math.max(0, totaleConSconto).toFixed(2));
+  
+  console.log(`💰 Totale ricalcolato per ordine ${this.numeroOrdine || this._id}: €${this.totale.toFixed(2)}`);
+  
   return this.totale;
 };
 
@@ -364,29 +381,14 @@ ordineSchema.methods.completaOrdine = function() {
 // ==========================================
 // HOOKS PRE-SAVE
 // ==========================================
+
+/**
+ * ✅ FIX: Hook pre-save con ricalcolo prezzi intelligente
+ */
 ordineSchema.pre('save', function(next) {
-  // ✅ FIX: Usa il totale passato dal frontend se valido
-  if (!this.totale || this.totale === 0) {
-    this.calcolaTotale();
-  } else {
-    // Verifica coerenza
-    const totaleCalcolato = this.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
-    
-    // Tolleranza 0.1€ per arrotondamenti
-    if (Math.abs(totaleCalcolato - this.totale) < 0.1) {
-      this.totaleCalcolato = this.totale;
-    } else {
-      // Differenza significativa - logga warning e ricalcola
-      console.warn(
-        `⚠️ Discrepanza totale ordine ${this.numeroOrdine || this._id}:`,
-        `Frontend: €${this.totale}, Backend: €${totaleCalcolato.toFixed(2)}`
-      );
-      this.totale = parseFloat(totaleCalcolato.toFixed(2));
-      this.totaleCalcolato = this.totale;
-    }
-  }
+  // ✅ NORMALIZZA PRODOTTI E RICALCOLA SE NECESSARIO
+  let needsRecalculation = false;
   
-  // Normalizza prodotti
   this.prodotti = this.prodotti.map(p => {
     // Pulisci nome prodotto (rimuovi quantità se presente)
     if (p.nome) {
@@ -415,8 +417,52 @@ ordineSchema.pre('save', function(next) {
       p.categoria = this.getCategoriaProdotto(p.nome);
     }
     
+    // ✅ VERIFICA SE IL PREZZO È VALIDO
+    // Se mancano dettagliCalcolo o il prezzo sembra errato, marca per ricalcolo
+    if (!p.dettagliCalcolo || !p.prezzo || p.prezzo <= 0) {
+      needsRecalculation = true;
+    }
+    
+    // ✅ CONTROLLO SPECIFICO PARDULAS
+    if (p.nome && p.nome.toLowerCase().includes('pardula')) {
+      // Se unità è "Pezzi" e prezzo sembra kg (>€10), ricalcola
+      if ((p.unita === 'pezzi' || p.unita === 'pz') && p.prezzo > 10) {
+        console.warn(`⚠️ Pardulas con prezzo sospetto: ${p.prezzo} per ${p.quantita} pezzi - ricalcolo necessario`);
+        needsRecalculation = true;
+      }
+    }
+    
     return p;
   });
+  
+  // ✅ SE NECESSARIO, RICALCOLA USANDO IL SISTEMA CENTRALIZZATO
+  if (needsRecalculation) {
+    console.log('🔄 Ricalcolo prezzi necessario per ordine', this.numeroOrdine || this._id);
+    this.calcolaTotale();
+  } else if (!this.totale || this.totale === 0) {
+    // Se manca il totale, calcolalo
+    this.calcolaTotale();
+  } else {
+    // ✅ VALIDAZIONE: Verifica coerenza totale
+    const totaleVerifica = this.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
+    
+    // Tolleranza 1€ per arrotondamenti e sconti
+    const differenza = Math.abs(totaleVerifica - this.totale);
+    
+    if (differenza > 1 && !this.sconto && !this.scontoPercentuale) {
+      console.warn(
+        `⚠️ Discrepanza totale ordine ${this.numeroOrdine || this._id}:`,
+        `Salvato: €${this.totale.toFixed(2)}, Somma prodotti: €${totaleVerifica.toFixed(2)}`,
+        `Differenza: €${differenza.toFixed(2)}`
+      );
+      
+      // Ricalcola per sicurezza
+      this.calcolaTotale();
+    } else {
+      // Allinea totaleCalcolato
+      this.totaleCalcolato = this.totale;
+    }
+  }
   
   // Normalizza stato legacy
   if (this.stato === 'inLavorazione') {
@@ -429,9 +475,14 @@ ordineSchema.pre('save', function(next) {
 // Hook pre-save per logging
 ordineSchema.pre('save', function(next) {
   if (this.isNew) {
-    console.log(`📝 Creazione nuovo ordine: ${this.numeroOrdine || 'temp'} - ${this.nomeCliente}`);
+    console.log(`📝 Creazione nuovo ordine: ${this.numeroOrdine || 'temp'} - ${this.nomeCliente} - €${this.totale.toFixed(2)}`);
   } else if (this.isModified()) {
-    console.log(`✏️ Modifica ordine: ${this.numeroOrdine || this._id}`);
+    const modifiche = [];
+    if (this.isModified('prodotti')) modifiche.push('prodotti');
+    if (this.isModified('totale')) modifiche.push('totale');
+    if (this.isModified('stato')) modifiche.push('stato');
+    
+    console.log(`✏️ Modifica ordine: ${this.numeroOrdine || this._id} - Campi: ${modifiche.join(', ')} - Totale: €${this.totale.toFixed(2)}`);
   }
   next();
 });
@@ -547,6 +598,37 @@ ordineSchema.statics.statisticheGiornaliere = async function(data) {
       ? ordini.reduce((sum, o) => sum + o.totale, 0) / ordini.length 
       : 0
   };
+};
+
+/**
+ * ✅ NUOVO: Metodo per ricalcolare tutti gli ordini esistenti
+ * Utile per correggere ordini già salvati con prezzi errati
+ */
+ordineSchema.statics.ricalcolaTuttiOrdini = async function(filtro = {}) {
+  console.log('🔄 Inizio ricalcolo massivo ordini...');
+  
+  const ordini = await this.find(filtro);
+  let corretti = 0;
+  let errori = 0;
+  
+  for (const ordine of ordini) {
+    try {
+      const vecchioTotale = ordine.totale;
+      ordine.calcolaTotale();
+      
+      if (Math.abs(vecchioTotale - ordine.totale) > 0.01) {
+        await ordine.save();
+        corretti++;
+        console.log(`✅ Ordine ${ordine.numeroOrdine}: €${vecchioTotale.toFixed(2)} → €${ordine.totale.toFixed(2)}`);
+      }
+    } catch (error) {
+      errori++;
+      console.error(`❌ Errore ordine ${ordine.numeroOrdine}:`, error.message);
+    }
+  }
+  
+  console.log(`✅ Ricalcolo completato: ${corretti} ordini corretti, ${errori} errori`);
+  return { totale: ordini.length, corretti, errori };
 };
 
 // ==========================================
