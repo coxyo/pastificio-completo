@@ -30,6 +30,7 @@ import comunicazioniRoutes from './routes/comunicazioni.js';
 import whatsappRoutes from './routes/whatsapp.js';
 import templateRoutes from './routes/templates.js';
 import testRoutes from './routes/test.js';
+import adminRoutes from './routes/admin.js';
 
 // Import middleware
 import { protect } from './middleware/auth.js';
@@ -283,6 +284,7 @@ app.use('/api/comunicazioni', protect, comunicazioniRoutes);
 app.use('/api/whatsapp', protect, whatsappRoutes);
 app.use('/api/templates', protect, templateRoutes);
 app.use('/api/test', testRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Test route
 app.get('/api/test', (req, res) => {
