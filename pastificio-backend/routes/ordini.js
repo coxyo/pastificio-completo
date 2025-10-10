@@ -1,12 +1,12 @@
-// routes/ordini.js
+// routes/ordini.js - ✅ VERSIONE CORRETTA CON CALCOLO PREZZI BACKEND
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 import whatsappService from '../services/whatsappService.js';
-// 🔥 IMPORT SISTEMA CALCOLO PREZZI
-import { calcolaPrezzoOrdine } from '../utils/calcoliPrezzi.js';
+// ✅ FIX 1: Import DEFAULT corretto
+import calcoliPrezzi from '../utils/calcoliPrezzi.js';
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ const isValidPhoneNumber = (telefono) => {
 };
 
 /**
- * 🔥 FUNZIONE HELPER: Gestione cliente flessibile
+ * ✅ FUNZIONE HELPER: Gestione cliente flessibile
  * Accetta sia ObjectId stringa che oggetto completo { nome, telefono }
  */
 async function resolveClienteId(clienteData) {
@@ -100,12 +100,12 @@ async function resolveClienteId(clienteData) {
   }
 }
 
-// 🔥 GET /api/ordini - LIMITE INFINITO (DEFAULT = TUTTI)
+// ✅ GET /api/ordini - LIMITE INFINITO (DEFAULT = TUTTI)
 router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     
-    // 🔥 NOVITÀ: Default = TUTTI gli ordini (limit = 0)
+    // ✅ NOVITÀ: Default = TUTTI gli ordini (limit = 0)
     let limit;
     if (req.query.limit === 'all' || !req.query.limit) {
       limit = 0; // MongoDB: 0 = nessun limite = INFINITO
@@ -121,7 +121,7 @@ router.get('/', async (req, res) => {
     if (req.query.nomeCliente) filters.nomeCliente = new RegExp(req.query.nomeCliente, 'i');
     if (req.query.stato) filters.stato = req.query.stato;
 
-    // 🔥 ORDINAMENTO: Prima per data creazione discendente (più recenti prima)
+    // ✅ ORDINAMENTO: Prima per data creazione discendente (più recenti prima)
     const sort = {};
     if (req.query.sortBy) {
       const parts = req.query.sortBy.split(':');
@@ -181,7 +181,7 @@ router.get('/whatsapp-status', async (req, res) => {
   }
 });
 
-// POST /api/ordini
+// ✅ FIX 2: POST /api/ordini - RICALCOLA PREZZI NEL BACKEND
 router.post('/', async (req, res) => {
   try {
     logger.info(`🔥 POST /api/ordini - Richiesta creazione ordine`);
@@ -190,19 +190,7 @@ router.post('/', async (req, res) => {
       : req.body.cliente
     );
     
-    // 🔥 DEBUG: Logga OGNI prodotto in dettaglio
-    if (req.body.prodotti && req.body.prodotti.length > 0) {
-      logger.info(`📦 PRODOTTI RICEVUTI (${req.body.prodotti.length}):`);
-      req.body.prodotti.forEach((p, idx) => {
-        logger.info(`  [${idx + 1}] ${p.nome}:`);
-        logger.info(`      - Quantità: ${p.quantita} ${p.unita}`);
-        logger.info(`      - Prezzo ricevuto: €${p.prezzo}`);
-        logger.info(`      - Dettagli calcolo:`, p.dettagliCalcolo ? JSON.stringify(p.dettagliCalcolo) : 'N/A');
-      });
-    }
-    logger.info(`💰 TOTALE ORDINE ricevuto: €${req.body.totale}`);
-    
-    // 🔥 RISOLUZIONE CLIENTE FLESSIBILE
+    // ✅ RISOLUZIONE CLIENTE FLESSIBILE
     let clienteId = null;
     let clienteObj = null;
     if (req.body.cliente) {
@@ -221,74 +209,48 @@ router.post('/', async (req, res) => {
       }
     }
     
+    // ✅ FIX 3: RICALCOLA PREZZI USANDO calcoliPrezzi.js
+    const prodottiRicalcolati = req.body.prodotti?.map(p => {
+      const risultatoCalcolo = calcoliPrezzi.calcolaPrezzoOrdine(
+        p.nome,
+        p.quantita,
+        p.unita || p.unitaMisura || 'kg'
+      );
+      
+      logger.info(`💰 Prodotto: ${p.nome}`);
+      logger.info(`   - Input: ${p.quantita} ${p.unita} - Prezzo frontend: €${p.prezzo}`);
+      logger.info(`   - Backend ricalcola: €${risultatoCalcolo.prezzoTotale.toFixed(2)}`);
+      logger.info(`   - Dettagli: ${risultatoCalcolo.dettagli}`);
+      
+      return {
+        nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim(),
+        quantita: p.quantita,
+        unita: p.unita || p.unitaMisura || 'kg',
+        unitaMisura: p.unita || p.unitaMisura || 'kg',
+        prezzo: risultatoCalcolo.prezzoTotale, // ✅ USA IL PREZZO CALCOLATO DAL BACKEND
+        prezzoUnitario: risultatoCalcolo.prezzoTotale / p.quantita,
+        categoria: p.categoria || 'altro',
+        variante: p.variante || null,
+        dettagliCalcolo: risultatoCalcolo // Salva i dettagli per audit
+      };
+    });
+    
+    // ✅ FIX 4: RICALCOLA TOTALE NEL BACKEND
+    const totaleBackend = prodottiRicalcolati.reduce((sum, p) => sum + p.prezzo, 0);
+    
+    logger.info(`💰 TOTALE FRONTEND ricevuto: €${req.body.totale}`);
+    logger.info(`💰 TOTALE BACKEND calcolato: €${totaleBackend.toFixed(2)}`);
+    
     const ordineData = {
       ...req.body,
       cliente: clienteId, // ✅ Sempre ObjectId valido o null
-      // 🔥 CAMPI LEGACY per retrocompatibilità
+      // ✅ CAMPI LEGACY per retrocompatibilità
       nomeCliente: clienteObj?.nome || req.body.nomeCliente || 'Cliente Sconosciuto',
       telefono: clienteObj?.telefono || req.body.telefono || '',
       email: clienteObj?.email || req.body.email || '',
-      prodotti: req.body.prodotti?.map(p => ({
-        ...p,
-        unita: p.unita || p.unitaMisura || 'kg',
-        unitaMisura: p.unita || p.unitaMisura || 'kg',
-        nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim()
-      }))
+      prodotti: prodottiRicalcolati, // ✅ USA PRODOTTI RICALCOLATI
+      totale: totaleBackend // ✅ USA TOTALE BACKEND
     };
-    
-    // 🔥 VALIDAZIONE TOTALE - Fix calcolo prezzi
-    const totaleCalcolato = ordineData.prodotti.reduce((sum, p) => {
-      // Calcola il prezzo corretto per il prodotto
-      let prezzoCorretto = p.prezzo || 0;
-      
-      // 🔥 FIX SPECIFICO PARDULAS: se ricevuto prezzo errato, ricalcola
-      if (p.nome && p.nome.toLowerCase().includes('pardula')) {
-        const PREZZO_PARDULA_PEZZO = 0.76; // €0.76 a pezzo
-        const PESO_PARDULA_PEZZO = 0.04; // 40g a pezzo
-        
-        if (p.unita === 'Pezzi' || p.unita === 'pezzi') {
-          // Calcolo per pezzi
-          prezzoCorretto = p.quantita * PREZZO_PARDULA_PEZZO;
-          logger.info(`  🔧 Fix Pardulas: ${p.quantita} pezzi × €${PREZZO_PARDULA_PEZZO} = €${prezzoCorretto.toFixed(2)}`);
-        } else if (p.unita === 'kg') {
-          // Calcolo per kg
-          const pezzi = Math.round(p.quantita / PESO_PARDULA_PEZZO);
-          prezzoCorretto = pezzi * PREZZO_PARDULA_PEZZO;
-          logger.info(`  🔧 Fix Pardulas: ${p.quantita}kg = ${pezzi} pezzi × €${PREZZO_PARDULA_PEZZO} = €${prezzoCorretto.toFixed(2)}`);
-        }
-        
-        // Aggiorna il prezzo del prodotto
-        p.prezzo = prezzoCorretto;
-      }
-      
-      return sum + prezzoCorretto;
-    }, 0);
-    
-    const totaleRicevuto = ordineData.totale || totaleCalcolato;
-    
-    // Se la differenza è > 5%, usa il calcolato e logga warning
-    const differenzaPercentuale = Math.abs((totaleRicevuto - totaleCalcolato) / totaleCalcolato * 100);
-    
-    if (differenzaPercentuale > 5) {
-      logger.warn(`⚠️ TOTALE CORRETTO - Ricevuto: €${totaleRicevuto.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)} (diff: ${differenzaPercentuale.toFixed(1)}%)`);
-      logger.warn(`📦 Prodotti originali:`, JSON.stringify(req.body.prodotti.map(p => ({
-        nome: p.nome,
-        quantita: p.quantita,
-        unita: p.unita,
-        prezzoRicevuto: p.prezzo
-      }))));
-      logger.warn(`📦 Prodotti corretti:`, JSON.stringify(ordineData.prodotti.map(p => ({
-        nome: p.nome,
-        quantita: p.quantita,
-        unita: p.unita,
-        prezzoCorretto: p.prezzo
-      }))));
-      
-      // 🚨 USA SEMPRE IL TOTALE CALCOLATO se c'è differenza
-      ordineData.totale = totaleCalcolato;
-    } else {
-      ordineData.totale = totaleRicevuto;
-    }
 
     if (req.user) {
       ordineData.creatoDa = req.user._id;
@@ -310,13 +272,14 @@ router.post('/', async (req, res) => {
     }
     
     logger.info(`✅ Ordine creato con successo: ${ordine._id} - Cliente: ${clienteId || 'N/A'}`);
+    logger.info(`   💰 Totale finale salvato: €${ordine.totale.toFixed(2)}`);
     
     // Invio WhatsApp con validazione
     if (whatsappService && whatsappService.isReady() && ordine.telefono) {
       if (isValidPhoneNumber(ordine.telefono)) {
         try {
           const listaProdotti = ordine.prodotti
-            .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'kg'} - €${(p.quantita * p.prezzo).toFixed(2)}`)
+            .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'kg'} - €${p.prezzo.toFixed(2)}`)
             .join('\n');
           
           const dataFormattata = new Date(ordine.dataRitiro).toLocaleDateString('it-IT', {
@@ -334,7 +297,7 @@ router.post('/', async (req, res) => {
               dataRitiro: dataFormattata,
               oraRitiro: ordine.oraRitiro,
               prodotti: listaProdotti,
-              totale: ordine.totale || '0.00',
+              totale: ordine.totale.toFixed(2),
               note: ordine.note ? `\n📝 Note: ${ordine.note}` : ''
             }
           );
@@ -390,7 +353,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/ordini/:id
+// ✅ FIX 5: PUT /api/ordini/:id - RICALCOLA PREZZI ANCHE IN AGGIORNAMENTO
 router.put('/:id', async (req, res) => {
   try {
     logger.info(`📝 PUT /api/ordini/${req.params.id} - Aggiornamento ordine`);
@@ -403,7 +366,7 @@ router.put('/:id', async (req, res) => {
       isNew = true;
       logger.info(`🆕 Conversione ordine temporaneo in permanente`);
       
-      // 🔥 RISOLUZIONE CLIENTE FLESSIBILE
+      // ✅ RISOLUZIONE CLIENTE FLESSIBILE
       let clienteId = null;
       let clienteObj = null;
       if (req.body.cliente) {
@@ -422,55 +385,38 @@ router.put('/:id', async (req, res) => {
         }
       }
       
+      // ✅ RICALCOLA PREZZI
+      const prodottiRicalcolati = req.body.prodotti?.map(p => {
+        const risultatoCalcolo = calcoliPrezzi.calcolaPrezzoOrdine(
+          p.nome,
+          p.quantita,
+          p.unita || p.unitaMisura || 'kg'
+        );
+        
+        return {
+          nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim(),
+          quantita: p.quantita,
+          unita: p.unita || p.unitaMisura || 'kg',
+          unitaMisura: p.unita || p.unitaMisura || 'kg',
+          prezzo: risultatoCalcolo.prezzoTotale,
+          prezzoUnitario: risultatoCalcolo.prezzoTotale / p.quantita,
+          categoria: p.categoria || 'altro',
+          variante: p.variante || null,
+          dettagliCalcolo: risultatoCalcolo
+        };
+      });
+      
+      const totaleBackend = prodottiRicalcolati.reduce((sum, p) => sum + p.prezzo, 0);
+      
       const ordineData = {
         ...req.body,
-        cliente: clienteId, // ✅ Sempre ObjectId valido o null
-        // 🔥 CAMPI LEGACY per retrocompatibilità
+        cliente: clienteId,
         nomeCliente: clienteObj?.nome || req.body.nomeCliente || 'Cliente Sconosciuto',
         telefono: clienteObj?.telefono || req.body.telefono || '',
         email: clienteObj?.email || req.body.email || '',
-        prodotti: req.body.prodotti?.map(p => ({
-          ...p,
-          unita: p.unita || p.unitaMisura || 'kg',
-          unitaMisura: p.unita || p.unitaMisura || 'kg',
-          nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim()
-        }))
+        prodotti: prodottiRicalcolati,
+        totale: totaleBackend
       };
-      
-      // 🔥 VALIDAZIONE TOTALE con fix prezzi
-      const totaleCalcolato = ordineData.prodotti.reduce((sum, p) => {
-        // Calcola il prezzo corretto per il prodotto
-        let prezzoCorretto = p.prezzo || 0;
-        
-        // 🔥 FIX SPECIFICO PARDULAS
-        if (p.nome && p.nome.toLowerCase().includes('pardula')) {
-          const PREZZO_PARDULA_PEZZO = 0.76;
-          const PESO_PARDULA_PEZZO = 0.04;
-          
-          if (p.unita === 'Pezzi' || p.unita === 'pezzi') {
-            prezzoCorretto = p.quantita * PREZZO_PARDULA_PEZZO;
-            logger.info(`  🔧 Fix Pardulas (temp): ${p.quantita} pezzi × €${PREZZO_PARDULA_PEZZO} = €${prezzoCorretto.toFixed(2)}`);
-          } else if (p.unita === 'kg') {
-            const pezzi = Math.round(p.quantita / PESO_PARDULA_PEZZO);
-            prezzoCorretto = pezzi * PREZZO_PARDULA_PEZZO;
-            logger.info(`  🔧 Fix Pardulas (temp): ${p.quantita}kg = ${pezzi} pezzi × €${PREZZO_PARDULA_PEZZO} = €${prezzoCorretto.toFixed(2)}`);
-          }
-          
-          p.prezzo = prezzoCorretto;
-        }
-        
-        return sum + prezzoCorretto;
-      }, 0);
-      
-      const totaleRicevuto = ordineData.totale || totaleCalcolato;
-      const differenzaPercentuale = Math.abs((totaleRicevuto - totaleCalcolato) / totaleCalcolato * 100);
-      
-      if (differenzaPercentuale > 5) {
-        logger.warn(`⚠️ TOTALE CORRETTO (temp→new) - Ricevuto: €${totaleRicevuto.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)}`);
-        ordineData.totale = totaleCalcolato;
-      } else {
-        ordineData.totale = totaleRicevuto;
-      }
 
       if (req.user) {
         ordineData.creatoDa = req.user._id;
@@ -488,14 +434,14 @@ router.put('/:id', async (req, res) => {
         await ordine.populate('cliente', 'nome telefono email codiceCliente');
       }
       
-      logger.info(`✅ Nuovo ordine da temp ID: ${ordine._id}`);
+      logger.info(`✅ Nuovo ordine da temp ID: ${ordine._id} - Totale: €${ordine.totale.toFixed(2)}`);
       
       // WhatsApp con validazione
       if (whatsappService && whatsappService.isReady() && ordine.telefono) {
         if (isValidPhoneNumber(ordine.telefono)) {
           try {
             const listaProdotti = ordine.prodotti
-              .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'kg'} - €${(p.quantita * p.prezzo).toFixed(2)}`)
+              .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'kg'} - €${p.prezzo.toFixed(2)}`)
               .join('\n');
             
             const dataFormattata = new Date(ordine.dataRitiro).toLocaleDateString('it-IT', {
@@ -513,7 +459,7 @@ router.put('/:id', async (req, res) => {
                 dataRitiro: dataFormattata,
                 oraRitiro: ordine.oraRitiro,
                 prodotti: listaProdotti,
-                totale: ordine.totale || '0.00',
+                totale: ordine.totale.toFixed(2),
                 note: ordine.note ? `\n📝 Note: ${ordine.note}` : ''
               }
             );
@@ -522,8 +468,6 @@ router.put('/:id', async (req, res) => {
           } catch (whatsappError) {
             logger.error('Errore invio WhatsApp:', whatsappError);
           }
-        } else {
-          logger.warn(`⚠️ Numero WhatsApp non valido: ${ordine.telefono}`);
         }
       }
       
@@ -537,7 +481,7 @@ router.put('/:id', async (req, res) => {
       const vecchiaDataRitiro = ordine.dataRitiro;
       const vecchioOraRitiro = ordine.oraRitiro;
       
-      // 🔥 RISOLUZIONE CLIENTE FLESSIBILE (se fornito)
+      // ✅ RISOLUZIONE CLIENTE (se fornito)
       if (req.body.cliente) {
         try {
           const clienteId = await resolveClienteId(req.body.cliente);
@@ -552,13 +496,29 @@ router.put('/:id', async (req, res) => {
         }
       }
       
+      // ✅ RICALCOLA PREZZI SE PRODOTTI MODIFICATI
       if (req.body.prodotti) {
-        req.body.prodotti = req.body.prodotti.map(p => ({
-          ...p,
-          unita: p.unita || p.unitaMisura || 'kg',
-          unitaMisura: p.unita || p.unitaMisura || 'kg',
-          nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim()
-        }));
+        req.body.prodotti = req.body.prodotti.map(p => {
+          const risultatoCalcolo = calcoliPrezzi.calcolaPrezzoOrdine(
+            p.nome,
+            p.quantita,
+            p.unita || p.unitaMisura || 'kg'
+          );
+          
+          return {
+            nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim(),
+            quantita: p.quantita,
+            unita: p.unita || p.unitaMisura || 'kg',
+            unitaMisura: p.unita || p.unitaMisura || 'kg',
+            prezzo: risultatoCalcolo.prezzoTotale,
+            prezzoUnitario: risultatoCalcolo.prezzoTotale / p.quantita,
+            categoria: p.categoria || 'altro',
+            variante: p.variante || null,
+            dettagliCalcolo: risultatoCalcolo
+          };
+        });
+        
+        req.body.totale = req.body.prodotti.reduce((sum, p) => sum + p.prezzo, 0);
       }
       
       Object.assign(ordine, req.body);
@@ -573,9 +533,9 @@ router.put('/:id', async (req, res) => {
       // Popola il cliente
       await ordine.populate('cliente', 'nome telefono email codiceCliente');
       
-      logger.info(`✅ Ordine aggiornato: ${ordineId}`);
+      logger.info(`✅ Ordine aggiornato: ${ordineId} - Totale: €${ordine.totale.toFixed(2)}`);
       
-      // Notifica modifiche via WhatsApp con validazione
+      // Notifica modifiche via WhatsApp
       if (whatsappService && whatsappService.isReady() && ordine.telefono) {
         if (isValidPhoneNumber(ordine.telefono)) {
           const dataOraCambiata = 
@@ -604,8 +564,6 @@ router.put('/:id', async (req, res) => {
               logger.error('Errore invio WhatsApp:', error);
             }
           }
-        } else {
-          logger.warn(`⚠️ Numero WhatsApp non valido: ${ordine.telefono}`);
         }
       }
     }
@@ -646,7 +604,7 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Ordine non trovato' });
     }
 
-    // Notifica cancellazione con validazione
+    // Notifica cancellazione
     if (whatsappService && whatsappService.isReady() && ordine.telefono) {
       if (isValidPhoneNumber(ordine.telefono)) {
         try {
@@ -661,8 +619,6 @@ router.delete('/:id', async (req, res) => {
         } catch (error) {
           logger.error('Errore invio WhatsApp:', error);
         }
-      } else {
-        logger.warn(`⚠️ Numero WhatsApp non valido: ${ordine.telefono}`);
       }
     }
 
