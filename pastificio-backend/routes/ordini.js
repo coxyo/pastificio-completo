@@ -98,32 +98,49 @@ async function resolveClienteId(clienteData) {
   }
 }
 
-// GET /api/ordini
+// 🔥 GET /api/ordini - LIMITE AUMENTATO 100 → 500
 router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 100;
-    const skip = (page - 1) * limit;
+    
+    // 🔥 NOVITÀ: Supporto per "limit=all" per caricare TUTTI gli ordini
+    let limit;
+    if (req.query.limit === 'all') {
+      limit = 0; // MongoDB: 0 = nessun limite
+      logger.info('🔥 Caricamento TUTTI gli ordini (nessun limite)');
+    } else {
+      limit = parseInt(req.query.limit) || 500; // 🔥 Default 500 (era 100)
+    }
+    
+    const skip = limit > 0 ? (page - 1) * limit : 0;
 
     const filters = {};
     if (req.query.dataRitiro) filters.dataRitiro = req.query.dataRitiro;
     if (req.query.nomeCliente) filters.nomeCliente = new RegExp(req.query.nomeCliente, 'i');
     if (req.query.stato) filters.stato = req.query.stato;
 
+    // 🔥 ORDINAMENTO: Prima per data creazione discendente (più recenti prima)
     const sort = {};
     if (req.query.sortBy) {
       const parts = req.query.sortBy.split(':');
       sort[parts[0]] = parts[1] === 'desc' ? -1 : 1;
     } else {
+      // Default: ordini più recenti prima
+      sort.createdAt = -1;
       sort.dataRitiro = 1;
       sort.oraRitiro = 1;
     }
 
-    const ordini = await Ordine.find(filters)
+    let query = Ordine.find(filters)
       .populate('cliente', 'nome telefono email codiceCliente')
-      .sort(sort)
-      .skip(skip)
-      .limit(limit);
+      .sort(sort);
+    
+    // Applica skip/limit solo se limit > 0
+    if (limit > 0) {
+      query = query.skip(skip).limit(limit);
+    }
+    
+    const ordini = await query;
 
     const total = await Ordine.countDocuments(filters);
 
@@ -132,15 +149,15 @@ router.get('/', async (req, res) => {
       data: ordini,
       pagination: {
         page,
-        limit,
+        limit: limit || total, // Se limit=0, mostra il totale
         total,
-        pages: Math.ceil(total / limit)
+        pages: limit > 0 ? Math.ceil(total / limit) : 1
       }
     });
 
-    logger.info(`Ordini recuperati: ${ordini.length}`);
+    logger.info(`✅ Ordini recuperati: ${ordini.length} / ${total} totali (limit: ${limit || 'TUTTI'})`);
   } catch (error) {
-    logger.error('Errore recupero ordini:', error);
+    logger.error('❌ Errore recupero ordini:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -165,7 +182,7 @@ router.get('/whatsapp-status', async (req, res) => {
 // POST /api/ordini
 router.post('/', async (req, res) => {
   try {
-    logger.info(`📥 POST /api/ordini - Richiesta creazione ordine`);
+    logger.info(`🔥 POST /api/ordini - Richiesta creazione ordine`);
     logger.info(`📦 Cliente ricevuto:`, typeof req.body.cliente === 'object' 
       ? JSON.stringify(req.body.cliente) 
       : req.body.cliente
