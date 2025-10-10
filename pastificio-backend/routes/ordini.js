@@ -5,6 +5,8 @@ import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 import whatsappService from '../services/whatsappService.js';
+// 🔥 IMPORT SISTEMA CALCOLO PREZZI
+import { calcolaPrezzoOrdine } from '../utils/calcoliPrezzi.js';
 
 const router = express.Router();
 
@@ -98,18 +100,18 @@ async function resolveClienteId(clienteData) {
   }
 }
 
-// 🔥 GET /api/ordini - LIMITE AUMENTATO 100 → 500
+// 🔥 GET /api/ordini - LIMITE INFINITO (DEFAULT = TUTTI)
 router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     
-    // 🔥 NOVITÀ: Supporto per "limit=all" per caricare TUTTI gli ordini
+    // 🔥 NOVITÀ: Default = TUTTI gli ordini (limit = 0)
     let limit;
-    if (req.query.limit === 'all') {
-      limit = 0; // MongoDB: 0 = nessun limite
-      logger.info('🔥 Caricamento TUTTI gli ordini (nessun limite)');
+    if (req.query.limit === 'all' || !req.query.limit) {
+      limit = 0; // MongoDB: 0 = nessun limite = INFINITO
+      logger.info('🔥 Caricamento TUTTI gli ordini (limite infinito)');
     } else {
-      limit = parseInt(req.query.limit) || 500; // 🔥 Default 500 (era 100)
+      limit = parseInt(req.query.limit); // Custom limit se fornito
     }
     
     const skip = limit > 0 ? (page - 1) * limit : 0;
@@ -234,23 +236,55 @@ router.post('/', async (req, res) => {
       }))
     };
     
-    // 🔥 VALIDAZIONE TOTALE - Verifica che sia sensato
-    const totaleCalcolato = ordineData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
+    // 🔥 VALIDAZIONE TOTALE - Fix calcolo prezzi
+    const totaleCalcolato = ordineData.prodotti.reduce((sum, p) => {
+      // Calcola il prezzo corretto per il prodotto
+      let prezzoCorretto = p.prezzo || 0;
+      
+      // 🔥 FIX SPECIFICO PARDULAS: se ricevuto prezzo errato, ricalcola
+      if (p.nome && p.nome.toLowerCase().includes('pardula')) {
+        const PREZZO_PARDULA_PEZZO = 0.76; // €0.76 a pezzo
+        const PESO_PARDULA_PEZZO = 0.04; // 40g a pezzo
+        
+        if (p.unita === 'Pezzi' || p.unita === 'pezzi') {
+          // Calcolo per pezzi
+          prezzoCorretto = p.quantita * PREZZO_PARDULA_PEZZO;
+          logger.info(`  🔧 Fix Pardulas: ${p.quantita} pezzi × €${PREZZO_PARDULA_PEZZO} = €${prezzoCorretto.toFixed(2)}`);
+        } else if (p.unita === 'kg') {
+          // Calcolo per kg
+          const pezzi = Math.round(p.quantita / PESO_PARDULA_PEZZO);
+          prezzoCorretto = pezzi * PREZZO_PARDULA_PEZZO;
+          logger.info(`  🔧 Fix Pardulas: ${p.quantita}kg = ${pezzi} pezzi × €${PREZZO_PARDULA_PEZZO} = €${prezzoCorretto.toFixed(2)}`);
+        }
+        
+        // Aggiorna il prezzo del prodotto
+        p.prezzo = prezzoCorretto;
+      }
+      
+      return sum + prezzoCorretto;
+    }, 0);
+    
     const totaleRicevuto = ordineData.totale || totaleCalcolato;
     
-    // Se la differenza è > 10%, logga warning e usa il calcolato
+    // Se la differenza è > 5%, usa il calcolato e logga warning
     const differenzaPercentuale = Math.abs((totaleRicevuto - totaleCalcolato) / totaleCalcolato * 100);
     
-    if (differenzaPercentuale > 10) {
-      logger.warn(`⚠️ TOTALE SOSPETTO - Ricevuto: €${totaleRicevuto.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)} (diff: ${differenzaPercentuale.toFixed(1)}%)`);
-      logger.warn(`📦 Prodotti:`, JSON.stringify(ordineData.prodotti.map(p => ({
+    if (differenzaPercentuale > 5) {
+      logger.warn(`⚠️ TOTALE CORRETTO - Ricevuto: €${totaleRicevuto.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)} (diff: ${differenzaPercentuale.toFixed(1)}%)`);
+      logger.warn(`📦 Prodotti originali:`, JSON.stringify(req.body.prodotti.map(p => ({
         nome: p.nome,
         quantita: p.quantita,
         unita: p.unita,
-        prezzo: p.prezzo
+        prezzoRicevuto: p.prezzo
+      }))));
+      logger.warn(`📦 Prodotti corretti:`, JSON.stringify(ordineData.prodotti.map(p => ({
+        nome: p.nome,
+        quantita: p.quantita,
+        unita: p.unita,
+        prezzoCorretto: p.prezzo
       }))));
       
-      // 🚨 Usa il totale calcolato se la differenza è eccessiva
+      // 🚨 USA SEMPRE IL TOTALE CALCOLATO se c'è differenza
       ordineData.totale = totaleCalcolato;
     } else {
       ordineData.totale = totaleRicevuto;
@@ -403,13 +437,36 @@ router.put('/:id', async (req, res) => {
         }))
       };
       
-      // 🔥 VALIDAZIONE TOTALE
-      const totaleCalcolato = ordineData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
+      // 🔥 VALIDAZIONE TOTALE con fix prezzi
+      const totaleCalcolato = ordineData.prodotti.reduce((sum, p) => {
+        // Calcola il prezzo corretto per il prodotto
+        let prezzoCorretto = p.prezzo || 0;
+        
+        // 🔥 FIX SPECIFICO PARDULAS
+        if (p.nome && p.nome.toLowerCase().includes('pardula')) {
+          const PREZZO_PARDULA_PEZZO = 0.76;
+          const PESO_PARDULA_PEZZO = 0.04;
+          
+          if (p.unita === 'Pezzi' || p.unita === 'pezzi') {
+            prezzoCorretto = p.quantita * PREZZO_PARDULA_PEZZO;
+            logger.info(`  🔧 Fix Pardulas (temp): ${p.quantita} pezzi × €${PREZZO_PARDULA_PEZZO} = €${prezzoCorretto.toFixed(2)}`);
+          } else if (p.unita === 'kg') {
+            const pezzi = Math.round(p.quantita / PESO_PARDULA_PEZZO);
+            prezzoCorretto = pezzi * PREZZO_PARDULA_PEZZO;
+            logger.info(`  🔧 Fix Pardulas (temp): ${p.quantita}kg = ${pezzi} pezzi × €${PREZZO_PARDULA_PEZZO} = €${prezzoCorretto.toFixed(2)}`);
+          }
+          
+          p.prezzo = prezzoCorretto;
+        }
+        
+        return sum + prezzoCorretto;
+      }, 0);
+      
       const totaleRicevuto = ordineData.totale || totaleCalcolato;
       const differenzaPercentuale = Math.abs((totaleRicevuto - totaleCalcolato) / totaleCalcolato * 100);
       
-      if (differenzaPercentuale > 10) {
-        logger.warn(`⚠️ TOTALE SOSPETTO (temp→new) - Ricevuto: €${totaleRicevuto.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)}`);
+      if (differenzaPercentuale > 5) {
+        logger.warn(`⚠️ TOTALE CORRETTO (temp→new) - Ricevuto: €${totaleRicevuto.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)}`);
         ordineData.totale = totaleCalcolato;
       } else {
         ordineData.totale = totaleRicevuto;
