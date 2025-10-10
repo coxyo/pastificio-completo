@@ -23,7 +23,7 @@ import {
   Add as AddIcon,
   Sync as SyncIcon,
   LocalShipping as ShippingIcon,
-  Assessment as AssessmentIcon // ✅ AGGIUNTO
+  Assessment as AssessmentIcon
 } from '@mui/icons-material';
 
 // Import nuovi moduli di calcolo prezzi
@@ -38,7 +38,7 @@ import NuovoOrdine from './NuovoOrdine';
 import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
-import RiepilogoGiornaliero from './RiepilogoGiornaliero'; // ✅ IMPORT RIEPILOGO COMPLETO
+import RiepilogoGiornaliero from './RiepilogoGiornaliero';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -107,7 +107,7 @@ const prodottiDisponibili = {
   })
 };
 
-// ✅ COMPONENTE RIEPILOGO SEMPLICE INLINE (per compatibilità con vecchio dialog)
+// Componente Riepilogo Semplice
 function RiepilogoSemplice({ ordini, dataSelezionata }) {
   const ordiniFiltrati = ordini.filter(o => {
     const dataOrdine = o.dataRitiro || o.createdAt || '';
@@ -300,7 +300,7 @@ export default function GestoreOrdini() {
   const [isConnected, setIsConnected] = useState(false);
   const [submitInCorso, setSubmitInCorso] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
-  const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false); // ✅ NUOVO STATE
+  const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   const [menuExport, setMenuExport] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
@@ -580,6 +580,7 @@ export default function GestoreOrdini() {
     };
   }, [sincronizzaConMongoDB, connectWebSocket]);
   
+  // 🔥 FIX PRINCIPALE - ESTRAZIONE clienteId
   const creaOrdine = async (ordine) => {
     let totaleOrdine = 0;
     const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
@@ -593,8 +594,23 @@ export default function GestoreOrdini() {
       };
     });
     
+    // ✅ FIX: Estrai solo l'_id del cliente
+    let clienteId = null;
+    if (typeof ordine.cliente === 'string') {
+      // Già un ObjectId stringa
+      clienteId = ordine.cliente;
+    } else if (ordine.cliente && ordine.cliente._id) {
+      // Oggetto cliente completo - estrai solo _id
+      clienteId = ordine.cliente._id;
+    } else if (ordine.cliente && ordine.cliente.nome) {
+      // Vecchio formato con nome/telefono - invia comunque solo i dati essenziali
+      console.warn('Cliente in formato vecchio:', ordine.cliente);
+      // In questo caso il backend dovrebbe gestire la creazione/ricerca
+    }
+    
     const nuovoOrdine = {
       ...ordine,
+      cliente: clienteId || ordine.cliente, // ✅ Solo _id MongoDB
       prodotti: prodottiConCalcolo,
       totale: totaleOrdine,
       _id: undefined,
@@ -603,6 +619,8 @@ export default function GestoreOrdini() {
       updatedAt: new Date().toISOString(),
       stato: ordine.stato || 'nuovo'
     };
+    
+    console.log('📤 Invio ordine al backend:', nuovoOrdine); // Debug
     
     try {
       if (!navigator.onLine) {
@@ -619,6 +637,7 @@ export default function GestoreOrdini() {
       
       if (response.ok) {
         const ordineCreato = await response.json();
+        console.log('✅ Ordine creato con successo:', ordineCreato);
         
         setOrdini(prev => [ordineCreato, ...prev]);
         
@@ -635,10 +654,12 @@ export default function GestoreOrdini() {
         
         mostraNotifica('Ordine salvato e sincronizzato', 'success');
       } else {
-        throw new Error(`Server error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Errore backend:', response.status, errorData);
+        throw new Error(`Server error: ${response.status} - ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Errore creazione ordine:', error);
+      console.error('❌ Errore creazione ordine:', error);
       
       const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
       ordiniOffline.push(nuovoOrdine);
@@ -668,8 +689,17 @@ export default function GestoreOrdini() {
       };
     });
     
+    // ✅ FIX: Estrai solo l'_id del cliente anche per update
+    let clienteId = null;
+    if (typeof ordine.cliente === 'string') {
+      clienteId = ordine.cliente;
+    } else if (ordine.cliente && ordine.cliente._id) {
+      clienteId = ordine.cliente._id;
+    }
+    
     const ordineAggiornato = {
       ...ordine,
+      cliente: clienteId || ordine.cliente, // ✅ Solo _id MongoDB
       prodotti: prodottiConCalcolo,
       totale: totaleOrdine,
       updatedAt: new Date().toISOString()
@@ -1004,7 +1034,6 @@ export default function GestoreOrdini() {
   
   return (
     <>
-      {/* ✅ STILE CSS INLINE PER ANIMAZIONE */}
       <style jsx global>{`
         @keyframes rotate {
           from { transform: rotate(0deg); }
@@ -1035,7 +1064,6 @@ export default function GestoreOrdini() {
                 </span>
               </Tooltip>
               
-              {/* ✅ PULSANTE RIEPILOGO STAMPABILE */}
               <Button
                 variant="contained"
                 size="small"
@@ -1240,7 +1268,6 @@ export default function GestoreOrdini() {
           />
         )}
         
-        {/* ✅ DIALOG RIEPILOGO SEMPLICE (VECCHIO) */}
         <Dialog 
           open={riepilogoAperto} 
           onClose={() => setRiepilogoAperto(false)}
@@ -1267,7 +1294,6 @@ export default function GestoreOrdini() {
           </DialogActions>
         </Dialog>
         
-        {/* ✅ DIALOG RIEPILOGO STAMPABILE (NUOVO - CON COLONNE MULTI E VIAGGIO) */}
         <RiepilogoGiornaliero 
           open={riepilogoStampabileAperto} 
           onClose={() => setRiepilogoStampabileAperto(false)}
