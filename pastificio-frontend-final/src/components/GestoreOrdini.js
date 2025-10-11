@@ -1,4 +1,4 @@
-// src/components/GestoreOrdini.js - ✅ FIX COMPLETO
+// src/components/GestoreOrdini.js - ✅ FIX COMPLETO FINALE
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -172,6 +172,7 @@ function RiepilogoSemplice({ ordini, dataSelezionata }) {
   );
 }
 
+// WhatsApp Helper Component
 function WhatsAppHelperComponent({ ordini }) {
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
   const [messaggio, setMessaggio] = useState('');
@@ -290,6 +291,7 @@ Grazie per averci scelto! 🙏`;
   );
 }
 
+// COMPONENTE PRINCIPALE
 export default function GestoreOrdini() {
   const [ordini, setOrdini] = useState([]);
   const [dataSelezionata, setDataSelezionata] = useState(new Date().toISOString().split('T')[0]);
@@ -312,6 +314,7 @@ export default function GestoreOrdini() {
   const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   
+  // Keep-alive per mantenere il backend Railway attivo
   useEffect(() => {
     const keepAlive = setInterval(async () => {
       try {
@@ -323,11 +326,12 @@ export default function GestoreOrdini() {
       } catch (error) {
         console.log('Keep-alive fallito:', error.message);
       }
-    }, 4 * 60 * 1000);
+    }, 4 * 60 * 1000); // Ogni 4 minuti
 
     return () => clearInterval(keepAlive);
   }, []);
   
+  // Connessione WebSocket
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     
@@ -383,13 +387,13 @@ export default function GestoreOrdini() {
     }
   }, []);
   
-  // ✅ FIX PRINCIPALE: Sincronizzazione SENZA conversione prezzi
+  // ✅ FIX CRITICO: Sincronizzazione SENZA manipolare i dati del server
   const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
     try {
       setSyncInProgress(true);
-      console.log(`Sincronizzazione in corso... (tentativo ${retry + 1}/3)`);
+      console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/3)`);
       
       const response = await fetch(`${API_URL}/ordini`, {
         method: 'GET',
@@ -414,33 +418,25 @@ export default function GestoreOrdini() {
         
         console.log(`✅ Sincronizzati ${ordiniBackend.length} ordini dal server`);
         
-        // ✅ FIX: USA I DATI DEL SERVER SENZA MODIFICHE
-        const ordiniFinali = ordiniBackend.map(ordine => ({
-          ...ordine,
-          // NON ricalcolare i prezzi, usa quelli del server
-          totale: ordine.totale,
-          prodotti: (ordine.prodotti || []).map(p => ({
-            ...p,
-            // NON ricalcolare, usa i dati del server
-            prezzo: p.prezzo
-          }))
-        }));
+        // ✅ FIX CRITICO: USA I DATI DEL SERVER ESATTAMENTE COME SONO!
+        // NON manipolare, NON ricalcolare, NON modificare NULLA
+        const ordiniFinali = ordiniBackend; // ⬅️ NESSUNA TRASFORMAZIONE!
         
-        // Ordina per data di creazione (più recenti prima)
+        // Ordina solo per data di creazione (più recenti prima)
         ordiniFinali.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.dataRitiro);
           const dateB = new Date(b.createdAt || b.dataRitiro);
           return dateB - dateA;
         });
         
-        // ✅ FIX: Salva DIRETTAMENTE senza merge con cache
+        // ✅ Salva DIRETTAMENTE senza modifiche
         localStorage.setItem('ordini', JSON.stringify(ordiniFinali));
         setOrdini(ordiniFinali);
         
         setIsConnected(true);
         setUltimaSync(new Date());
         
-        console.log('✅ Ordini aggiornati dallo stato server');
+        console.log('✅ Ordini sincronizzati ESATTAMENTE come sul server');
         
         return true;
       } else if (response.status === 404) {
@@ -452,6 +448,7 @@ export default function GestoreOrdini() {
     } catch (error) {
       console.error('Errore sincronizzazione:', error);
       
+      // Retry logic
       if (retry < 2 && navigator.onLine) {
         console.log(`Riprovo tra 3 secondi... (tentativo ${retry + 2}/3)`);
         setTimeout(() => {
@@ -462,6 +459,7 @@ export default function GestoreOrdini() {
       
       setIsConnected(false);
       
+      // Usa cache locale
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       setOrdini(ordiniCache);
       
@@ -477,6 +475,7 @@ export default function GestoreOrdini() {
     }
   }, [syncInProgress]);
   
+  // Invio ordini salvati offline quando torna la connessione
   const inviaOrdiniOffline = async () => {
     const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
     
@@ -511,15 +510,18 @@ export default function GestoreOrdini() {
     }
   };
   
+  // Inizializzazione al mount
   useEffect(() => {
     console.log('Inizializzazione GestoreOrdini...');
     
+    // Carica ordini dalla cache
     const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
     if (ordiniCache.length > 0) {
       setOrdini(ordiniCache);
       console.log(`Caricati ${ordiniCache.length} ordini dalla cache`);
     }
     
+    // Wake up del server Railway
     const wakeUpServer = async () => {
       try {
         await fetch(`${API_URL.replace('/api', '')}/health`, { 
@@ -531,6 +533,7 @@ export default function GestoreOrdini() {
         console.log('Wake up server fallito:', error.message);
       }
       
+      // Sincronizza dopo 1 secondo
       setTimeout(() => {
         sincronizzaConMongoDB();
       }, 1000);
@@ -539,6 +542,7 @@ export default function GestoreOrdini() {
     wakeUpServer();
     connectWebSocket();
     
+    // Sincronizzazione automatica ogni 30 secondi
     syncIntervalRef.current = setInterval(() => {
       sincronizzaConMongoDB();
     }, 30000);
@@ -550,12 +554,14 @@ export default function GestoreOrdini() {
     };
   }, []);
   
+  // Gestione eventi online/offline
   useEffect(() => {
     const handleOnline = () => {
       console.log('Connessione ripristinata');
       mostraNotifica('Connessione ripristinata', 'success');
       setIsConnected(true);
       sincronizzaConMongoDB();
+      inviaOrdiniOffline();
       connectWebSocket();
     };
     
@@ -576,8 +582,9 @@ export default function GestoreOrdini() {
     };
   }, [sincronizzaConMongoDB, connectWebSocket]);
   
+  // Creazione nuovo ordine
   const creaOrdine = async (ordine) => {
-    // ✅ Calcola i prezzi SOLO per inviarli al backend
+    // Calcola i prezzi SOLO per inviarli al backend
     let totaleOrdine = 0;
     const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
       const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
@@ -631,6 +638,7 @@ export default function GestoreOrdini() {
         // ✅ Ricarica TUTTI gli ordini dal server
         await sincronizzaConMongoDB();
         
+        // Notifica via WebSocket
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({
             type: 'ordine_creato',
@@ -647,10 +655,12 @@ export default function GestoreOrdini() {
     } catch (error) {
       console.error('❌ Errore creazione ordine:', error);
       
+      // Salva offline
       const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
       ordiniOffline.push(nuovoOrdine);
       localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
       
+      // Aggiungi alla lista locale con flag di sincronizzazione pendente
       const ordineConFlag = { ...nuovoOrdine, _syncPending: true };
       setOrdini(prev => [ordineConFlag, ...prev]);
       
@@ -662,6 +672,7 @@ export default function GestoreOrdini() {
     }
   };
   
+  // Aggiornamento ordine esistente
   const aggiornaOrdine = async (ordine) => {
     let totaleOrdine = 0;
     const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
@@ -712,10 +723,19 @@ export default function GestoreOrdini() {
       }
     } catch (error) {
       console.error('Errore aggiornamento:', error);
+      
+      // Aggiorna cache locale
+      setOrdini(prev => prev.map(o => 
+        (o._id || o.id) === (ordineAggiornato._id || ordineAggiornato.id) 
+          ? { ...ordineAggiornato, _syncPending: true }
+          : o
+      ));
+      
       mostraNotifica('Ordine aggiornato localmente', 'warning');
     }
   };
   
+  // Eliminazione ordine
   const eliminaOrdine = async (id) => {
     if (!confirm('Confermi eliminazione ordine?')) return;
     
@@ -744,6 +764,7 @@ export default function GestoreOrdini() {
     }
   };
   
+  // Salva ordine (nuovo o aggiornamento)
   const salvaOrdine = async (nuovoOrdine) => {
     if (submitInCorso) return;
     
@@ -767,6 +788,7 @@ export default function GestoreOrdini() {
     }
   };
   
+  // Rimozione duplicati
   const rimuoviDuplicati = () => {
     setOrdini(prevOrdini => {
       const ordiniUnici = [];
@@ -793,6 +815,7 @@ export default function GestoreOrdini() {
     });
   };
   
+  // Notifiche
   const mostraNotifica = (messaggio, tipo = 'info') => {
     setNotifica({ aperta: true, messaggio, tipo });
   };
@@ -801,6 +824,7 @@ export default function GestoreOrdini() {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
 
+  // Export functions
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -940,6 +964,7 @@ export default function GestoreOrdini() {
     printWindow.document.close();
   };
   
+  // Calcolo statistiche
   const calcolaStatistiche = () => {
     const oggi = new Date().toDateString();
     const ordiniOggi = ordini.filter(o => {
@@ -966,6 +991,7 @@ export default function GestoreOrdini() {
   
   const statistiche = calcolaStatistiche();
   
+  // Monitoraggio storage
   useEffect(() => {
     const checkStorage = () => {
       if (navigator.storage && navigator.storage.estimate) {
@@ -981,6 +1007,7 @@ export default function GestoreOrdini() {
     return () => clearInterval(interval);
   }, [ordini]);
   
+  // RENDER
   return (
     <>
       <style jsx global>{`
@@ -1093,6 +1120,7 @@ export default function GestoreOrdini() {
             </Box>
           </Box>
           
+          {/* Progress Bars */}
           <Box sx={{ mb: 2 }}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
@@ -1135,6 +1163,7 @@ export default function GestoreOrdini() {
             </Grid>
           </Box>
           
+          {/* Connection Status */}
           <Paper 
             elevation={1}
             sx={{ 
@@ -1161,6 +1190,7 @@ export default function GestoreOrdini() {
           </Paper>
         </Box>
         
+        {/* Main Content */}
         {caricamento ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
             <CircularProgress size={60} />
@@ -1190,6 +1220,7 @@ export default function GestoreOrdini() {
           </Grid>
         )}
         
+        {/* FAB Nuovo Ordine */}
         <Fab 
           color="primary" 
           aria-label="Nuovo ordine"
@@ -1202,6 +1233,7 @@ export default function GestoreOrdini() {
           <AddIcon />
         </Fab>
         
+        {/* Dialog Nuovo/Modifica Ordine */}
         {dialogoNuovoOrdineAperto && (
           <NuovoOrdine 
             open={dialogoNuovoOrdineAperto}
@@ -1217,6 +1249,7 @@ export default function GestoreOrdini() {
           />
         )}
         
+        {/* Dialog Riepilogo Semplice */}
         <Dialog 
           open={riepilogoAperto} 
           onClose={() => setRiepilogoAperto(false)}
@@ -1243,12 +1276,14 @@ export default function GestoreOrdini() {
           </DialogActions>
         </Dialog>
         
+        {/* Riepilogo Stampabile */}
         <RiepilogoGiornaliero 
           open={riepilogoStampabileAperto} 
           onClose={() => setRiepilogoStampabileAperto(false)}
           ordini={ordini}
         />
         
+        {/* Dialog WhatsApp Helper */}
         <Dialog 
           open={whatsappHelperAperto} 
           onClose={() => setWhatsappHelperAperto(false)}
@@ -1271,6 +1306,7 @@ export default function GestoreOrdini() {
           </DialogActions>
         </Dialog>
         
+        {/* Snackbar Notifiche */}
         <Snackbar
           open={notifica.aperta}
           autoHideDuration={6000}
