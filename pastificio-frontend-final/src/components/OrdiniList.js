@@ -1,8 +1,9 @@
-// components/OrdiniList.js - ✅ FIX PREZZI COMPLETO
+// components/OrdiniList.js - ✅ FIX VISUALIZZAZIONE COMPLETA
 import React, { useState } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, IconButton, Button, TextField, Chip, Menu, MenuItem, Divider
+  TableHead, TableRow, IconButton, Button, TextField, Chip, Menu, MenuItem, Divider,
+  Collapse
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -13,6 +14,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -26,6 +29,7 @@ const OrdiniList = ({
   const [dataFiltro, setDataFiltro] = useState(new Date().toISOString().split('T')[0]);
   const [anchorEl, setAnchorEl] = useState(null);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
+  const [expandedRows, setExpandedRows] = useState(new Set());
 
   const handleDateChange = (e) => {
     const newDate = e.target.value;
@@ -41,6 +45,18 @@ const OrdiniList = ({
   const handleMenuClose = () => {
     setAnchorEl(null);
     setOrdineSelezionato(null);
+  };
+
+  const toggleRowExpand = (ordineId) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(ordineId)) {
+        newSet.delete(ordineId);
+      } else {
+        newSet.add(ordineId);
+      }
+      return newSet;
+    });
   };
 
   const inviaWhatsApp = (ordine, tipo = 'conferma') => {
@@ -78,7 +94,7 @@ Grazie e a presto!
 Pastificio Nonna Claudia`;
 
       } else {
-        // ✅ FIX: USA prodotto.prezzo DIRETTAMENTE (è già il totale)
+        // ✅ FIX: USA prodotto.prezzo DIRETTAMENTE
         const prodottiDettaglio = ordine.prodotti.map(p => {
           const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || 'Kg'}`;
           return `• ${p.nome || p.prodotto}: ${dettagli} - €${(p.prezzo || 0).toFixed(2)}`;
@@ -222,7 +238,6 @@ Pastificio Nonna Claudia`;
             </thead>
             <tbody>
               ${ordineSelezionato.prodotti.map(p => {
-                // ✅ FIX: Calcola prezzo unitario dividendo per quantità
                 const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
                 const prezzoUnitario = p.quantita > 0 ? (p.prezzo / p.quantita) : p.prezzo;
                 
@@ -302,6 +317,7 @@ Pastificio Nonna Claudia`;
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell width="50px"></TableCell>
                 <TableCell>Ora</TableCell>
                 <TableCell>Cliente</TableCell>
                 <TableCell>Prodotti</TableCell>
@@ -314,89 +330,113 @@ Pastificio Nonna Claudia`;
             </TableHead>
             <TableBody>
               {ordiniDelGiorno.length > 0 ? (
-                ordiniDelGiorno.map((ordine) => (
-                  <TableRow key={ordine._id} hover>
-                    <TableCell>{ordine.oraRitiro || '-'}</TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2">{ordine.nomeCliente}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Tel: {ordine.telefono}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        {ordine.prodotti && ordine.prodotti.slice(0, 2).map((p, index) => {
-                          const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
-                          return (
-                            <Typography key={index} variant="body2">
-                              {p.nome || p.prodotto} ({dettagli})
+                ordiniDelGiorno.map((ordine) => {
+                  const isExpanded = expandedRows.has(ordine._id);
+                  const numeroProdotti = ordine.prodotti?.length || 0;
+                  const prodottiDaMostrare = isExpanded ? ordine.prodotti : ordine.prodotti?.slice(0, 3);
+                  
+                  return (
+                    <React.Fragment key={ordine._id}>
+                      <TableRow hover>
+                        <TableCell>
+                          {numeroProdotti > 3 && (
+                            <IconButton 
+                              size="small" 
+                              onClick={() => toggleRowExpand(ordine._id)}
+                            >
+                              {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                            </IconButton>
+                          )}
+                        </TableCell>
+                        <TableCell>{ordine.oraRitiro || '-'}</TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2">{ordine.nomeCliente}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Tel: {ordine.telefono}
                             </Typography>
-                          );
-                        })}
-                        {ordine.prodotti && ordine.prodotti.length > 2 && (
-                          <Typography variant="caption" color="text.secondary">
-                            +{ordine.prodotti.length - 2} altri prodotti
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            {/* ✅ FIX: MOSTRA TUTTI I PRODOTTI o primi 3 se collapsed */}
+                            {prodottiDaMostrare && prodottiDaMostrare.map((p, index) => {
+                              const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
+                              return (
+                                <Typography key={index} variant="body2">
+                                  {p.nome || p.prodotto} ({dettagli})
+                                </Typography>
+                              );
+                            })}
+                            {!isExpanded && numeroProdotti > 3 && (
+                              <Typography 
+                                variant="caption" 
+                                color="primary" 
+                                sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                                onClick={() => toggleRowExpand(ordine._id)}
+                              >
+                                +{numeroProdotti - 3} altri prodotti (clicca per espandere)
+                              </Typography>
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" fontWeight="medium">
+                            €{calcolaTotale(ordine)}
                           </Typography>
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" fontWeight="medium">
-                        €{calcolaTotale(ordine)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip 
-                        label={ordine.stato || 'nuovo'} 
-                        size="small"
-                        color={getStatoColor(ordine.stato)}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      {ordine.statoFatturazione === 'fatturato' ? (
-                        <Chip 
-                          icon={<CheckCircleIcon />}
-                          label="Fatturato" 
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                        />
-                      ) : (
-                        <Typography variant="caption" color="text.secondary">
-                          Non fatturato
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        {ordine.daViaggio && (
-                          <Chip label="DA VIAGGIO" size="small" color="warning" sx={{ mb: 0.5 }} />
-                        )}
-                        <Typography variant="caption" sx={{ display: 'block' }}>
-                          {ordine.note || '-'}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <IconButton onClick={() => onEdit(ordine)} size="small" color="primary" title="Modifica">
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton onClick={() => onDelete(ordine._id)} size="small" color="error" title="Elimina">
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton onClick={(e) => handleMenuOpen(e, ordine)} size="small" title="Altre azioni">
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip 
+                            label={ordine.stato || 'nuovo'} 
+                            size="small"
+                            color={getStatoColor(ordine.stato)}
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          {ordine.statoFatturazione === 'fatturato' ? (
+                            <Chip 
+                              icon={<CheckCircleIcon />}
+                              label="Fatturato" 
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">
+                              Non fatturato
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            {ordine.daViaggio && (
+                              <Chip label="DA VIAGGIO" size="small" color="warning" sx={{ mb: 0.5 }} />
+                            )}
+                            <Typography variant="caption" sx={{ display: 'block' }}>
+                              {ordine.note || '-'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                            <IconButton onClick={() => onEdit(ordine)} size="small" color="primary" title="Modifica">
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton onClick={() => onDelete(ordine._id)} size="small" color="error" title="Elimina">
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton onClick={(e) => handleMenuOpen(e, ordine)} size="small" title="Altre azioni">
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
                       Nessun ordine per questa data
                     </Typography>
@@ -473,20 +513,17 @@ Pastificio Nonna Claudia`;
   );
 };
 
-// ✅ FIX CRITICO: USA ordine.totale DIRETTAMENTE oppure somma i prezzi SENZA moltiplicare
+// ✅ USA ordine.totale dal backend
 const calcolaTotale = (ordine) => {
-  // Preferisci usare ordine.totale se disponibile (è il valore corretto dal backend)
   if (ordine.totale !== undefined && ordine.totale !== null) {
     return parseFloat(ordine.totale).toFixed(2);
   }
   
-  // Fallback: somma i prezzi dei prodotti (che sono già totali, NON unitari)
   if (!ordine.prodotti || !Array.isArray(ordine.prodotti)) {
     return '0.00';
   }
   
   return ordine.prodotti.reduce((totale, prodotto) => {
-    // ✅ prodotto.prezzo è GIÀ il totale, NON va moltiplicato per quantità!
     return totale + (parseFloat(prodotto.prezzo) || 0);
   }, 0).toFixed(2);
 };
