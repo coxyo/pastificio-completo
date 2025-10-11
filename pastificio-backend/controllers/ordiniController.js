@@ -1,10 +1,12 @@
-// controllers/ordiniController.js - GESTIONE ROBUSTA
+// controllers/ordiniController.js - ✅ FIX FINALE CALCOLO PREZZI
 import { AppError } from '../middleware/errorHandler.js';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 import mongoose from 'mongoose';
 import whatsappService from '../services/whatsappService.js';
+// ✅ IMPORT SISTEMA CALCOLO PREZZI
+import calcoliPrezzi from '../utils/calcoliPrezzi.js';
 
 export const ordiniController = {
   async creaOrdine(req, res) {
@@ -22,10 +24,9 @@ export const ordiniController = {
         metodoPagamento,
         pagato,
         daViaggio,
-        cliente // ✅ Campo cliente dal frontend
+        cliente
       } = req.body;
 
-      // ✅ LOG DETTAGLIATO per debug
       logger.info('📦 Creazione nuovo ordine - Dati ricevuti:', {
         nomeCliente,
         telefono,
@@ -46,27 +47,28 @@ export const ordiniController = {
         });
       }
 
-      // ✅ FIX: Gestione CLIENTE - Accetta sia ObjectId che oggetto
+      // Gestione CLIENTE - Accetta sia ObjectId che oggetto
       let clienteId = null;
+      let clienteObj = null;
       
       if (cliente) {
         // Se cliente è un ObjectId string valido
         if (typeof cliente === 'string' && mongoose.Types.ObjectId.isValid(cliente)) {
           clienteId = cliente;
+          clienteObj = await Cliente.findById(clienteId);
         } 
         // Se cliente è un oggetto con _id
         else if (typeof cliente === 'object' && cliente._id) {
           clienteId = cliente._id;
+          clienteObj = await Cliente.findById(clienteId);
         }
         // Se cliente è un oggetto con nome e telefono (creazione nuovo)
         else if (typeof cliente === 'object' && cliente.nome && cliente.telefono) {
-          // Cerca cliente esistente
           let clienteEsistente = await Cliente.findOne({ 
             telefono: cliente.telefono 
           });
           
           if (!clienteEsistente) {
-            // Crea nuovo cliente
             clienteEsistente = await Cliente.create({
               tipo: 'privato',
               nome: cliente.nome,
@@ -79,6 +81,7 @@ export const ordiniController = {
           }
           
           clienteId = clienteEsistente._id;
+          clienteObj = clienteEsistente;
         }
       }
       
@@ -101,59 +104,64 @@ export const ordiniController = {
         
         if (clienteEsistente) {
           clienteId = clienteEsistente._id;
+          clienteObj = clienteEsistente;
         }
       }
 
       // Genera numero ordine progressivo
       const numeroOrdine = await this.generaNumeroOrdine();
 
-      // ✅ NORMALIZZA PRODOTTI - Risolve problemi enum
-      const prodottiNormalizzati = prodotti.map(p => {
-        // Normalizza unità di misura
-        const unitaNormalized = p.unita?.toLowerCase() || 'kg';
-        const unitaMisuraNormalized = p.unitaMisura?.toLowerCase() || unitaNormalized;
+      // ✅ RICALCOLA PREZZI USANDO IL SISTEMA CENTRALIZZATO
+      const prodottiRicalcolati = prodotti.map(p => {
+        const unitaMisura = (p.unita || p.unitaMisura || 'kg').toLowerCase();
+        
+        // Ricalcola il prezzo corretto usando calcoliPrezzi
+        const risultato = calcoliPrezzi.calcolaPrezzoOrdine(
+          p.nome,
+          p.quantita,
+          unitaMisura
+        );
+        
+        logger.info(`💰 Prodotto: ${p.nome}`);
+        logger.info(`   - Input: ${p.quantita} ${unitaMisura} - Prezzo frontend: €${p.prezzo}`);
+        logger.info(`   - Backend RICALCOLA: €${risultato.prezzoTotale.toFixed(2)}`);
+        logger.info(`   - Dettagli: ${risultato.dettagli}`);
         
         return {
-          nome: p.nome?.trim(),
-          quantita: Number(p.quantita) || 0,
-          unita: unitaNormalized,
-          unitaMisura: unitaMisuraNormalized,
-          prezzo: Number(p.prezzo) || 0,
-          categoria: p.categoria || 'altro', // Sarà normalizzato dal pre-save hook
-          variante: p.variante || null
+          nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim(),
+          quantita: p.quantita,
+          unita: unitaMisura,
+          unitaMisura: unitaMisura,
+          prezzo: risultato.prezzoTotale, // ✅ USA PREZZO RICALCOLATO DAL BACKEND
+          prezzoUnitario: risultato.prezzoTotale / p.quantita,
+          categoria: p.categoria || 'altro',
+          variante: p.variante || null,
+          dettagliCalcolo: risultato // Salva i dettagli per audit
         };
       });
+      
+      // ✅ RICALCOLA TOTALE NEL BACKEND
+      const totaleBackend = prodottiRicalcolati.reduce((sum, p) => sum + p.prezzo, 0);
+      
+      logger.info(`💰 TOTALE FRONTEND ricevuto: €${totale}`);
+      logger.info(`💰 TOTALE BACKEND ricalcolato: €${totaleBackend.toFixed(2)}`);
 
-      // ✅ LOG PRODOTTI NORMALIZZATI
-      logger.info('🔧 Prodotti normalizzati:', {
-        originali: prodotti.map(p => ({ 
-          nome: p.nome, 
-          unita: p.unita, 
-          categoria: p.categoria 
-        })),
-        normalizzati: prodottiNormalizzati.map(p => ({ 
-          nome: p.nome, 
-          unita: p.unita, 
-          categoria: p.categoria 
-        }))
-      });
-
-      // Crea ordine
+      // Crea ordine con dati corretti
       const ordine = new Ordine({
-        nomeCliente,
-        telefono: telefono || '',
-        email: email || '',
+        nomeCliente: clienteObj?.nome || nomeCliente || 'Cliente Sconosciuto',
+        telefono: clienteObj?.telefono || telefono || '',
+        email: clienteObj?.email || email || '',
         dataRitiro,
         oraRitiro,
-        prodotti: prodottiNormalizzati,
-        totale: Number(totale) || 0,
+        prodotti: prodottiRicalcolati, // ✅ USA PRODOTTI RICALCOLATI
+        totale: totaleBackend, // ✅ USA TOTALE RICALCOLATO DAL BACKEND
         note: note || '',
         stato: stato || 'nuovo',
         metodoPagamento: metodoPagamento || 'contanti',
         pagato: pagato === true,
         daViaggio: daViaggio === true,
         numeroOrdine,
-        cliente: clienteId, // ✅ Può essere null
+        cliente: clienteId,
         creatoDa: req.user?.id || null
       });
 
@@ -177,7 +185,7 @@ export const ordiniController = {
           const messaggioOrdine = `
 🎉 *Ordine Confermato!*
 
-Ciao ${nomeCliente},
+Ciao ${ordine.nomeCliente},
 Il tuo ordine #${ordine.numeroOrdine} è stato ricevuto!
 
 📅 *Data ritiro:* ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
@@ -185,7 +193,7 @@ Il tuo ordine #${ordine.numeroOrdine} è stato ricevuto!
 ${ordine.daViaggio ? '🧳 *Da viaggio* - Confezionato sottovuoto' : ''}
 
 📦 *Prodotti ordinati:*
-${ordine.prodotti.map(p => `• ${p.nome}${p.variante ? ` (${p.variante})` : ''}: ${p.quantita} ${p.unitaMisura} - €${p.prezzo.toFixed(2)}`).join('\n')}
+${ordine.prodotti.map(p => `• ${p.nome}${p.variante ? ` (${p.variante})` : ''}: ${p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura}`} - €${p.prezzo.toFixed(2)}`).join('\n')}
 
 💰 *Totale:* €${ordine.totale.toFixed(2)}
 
@@ -193,7 +201,7 @@ ${ordine.note ? `📝 Note: ${ordine.note}` : ''}
 
 Ti invieremo un promemoria il giorno prima del ritiro.
 
-Grazie! 🍝
+Grazie! 🙏
           `.trim();
           
           await whatsappService.inviaMessaggio(telefono, messaggioOrdine);
@@ -344,6 +352,32 @@ Grazie! 🍝
           success: false,
           error: 'Ordine non trovato'
         });
+      }
+
+      // ✅ RICALCOLA PREZZI SE PRODOTTI MODIFICATI
+      if (req.body.prodotti) {
+        req.body.prodotti = req.body.prodotti.map(p => {
+          const unitaMisura = (p.unita || p.unitaMisura || 'kg').toLowerCase();
+          const risultato = calcoliPrezzi.calcolaPrezzoOrdine(
+            p.nome,
+            p.quantita,
+            unitaMisura
+          );
+          
+          return {
+            nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim(),
+            quantita: p.quantita,
+            unita: unitaMisura,
+            unitaMisura: unitaMisura,
+            prezzo: risultato.prezzoTotale,
+            prezzoUnitario: risultato.prezzoTotale / p.quantita,
+            categoria: p.categoria || 'altro',
+            variante: p.variante || null,
+            dettagliCalcolo: risultato
+          };
+        });
+        
+        req.body.totale = req.body.prodotti.reduce((sum, p) => sum + p.prezzo, 0);
       }
 
       const updateData = {
