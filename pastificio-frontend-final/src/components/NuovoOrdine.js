@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - CON GRUPPI PRODOTTI
+// components/NuovoOrdine.js - ✅ FIX PERFORMANCE + UX MIGLIORATA
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -27,18 +27,26 @@ import {
   AccordionSummary,
   AccordionDetails,
   Grid,
-  Divider
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Luggage as LuggageIcon,
-  ExpandMore as ExpandMoreIcon
+  ExpandMore as ExpandMoreIcon,
+  ShoppingCart as CartIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+
+// ✅ CACHE GLOBALE CLIENTI (condivisa tra tutte le istanze del componente)
+let clientiCache = null;
+let clientiCacheTime = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
 
 export default function NuovoOrdine({ 
   open, 
@@ -114,25 +122,48 @@ export default function NuovoOrdine({
     }
   }, [ordineIniziale]);
 
+  // ✅ FIX PERFORMANCE: CARICA CLIENTI SUBITO (anche quando dialog è chiuso)
   useEffect(() => {
-    if (open && isConnected) {
+    if (isConnected) {
       caricaClienti();
     }
-  }, [open, isConnected]);
+  }, [isConnected]); // ⬅️ Rimuove dipendenza da 'open'
 
   const caricaClienti = async () => {
+    // ✅ USA CACHE SE DISPONIBILE E RECENTE
+    const now = Date.now();
+    if (clientiCache && clientiCacheTime && (now - clientiCacheTime) < CACHE_DURATION) {
+      console.log('✅ Clienti caricati dalla cache');
+      setClienti(clientiCache);
+      return;
+    }
+
     try {
       setLoadingClienti(true);
+      console.log('🔄 Caricamento clienti da API...');
+      
       const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         headers: { 'Content-Type': 'application/json' }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setClienti(data.data || data.clienti || data || []);
+        const clientiData = data.data || data.clienti || data || [];
+        
+        // ✅ SALVA IN CACHE
+        clientiCache = clientiData;
+        clientiCacheTime = Date.now();
+        
+        setClienti(clientiData);
+        console.log(`✅ ${clientiData.length} clienti caricati e cachati`);
       }
     } catch (error) {
       console.error('Errore caricamento clienti:', error);
+      // Usa cache anche se scaduta, meglio di niente
+      if (clientiCache) {
+        setClienti(clientiCache);
+        console.log('⚠️ Usando cache clienti (scaduta)');
+      }
     } finally {
       setLoadingClienti(false);
     }
@@ -293,91 +324,14 @@ export default function NuovoOrdine({
 
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
-          {/* Cliente */}
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>👤 Cliente</Typography>
-            <Autocomplete
-              options={clienti}
-              getOptionLabel={(option) => 
-                `${option.nome} ${option.cognome || ''} - ${option.telefono}`.trim()
-              }
-              value={formData.cliente}
-              onChange={handleClienteChange}
-              loading={loadingClienti}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Cliente *"
-                  placeholder="Cerca cliente esistente"
-                />
-              )}
-            />
-
-            {!formData.cliente && (
-              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Nome Cliente *"
-                  value={formData.nomeCliente}
-                  onChange={(e) => setFormData({ ...formData, nomeCliente: e.target.value })}
-                />
-                <TextField
-                  fullWidth
-                  label="Telefono"
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                />
-              </Box>
-            )}
-          </Paper>
-
-          {/* Data e Ora */}
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>📅 Data e Ora Ritiro</Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Data Ritiro *"
-                value={formData.dataRitiro}
-                onChange={(e) => setFormData({ ...formData, dataRitiro: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                fullWidth
-                type="time"
-                label="Ora Ritiro *"
-                value={formData.oraRitiro}
-                onChange={(e) => setFormData({ ...formData, oraRitiro: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Box>
-          </Paper>
-
-          {/* Switch Da Viaggio */}
-          <Paper sx={{ p: 2, bgcolor: formData.daViaggio ? 'warning.light' : 'grey.100' }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.daViaggio}
-                  onChange={(e) => setFormData({ ...formData, daViaggio: e.target.checked })}
-                  color="warning"
-                />
-              }
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LuggageIcon />
-                  <Typography variant="body1" fontWeight="bold">
-                    Ordine Da Viaggio (sottovuoto)
-                  </Typography>
-                </Box>
-              }
-            />
-          </Paper>
-
-          {/* ✅ PRODOTTI RAGGRUPPATI PER CATEGORIA */}
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>🛒 Seleziona Prodotti</Typography>
+          
+          {/* ========================================== */}
+          {/* ✅ SEZIONE 1: PRODOTTI (PRIMA!) */}
+          {/* ========================================== */}
+          <Paper sx={{ p: 2, bgcolor: 'primary.light' }}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CartIcon /> Seleziona Prodotti
+            </Typography>
 
             {Object.entries(prodottiPerCategoria).map(([categoria, prodotti]) => (
               prodotti.length > 0 && (
@@ -423,13 +377,12 @@ export default function NuovoOrdine({
 
             {/* Form Aggiunta Prodotto */}
             {prodottoCorrente.nome && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: 'primary.light', borderRadius: 1 }}>
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
                 <Typography variant="subtitle2" gutterBottom>
                   Configura: <strong>{prodottoCorrente.nome}</strong>
                 </Typography>
 
                 <Grid container spacing={2} sx={{ mt: 1 }}>
-                  {/* Variante (se necessaria) */}
                   {hasVarianti && (
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth size="small">
@@ -449,7 +402,6 @@ export default function NuovoOrdine({
                     </Grid>
                   )}
 
-                  {/* Quantità */}
                   <Grid item xs={6} sm={3}>
                     <TextField
                       fullWidth
@@ -462,7 +414,6 @@ export default function NuovoOrdine({
                     />
                   </Grid>
 
-                  {/* Unità */}
                   <Grid item xs={6} sm={3}>
                     <FormControl fullWidth size="small">
                       <InputLabel>Unità</InputLabel>
@@ -478,7 +429,6 @@ export default function NuovoOrdine({
                     </FormControl>
                   </Grid>
 
-                  {/* Prezzo */}
                   <Grid item xs={8} sm={hasVarianti ? 8 : 4}>
                     <TextField
                       fullWidth
@@ -489,7 +439,6 @@ export default function NuovoOrdine({
                     />
                   </Grid>
 
-                  {/* Bottone Aggiungi */}
                   <Grid item xs={4} sm={hasVarianti ? 4 : 2}>
                     <Button
                       fullWidth
@@ -549,6 +498,83 @@ export default function NuovoOrdine({
             </Paper>
           )}
 
+          {/* ========================================== */}
+          {/* ✅ SEZIONE 2: CLIENTE (DOPO I PRODOTTI) */}
+          {/* ========================================== */}
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PersonIcon /> Dati Cliente
+            </Typography>
+            
+            <Autocomplete
+              options={clienti}
+              getOptionLabel={(option) => 
+                `${option.nome} ${option.cognome || ''} - ${option.telefono}`.trim()
+              }
+              value={formData.cliente}
+              onChange={handleClienteChange}
+              loading={loadingClienti}
+              loadingText="Caricamento clienti..."
+              noOptionsText={loadingClienti ? "Caricamento..." : "Nessun cliente trovato"}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Cliente *"
+                  placeholder="Cerca cliente esistente"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {loadingClienti ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
+
+            {!formData.cliente && (
+              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Nome Cliente *"
+                  value={formData.nomeCliente}
+                  onChange={(e) => setFormData({ ...formData, nomeCliente: e.target.value })}
+                />
+                <TextField
+                  fullWidth
+                  label="Telefono"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                />
+              </Box>
+            )}
+          </Paper>
+
+          {/* Data e Ora */}
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom>📅 Data e Ora Ritiro</Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Data Ritiro *"
+                value={formData.dataRitiro}
+                onChange={(e) => setFormData({ ...formData, dataRitiro: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                fullWidth
+                type="time"
+                label="Ora Ritiro *"
+                value={formData.oraRitiro}
+                onChange={(e) => setFormData({ ...formData, oraRitiro: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
+          </Paper>
+
           {/* Note */}
           <TextField
             fullWidth
@@ -558,6 +584,27 @@ export default function NuovoOrdine({
             value={formData.note}
             onChange={(e) => setFormData({ ...formData, note: e.target.value })}
           />
+
+          {/* Switch Da Viaggio */}
+          <Paper sx={{ p: 2, bgcolor: formData.daViaggio ? 'warning.light' : 'grey.100' }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.daViaggio}
+                  onChange={(e) => setFormData({ ...formData, daViaggio: e.target.checked })}
+                  color="warning"
+                />
+              }
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LuggageIcon />
+                  <Typography variant="body1" fontWeight="bold">
+                    Ordine Da Viaggio (sottovuoto)
+                  </Typography>
+                </Box>
+              }
+            />
+          </Paper>
         </Box>
       </DialogContent>
 
