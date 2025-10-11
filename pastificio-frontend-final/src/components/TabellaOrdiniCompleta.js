@@ -1,4 +1,4 @@
-// src/components/TabellaOrdiniCompleta.js - ✅ FIX VISUALIZZAZIONE PREZZI
+// src/components/TabellaOrdiniCompleta.js - ✅ FIX FINALE SEMPLIFICATO
 import React from 'react';
 import { Edit, Trash2, Eye, Share2, Package } from 'lucide-react';
 
@@ -12,46 +12,6 @@ const TabellaOrdiniCompleta = ({ ordini, onModifica, onElimina, onDettagli, onCo
   // Verifica se ordine ha prodotti da viaggio
   const haProdottiDaViaggio = (ordine) => {
     return ordine.prodotti && ordine.prodotti.some(p => p.daViaggio);
-  };
-  
-  // ✅ FIX: Calcola il totale CORRETTO dell'ordine
-  const calcolaTotaleOrdine = (ordine) => {
-    if (!ordine.prodotti || ordine.prodotti.length === 0) {
-      return ordine.totale || 0;
-    }
-    
-    // Somma i prezzi TOTALI di ogni prodotto (non unitari!)
-    const totaleCalcolato = ordine.prodotti.reduce((sum, prodotto) => {
-      // Il prezzo già salvato è il TOTALE del prodotto
-      return sum + (prodotto.prezzo || 0);
-    }, 0);
-    
-    // Se c'è discrepanza significativa (>€1), usa il totale calcolato
-    const differenza = Math.abs(totaleCalcolato - (ordine.totale || 0));
-    
-    if (differenza > 1) {
-      console.warn(
-        `⚠️ Discrepanza ordine ${ordine._id}:`,
-        `DB: €${ordine.totale?.toFixed(2)}, Calcolato: €${totaleCalcolato.toFixed(2)}`
-      );
-    }
-    
-    // Usa sempre il totale calcolato dalla somma dei prodotti
-    return totaleCalcolato;
-  };
-  
-  // ✅ FIX: Formatta i dettagli prodotto correttamente
-  const formattaDettagliProdotto = (prodotto) => {
-    // Se esiste dettagliCalcolo, usa quello (più preciso)
-    if (prodotto.dettagliCalcolo && prodotto.dettagliCalcolo.dettagli) {
-      return prodotto.dettagliCalcolo.dettagli;
-    }
-    
-    // Altrimenti costruisci manualmente
-    const quantita = prodotto.quantita || 0;
-    const unita = prodotto.unita || prodotto.unitaMisura || 'Kg';
-    
-    return `${quantita} ${unita}`;
   };
   
   // Badge stato ordine
@@ -116,146 +76,133 @@ const TabellaOrdiniCompleta = ({ ordini, onModifica, onElimina, onDettagli, onCo
               </td>
             </tr>
           ) : (
-            ordini.map((ordine) => {
-              // ✅ Calcola il totale CORRETTO per questo ordine
-              const totaleCorretto = calcolaTotaleOrdine(ordine);
-              
-              return (
-                <tr key={ordine._id || ordine.id} className="hover:bg-gray-50 transition-colors">
-                  {/* Ora */}
-                  <td className="px-4 py-3 text-sm">
-                    {formattaDataOra(ordine)}
-                  </td>
-                  
-                  {/* Cliente */}
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{ordine.nomeCliente}</div>
-                    {ordine.telefono && (
-                      <div className="text-xs text-gray-500">
-                        📞 {ordine.telefono}
-                      </div>
-                    )}
-                  </td>
-                  
-                  {/* Prodotti - ✅ FIX: Mostra dettagli corretti */}
-                  <td className="px-4 py-3 text-sm">
-                    {ordine.prodotti && ordine.prodotti.length > 0 ? (
-                      <div>
-                        {ordine.prodotti.slice(0, 2).map((p, idx) => {
-                          const dettagli = formattaDettagliProdotto(p);
-                          const prezzoProdotto = p.prezzo || 0;
-                          
-                          return (
-                            <div key={idx} className="text-xs mb-1">
-                              • {p.nome || p.nomeProdotto} 
-                              <span className="text-gray-600"> ({dettagli})</span>
-                              <span className="text-green-600 font-semibold ml-2">
-                                €{prezzoProdotto.toFixed(2)}
-                              </span>
-                            </div>
-                          );
-                        })}
-                        {ordine.prodotti.length > 2 && (
-                          <div className="text-xs text-gray-500 italic">
-                            +{ordine.prodotti.length - 2} altri...
+            ordini.map((ordine) => (
+              <tr key={ordine._id || ordine.id} className="hover:bg-gray-50 transition-colors">
+                {/* Ora */}
+                <td className="px-4 py-3 text-sm">
+                  {formattaDataOra(ordine)}
+                </td>
+                
+                {/* Cliente */}
+                <td className="px-4 py-3">
+                  <div className="font-medium">{ordine.nomeCliente}</div>
+                  {ordine.telefono && (
+                    <div className="text-xs text-gray-500">
+                      📞 {ordine.telefono}
+                    </div>
+                  )}
+                </td>
+                
+                {/* Prodotti */}
+                <td className="px-4 py-3 text-sm">
+                  {ordine.prodotti && ordine.prodotti.length > 0 ? (
+                    <div>
+                      {ordine.prodotti.slice(0, 2).map((p, idx) => {
+                        // Usa dettagliCalcolo se presente, altrimenti costruisci
+                        const dettagli = p.dettagliCalcolo?.dettagli || 
+                          `${p.quantita} ${p.unita || p.unitaMisura || 'Kg'}`;
+                        
+                        return (
+                          <div key={idx} className="text-xs mb-1">
+                            • {p.nome || p.nomeProdotto} 
+                            <span className="text-gray-600"> ({dettagli})</span>
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">N/A</span>
-                    )}
-                  </td>
-                  
-                  {/* ✅ COLONNA MULTI */}
-                  <td className="px-4 py-3 text-center">
-                    {haMultipliProdotti(ordine) ? (
-                      <span className="text-2xl" title="Ordine con multipli prodotti">
-                        ⬇️
-                      </span>
-                    ) : (
-                      <span className="text-gray-300">-</span>
-                    )}
-                  </td>
-                  
-                  {/* ✅ COLONNA VIAGGIO */}
-                  <td className="px-4 py-3 text-center">
-                    {haProdottiDaViaggio(ordine) ? (
-                      <span className="text-2xl" title="Contiene prodotti da viaggio">
-                        ✅
-                      </span>
-                    ) : (
-                      <span className="text-gray-300">-</span>
-                    )}
-                  </td>
-                  
-                  {/* Prezzo - ✅ FIX: Usa il totale CORRETTO */}
-                  <td className="px-4 py-3 text-center">
-                    <div className="font-semibold text-lg text-green-600">
-                      €{totaleCorretto.toFixed(2)}
+                        );
+                      })}
+                      {ordine.prodotti.length > 2 && (
+                        <div className="text-xs text-gray-500 italic">
+                          +{ordine.prodotti.length - 2} altri...
+                        </div>
+                      )}
                     </div>
-                    {/* ⚠️ Debug: mostra se c'è discrepanza */}
-                    {Math.abs(totaleCorretto - (ordine.totale || 0)) > 1 && (
-                      <div className="text-xs text-red-500" title={`DB: €${ordine.totale?.toFixed(2)}`}>
-                        ⚠️ Ricalcolato
-                      </div>
-                    )}
-                  </td>
-                  
-                  {/* Stato */}
-                  <td className="px-4 py-3 text-center">
-                    {getBadgeStato(ordine.stato)}
-                  </td>
-                  
-                  {/* Note */}
-                  <td className="px-4 py-3 text-center text-sm">
-                    {ordine.note ? (
-                      <span title={ordine.note}>
-                        📝
-                      </span>
-                    ) : (
-                      <span className="text-gray-300">-</span>
-                    )}
-                  </td>
-                  
-                  {/* Azioni */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => onDettagli(ordine)}
-                        className="p-1.5 text-blue-500 hover:bg-blue-50 rounded transition-colors"
-                        title="Visualizza dettagli"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => onModifica(ordine)}
-                        className="p-1.5 text-yellow-500 hover:bg-yellow-50 rounded transition-colors"
-                        title="Modifica ordine"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => onCondividi(ordine)}
-                        className="p-1.5 text-green-500 hover:bg-green-50 rounded transition-colors"
-                        title="Condividi su WhatsApp"
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => onElimina(ordine)}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
-                        title="Elimina ordine"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
+                  ) : (
+                    <span className="text-gray-400">N/A</span>
+                  )}
+                </td>
+                
+                {/* ✅ COLONNA MULTI */}
+                <td className="px-4 py-3 text-center">
+                  {haMultipliProdotti(ordine) ? (
+                    <span className="text-2xl" title="Ordine con multipli prodotti">
+                      ⬇️
+                    </span>
+                  ) : (
+                    <span className="text-gray-300">-</span>
+                  )}
+                </td>
+                
+                {/* ✅ COLONNA VIAGGIO */}
+                <td className="px-4 py-3 text-center">
+                  {haProdottiDaViaggio(ordine) ? (
+                    <span className="text-2xl" title="Contiene prodotti da viaggio">
+                      ✅
+                    </span>
+                  ) : (
+                    <span className="text-gray-300">-</span>
+                  )}
+                </td>
+                
+                {/* ✅ PREZZO - USA SEMPRE IL VALORE DAL DATABASE */}
+                <td className="px-4 py-3 text-center">
+                  <div className="font-semibold text-lg text-green-600">
+                    €{(ordine.totale || 0).toFixed(2)}
+                  </div>
+                </td>
+                
+                {/* Stato */}
+                <td className="px-4 py-3 text-center">
+                  {getBadgeStato(ordine.stato)}
+                </td>
+                
+                {/* Note */}
+                <td className="px-4 py-3 text-center text-sm">
+                  {ordine.note ? (
+                    <span title={ordine.note}>
+                      📝
+                    </span>
+                  ) : (
+                    <span className="text-gray-300">-</span>
+                  )}
+                </td>
+                
+                {/* Azioni */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => onDettagli(ordine)}
+                      className="p-1.5 text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                      title="Visualizza dettagli"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => onModifica(ordine)}
+                      className="p-1.5 text-yellow-500 hover:bg-yellow-50 rounded transition-colors"
+                      title="Modifica ordine"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => onCondividi(ordine)}
+                      className="p-1.5 text-green-500 hover:bg-green-50 rounded transition-colors"
+                      title="Condividi su WhatsApp"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => onElimina(ordine)}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                      title="Elimina ordine"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))
           )}
         </tbody>
       </table>
