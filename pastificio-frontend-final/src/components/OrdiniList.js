@@ -1,4 +1,4 @@
-// components/OrdiniList.js
+// components/OrdiniList.js - ✅ FIX PREZZI COMPLETO
 import React, { useState } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
@@ -14,7 +14,6 @@ import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
-// FIXATO - Aggiunto /api
 const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
 
 const OrdiniList = ({ 
@@ -79,9 +78,11 @@ Grazie e a presto!
 Pastificio Nonna Claudia`;
 
       } else {
-        const prodottiDettaglio = ordine.prodotti.map(p => 
-          `• ${p.nome || p.prodotto}: ${p.quantita} ${p.unitaMisura || p.unita || 'Kg'} - €${((p.prezzo * p.quantita) || 0).toFixed(2)}`
-        ).join('\n');
+        // ✅ FIX: USA prodotto.prezzo DIRETTAMENTE (è già il totale)
+        const prodottiDettaglio = ordine.prodotti.map(p => {
+          const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || 'Kg'}`;
+          return `• ${p.nome || p.prodotto}: ${dettagli} - €${(p.prezzo || 0).toFixed(2)}`;
+        }).join('\n');
 
         messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
 
@@ -215,19 +216,25 @@ Pastificio Nonna Claudia`;
               <tr>
                 <th>Prodotto</th>
                 <th>Quantità</th>
-                <th>Prezzo</th>
+                <th>Prezzo Unitario</th>
                 <th>Totale</th>
               </tr>
             </thead>
             <tbody>
-              ${ordineSelezionato.prodotti.map(p => `
-                <tr>
-                  <td>${p.nome || p.prodotto}</td>
-                  <td>${p.quantita} ${p.unitaMisura || p.unita || ''}</td>
-                  <td>€ ${p.prezzo.toFixed(2)}</td>
-                  <td>€ ${(p.prezzo * p.quantita).toFixed(2)}</td>
-                </tr>
-              `).join('')}
+              ${ordineSelezionato.prodotti.map(p => {
+                // ✅ FIX: Calcola prezzo unitario dividendo per quantità
+                const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
+                const prezzoUnitario = p.quantita > 0 ? (p.prezzo / p.quantita) : p.prezzo;
+                
+                return `
+                  <tr>
+                    <td>${p.nome || p.prodotto}</td>
+                    <td>${dettagli}</td>
+                    <td>€ ${prezzoUnitario.toFixed(2)}</td>
+                    <td>€ ${p.prezzo.toFixed(2)}</td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
           <div class="totale">Totale: € ${calcolaTotale(ordineSelezionato)}</div>
@@ -320,11 +327,14 @@ Pastificio Nonna Claudia`;
                     </TableCell>
                     <TableCell>
                       <Box>
-                        {ordine.prodotti && ordine.prodotti.slice(0, 2).map((p, index) => (
-                          <Typography key={index} variant="body2">
-                            {p.nome || p.prodotto} ({p.quantita} {p.unitaMisura || p.unita || ''})
-                          </Typography>
-                        ))}
+                        {ordine.prodotti && ordine.prodotti.slice(0, 2).map((p, index) => {
+                          const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
+                          return (
+                            <Typography key={index} variant="body2">
+                              {p.nome || p.prodotto} ({dettagli})
+                            </Typography>
+                          );
+                        })}
                         {ordine.prodotti && ordine.prodotti.length > 2 && (
                           <Typography variant="caption" color="text.secondary">
                             +{ordine.prodotti.length - 2} altri prodotti
@@ -463,11 +473,21 @@ Pastificio Nonna Claudia`;
   );
 };
 
+// ✅ FIX CRITICO: USA ordine.totale DIRETTAMENTE oppure somma i prezzi SENZA moltiplicare
 const calcolaTotale = (ordine) => {
-  if (!ordine.prodotti || !Array.isArray(ordine.prodotti)) return '0.00';
+  // Preferisci usare ordine.totale se disponibile (è il valore corretto dal backend)
+  if (ordine.totale !== undefined && ordine.totale !== null) {
+    return parseFloat(ordine.totale).toFixed(2);
+  }
+  
+  // Fallback: somma i prezzi dei prodotti (che sono già totali, NON unitari)
+  if (!ordine.prodotti || !Array.isArray(ordine.prodotti)) {
+    return '0.00';
+  }
   
   return ordine.prodotti.reduce((totale, prodotto) => {
-    return totale + (prodotto.prezzo * prodotto.quantita);
+    // ✅ prodotto.prezzo è GIÀ il totale, NON va moltiplicato per quantità!
+    return totale + (parseFloat(prodotto.prezzo) || 0);
   }, 0).toFixed(2);
 };
 
