@@ -377,7 +377,7 @@ export default function NuovoOrdine({
 
             {/* Form Aggiunta Prodotto */}
             {prodottoCorrente.nome && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
                 <Typography variant="subtitle2" gutterBottom>
                   Configura: <strong>{prodottoCorrente.nome}</strong>
                 </Typography>
@@ -408,8 +408,27 @@ export default function NuovoOrdine({
                       type="number"
                       label="Quantità"
                       value={prodottoCorrente.quantita}
-                      onChange={(e) => setProdottoCorrente({ ...prodottoCorrente, quantita: parseFloat(e.target.value) || 0 })}
-                      inputProps={{ min: 0, step: 0.1 }}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Se unità è Kg, permetti decimali; altrimenti solo interi
+                        const parsedValue = prodottoCorrente.unita === 'Kg' 
+                          ? parseFloat(value) || 0
+                          : parseInt(value) || 0;
+                        setProdottoCorrente({ ...prodottoCorrente, quantita: parsedValue });
+                      }}
+                      inputProps={{ 
+                        min: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
+                        step: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
+                        style: { 
+                          MozAppearance: 'textfield'
+                        }
+                      }}
+                      sx={{
+                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                          WebkitAppearance: 'none',
+                          margin: 0
+                        }
+                      }}
                       size="small"
                     />
                   </Grid>
