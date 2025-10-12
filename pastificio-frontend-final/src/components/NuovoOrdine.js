@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - ✅ FIX PERFORMANCE + UX MIGLIORATA
+// components/NuovoOrdine.js - ✅ FIX PERFORMANCE + UX MIGLIORATA + GRIGLIA VALORI
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -28,7 +28,8 @@ import {
   AccordionDetails,
   Grid,
   Divider,
-  CircularProgress
+  CircularProgress,
+  Chip
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -47,6 +48,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-p
 let clientiCache = null;
 let clientiCacheTime = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
+
+// ✅ VALORI PREIMPOSTATI PER GRIGLIA RAPIDA
+const VALORI_RAPIDI = {
+  Kg: [0.5, 0.7, 1, 1.5, 2, 2.5, 3],
+  Pezzi: [4, 6, 8, 12, 16, 24, 50],
+  '€': [5, 10, 15, 20, 25, 30]
+};
 
 export default function NuovoOrdine({ 
   open, 
@@ -72,7 +80,7 @@ export default function NuovoOrdine({
   const [prodottoCorrente, setProdottoCorrente] = useState({
     nome: '',
     variante: '',
-    quantita: 1,
+    quantita: '', // ✅ PARTE VUOTO
     unita: 'Kg',
     prezzo: 0
   });
@@ -127,10 +135,9 @@ export default function NuovoOrdine({
     if (isConnected) {
       caricaClienti();
     }
-  }, [isConnected]); // ⬅️ Rimuove dipendenza da 'open'
+  }, [isConnected]);
 
   const caricaClienti = async () => {
-    // ✅ USA CACHE SE DISPONIBILE E RECENTE
     const now = Date.now();
     if (clientiCache && clientiCacheTime && (now - clientiCacheTime) < CACHE_DURATION) {
       console.log('✅ Clienti caricati dalla cache');
@@ -150,7 +157,6 @@ export default function NuovoOrdine({
         const data = await response.json();
         const clientiData = data.data || data.clienti || data || [];
         
-        // ✅ SALVA IN CACHE
         clientiCache = clientiData;
         clientiCacheTime = Date.now();
         
@@ -159,7 +165,6 @@ export default function NuovoOrdine({
       }
     } catch (error) {
       console.error('Errore caricamento clienti:', error);
-      // Usa cache anche se scaduta, meglio di niente
       if (clientiCache) {
         setClienti(clientiCache);
         console.log('⚠️ Usando cache clienti (scaduta)');
@@ -202,7 +207,7 @@ export default function NuovoOrdine({
     setProdottoCorrente({
       nome: prodottoNome,
       variante: '',
-      quantita: 1,
+      quantita: '', // ✅ CAMPO VUOTO
       unita: config.unitaMisuraDisponibili?.[0] || 'Kg',
       prezzo: 0
     });
@@ -215,8 +220,19 @@ export default function NuovoOrdine({
     });
   };
 
+  // ✅ GESTIONE CLICK SU VALORE RAPIDO
+  const handleValoreRapido = (valore) => {
+    setProdottoCorrente({
+      ...prodottoCorrente,
+      quantita: valore
+    });
+  };
+
   useEffect(() => {
-    if (!prodottoCorrente.nome || prodottoCorrente.quantita <= 0) return;
+    if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
+      setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
+      return;
+    }
 
     try {
       let nomeProdottoCompleto = prodottoCorrente.nome;
@@ -243,7 +259,7 @@ export default function NuovoOrdine({
   }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.quantita, prodottoCorrente.unita, varianti]);
 
   const handleAggiungiProdotto = () => {
-    if (!prodottoCorrente.nome || prodottoCorrente.quantita <= 0) {
+    if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       alert('Seleziona un prodotto e inserisci una quantità valida');
       return;
     }
@@ -280,10 +296,11 @@ export default function NuovoOrdine({
       prodotti: [...formData.prodotti, nuovoProdotto]
     });
 
+    // ✅ RESET PRODOTTO CORRENTE (quantità vuota)
     setProdottoCorrente({
       nome: '',
       variante: '',
-      quantita: 1,
+      quantita: '',
       unita: 'Kg',
       prezzo: 0
     });
@@ -375,9 +392,9 @@ export default function NuovoOrdine({
 
             <Divider sx={{ my: 2 }} />
 
-            {/* Form Aggiunta Prodotto */}
+            {/* ✅ Form Aggiunta Prodotto - COLORE GRIGIO-AZZURRO */}
             {prodottoCorrente.nome && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+              <Box sx={{ mt: 2, p: 2, bgcolor: '#CFD8DC', borderRadius: 1 }}>
                 <Typography variant="subtitle2" gutterBottom>
                   Configura: <strong>{prodottoCorrente.nome}</strong>
                 </Typography>
@@ -407,10 +424,15 @@ export default function NuovoOrdine({
                       fullWidth
                       type="number"
                       label="Quantità"
+                      placeholder="0"
                       value={prodottoCorrente.quantita}
                       onChange={(e) => {
                         const value = e.target.value;
-                        // Se unità è Kg, permetti decimali; altrimenti solo interi
+                        if (value === '') {
+                          setProdottoCorrente({ ...prodottoCorrente, quantita: '' });
+                          return;
+                        }
+                        // ✅ Se Kg → decimali, altrimenti interi
                         const parsedValue = prodottoCorrente.unita === 'Kg' 
                           ? parseFloat(value) || 0
                           : parseInt(value) || 0;
@@ -438,7 +460,11 @@ export default function NuovoOrdine({
                       <InputLabel>Unità</InputLabel>
                       <Select
                         value={prodottoCorrente.unita}
-                        onChange={(e) => setProdottoCorrente({ ...prodottoCorrente, unita: e.target.value })}
+                        onChange={(e) => setProdottoCorrente({ 
+                          ...prodottoCorrente, 
+                          unita: e.target.value,
+                          quantita: '' // ✅ Reset quantità quando cambia unità
+                        })}
                         label="Unità"
                       >
                         {(prodottoConfig?.unitaMisuraDisponibili || ['Kg']).map((u) => (
@@ -446,6 +472,25 @@ export default function NuovoOrdine({
                         ))}
                       </Select>
                     </FormControl>
+                  </Grid>
+
+                  {/* ✅ GRIGLIA VALORI RAPIDI */}
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                      ⚡ Valori rapidi:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {VALORI_RAPIDI[prodottoCorrente.unita]?.map((valore) => (
+                        <Chip
+                          key={valore}
+                          label={`${valore} ${prodottoCorrente.unita}`}
+                          onClick={() => handleValoreRapido(valore)}
+                          color={prodottoCorrente.quantita === valore ? "primary" : "default"}
+                          variant={prodottoCorrente.quantita === valore ? "filled" : "outlined"}
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      ))}
+                    </Box>
                   </Grid>
 
                   <Grid item xs={8} sm={hasVarianti ? 8 : 4}>
