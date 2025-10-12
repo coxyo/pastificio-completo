@@ -1,4 +1,5 @@
-// config/prodottiConfig.js - CONFIGURAZIONE CORRETTA
+// config/prodottiConfig.js
+// ✅ Configurazione completa prodotti con VARIANTI
 
 export const MODALITA_VENDITA = {
   SOLO_KG: 'solo_kg',
@@ -10,181 +11,225 @@ export const MODALITA_VENDITA = {
 export const UNITA_MISURA = {
   KG: 'Kg',
   PEZZI: 'Pezzi',
+  UNITA: 'Unità',
   EURO: '€'
 };
 
+// ✅ CONFIGURAZIONE PRODOTTI CON VARIANTI
 export const PRODOTTI_CONFIG = {
-  // ========== RAVIOLI ==========
-  'Ravioli ricotta spinaci e zafferano': {
-    prezzoKg: 11.00,
-    pezziPerKg: 30, // ✅ CORRETTO
-    modalitaVendita: MODALITA_VENDITA.MISTA,
+  // ========== RAVIOLI CON VARIANTI ==========
+  'Ravioli': {
     categoria: 'Ravioli',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
-  },
-  
-  'Ravioli ricotta e zafferano': {
-    prezzoKg: 11.00,
-    pezziPerKg: 30, // ✅ CORRETTO
+    hasVarianti: true,
     modalitaVendita: MODALITA_VENDITA.MISTA,
-    categoria: 'Ravioli',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+    pezziPerKg: 30,
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    varianti: [
+      {
+        nome: 'ricotta',
+        label: 'Ravioli ricotta',
+        prezzoKg: 14.00,
+        pezziPerKg: 30
+      },
+      {
+        nome: 'spinaci',
+        label: 'Ravioli ricotta e spinaci',
+        prezzoKg: 14.00,
+        pezziPerKg: 30
+      },
+      {
+        nome: 'zafferano',
+        label: 'Ravioli ricotta e zafferano',
+        prezzoKg: 14.00,
+        pezziPerKg: 30
+      },
+      {
+        nome: 'dolci',
+        label: 'Ravioli ricotta dolci',
+        prezzoKg: 14.00,
+        pezziPerKg: 30
+      },
+      {
+        nome: 'poco_dolci',
+        label: 'Ravioli ricotta poco dolci',
+        prezzoKg: 14.00,
+        pezziPerKg: 30
+      },
+      {
+        nome: 'molto_dolci',
+        label: 'Ravioli ricotta molto dolci',
+        prezzoKg: 14.00,
+        pezziPerKg: 30
+      },
+      {
+        nome: 'piccoli',
+        label: 'Ravioli ricotta piccoli',
+        prezzoKg: 14.00,
+        pezziPerKg: 40 // ✅ Più pezzi per kg perché sono piccoli
+      }
+    ]
   },
-  
+
+  // ========== CULURGIONES ==========
   'Culurgiones': {
-    prezzoKg: 16.00,
-    pezziPerKg: 30, // ✅ CORRETTO (assumo stesso dei ravioli)
-    modalitaVendita: MODALITA_VENDITA.MISTA,
     categoria: 'Ravioli',
+    prezzoKg: 18.00,
+    pezziPerKg: 32,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
-  
-  'Ravioli ricotta formaggio': {
-    prezzoKg: 16.00,
+
+  // ========== PARDULAS CON VARIANTI ==========
+  'Pardulas': {
+    categoria: 'Dolci',
+    hasVarianti: true,
+    prezzoKg: 28.00,
+    prezzoPezzo: 0.76,
+    pezziPerKg: 25,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    varianti: [
+      {
+        nome: 'base',
+        label: 'Pardulas (base)',
+        prezzoKg: 28.00,
+        prezzoPezzo: 0.76
+      },
+      {
+        nome: 'con_glassa',
+        label: 'Pardulas con glassa',
+        prezzoKg: 28.00,
+        prezzoPezzo: 0.76
+      },
+      {
+        nome: 'senza_glassa',
+        label: 'Pardulas senza glassa',
+        prezzoKg: 28.00,
+        prezzoPezzo: 0.76
+      },
+      {
+        nome: 'zucchero_velo',
+        label: 'Pardulas con zucchero a velo',
+        prezzoKg: 28.00,
+        prezzoPezzo: 0.76
+      }
+    ]
+  },
+
+  // ========== CIAMBELLE CON VARIANTI ==========
+  'Cimbelle': {
+    categoria: 'Dolci',
+    hasVarianti: true,
+    prezzoKg: 18.00,
     pezziPerKg: 30,
     modalitaVendita: MODALITA_VENDITA.MISTA,
-    categoria: 'Ravioli',
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    varianti: [
+      {
+        nome: 'base',
+        label: 'Ciambelle (solo base)',
+        prezzoKg: 18.00
+      },
+      {
+        nome: 'albicocca',
+        label: 'Ciambelle con marmellata di albicocca',
+        prezzoKg: 18.00
+      },
+      {
+        nome: 'ciliegia',
+        label: 'Ciambelle con marmellata di ciliegia',
+        prezzoKg: 18.00
+      },
+      {
+        nome: 'nutella',
+        label: 'Ciambelle con nutella',
+        prezzoKg: 19.00 // ✅ Prezzo maggiorato per nutella
+      },
+      {
+        nome: 'zucchero_velo',
+        label: 'Ciambelle con zucchero a velo',
+        prezzoKg: 18.00
+      }
+    ]
+  },
+
+  // ========== ALTRI DOLCI ==========
+  'Sebadas': {
+    categoria: 'Dolci',
+    prezzoPezzo: 2.50,
+    modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
+    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
+  },
+
+  'Amaretti': {
+    categoria: 'Dolci',
+    prezzoKg: 18.00,
+    pezziPerKg: 35,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
-  // ========== PARDULAS ==========
-  'Pardulas': {
-    prezzoKg: 19.00,
-    pezziPerKg: 25, // ✅ CORRETTO
-    modalitaVendita: MODALITA_VENDITA.MISTA,
+  'Papassini': {
     categoria: 'Dolci',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
-  },
-
-  // ========== DOLCI ==========
-  'Bianchini': {
-    prezzoKg: 15.00,
-    pezziPerKg: 80, // ✅ CORRETTO (era 100)
+    prezzoKg: 18.50,
+    pezziPerKg: 30,
     modalitaVendita: MODALITA_VENDITA.MISTA,
-    categoria: 'Dolci',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
   'Gueffus': {
-    prezzoKg: 22.00,
-    pezziPerKg: 65, // ✅ CORRETTO
-    modalitaVendita: MODALITA_VENDITA.MISTA,
     categoria: 'Dolci',
+    prezzoKg: 18.00,
+    pezziPerKg: 65,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
-  'Amaretti': {
-    prezzoKg: 22.00,
-    pezziPerKg: 32, // ✅ CORRETTO (era 35)
-    modalitaVendita: MODALITA_VENDITA.MISTA,
+  'Bianchini': {
     categoria: 'Dolci',
+    prezzoKg: 18.00,
+    pezziPerKg: 100,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
-  'Papassinas': {
-    prezzoKg: 22.00,
-    pezziPerKg: 30, // ✅ CORRETTO
-    modalitaVendita: MODALITA_VENDITA.MISTA,
+  'Torta di saba': {
     categoria: 'Dolci',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
-  },
-
-  'Ciambelle con marmellata': {
-    prezzoKg: 16.00,
-    pezziPerKg: 30, // ✅ CORRETTO
-    modalitaVendita: MODALITA_VENDITA.MISTA,
-    categoria: 'Dolci',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
-  },
-
-  'Ciambelle con Nutella': {
-    prezzoKg: 16.00,
-    pezziPerKg: 30, // ✅ CORRETTO
-    modalitaVendita: MODALITA_VENDITA.MISTA,
-    categoria: 'Dolci',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
-  },
-
-  'Zeppole': {
-    prezzoKg: 21.00,
-    pezziPerKg: 24, // ✅ CORRETTO - 24 pezzi per kg
-    modalitaVendita: MODALITA_VENDITA.MISTA,
-    categoria: 'Dolci',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
-  },
-
-  // Dolci misti
-  'Dolci misti (Pardulas, ciambelle, papassinas, amaretti, gueffus, bianchini)': {
-    prezzoKg: 19.00,
-    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
-    categoria: 'Dolci',
-    composizione: {
-      'Pardulas': 0.40, // 400g
-      'Ciambelle con marmellata': 0.30, // 300g
-      'Amaretti': 0.20, // 200g
-      'Gueffus': 0.05, // 50g
-      'Papassinas': 0.025, // 25g
-      'Bianchini': 0.025 // 25g
-    },
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
-  },
-
-  'Dolci misti (Pardulas, ciambelle)': {
-    prezzoKg: 17.00,
-    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
-    categoria: 'Dolci',
-    composizione: {
-      'Pardulas': 0.50, // 500g
-      'Ciambelle con marmellata': 0.50 // 500g
-    },
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
-  },
-
-  'Sebadas': {
-    prezzoPezzo: 2.50,
-    modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
-    categoria: 'Dolci',
-    unitaMisuraDisponibili: [UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
-  },
-
-  'Pizzette sfoglia': {
-    prezzoKg: 16.00,
-    pezziPerKg: 30,
-    modalitaVendita: MODALITA_VENDITA.MISTA,
-    categoria: 'Dolci',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
-  },
-
-  'Torta di sapa': {
-    prezzoKg: 23.00,
+    prezzoKg: 20.00,
+    prezzoPezzo: 15.00, // ✅ Prezzo a pezzo variabile
     modalitaVendita: MODALITA_VENDITA.PESO_VARIABILE,
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
+  },
+
+  'Dolci misti': {
     categoria: 'Dolci',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    prezzoKg: 18.50,
+    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    composizione: {
+      pardulas: 0.40,    // 40% Pardulas
+      cimbelle: 0.30,    // 30% Ciambelle
+      amaretti: 0.15,    // 15% Amaretti
+      misti: 0.15        // 15% Pabassinas, bianchini, gueffus
+    }
   },
 
   // ========== PANADAS ==========
-  'Panada di anguille': {
+  'Panada di Agnello': {
     prezzoKg: 30.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
   },
 
-  'Panada di Agnello': {
-    prezzoKg: 25.00,
-    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
-    categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
-  },
-
-  'Panada di maiale': {
+  'Panada di Maiale': {
     prezzoKg: 21.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
   },
 
-  'Panada di vitella': {
+  'Panada di Vitella': {
     prezzoKg: 23.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
@@ -198,26 +243,76 @@ export const PRODOTTI_CONFIG = {
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
   },
 
-  // ========== ALTRO ==========
-  'Sfoglie per lasagne': {
-    prezzoKg: 5.00,
+  'Panadine': {
+    prezzoPezzo: 0.80,
+    modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
+    categoria: 'Panadas',
+    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
+  },
+
+  // ========== PASTA ==========
+  'Fregula': {
+    prezzoKg: 10.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
-    categoria: 'Altro',
+    categoria: 'Pasta',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
   },
 
-  'Pasta per panadas': {
-    prezzoKg: 5.00,
+  'Pizzette sfoglia': {
+    prezzoKg: 15.00,
+    pezziPerKg: 30,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
+    categoria: 'Pasta',
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+  },
+
+  'Pasta per panada e pizza': {
+    prezzoKg: 8.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
-    categoria: 'Altro',
+    categoria: 'Pasta',
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+  },
+
+  'Sfoglia per lasagne': {
+    prezzoKg: 8.00,
+    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
+    categoria: 'Pasta',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
   }
 };
 
-// Lista prodotti per dropdown
-export const LISTA_PRODOTTI = Object.keys(PRODOTTI_CONFIG);
+// ✅ Funzione per ottenere config prodotto (gestisce varianti)
+export const getProdottoConfig = (nomeProdotto) => {
+  // Cerca prodotto esatto
+  if (PRODOTTI_CONFIG[nomeProdotto]) {
+    return PRODOTTI_CONFIG[nomeProdotto];
+  }
 
-// Funzione helper per ottenere config prodotto
-export function getProdottoConfig(nomeProdotto) {
-  return PRODOTTI_CONFIG[nomeProdotto] || null;
-}
+  // Cerca nelle varianti
+  for (const [key, config] of Object.entries(PRODOTTI_CONFIG)) {
+    if (config.hasVarianti && config.varianti) {
+      const variante = config.varianti.find(v => 
+        nomeProdotto.includes(v.nome) || 
+        nomeProdotto === v.label ||
+        v.label.includes(nomeProdotto)
+      );
+      
+      if (variante) {
+        return {
+          ...config,
+          prezzoKg: variante.prezzoKg,
+          prezzoPezzo: variante.prezzoPezzo,
+          pezziPerKg: variante.pezziPerKg || config.pezziPerKg,
+          nomeCompleto: variante.label
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
+// Lista prodotti per dropdown (solo prodotti base, non varianti)
+export const LISTA_PRODOTTI = Object.keys(PRODOTTI_CONFIG).sort();
+
+export default PRODOTTI_CONFIG;
