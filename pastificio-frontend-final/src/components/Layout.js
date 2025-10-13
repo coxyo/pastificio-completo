@@ -35,7 +35,8 @@ import {
   Notifications,
   AccountCircle,
   NotificationsActive as NotificationsActiveIcon,
-  Backup as BackupIcon  // AGGIUNTO
+  Backup as BackupIcon,
+  Category as CategoryIcon  // ✅ AGGIUNTO: Icona per Gestione Prodotti
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'react-toastify';
@@ -133,7 +134,6 @@ export default function Layout({ children }) {
 
   const handleNotificationClick = () => {
     setNotificationCount(0);
-    // Naviga alla pagina notifiche invece di aprire un drawer
     router.push('/notifiche');
   };
 
@@ -183,6 +183,13 @@ export default function Layout({ children }) {
         { text: 'Crediti/Debiti', path: '/clienti/crediti' }
       ]
     },
+    // ✅ NUOVA VOCE: GESTIONE PRODOTTI
+    {
+      text: 'Gestione Prodotti',
+      icon: <CategoryIcon />,
+      path: '/gestione-prodotti',
+      badge: 'NEW'  // Badge rosso "NEW"
+    },
     {
       text: 'Fatturazione',
       icon: <Receipt />,
@@ -199,7 +206,7 @@ export default function Layout({ children }) {
       path: '/report'
     },
     {
-      text: 'Backup',  // AGGIUNTO
+      text: 'Backup',
       icon: <BackupIcon />,
       path: '/backup'
     },
@@ -241,6 +248,23 @@ export default function Layout({ children }) {
                 )}
               </ListItemIcon>
               <ListItemText primary={item.text} />
+              
+              {/* ✅ AGGIUNTO: Badge "NEW" per Gestione Prodotti */}
+              {item.badge && (
+                <Badge 
+                  badgeContent={item.badge} 
+                  color="error"
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      fontSize: '0.65rem',
+                      height: 18,
+                      minWidth: 18,
+                      padding: '0 4px'
+                    }
+                  }}
+                />
+              )}
+              
               {item.subItems && (openMenus[item.text] ? <ExpandLess /> : <ExpandMore />)}
             </ListItem>
             {item.subItems && (
@@ -321,7 +345,6 @@ export default function Layout({ children }) {
               Profilo
             </MenuItem>
             <MenuItem onClick={() => {
-              // Pulisci localStorage al logout
               localStorage.removeItem('token');
               localStorage.removeItem('user');
               webSocketService.disconnect();
