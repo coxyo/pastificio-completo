@@ -31,6 +31,7 @@ import whatsappRoutes from './routes/whatsapp.js';
 import templateRoutes from './routes/templates.js';
 import testRoutes from './routes/test.js';
 import adminRoutes from './routes/admin.js';
+import prodottiRoutes from './routes/prodotti.js';
 
 // Import middleware
 import { protect } from './middleware/auth.js';
@@ -285,6 +286,7 @@ app.use('/api/whatsapp', protect, whatsappRoutes);
 app.use('/api/templates', protect, templateRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/prodotti', prodottiRoutes);
 
 // Test route
 app.get('/api/test', (req, res) => {
