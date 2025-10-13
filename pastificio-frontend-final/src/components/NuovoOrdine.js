@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - ✅ FIX PERFORMANCE + UX MIGLIORATA + GRIGLIA VALORI
+// components/NuovoOrdine.js - ✅ CARICAMENTO PRODOTTI DA DATABASE
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -39,15 +39,18 @@ import {
   ShoppingCart as CartIcon,
   Person as PersonIcon
 } from '@mui/icons-material';
-import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
-// ✅ CACHE GLOBALE CLIENTI (condivisa tra tutte le istanze del componente)
+// ✅ CACHE GLOBALE CLIENTI
 let clientiCache = null;
 let clientiCacheTime = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
+
+// ✅ CACHE GLOBALE PRODOTTI
+let prodottiCache = null;
+let prodottiCacheTime = null;
 
 // ✅ VALORI PREIMPOSTATI PER GRIGLIA RAPIDA
 const VALORI_RAPIDI = {
@@ -65,6 +68,10 @@ export default function NuovoOrdine({
 }) {
   const [clienti, setClienti] = useState([]);
   const [loadingClienti, setLoadingClienti] = useState(false);
+  
+  // ✅ STATE PER PRODOTTI DA DATABASE
+  const [prodottiDB, setProdottiDB] = useState([]);
+  const [loadingProdotti, setLoadingProdotti] = useState(false);
 
   const [formData, setFormData] = useState({
     cliente: null,
@@ -80,12 +87,60 @@ export default function NuovoOrdine({
   const [prodottoCorrente, setProdottoCorrente] = useState({
     nome: '',
     variante: '',
-    quantita: '', // ✅ PARTE VUOTO
+    quantita: '',
     unita: 'Kg',
     prezzo: 0
   });
 
-  // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA
+  // ✅ CARICA PRODOTTI DA DATABASE
+  useEffect(() => {
+    if (isConnected) {
+      caricaProdotti();
+    }
+  }, [isConnected]);
+
+  const caricaProdotti = async () => {
+    // Usa cache se disponibile
+    const now = Date.now();
+    if (prodottiCache && prodottiCacheTime && (now - prodottiCacheTime) < CACHE_DURATION) {
+      console.log('✅ Prodotti caricati dalla cache');
+      setProdottiDB(prodottiCache);
+      return;
+    }
+
+    try {
+      setLoadingProdotti(true);
+      console.log('🔄 Caricamento prodotti da API...');
+      
+      // ✅ CHIAMATA API PUBBLIC (senza autenticazione)
+      const response = await fetch(`${API_URL}/prodotti/disponibili`);
+
+      if (response.ok) {
+        const data = await response.json();
+        const prodottiData = data.data || data || [];
+        
+        // Salva in cache
+        prodottiCache = prodottiData;
+        prodottiCacheTime = Date.now();
+        
+        setProdottiDB(prodottiData);
+        console.log(`✅ ${prodottiData.length} prodotti caricati e cachati`);
+      } else {
+        console.error('Errore caricamento prodotti:', response.status);
+      }
+    } catch (error) {
+      console.error('Errore caricamento prodotti:', error);
+      // Usa cache anche se scaduta
+      if (prodottiCache) {
+        setProdottiDB(prodottiCache);
+        console.log('⚠️ Usando cache prodotti (scaduta)');
+      }
+    } finally {
+      setLoadingProdotti(false);
+    }
+  };
+
+  // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA (da DB)
   const prodottiPerCategoria = useMemo(() => {
     const categorie = {
       Ravioli: [],
@@ -94,15 +149,15 @@ export default function NuovoOrdine({
       Pasta: []
     };
 
-    Object.entries(PRODOTTI_CONFIG).forEach(([nome, config]) => {
-      const categoria = config.categoria || 'Altro';
+    prodottiDB.forEach(prodotto => {
+      const categoria = prodotto.categoria || 'Altro';
       if (categorie[categoria]) {
-        categorie[categoria].push({ nome, ...config });
+        categorie[categoria].push(prodotto);
       }
     });
 
     return categorie;
-  }, []);
+  }, [prodottiDB]);
 
   useEffect(() => {
     if (ordineIniziale) {
@@ -130,7 +185,7 @@ export default function NuovoOrdine({
     }
   }, [ordineIniziale]);
 
-  // ✅ FIX PERFORMANCE: CARICA CLIENTI SUBITO (anche quando dialog è chiuso)
+  // ✅ CARICA CLIENTI
   useEffect(() => {
     if (isConnected) {
       caricaClienti();
@@ -192,23 +247,25 @@ export default function NuovoOrdine({
     }
   };
 
+  // ✅ GET PRODOTTO CONFIG DA DATABASE
+  const getProdottoConfigDB = (nomeProdotto) => {
+    return prodottiDB.find(p => p.nome === nomeProdotto) || null;
+  };
+
   const prodottoConfig = useMemo(() => {
     if (!prodottoCorrente.nome) return null;
-    return getProdottoConfig(prodottoCorrente.nome);
-  }, [prodottoCorrente.nome]);
+    return getProdottoConfigDB(prodottoCorrente.nome);
+  }, [prodottoCorrente.nome, prodottiDB]);
 
   const hasVarianti = prodottoConfig?.hasVarianti || false;
   const varianti = prodottoConfig?.varianti || [];
 
-  const handleProdottoSelect = (prodottoNome) => {
-    const config = getProdottoConfig(prodottoNome);
-    if (!config) return;
-
+  const handleProdottoSelect = (prodotto) => {
     setProdottoCorrente({
-      nome: prodottoNome,
+      nome: prodotto.nome,
       variante: '',
-      quantita: '', // ✅ CAMPO VUOTO
-      unita: config.unitaMisuraDisponibili?.[0] || 'Kg',
+      quantita: '',
+      unita: prodotto.unitaMisuraDisponibili?.[0] || 'Kg',
       prezzo: 0
     });
   };
@@ -220,7 +277,6 @@ export default function NuovoOrdine({
     });
   };
 
-  // ✅ GESTIONE CLICK SU VALORE RAPIDO
   const handleValoreRapido = (valore) => {
     setProdottoCorrente({
       ...prodottoCorrente,
@@ -228,6 +284,7 @@ export default function NuovoOrdine({
     });
   };
 
+  // ✅ CALCOLO PREZZO DIRETTO DA DB
   useEffect(() => {
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
@@ -235,28 +292,39 @@ export default function NuovoOrdine({
     }
 
     try {
-      let nomeProdottoCompleto = prodottoCorrente.nome;
+      const prodotto = getProdottoConfigDB(prodottoCorrente.nome);
+      if (!prodotto) return;
 
-      if (prodottoCorrente.variante) {
-        const variante = varianti.find(v => v.nome === prodottoCorrente.variante);
-        nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
+      let prezzo = 0;
+      
+      // Se ha varianti, usa il prezzo della variante
+      if (prodotto.hasVarianti && prodottoCorrente.variante) {
+        const variante = prodotto.varianti.find(v => v.nome === prodottoCorrente.variante);
+        if (variante) {
+          if (prodottoCorrente.unita === 'Kg') {
+            prezzo = variante.prezzoKg * prodottoCorrente.quantita;
+          } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
+            prezzo = variante.prezzoPezzo * prodottoCorrente.quantita;
+          }
+        }
+      } else {
+        // Prezzo normale
+        if (prodottoCorrente.unita === 'Kg') {
+          prezzo = prodotto.prezzoKg * prodottoCorrente.quantita;
+        } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
+          prezzo = prodotto.prezzoPezzo * prodottoCorrente.quantita;
+        }
       }
-
-      const risultato = calcolaPrezzoOrdine(
-        nomeProdottoCompleto,
-        prodottoCorrente.quantita,
-        prodottoCorrente.unita
-      );
 
       setProdottoCorrente(prev => ({
         ...prev,
-        prezzo: risultato.prezzoTotale
+        prezzo: Math.round(prezzo * 100) / 100
       }));
     } catch (error) {
       console.error('Errore calcolo prezzo:', error);
       setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
     }
-  }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.quantita, prodottoCorrente.unita, varianti]);
+  }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.quantita, prodottoCorrente.unita, prodottiDB]);
 
   const handleAggiungiProdotto = () => {
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
@@ -275,20 +343,13 @@ export default function NuovoOrdine({
       nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
     }
 
-    const risultato = calcolaPrezzoOrdine(
-      nomeProdottoCompleto,
-      prodottoCorrente.quantita,
-      prodottoCorrente.unita
-    );
-
     const nuovoProdotto = {
       nome: nomeProdottoCompleto,
       quantita: prodottoCorrente.quantita,
       unita: prodottoCorrente.unita,
       unitaMisura: prodottoCorrente.unita,
-      prezzo: risultato.prezzoTotale,
-      categoria: prodottoConfig?.categoria || 'Altro',
-      dettagliCalcolo: risultato
+      prezzo: prodottoCorrente.prezzo,
+      categoria: prodottoConfig?.categoria || 'Altro'
     };
 
     setFormData({
@@ -296,7 +357,7 @@ export default function NuovoOrdine({
       prodotti: [...formData.prodotti, nuovoProdotto]
     });
 
-    // ✅ RESET PRODOTTO CORRENTE (quantità vuota)
+    // Reset
     setProdottoCorrente({
       nome: '',
       variante: '',
@@ -343,11 +404,12 @@ export default function NuovoOrdine({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
           
           {/* ========================================== */}
-          {/* ✅ SEZIONE 1: PRODOTTI (PRIMA!) */}
+          {/* ✅ SEZIONE 1: PRODOTTI */}
           {/* ========================================== */}
           <Paper sx={{ p: 2, bgcolor: 'primary.light' }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CartIcon /> Seleziona Prodotti
+              {loadingProdotti && <CircularProgress size={20} />}
             </Typography>
 
             {Object.entries(prodottiPerCategoria).map(([categoria, prodotti]) => (
@@ -361,11 +423,11 @@ export default function NuovoOrdine({
                   <AccordionDetails>
                     <Grid container spacing={1}>
                       {prodotti.map((p) => (
-                        <Grid item xs={6} sm={4} md={3} key={p.nome}>
+                        <Grid item xs={6} sm={4} md={3} key={p._id || p.nome}>
                           <Button
                             fullWidth
                             variant={prodottoCorrente.nome === p.nome ? "contained" : "outlined"}
-                            onClick={() => handleProdottoSelect(p.nome)}
+                            onClick={() => handleProdottoSelect(p)}
                             sx={{ 
                               justifyContent: 'flex-start', 
                               textAlign: 'left',
@@ -392,7 +454,7 @@ export default function NuovoOrdine({
 
             <Divider sx={{ my: 2 }} />
 
-            {/* ✅ Form Aggiunta Prodotto - COLORE GRIGIO-AZZURRO */}
+            {/* Form Aggiunta Prodotto */}
             {prodottoCorrente.nome && (
               <Box sx={{ mt: 2, p: 2, bgcolor: '#CFD8DC', borderRadius: 1 }}>
                 <Typography variant="subtitle2" gutterBottom>
@@ -411,7 +473,7 @@ export default function NuovoOrdine({
                         >
                           {varianti.map((v) => (
                             <MenuItem key={v.nome} value={v.nome}>
-                              {v.nome} - €{v.prezzoKg}/Kg
+                              {v.label} - €{v.prezzoKg}/Kg
                             </MenuItem>
                           ))}
                         </Select>
@@ -432,7 +494,6 @@ export default function NuovoOrdine({
                           setProdottoCorrente({ ...prodottoCorrente, quantita: '' });
                           return;
                         }
-                        // ✅ Se Kg → decimali, altrimenti interi
                         const parsedValue = prodottoCorrente.unita === 'Kg' 
                           ? parseFloat(value) || 0
                           : parseInt(value) || 0;
@@ -441,9 +502,7 @@ export default function NuovoOrdine({
                       inputProps={{ 
                         min: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
                         step: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
-                        style: { 
-                          MozAppearance: 'textfield'
-                        }
+                        style: { MozAppearance: 'textfield' }
                       }}
                       sx={{
                         '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
@@ -463,7 +522,7 @@ export default function NuovoOrdine({
                         onChange={(e) => setProdottoCorrente({ 
                           ...prodottoCorrente, 
                           unita: e.target.value,
-                          quantita: '' // ✅ Reset quantità quando cambia unità
+                          quantita: ''
                         })}
                         label="Unità"
                       >
@@ -474,7 +533,7 @@ export default function NuovoOrdine({
                     </FormControl>
                   </Grid>
 
-                  {/* ✅ GRIGLIA VALORI RAPIDI */}
+                  {/* Griglia Valori Rapidi */}
                   <Grid item xs={12}>
                     <Typography variant="caption" color="text.secondary" gutterBottom display="block">
                       ⚡ Valori rapidi:
@@ -497,7 +556,7 @@ export default function NuovoOrdine({
                     <TextField
                       fullWidth
                       label="Prezzo Totale"
-                      value={formattaPrezzo(prodottoCorrente.prezzo)}
+                      value={`€${prodottoCorrente.prezzo.toFixed(2)}`}
                       size="small"
                       InputProps={{ readOnly: true }}
                     />
@@ -538,9 +597,9 @@ export default function NuovoOrdine({
                     <TableRow key={index}>
                       <TableCell>{p.nome}</TableCell>
                       <TableCell align="center">
-                        {p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unita}`}
+                        {p.quantita} {p.unita}
                       </TableCell>
-                      <TableCell align="right">{formattaPrezzo(p.prezzo)}</TableCell>
+                      <TableCell align="right">€{p.prezzo.toFixed(2)}</TableCell>
                       <TableCell align="center">
                         <IconButton size="small" color="error" onClick={() => handleRimuoviProdotto(index)}>
                           <DeleteIcon />
@@ -552,7 +611,7 @@ export default function NuovoOrdine({
                     <TableCell colSpan={2}><strong>TOTALE</strong></TableCell>
                     <TableCell align="right">
                       <Typography variant="h6" color="primary">
-                        {formattaPrezzo(calcolaTotale())}
+                        €{calcolaTotale().toFixed(2)}
                       </Typography>
                     </TableCell>
                     <TableCell></TableCell>
@@ -562,9 +621,7 @@ export default function NuovoOrdine({
             </Paper>
           )}
 
-          {/* ========================================== */}
-          {/* ✅ SEZIONE 2: CLIENTE (DOPO I PRODOTTI) */}
-          {/* ========================================== */}
+          {/* SEZIONE 2: CLIENTE */}
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <PersonIcon /> Dati Cliente
