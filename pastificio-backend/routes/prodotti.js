@@ -1,7 +1,9 @@
-// routes/prodotti.js
+// routes/prodotti.js - VERSIONE COMPLETA CON EXPORT PDF
 import express from 'express';
 import prodottiController from '../controllers/prodottiController.js';
+import pdfListinoService from '../services/pdfListinoService.js';
 import { protect } from '../middleware/auth.js';
+import logger from '../config/logger.js';
 
 const router = express.Router();
 
@@ -9,13 +11,88 @@ const router = express.Router();
 router.get('/disponibili', prodottiController.getDisponibili);
 router.get('/categoria/:categoria', prodottiController.getByCategoria);
 
+// ✅ ROUTE EXPORT PDF LISTINO (protetta)
+/**
+ * @route   GET /api/prodotti/export/pdf
+ * @desc    Genera e scarica PDF del listino prezzi
+ * @query   disponibiliOnly, includiVarianti, includiDescrizioni, includiAllergeni
+ * @access  Privato
+ */
+router.get('/export/pdf', protect, async (req, res) => {
+  try {
+    const options = {
+      disponibiliOnly: req.query.disponibiliOnly !== 'false',
+      includiVarianti: req.query.includiVarianti === 'true',
+      includiDescrizioni: req.query.includiDescrizioni === 'true',
+      includiAllergeni: req.query.includiAllergeni === 'true'
+    };
+
+    logger.info('Generazione listino PDF richiesta', options);
+
+    const pdfDoc = await pdfListinoService.generaListinoPDF(options);
+
+    // Headers per download PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition', 
+      `attachment; filename="listino-prezzi-${new Date().toISOString().split('T')[0]}.pdf"`
+    );
+
+    // Stream del PDF nella response
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+
+    logger.info('Listino PDF inviato con successo');
+
+  } catch (error) {
+    logger.error('Errore generazione PDF listino:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore generazione PDF',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route   GET /api/prodotti/export/pdf/:categoria
+ * @desc    Genera PDF listino per categoria specifica
+ * @access  Privato
+ */
+router.get('/export/pdf/:categoria', protect, async (req, res) => {
+  try {
+    const { categoria } = req.params;
+    
+    const pdfDoc = await pdfListinoService.generaListinoCategoriaPDF(categoria);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition', 
+      `attachment; filename="listino-${categoria.toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf"`
+    );
+
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+
+    logger.info(`Listino PDF categoria ${categoria} inviato`);
+
+  } catch (error) {
+    logger.error('Errore generazione PDF categoria:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore generazione PDF categoria',
+      error: error.message
+    });
+  }
+});
+
 // ✅ TUTTE LE ALTRE ROUTES RICHIEDONO AUTENTICAZIONE
 router.use(protect);
 
 /**
  * @route   GET /api/prodotti
  * @desc    Ottiene tutti i prodotti (con filtri opzionali)
- * @query   categoria, disponibile, attivo
+ * @query   categoria, disponibile, attivo, search
  * @access  Privato
  */
 router.get('/', prodottiController.getAll);

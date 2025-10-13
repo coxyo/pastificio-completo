@@ -1,27 +1,22 @@
-// models/Prodotto.js - AGGIORNATO per gestire varianti e configurazioni complete
+// models/Prodotto.js
 import mongoose from 'mongoose';
 
 const varianteSchema = new mongoose.Schema({
   nome: {
     type: String,
-    required: true,
-    trim: true
-  },
-  label: {
-    type: String,
     required: true
   },
   prezzoKg: {
     type: Number,
-    min: 0
+    default: 0
   },
   prezzoPezzo: {
     type: Number,
-    min: 0
+    default: 0
   },
-  pezziPerKg: {
-    type: Number,
-    min: 0
+  disponibile: {
+    type: Boolean,
+    default: true
   }
 }, { _id: false });
 
@@ -29,152 +24,109 @@ const prodottoSchema = new mongoose.Schema({
   nome: {
     type: String,
     required: true,
-    trim: true,
-    unique: true
+    unique: true,
+    trim: true
+  },
+  descrizione: {
+    type: String,
+    default: ''
   },
   categoria: {
     type: String,
     required: true,
-    enum: ['Ravioli', 'Dolci', 'Panadas', 'Pasta', 'Altro']
+    enum: ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Altro'],
+    default: 'Altro'
   },
-  descrizione: {
-    type: String,
-    trim: true
-  },
-  
-  // ✅ PREZZI
   prezzoKg: {
     type: Number,
+    default: 0,
     min: 0
   },
   prezzoPezzo: {
     type: Number,
+    default: 0,
     min: 0
   },
-  
-  // ✅ CONFIGURAZIONE VENDITA
-  modalitaVendita: {
-    type: String,
-    required: true,
-    enum: ['solo_kg', 'solo_pezzo', 'mista', 'peso_variabile'],
-    default: 'mista'
-  },
-  
-  unitaMisuraDisponibili: [{
-    type: String,
-    enum: ['Kg', 'Pezzi', 'Unità', '€']
-  }],
-  
-  // ✅ PEZZI PER KG
   pezziPerKg: {
     type: Number,
-    min: 0
+    default: null
   },
-  
-  // ✅ VARIANTI (per prodotti come Ravioli, Pardulas, Ciambelle)
-  hasVarianti: {
-    type: Boolean,
-    default: false
-  },
-  
+  unitaMisuraDisponibili: [{
+    type: String,
+    enum: ['Kg', 'g', 'pz', 'dozzina', 'mezzo kg']
+  }],
   varianti: [varianteSchema],
-  
-  // ✅ COMPOSIZIONE (per dolci misti)
-  composizione: {
-    type: Map,
-    of: Number
-  },
-  
-  // ✅ STATO E VISIBILITÀ
   disponibile: {
     type: Boolean,
     default: true
   },
-  
   attivo: {
     type: Boolean,
     default: true
   },
-  
-  // ✅ INFORMAZIONI AGGIUNTIVE
-  immagine: String,
-  
-  ingredienti: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Ingrediente'
+  ordinamento: {
+    type: Number,
+    default: 999
+  },
+  immagine: {
+    type: String,
+    default: null
+  },
+  allergeni: [{
+    type: String
   }],
-  
-  allergeni: [String],
-  
+  ingredienti: [{
+    type: String
+  }],
   tempoPreparazione: {
     type: Number, // minuti
-    min: 0
+    default: 0
   },
-  
-  porzioni: {
-    type: Number,
-    min: 0
-  },
-  
-  // ✅ ORDINAMENTO E PRIORITÀ
-  ordine: {
+  giacenzaMinima: {
     type: Number,
     default: 0
   },
-  
-  // ✅ NOTE INTERNE
-  note: String
-  
+  giacenzaAttuale: {
+    type: Number,
+    default: 0
+  },
+  note: {
+    type: String,
+    default: ''
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
 }, {
   timestamps: true
 });
 
-// ✅ INDICI
+// Indici per performance
 prodottoSchema.index({ nome: 1 });
 prodottoSchema.index({ categoria: 1 });
 prodottoSchema.index({ disponibile: 1 });
 prodottoSchema.index({ attivo: 1 });
-prodottoSchema.index({ ordine: 1 });
 
-// ✅ METODI VIRTUALI
-prodottoSchema.virtual('nomeCompleto').get(function() {
-  return this.nome;
+// Metodi virtuali
+prodottoSchema.virtual('prezzoDisplay').get(function() {
+  if (this.prezzoKg > 0) {
+    return `€${this.prezzoKg.toFixed(2)}/Kg`;
+  } else if (this.prezzoPezzo > 0) {
+    return `€${this.prezzoPezzo.toFixed(2)}/pz`;
+  }
+  return 'N/D';
 });
 
-// ✅ METODI ISTANZA
-prodottoSchema.methods.calcolaPrezzo = function(quantita, unita, varianteNome = null) {
-  let prezzo = 0;
-  
-  if (this.hasVarianti && varianteNome) {
-    const variante = this.varianti.find(v => v.nome === varianteNome);
-    if (!variante) {
-      throw new Error('Variante non trovata');
-    }
-    
-    if (unita === 'Kg') {
-      prezzo = variante.prezzoKg * quantita;
-    } else if (unita === 'Pezzi' || unita === 'Unità') {
-      prezzo = variante.prezzoPezzo * quantita;
-    }
-  } else {
-    if (unita === 'Kg') {
-      prezzo = this.prezzoKg * quantita;
-    } else if (unita === 'Pezzi' || unita === 'Unità') {
-      prezzo = this.prezzoPezzo * quantita;
-    }
-  }
-  
-  return Math.round(prezzo * 100) / 100; // Arrotonda a 2 decimali
-};
-
-// ✅ METODI STATICI
-prodottoSchema.statics.getByCategoria = function(categoria) {
-  return this.find({ categoria, attivo: true }).sort({ ordine: 1, nome: 1 });
-};
-
-prodottoSchema.statics.getDisponibili = function() {
-  return this.find({ disponibile: true, attivo: true }).sort({ categoria: 1, ordine: 1 });
-};
+// Pre-save middleware
+prodottoSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
 
 const Prodotto = mongoose.model('Prodotto', prodottoSchema);
 
