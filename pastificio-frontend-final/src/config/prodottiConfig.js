@@ -1,5 +1,5 @@
 // config/prodottiConfig.js
-// ✅ Configurazione completa prodotti con VARIANTI
+// ✅ Configurazione completa prodotti con VARIANTI - AGGIORNATA
 
 export const MODALITA_VENDITA = {
   SOLO_KG: 'solo_kg',
@@ -26,45 +26,39 @@ export const PRODOTTI_CONFIG = {
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
     varianti: [
       {
-        nome: 'ricotta',
-        label: 'Ravioli ricotta',
-        prezzoKg: 14.00,
-        pezziPerKg: 30
-      },
-      {
         nome: 'spinaci',
         label: 'Ravioli ricotta e spinaci',
-        prezzoKg: 14.00,
+        prezzoKg: 11.00,
         pezziPerKg: 30
       },
       {
         nome: 'zafferano',
         label: 'Ravioli ricotta e zafferano',
-        prezzoKg: 14.00,
+        prezzoKg: 11.00,
         pezziPerKg: 30
       },
       {
         nome: 'dolci',
         label: 'Ravioli ricotta dolci',
-        prezzoKg: 14.00,
+        prezzoKg: 11.00,
         pezziPerKg: 30
       },
       {
         nome: 'poco_dolci',
         label: 'Ravioli ricotta poco dolci',
-        prezzoKg: 14.00,
+        prezzoKg: 11.00,
         pezziPerKg: 30
       },
       {
         nome: 'molto_dolci',
         label: 'Ravioli ricotta molto dolci',
-        prezzoKg: 14.00,
+        prezzoKg: 11.00,
         pezziPerKg: 30
       },
       {
         nome: 'piccoli',
         label: 'Ravioli ricotta piccoli',
-        prezzoKg: 14.00,
+        prezzoKg: 11.00,
         pezziPerKg: 40 // ✅ Più pezzi per kg perché sono piccoli
       }
     ]
@@ -102,12 +96,6 @@ export const PRODOTTI_CONFIG = {
         prezzoPezzo: 0.76
       },
       {
-        nome: 'senza_glassa',
-        label: 'Pardulas senza glassa',
-        prezzoKg: 28.00,
-        prezzoPezzo: 0.76
-      },
-      {
         nome: 'zucchero_velo',
         label: 'Pardulas con zucchero a velo',
         prezzoKg: 28.00,
@@ -127,7 +115,7 @@ export const PRODOTTI_CONFIG = {
     varianti: [
       {
         nome: 'base',
-        label: 'Ciambelle (solo base)',
+        label: 'Ciambelle solo base',
         prezzoKg: 18.00
       },
       {
@@ -143,11 +131,26 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'nutella',
         label: 'Ciambelle con nutella',
-        prezzoKg: 19.00 // ✅ Prezzo maggiorato per nutella
+        prezzoKg: 20.00 // ✅ Prezzo maggiorato per nutella
       },
       {
         nome: 'zucchero_velo',
         label: 'Ciambelle con zucchero a velo',
+        prezzoKg: 18.00
+      },
+      {
+        nome: 'miste_marmellata_nutella',
+        label: 'Ciambelle miste: marmellata - nutella',
+        prezzoKg: 19.00 // ✅ Prezzo medio tra marmellata e nutella
+      },
+      {
+        nome: 'miste_marmellata_zucchero',
+        label: 'Ciambelle miste: marmellata - zucchero a velo',
+        prezzoKg: 18.00
+      },
+      {
+        nome: 'miste_marmellata_base',
+        label: 'Ciambelle miste: marmellata - solo base',
         prezzoKg: 18.00
       }
     ]
@@ -196,7 +199,7 @@ export const PRODOTTI_CONFIG = {
   'Torta di saba': {
     categoria: 'Dolci',
     prezzoKg: 20.00,
-    prezzoPezzo: 15.00, // ✅ Prezzo a pezzo variabile
+    prezzoPezzo: 15.00,
     modalitaVendita: MODALITA_VENDITA.PESO_VARIABILE,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
   },
