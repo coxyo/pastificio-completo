@@ -1,11 +1,11 @@
-// src/components/Layout/MainLayout.js
+// src/components/layout/MainLayout.js
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { 
   Box, Drawer, AppBar, Toolbar, Typography, List, 
   ListItemIcon, ListItemText, IconButton, Collapse, ListItemButton,
-  Badge // AGGIUNTO
+  Badge
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -22,7 +22,8 @@ import {
   ExpandLess,
   ExpandMore,
   Add as AddIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Category as CategoryIcon  // ✅ AGGIUNTO per icona Gestione Prodotti
 } from '@mui/icons-material';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -75,6 +76,13 @@ const menuItems = [
     icon: <ClientsIcon />,
     path: '/clienti'
   },
+  // ✅ NUOVA VOCE MENU: GESTIONE PRODOTTI
+  {
+    id: 'gestione-prodotti',
+    title: 'Gestione Prodotti',
+    icon: <CategoryIcon />,
+    path: '/gestione-prodotti'
+  },
   {
     id: 'fatturazione',
     title: 'Fatturazione',
@@ -117,9 +125,9 @@ export default function MainLayout({ children }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenus, setOpenMenus] = useState({});
-  const [notificationCount, setNotificationCount] = useState(0); // AGGIUNTO
+  const [notificationCount, setNotificationCount] = useState(0);
 
-  // AGGIUNTO: Effect per contare le notifiche non lette
+  // Effect per contare le notifiche non lette
   useEffect(() => {
     const checkNotifications = () => {
       try {
@@ -288,7 +296,7 @@ export default function MainLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Dashboard'}
           </Typography>
 
-          {/* AGGIUNTO: Icona notifiche nell'header */}
+          {/* Icona notifiche nell'header */}
           <IconButton color="inherit" onClick={handleNotificationClick}>
             <Badge badgeContent={notificationCount} color="error">
               <NotificationsIcon />
