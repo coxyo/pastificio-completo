@@ -1,12 +1,14 @@
-// src/App.js - SISTEMA MULTI-UTENTE COMPLETO
+// src/App.js - SISTEMA MULTI-UTENTE COMPLETO + GESTIONE PRODOTTI
 import React, { useState, useEffect } from 'react';
 import GestoreOrdini from './components/GestoreOrdini';
+import GestioneProdotti from './components/GestioneProdotti'; // ✅ NUOVO IMPORT
 
 function App() {
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [currentView, setCurrentView] = useState('ordini'); // ✅ NUOVO STATE per navigazione
   
   // Auto-login per test
   useEffect(() => {
@@ -35,6 +37,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     setShowLogin(true);
+    setCurrentView('ordini'); // Reset alla vista ordini
   };
 
   // Mostra login se richiesto
@@ -237,55 +240,144 @@ function App() {
         padding: '10px 30px',
         borderBottom: '1px solid #e5e7eb',
         display: 'flex',
-        gap: '10px'
+        gap: '10px',
+        flexWrap: 'wrap' // ✅ Per responsive
       }}>
-        <button style={{
-          padding: '8px 16px',
-          backgroundColor: '#667eea',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: 'pointer'
-        }}>
+        <button 
+          onClick={() => setCurrentView('dashboard')}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: currentView === 'dashboard' ? '#667eea' : 'white',
+            color: currentView === 'dashboard' ? 'white' : '#667eea',
+            border: currentView === 'dashboard' ? 'none' : '2px solid #667eea',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: currentView === 'dashboard' ? 'bold' : 'normal'
+          }}
+        >
           📊 Dashboard
         </button>
-        <button style={{
-          padding: '8px 16px',
-          backgroundColor: 'white',
-          color: '#667eea',
-          border: '2px solid #667eea',
-          borderRadius: '6px',
-          cursor: 'pointer'
-        }}>
+        
+        <button 
+          onClick={() => setCurrentView('ordini')}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: currentView === 'ordini' ? '#667eea' : 'white',
+            color: currentView === 'ordini' ? 'white' : '#667eea',
+            border: currentView === 'ordini' ? 'none' : '2px solid #667eea',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: currentView === 'ordini' ? 'bold' : 'normal'
+          }}
+        >
           🛒 Ordini
         </button>
-        <button style={{
-          padding: '8px 16px',
-          backgroundColor: 'white',
-          color: '#667eea',
-          border: '2px solid #667eea',
-          borderRadius: '6px',
-          cursor: 'pointer'
-        }}>
+        
+        {/* ✅ NUOVO PULSANTE GESTIONE PRODOTTI */}
+        <button 
+          onClick={() => setCurrentView('prodotti')}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: currentView === 'prodotti' ? '#667eea' : 'white',
+            color: currentView === 'prodotti' ? 'white' : '#667eea',
+            border: currentView === 'prodotti' ? 'none' : '2px solid #667eea',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: currentView === 'prodotti' ? 'bold' : 'normal',
+            position: 'relative'
+          }}
+        >
+          📦 Gestione Prodotti
+          {/* Badge NEW */}
+          <span style={{
+            position: 'absolute',
+            top: '-8px',
+            right: '-8px',
+            backgroundColor: '#ef4444',
+            color: 'white',
+            fontSize: '10px',
+            padding: '2px 6px',
+            borderRadius: '10px',
+            fontWeight: 'bold'
+          }}>
+            NEW
+          </span>
+        </button>
+        
+        <button 
+          onClick={() => setCurrentView('magazzino')}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: currentView === 'magazzino' ? '#667eea' : 'white',
+            color: currentView === 'magazzino' ? 'white' : '#667eea',
+            border: currentView === 'magazzino' ? 'none' : '2px solid #667eea',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: currentView === 'magazzino' ? 'bold' : 'normal'
+          }}
+        >
           📦 Magazzino
         </button>
+        
         {user.ruolo === 'admin' && (
-          <button style={{
-            padding: '8px 16px',
-            backgroundColor: 'white',
-            color: '#667eea',
-            border: '2px solid #667eea',
-            borderRadius: '6px',
-            cursor: 'pointer'
-          }}>
+          <button 
+            onClick={() => setCurrentView('impostazioni')}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: currentView === 'impostazioni' ? '#667eea' : 'white',
+              color: currentView === 'impostazioni' ? 'white' : '#667eea',
+              border: currentView === 'impostazioni' ? 'none' : '2px solid #667eea',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: currentView === 'impostazioni' ? 'bold' : 'normal'
+            }}
+          >
             ⚙️ Impostazioni
           </button>
         )}
       </div>
       
-      {/* CONTENUTO PRINCIPALE */}
+      {/* ✅ CONTENUTO PRINCIPALE - ROUTING MANUALE */}
       <div style={{ padding: '20px' }}>
-        <GestoreOrdini />
+        {currentView === 'ordini' && <GestoreOrdini />}
+        
+        {currentView === 'prodotti' && <GestioneProdotti />}
+        
+        {currentView === 'dashboard' && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '40px',
+            borderRadius: '12px',
+            textAlign: 'center'
+          }}>
+            <h2>📊 Dashboard</h2>
+            <p>Vista Dashboard in arrivo...</p>
+          </div>
+        )}
+        
+        {currentView === 'magazzino' && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '40px',
+            borderRadius: '12px',
+            textAlign: 'center'
+          }}>
+            <h2>📦 Magazzino</h2>
+            <p>Vista Magazzino in arrivo...</p>
+          </div>
+        )}
+        
+        {currentView === 'impostazioni' && (
+          <div style={{
+            backgroundColor: 'white',
+            padding: '40px',
+            borderRadius: '12px',
+            textAlign: 'center'
+          }}>
+            <h2>⚙️ Impostazioni</h2>
+            <p>Vista Impostazioni in arrivo...</p>
+          </div>
+        )}
       </div>
     </div>
   );
