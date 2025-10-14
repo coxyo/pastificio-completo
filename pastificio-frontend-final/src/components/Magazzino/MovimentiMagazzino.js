@@ -1,4 +1,4 @@
-/ Version 2.0.1 - Force rebuild after isConnected fix
+// Version 2.0.1 - Force rebuild after isConnected fix
 // components/Magazzino/MovimentiMagazzino.js - ✅ VERSIONE FINALE CORRETTA
 import React, { useState, useEffect } from 'react';
 import { resetChromeLoop, isChromeSafe } from '@/utils/chromeReset';
