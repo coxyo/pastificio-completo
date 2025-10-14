@@ -613,42 +613,43 @@ export default function MovimentiMagazzino() {
   };
 
   const salvaMovimentoOffline = (movimentoDaSalvare) => {
-    try {
-      const movimentoOffline = {
-        ...movimentoDaSalvare,
-        _id: editingId || `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        _isOffline: true
-      };
-      
-      let movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
-      
-      if (editingId) {
-        movimentiCache = movimentiCache.map(m => m._id === editingId ? movimentoOffline : m);
-      } else {
-        movimentiCache.unshift(movimentoOffline);
-      }
-      
-      localStorage.setItem('movimentiMagazzino', JSON.stringify(movimentiCache));
-      setMovimenti(movimentiCache);
-      
-      aggiornaGiacenzeOffline(movimentoOffline);
-      
-if (webSocketService.isConnected && !webSocketService.isMockMode) {
-        console.log('📤 Invio movimento via WebSocket...');
-        webSocketService.emit('aggiungi_movimento', movimentoOffline);
-      }
-
-      setSuccess('Movimento salvato con successo' + (webSocketService.isConnected() ? ' e sincronizzato' : ' (offline)'));
-      setDialogOpen(false);
-      resetForm();
-      
-      setTimeout(() => setSuccess(''), 3000);
-      
-    } catch (error) {
-      console.error('Errore salvataggio offline:', error);
-      throw error;
+  try {
+    const movimentoOffline = {
+      ...movimentoDaSalvare,
+      _id: editingId || `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      _isOffline: true
+    };
+    
+    let movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
+    
+    if (editingId) {
+      movimentiCache = movimentiCache.map(m => m._id === editingId ? movimentoOffline : m);
+    } else {
+      movimentiCache.unshift(movimentoOffline);
     }
-  };
+    
+    localStorage.setItem('movimentiMagazzino', JSON.stringify(movimentiCache));
+    setMovimenti(movimentiCache);
+    
+    aggiornaGiacenzeOffline(movimentoOffline);
+    
+    // ✅ FIX: Rimosso () da isConnected e isMockMode
+    if (webSocketService.isConnected && webSocketService.isMockMode && !webSocketService.isMockMode()) {
+      console.log('📤 Invio movimento via WebSocket...');
+      webSocketService.emit('aggiungi_movimento', movimentoOffline);
+    }
+
+    setSuccess('Movimento salvato con successo' + (webSocketService.isConnected ? ' e sincronizzato' : ' (offline)'));
+    setDialogOpen(false);
+    resetForm();
+    
+    setTimeout(() => setSuccess(''), 3000);
+    
+  } catch (error) {
+    console.error('Errore salvataggio offline:', error);
+    throw error;
+  }
+};
 
   const aggiornaGiacenzeOffline = (movimento) => {
     try {
@@ -734,24 +735,25 @@ if (webSocketService.isConnected && !webSocketService.isMockMode) {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Sei sicuro di voler eliminare questo movimento?')) return;
+  if (!window.confirm('Sei sicuro di voler eliminare questo movimento?')) return;
+  
+  try {
+    const movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
+    const nuoviMovimenti = movimentiCache.filter(m => m._id !== id);
+    localStorage.setItem('movimentiMagazzino', JSON.stringify(nuoviMovimenti));
+    setMovimenti(nuoviMovimenti);
     
-    try {
-      const movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
-      const nuoviMovimenti = movimentiCache.filter(m => m._id !== id);
-      localStorage.setItem('movimentiMagazzino', JSON.stringify(nuoviMovimenti));
-      setMovimenti(nuoviMovimenti);
-      
-      if (webSocketService.isConnected) {
-        webSocketService.emit('elimina_movimento', { id });
-      }
-      
-      setSuccess('Movimento eliminato con successo');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error) {
-      setError('Errore nell\'eliminazione');
+    // ✅ FIX: Rimosso () da isConnected
+    if (webSocketService.isConnected) {
+      webSocketService.emit('elimina_movimento', { id });
     }
-  };
+    
+    setSuccess('Movimento eliminato con successo');
+    setTimeout(() => setSuccess(''), 3000);
+  } catch (error) {
+    setError('Errore nell\'eliminazione');
+  }
+};
 
   const handleSort = (campo) => {
     setOrdinamento(prev => ({
