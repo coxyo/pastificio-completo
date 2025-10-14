@@ -1,4 +1,4 @@
-// components/Magazzino/MovimentiMagazzino.js - ✅ CON AUTENTICAZIONE JWT
+// components/Magazzino/MovimentiMagazzino.js - ✅ VERSIONE FINALE CORRETTA
 import React, { useState, useEffect } from 'react';
 import { resetChromeLoop, isChromeSafe } from '@/utils/chromeReset';
 import webSocketService from '@/services/webSocketService';
@@ -79,6 +79,18 @@ const getAuthHeaders = () => {
   };
 };
 
+// ✅ SAFE WRAPPER per webSocketService - AGGIUNTO QUI
+const isWebSocketConnected = () => {
+  try {
+    if (!webSocketService) return false;
+    // Supporta sia proprietà booleana che metodo
+    return Boolean(webSocketService.isConnected);
+  } catch (error) {
+    console.warn('Errore check WebSocket:', error);
+    return false;
+  }
+};
+
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
   return (
@@ -88,7 +100,7 @@ function TabPanel(props) {
   );
 }
 
-// Dati demo
+// Dati demo (INVARIATI)
 const movimentiDemo = [
   {
     _id: 'demo1',
@@ -233,7 +245,7 @@ export default function MovimentiMagazzino() {
     setIsReady(true);
   }, []);
 
-  // ✅ MODIFICATO: Carica dati CON AUTENTICAZIONE
+  // Carica dati CON AUTENTICAZIONE
   useEffect(() => {
     if (isReady) {
       caricaDatiDalServer();
@@ -242,13 +254,13 @@ export default function MovimentiMagazzino() {
     }
   }, [isReady]);
 
-  // Monitora connessione WebSocket
+  // ✅ MODIFICATO: Monitora connessione WebSocket con wrapper sicuro
   useEffect(() => {
     const handleConnectionChange = (connected) => {
       setConnectionStatus(connected ? 'connesso' : 'offline');
       console.log('🔌 Stato connessione magazzino:', connected ? 'connesso' : 'offline');
       
-      if (connected) {
+      if (connected && isWebSocketConnected()) {
         webSocketService.emit('richiedi_inventario', {});
       }
     };
@@ -270,7 +282,6 @@ export default function MovimentiMagazzino() {
       webSocketService.off('movimenti_caricati');
     };
   }, []);
-
 // Inizializza WebSocket
   const initWebSocket = () => {
     console.log('🔌 Inizializzazione WebSocket per magazzino...');
@@ -411,7 +422,7 @@ export default function MovimentiMagazzino() {
     );
   }
 
-  // ✅ NUOVA FUNZIONE: Carica dati dal server CON AUTH
+  // Carica dati dal server CON AUTH
   const caricaDatiDalServer = async () => {
     setLoading(true);
     setError('');
@@ -476,7 +487,7 @@ export default function MovimentiMagazzino() {
     }
   };
 
-  // ✅ FALLBACK: Usa dati demo se fetch fallisce
+  // FALLBACK: Usa dati demo
   const usaDatiDemo = () => {
     console.log('📦 Utilizzo dati demo');
     
@@ -503,8 +514,7 @@ export default function MovimentiMagazzino() {
       checkScorte(giacenzeCache.length > 0 ? giacenzeCache : giacenzeDemo);
     }, 100);
   };
-
-  // Controlla scorte
+// Controlla scorte
   const checkScorte = (giacenzeData) => {
     giacenzeData.forEach(g => {
       if (g.quantitaAttuale < (g.scorta?.minima || 0)) {
@@ -562,7 +572,7 @@ export default function MovimentiMagazzino() {
     localStorage.setItem('statsMagazzino', JSON.stringify(newStats));
   };
 
-// Handle Submit
+  // Handle Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -612,44 +622,45 @@ export default function MovimentiMagazzino() {
     }
   };
 
+  // ✅ CORRETTO: Salva movimento con wrapper sicuro
   const salvaMovimentoOffline = (movimentoDaSalvare) => {
-  try {
-    const movimentoOffline = {
-      ...movimentoDaSalvare,
-      _id: editingId || `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      _isOffline: true
-    };
-    
-    let movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
-    
-    if (editingId) {
-      movimentiCache = movimentiCache.map(m => m._id === editingId ? movimentoOffline : m);
-    } else {
-      movimentiCache.unshift(movimentoOffline);
-    }
-    
-    localStorage.setItem('movimentiMagazzino', JSON.stringify(movimentiCache));
-    setMovimenti(movimentiCache);
-    
-    aggiornaGiacenzeOffline(movimentoOffline);
-    
-    // ✅ FIX DEFINITIVO
-    if (webSocketService.isConnected) {
-      console.log('📤 Invio movimento via WebSocket...');
-      webSocketService.emit('aggiungi_movimento', movimentoOffline);
-    }
+    try {
+      const movimentoOffline = {
+        ...movimentoDaSalvare,
+        _id: editingId || `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        _isOffline: true
+      };
+      
+      let movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
+      
+      if (editingId) {
+        movimentiCache = movimentiCache.map(m => m._id === editingId ? movimentoOffline : m);
+      } else {
+        movimentiCache.unshift(movimentoOffline);
+      }
+      
+      localStorage.setItem('movimentiMagazzino', JSON.stringify(movimentiCache));
+      setMovimenti(movimentiCache);
+      
+      aggiornaGiacenzeOffline(movimentoOffline);
+      
+      // ✅ USA IL WRAPPER SICURO
+      if (isWebSocketConnected()) {
+        console.log('📤 Invio movimento via WebSocket...');
+        webSocketService.emit('aggiungi_movimento', movimentoOffline);
+      }
 
-    setSuccess('Movimento salvato con successo' + (webSocketService.isConnected ? ' e sincronizzato' : ' (offline)'));
-    setDialogOpen(false);
-    resetForm();
-    
-    setTimeout(() => setSuccess(''), 3000);
-    
-  } catch (error) {
-    console.error('Errore salvataggio offline:', error);
-    throw error;
-  }
-};
+      setSuccess('Movimento salvato con successo' + (isWebSocketConnected() ? ' e sincronizzato' : ' (offline)'));
+      setDialogOpen(false);
+      resetForm();
+      
+      setTimeout(() => setSuccess(''), 3000);
+      
+    } catch (error) {
+      console.error('Errore salvataggio offline:', error);
+      throw error;
+    }
+  };
 
   const aggiornaGiacenzeOffline = (movimento) => {
     try {
@@ -734,26 +745,27 @@ export default function MovimentiMagazzino() {
     setDialogOpen(true);
   };
 
+  // ✅ CORRETTO: HandleDelete con wrapper sicuro
   const handleDelete = async (id) => {
-  if (!window.confirm('Sei sicuro di voler eliminare questo movimento?')) return;
-  
-  try {
-    const movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
-    const nuoviMovimenti = movimentiCache.filter(m => m._id !== id);
-    localStorage.setItem('movimentiMagazzino', JSON.stringify(nuoviMovimenti));
-    setMovimenti(nuoviMovimenti);
+    if (!window.confirm('Sei sicuro di voler eliminare questo movimento?')) return;
     
-    // ✅ FIX: Rimosso () da isConnected
-    if (webSocketService.isConnected) {
-      webSocketService.emit('elimina_movimento', { id });
+    try {
+      const movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
+      const nuoviMovimenti = movimentiCache.filter(m => m._id !== id);
+      localStorage.setItem('movimentiMagazzino', JSON.stringify(nuoviMovimenti));
+      setMovimenti(nuoviMovimenti);
+      
+      // ✅ USA IL WRAPPER SICURO
+      if (isWebSocketConnected()) {
+        webSocketService.emit('elimina_movimento', { id });
+      }
+      
+      setSuccess('Movimento eliminato con successo');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      setError('Errore nell\'eliminazione');
     }
-    
-    setSuccess('Movimento eliminato con successo');
-    setTimeout(() => setSuccess(''), 3000);
-  } catch (error) {
-    setError('Errore nell\'eliminazione');
-  }
-};
+  };
 
   const handleSort = (campo) => {
     setOrdinamento(prev => ({
@@ -995,7 +1007,6 @@ export default function MovimentiMagazzino() {
   };
 
   const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-
 // RENDER PRINCIPALE
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -1018,13 +1029,6 @@ export default function MovimentiMagazzino() {
             size="small"
             icon={connectionStatus === 'connesso' ? <SyncIcon /> : <SyncDisabledIcon />}
           />
-          {webSocketService.isMockMode && webSocketService.isMockMode() && (
-            <Chip 
-              label="Mock Mode"
-              color="info"
-              size="small"
-            />
-          )}
           <Tooltip title={notificationsEnabled ? 'Disabilita notifiche' : 'Abilita notifiche'}>
             <IconButton onClick={toggleNotifications} color={notificationsEnabled ? 'primary' : 'default'}>
               {notificationsEnabled ? <NotificationsActiveIcon /> : <NotificationsOffIcon />}
@@ -1461,8 +1465,7 @@ export default function MovimentiMagazzino() {
           )}
         </TabPanel>
       </Paper>
-
-      {/* Dialog Nuovo/Modifica Movimento */}
+{/* Dialog Nuovo/Modifica Movimento */}
       <Dialog 
         open={dialogOpen} 
         onClose={() => setDialogOpen(false)}
