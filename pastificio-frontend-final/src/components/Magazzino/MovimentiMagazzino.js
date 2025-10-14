@@ -633,8 +633,8 @@ export default function MovimentiMagazzino() {
     
     aggiornaGiacenzeOffline(movimentoOffline);
     
-    // ✅ FIX: Rimosso () da isConnected e isMockMode
-    if (webSocketService.isConnected && webSocketService.isMockMode && !webSocketService.isMockMode()) {
+    // ✅ FIX DEFINITIVO
+    if (webSocketService.isConnected) {
       console.log('📤 Invio movimento via WebSocket...');
       webSocketService.emit('aggiungi_movimento', movimentoOffline);
     }
