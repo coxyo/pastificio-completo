@@ -239,14 +239,11 @@ class WebSocketService {
     };
   }
 
-  isConnected() {
+  getConnectionState() {
     return this.isConnected;
   }
 
-  getSocket() {
-    return this.socket;
-  }
-
+  
   isMockMode() {
     return false; // Non più in mock mode!
   }

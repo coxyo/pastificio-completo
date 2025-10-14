@@ -83,10 +83,9 @@ const getAuthHeaders = () => {
 const isWebSocketConnected = () => {
   try {
     if (!webSocketService) return false;
-    // Supporta sia proprietà booleana che metodo
+    // Usa solo la proprietà booleana
     return Boolean(webSocketService.isConnected);
   } catch (error) {
-    console.warn('Errore check WebSocket:', error);
     return false;
   }
 };
