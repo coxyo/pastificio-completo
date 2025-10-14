@@ -1,3 +1,4 @@
+// services/notificationService.js
 class NotificationService {
   constructor() {
     this.permission = 'default';
@@ -79,6 +80,64 @@ class NotificationService {
     return this.showNotification('⚠️ Scorte in Esaurimento', {
       body: `${prodotto.nome} sta per terminare (${prodotto.quantita} rimanenti)`,
       tag: 'scorte-basse',
+      requireInteraction: true
+    });
+  }
+
+  // ✅ METODI MANCANTI AGGIUNTI
+  notifyLowStock(prodotto) {
+    const { nome, quantitaAttuale, unitaMisura, scortaMinima } = prodotto;
+    return this.showNotification('🔔 Scorta Bassa', {
+      body: `${nome}: ${quantitaAttuale} ${unitaMisura} (minimo: ${scortaMinima})`,
+      tag: 'low-stock',
+      requireInteraction: true
+    });
+  }
+
+  notifyStockMovement(movimento) {
+    const { tipo, prodotto, quantita, unitaMisura } = movimento;
+    const emoji = tipo === 'carico' ? '📥' : '📤';
+    const azione = tipo === 'carico' ? 'Carico' : 'Scarico';
+    
+    return this.showNotification(`${emoji} ${azione} Magazzino`, {
+      body: `${prodotto}: ${quantita} ${unitaMisura}`,
+      tag: 'stock-movement'
+    });
+  }
+
+  notifyExpiringProducts(prodotti) {
+    if (!Array.isArray(prodotti) || prodotti.length === 0) return false;
+    
+    const count = prodotti.length;
+    const firstProduct = prodotti[0];
+    
+    return this.showNotification('⏰ Prodotti in Scadenza', {
+      body: count === 1 
+        ? `${firstProduct.nome} scade il ${new Date(firstProduct.dataScadenza).toLocaleDateString()}`
+        : `${count} prodotti stanno per scadere`,
+      tag: 'expiring-products',
+      requireInteraction: true
+    });
+  }
+
+  notifySuccess(message) {
+    return this.showNotification('✅ Successo', {
+      body: message,
+      tag: 'success'
+    });
+  }
+
+  notifyWarning(message) {
+    return this.showNotification('⚠️ Attenzione', {
+      body: message,
+      tag: 'warning'
+    });
+  }
+
+  notifyError(message) {
+    return this.showNotification('❌ Errore', {
+      body: message,
+      tag: 'error',
       requireInteraction: true
     });
   }

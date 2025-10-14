@@ -65,8 +65,8 @@ export const useMagazzinoNotifications = () => {
       
       if (notificationService.notifySuccess) {
         notificationService.notifySuccess(messaggio);
-      } else if (notificationService.notify) {
-        notificationService.notify('✅ Successo', messaggio);
+      } else if (notificationService.showNotification) {
+        notificationService.showNotification('✅ Successo', { body: messaggio });
       }
     });
     
@@ -76,8 +76,8 @@ export const useMagazzinoNotifications = () => {
       
       if (notificationService.notifyWarning) {
         notificationService.notifyWarning(messaggio);
-      } else if (notificationService.notify) {
-        notificationService.notify('⚠️ Attenzione', messaggio);
+      } else if (notificationService.showNotification) {
+        notificationService.showNotification('⚠️ Attenzione', { body: messaggio });
       }
     });
     
@@ -94,9 +94,10 @@ export const useMagazzinoNotifications = () => {
     };
   }, []);
   
+  // ✅ FIX: Usa la proprietà booleana invece del metodo
   return {
     webSocketService,
-    isConnected: webSocketService.isConnected(),
+    isConnected: Boolean(webSocketService.isConnected), // ✅ CORRETTO
     notificationService
   };
 };
