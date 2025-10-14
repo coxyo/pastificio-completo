@@ -1,4 +1,4 @@
-// components/Magazzino/MovimentiMagazzino.js
+// components/Magazzino/MovimentiMagazzino.js - ✅ CON AUTENTICAZIONE JWT
 import React, { useState, useEffect } from 'react';
 import { resetChromeLoop, isChromeSafe } from '@/utils/chromeReset';
 import webSocketService from '@/services/webSocketService';
@@ -58,6 +58,26 @@ import {
   Sync as SyncIcon,
   SyncDisabled as SyncDisabledIcon
 } from '@mui/icons-material';
+
+// ✅ CONFIGURAZIONE API
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+
+// ✅ HELPER: Ottieni token JWT da localStorage
+const getAuthToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token') || localStorage.getItem('simple_token_testuser');
+  }
+  return null;
+};
+
+// ✅ HELPER: Headers con autenticazione
+const getAuthHeaders = () => {
+  const token = getAuthToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -199,29 +219,25 @@ export default function MovimentiMagazzino() {
     'Marmellata'
   ];
 
-  // Protezione Chrome MIGLIORATA
+  // Protezione Chrome
   useEffect(() => {
     const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
     
     if (isChrome && !isChromeSafe()) {
       resetChromeLoop();
-      // Forza un refresh pulito una sola volta
       window.location.hash = '';
       window.location.reload();
       return;
     }
     
-    // Se arriviamo qui, è sicuro procedere
     setIsReady(true);
   }, []);
 
-  // Carica dati solo quando è sicuro
+  // ✅ MODIFICATO: Carica dati CON AUTENTICAZIONE
   useEffect(() => {
     if (isReady) {
-      caricaDati();
+      caricaDatiDalServer();
       checkNotificationPermission();
-      
-      // Inizializza WebSocket
       initWebSocket();
     }
   }, [isReady]);
@@ -232,7 +248,6 @@ export default function MovimentiMagazzino() {
       setConnectionStatus(connected ? 'connesso' : 'offline');
       console.log('🔌 Stato connessione magazzino:', connected ? 'connesso' : 'offline');
       
-      // Se connesso, richiedi dati aggiornati
       if (connected) {
         webSocketService.emit('richiedi_inventario', {});
       }
@@ -245,7 +260,7 @@ export default function MovimentiMagazzino() {
     };
   }, []);
 
-  // Cleanup listeners quando il componente si smonta
+  // Cleanup listeners
   useEffect(() => {
     return () => {
       console.log('🧹 Pulizia listener WebSocket magazzino');
@@ -256,15 +271,13 @@ export default function MovimentiMagazzino() {
     };
   }, []);
 
-  // Inizializza WebSocket
+// Inizializza WebSocket
   const initWebSocket = () => {
     console.log('🔌 Inizializzazione WebSocket per magazzino...');
     
-    // Listener per aggiornamenti inventario
     webSocketService.on('inventario_aggiornato', (data) => {
       console.log('📦 Inventario aggiornato via WebSocket:', data);
       if (data.success && data.data) {
-        // Trasforma i dati ricevuti nel formato giusto per giacenze
         const giacenzeAggiornate = data.data.map(item => ({
           _id: item.id || item._id || `ws_${Date.now()}_${Math.random()}`,
           prodotto: { 
@@ -292,11 +305,9 @@ export default function MovimentiMagazzino() {
       }
     });
 
-    // Listener per nuovi movimenti
     webSocketService.on('movimento_aggiunto', (movimento) => {
       console.log('➕ Nuovo movimento via WebSocket:', movimento);
       
-      // Formatta il movimento ricevuto
       const movimentoFormattato = {
         _id: movimento.id || movimento._id || `ws_${Date.now()}`,
         tipo: movimento.tipo,
@@ -315,7 +326,6 @@ export default function MovimentiMagazzino() {
       
       setMovimenti(prev => [movimentoFormattato, ...prev]);
       
-      // Mostra notifica se abilitata
       if (notificationsEnabled) {
         notificationService.notifyStockMovement({
           tipo: movimentoFormattato.tipo,
@@ -325,13 +335,11 @@ export default function MovimentiMagazzino() {
         });
       }
       
-      // Aggiorna giacenze locali
       if (movimento.success) {
         aggiornaGiacenzeOffline(movimentoFormattato);
       }
     });
 
-    // Listener per eliminazione movimenti
     webSocketService.on('movimento_eliminato', (data) => {
       console.log('🗑️ Movimento eliminato via WebSocket:', data);
       if (data.success && data.id) {
@@ -341,7 +349,6 @@ export default function MovimentiMagazzino() {
       }
     });
 
-    // Listener per caricamento movimenti
     webSocketService.on('movimenti_caricati', (data) => {
       console.log('📋 Movimenti caricati via WebSocket:', data);
       if (data.success && data.data) {
@@ -366,7 +373,6 @@ export default function MovimentiMagazzino() {
       }
     });
 
-    // Richiedi inventario iniziale
     setTimeout(() => {
       webSocketService.emit('richiedi_inventario', {});
       webSocketService.emit('get_movimenti', {});
@@ -393,7 +399,7 @@ export default function MovimentiMagazzino() {
     }
   };
 
-  // Se non è ancora pronto, mostra loading
+  // Loading screen
   if (!isReady) {
     return (
       <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -405,50 +411,100 @@ export default function MovimentiMagazzino() {
     );
   }
 
-  const caricaDati = () => {
+  // ✅ NUOVA FUNZIONE: Carica dati dal server CON AUTH
+  const caricaDatiDalServer = async () => {
     setLoading(true);
+    setError('');
+    
     try {
-      // Carica dati da localStorage o usa demo
-      const movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
-      const giacenzeCache = JSON.parse(localStorage.getItem('giacenzeMagazzino') || '[]');
-      const statsCache = JSON.parse(localStorage.getItem('statsMagazzino') || 'null');
+      const token = getAuthToken();
+      
+      if (!token) {
+        console.warn('⚠️ Token non trovato, uso dati demo');
+        throw new Error('Token mancante');
+      }
 
-      if (movimentiCache.length === 0 && giacenzeCache.length === 0) {
-        // Prima volta, usa dati demo
-        setMovimenti(movimentiDemo);
-        setGiacenze(giacenzeDemo);
-        setStats(statsDemo);
+      // Fetch ingredienti/giacenze
+      const responseGiacenze = await fetch(`${API_URL}/magazzino/ingredienti`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      if (responseGiacenze.status === 401) {
+        console.warn('⚠️ Autenticazione fallita, effettua login');
+        setError('Sessione scaduta. Effettua il login.');
+        usaDatiDemo();
+        return;
+      }
+
+      if (!responseGiacenze.ok) {
+        throw new Error(`Errore ${responseGiacenze.status}`);
+      }
+
+      const dataGiacenze = await responseGiacenze.json();
+      console.log('✅ Giacenze ricevute dal server:', dataGiacenze);
+
+      if (dataGiacenze.success && dataGiacenze.data) {
+        setGiacenze(dataGiacenze.data);
+        localStorage.setItem('giacenzeMagazzino', JSON.stringify(dataGiacenze.data));
+        calcolaStatisticheLocali(dataGiacenze.data);
+        checkScorte(dataGiacenze.data);
+      }
+
+      // Fetch movimenti
+      const responseMovimenti = await fetch(`${API_URL}/magazzino/movimenti`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      if (responseMovimenti.ok) {
+        const dataMovimenti = await responseMovimenti.json();
+        console.log('✅ Movimenti ricevuti dal server:', dataMovimenti);
         
-        localStorage.setItem('movimentiMagazzino', JSON.stringify(movimentiDemo));
-        localStorage.setItem('giacenzeMagazzino', JSON.stringify(giacenzeDemo));
-        localStorage.setItem('statsMagazzino', JSON.stringify(statsDemo));
-      } else {
-        // Usa dati salvati
-        setMovimenti(movimentiCache);
-        setGiacenze(giacenzeCache);
-        setStats(statsCache || statsDemo);
+        if (dataMovimenti.success && dataMovimenti.data) {
+          setMovimenti(dataMovimenti.data);
+          localStorage.setItem('movimentiMagazzino', JSON.stringify(dataMovimenti.data));
+        }
       }
-      
-      // Ricalcola statistiche e controlla scorte
-      setTimeout(() => {
-        calcolaStatisticheLocali(giacenzeCache.length > 0 ? giacenzeCache : giacenzeDemo);
-        checkScorte(giacenzeCache.length > 0 ? giacenzeCache : giacenzeDemo);
-      }, 100);
-      
-      // Se connesso, richiedi dati aggiornati dal server
-      if (webSocketService.isConnected()) {
-        webSocketService.emit('richiedi_inventario', {});
-        webSocketService.emit('get_movimenti', {});
-      }
+
     } catch (error) {
-      console.error('Errore caricamento dati:', error);
-      setError('Errore nel caricamento dati');
+      console.error('❌ Errore caricamento dati:', error);
+      setError(`Errore: ${error.message}`);
+      usaDatiDemo();
     } finally {
       setLoading(false);
     }
   };
 
-  // Controlla scorte e invia notifiche
+  // ✅ FALLBACK: Usa dati demo se fetch fallisce
+  const usaDatiDemo = () => {
+    console.log('📦 Utilizzo dati demo');
+    
+    const movimentiCache = JSON.parse(localStorage.getItem('movimentiMagazzino') || '[]');
+    const giacenzeCache = JSON.parse(localStorage.getItem('giacenzeMagazzino') || '[]');
+    const statsCache = JSON.parse(localStorage.getItem('statsMagazzino') || 'null');
+
+    if (movimentiCache.length === 0 && giacenzeCache.length === 0) {
+      setMovimenti(movimentiDemo);
+      setGiacenze(giacenzeDemo);
+      setStats(statsDemo);
+      
+      localStorage.setItem('movimentiMagazzino', JSON.stringify(movimentiDemo));
+      localStorage.setItem('giacenzeMagazzino', JSON.stringify(giacenzeDemo));
+      localStorage.setItem('statsMagazzino', JSON.stringify(statsDemo));
+    } else {
+      setMovimenti(movimentiCache);
+      setGiacenze(giacenzeCache);
+      setStats(statsCache || statsDemo);
+    }
+    
+    setTimeout(() => {
+      calcolaStatisticheLocali(giacenzeCache.length > 0 ? giacenzeCache : giacenzeDemo);
+      checkScorte(giacenzeCache.length > 0 ? giacenzeCache : giacenzeDemo);
+    }, 100);
+  };
+
+  // Controlla scorte
   const checkScorte = (giacenzeData) => {
     giacenzeData.forEach(g => {
       if (g.quantitaAttuale < (g.scorta?.minima || 0)) {
@@ -463,6 +519,7 @@ export default function MovimentiMagazzino() {
     });
   };
 
+  // Calcola statistiche
   const calcolaStatisticheLocali = (giacenzeData = giacenze) => {
     if (!giacenzeData || giacenzeData.length === 0) {
       setStats({
@@ -505,13 +562,13 @@ export default function MovimentiMagazzino() {
     localStorage.setItem('statsMagazzino', JSON.stringify(newStats));
   };
 
+// Handle Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
     try {
-      // Validazione base
       if (!nuovoMovimento.prodotto.nome || !nuovoMovimento.quantita) {
         throw new Error('Prodotto e quantità sono obbligatori');
       }
@@ -538,10 +595,8 @@ export default function MovimentiMagazzino() {
         dataMovimento: new Date().toISOString()
       };
 
-      // Salva sempre offline
       salvaMovimentoOffline(movimentoDaSalvare);
       
-      // Notifica movimento
       notificationService.notifyStockMovement({
         tipo: movimentoDaSalvare.tipo,
         prodotto: movimentoDaSalvare.prodotto.nome,
@@ -576,22 +631,17 @@ export default function MovimentiMagazzino() {
       localStorage.setItem('movimentiMagazzino', JSON.stringify(movimentiCache));
       setMovimenti(movimentiCache);
       
-      // Aggiorna giacenze
       aggiornaGiacenzeOffline(movimentoOffline);
       
-      // Invia anche via WebSocket se connesso
-      // Invia anche via WebSocket se connesso (ma non duplicare)
-if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
-  console.log('📤 Invio movimento via WebSocket...');
-  webSocketService.emit('aggiungi_movimento', movimentoOffline);
-  // In modalità mock, il movimento viene già aggiunto dal listener
-}
+      if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
+        console.log('📤 Invio movimento via WebSocket...');
+        webSocketService.emit('aggiungi_movimento', movimentoOffline);
+      }
 
       setSuccess('Movimento salvato con successo' + (webSocketService.isConnected() ? ' e sincronizzato' : ' (offline)'));
       setDialogOpen(false);
       resetForm();
       
-      // Rimuovi messaggio dopo 3 secondi
       setTimeout(() => setSuccess(''), 3000);
       
     } catch (error) {
@@ -609,7 +659,6 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
         const giacenza = giacenzeCache[index];
         const quantitaPrecedente = giacenza.quantitaAttuale;
         
-        // Aggiorna quantità in base al tipo di movimento
         if (movimento.tipo === 'carico') {
           giacenza.quantitaAttuale += movimento.quantita;
         } else if (movimento.tipo === 'scarico') {
@@ -618,7 +667,6 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
           giacenza.quantitaAttuale = movimento.quantita;
         }
         
-        // Aggiorna valore medio per carichi
         if (movimento.tipo === 'carico' && movimento.prezzoUnitario > 0 && giacenza.quantitaAttuale > 0) {
           const valoreAttuale = (giacenza.quantitaAttuale - movimento.quantita) * (giacenza.valoreMedio || 0);
           const valoreNuovo = movimento.quantita * movimento.prezzoUnitario;
@@ -633,7 +681,6 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
         
         giacenzeCache[index] = giacenza;
         
-        // Controlla se sotto scorta e notifica
         if (giacenza.quantitaAttuale < (giacenza.scorta?.minima || 0) && 
             quantitaPrecedente >= (giacenza.scorta?.minima || 0)) {
           notificationService.notifyLowStock({
@@ -645,7 +692,6 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
           });
         }
       } else {
-        // Crea nuova giacenza
         giacenzeCache.push({
           _id: `offline_g_${Date.now()}`,
           prodotto: movimento.prodotto,
@@ -664,7 +710,6 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
       localStorage.setItem('giacenzeMagazzino', JSON.stringify(giacenzeCache));
       setGiacenze(giacenzeCache);
       
-      // Aggiorna statistiche
       calcolaStatisticheLocali(giacenzeCache);
     } catch (error) {
       console.error('Errore aggiornamento giacenze:', error);
@@ -697,7 +742,6 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
       localStorage.setItem('movimentiMagazzino', JSON.stringify(nuoviMovimenti));
       setMovimenti(nuoviMovimenti);
       
-      // Invia eliminazione via WebSocket se connesso
       if (webSocketService.isConnected()) {
         webSocketService.emit('elimina_movimento', { id });
       }
@@ -742,7 +786,6 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
     }
   };
 
-  // Funzioni per condivisione dati tra browser
   const exportToClipboard = async () => {
     try {
       const data = {
@@ -768,7 +811,7 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
       if (data.giacenze) localStorage.setItem('giacenzeMagazzino', data.giacenze);
       if (data.stats) localStorage.setItem('statsMagazzino', data.stats);
       
-      caricaDati();
+      caricaDatiDalServer();
       setSuccess('Dati importati con successo');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -862,7 +905,7 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
     );
   });
 
-  // Funzioni helper
+  // Helper functions
   const getNomeProdotto = (prodotto) => {
     if (!prodotto) return '-';
     if (typeof prodotto === 'string') return prodotto;
@@ -951,6 +994,7 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
 
   const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
 
+// RENDER PRINCIPALE
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -972,7 +1016,7 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
             size="small"
             icon={connectionStatus === 'connesso' ? <SyncIcon /> : <SyncDisabledIcon />}
           />
-          {webSocketService.isMockMode() && (
+          {webSocketService.isMockMode && webSocketService.isMockMode() && (
             <Chip 
               label="Mock Mode"
               color="info"
@@ -1007,7 +1051,7 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
           >
             Esporta
           </Button>
-          <IconButton onClick={caricaDati} disabled={loading}>
+          <IconButton onClick={caricaDatiDalServer} disabled={loading}>
             <RefreshIcon />
           </IconButton>
           <Button
@@ -1214,444 +1258,444 @@ if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
                       <TableCell>
                         {getNumeroDocumento(movimento)}
                       </TableCell>
-                     <TableCell>
-                       <Typography variant="body2" sx={{ maxWidth: 150 }}>
-                         {movimento.note || '-'}
-                       </Typography>
-                     </TableCell>
-                     <TableCell>
-                       <Box sx={{ display: 'flex', gap: 1 }}>
-                         <IconButton
-                           size="small"
-                           onClick={() => handleEdit(movimento)}
-                           color="primary"
-                         >
-                           <EditIcon />
-                         </IconButton>
-                         <IconButton
-                           size="small"
-                           onClick={() => handleDelete(movimento._id)}
-                           color="error"
-                         >
-                           <DeleteIcon />
-                         </IconButton>
-                       </Box>
-                     </TableCell>
-                   </TableRow>
-                 ))
-               )}
-             </TableBody>
-           </Table>
-         </TableContainer>
-       </TabPanel>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ maxWidth: 150 }}>
+                          {movimento.note || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(movimento)}
+                            color="primary"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(movimento._id)}
+                            color="error"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </TabPanel>
 
-       {/* Tab Giacenze */}
-       <TabPanel value={tab} index={1}>
-         <TableContainer component={Paper}>
-           <Table>
-             <TableHead>
-               <TableRow>
-                 <TableCell>Prodotto</TableCell>
-                 <TableCell>Categoria</TableCell>
-                 <TableCell>Quantità Attuale</TableCell>
-                 <TableCell>Valore Medio</TableCell>
-                 <TableCell>Valore Totale</TableCell>
-                 <TableCell>Scorta Minima</TableCell>
-                 <TableCell>Ultimo Movimento</TableCell>
-                 <TableCell>Stato</TableCell>
-               </TableRow>
-             </TableHead>
-             <TableBody>
-               {giacenze.length === 0 ? (
-                 <TableRow>
-                   <TableCell colSpan={8} align="center">
-                     <Typography variant="body2" color="text.secondary">
-                       Nessuna giacenza disponibile
-                     </Typography>
-                   </TableCell>
-                 </TableRow>
-               ) : (
-                 giacenze.map((giacenza) => (
-                   <TableRow key={giacenza._id}>
-                     <TableCell>
-                       <Typography variant="body2" fontWeight="bold">
-                         {giacenza.prodotto?.nome || '-'}
-                       </Typography>
-                     </TableCell>
-                     <TableCell>
-                       {giacenza.prodotto?.categoria || '-'}
-                     </TableCell>
-                     <TableCell>
-                       {giacenza.quantitaAttuale} {giacenza.unita}
-                     </TableCell>
-                     <TableCell>
-                       € {(giacenza.valoreMedio || 0).toFixed(2)}
-                     </TableCell>
-                     <TableCell>
-                       <Typography variant="body2" fontWeight="bold">
-                         € {(giacenza.quantitaAttuale * giacenza.valoreMedio || 0).toFixed(2)}
-                       </Typography>
-                     </TableCell>
-                     <TableCell>
-                       {giacenza.scorta?.minima || 0} {giacenza.unita}
-                     </TableCell>
-                     <TableCell>
-                       {giacenza.ultimoMovimento ? (
-                         <Box>
-                           <Typography variant="caption">
-                             {formatDate(giacenza.ultimoMovimento.data)}
-                           </Typography>
-                           <br />
-                           <Chip 
-                             label={giacenza.ultimoMovimento.tipo}
-                             size="small"
-                             variant="outlined"
-                           />
-                         </Box>
-                       ) : '-'}
-                     </TableCell>
-                     <TableCell>
-                       <Chip
-                         label={
-                           giacenza.quantitaAttuale <= 0 ? 'Esaurito' :
-                           giacenza.quantitaAttuale < (giacenza.scorta?.minima || 0) ? 'Sotto scorta' :
-                           'Disponibile'
-                         }
-                         color={getColorByQuantita(giacenza.quantitaAttuale, giacenza.scorta?.minima || 0)}
-                         size="small"
-                       />
-                     </TableCell>
-                   </TableRow>
-                 ))
-               )}
-             </TableBody>
-           </Table>
-         </TableContainer>
-       </TabPanel>
+        {/* Tab Giacenze */}
+        <TabPanel value={tab} index={1}>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Prodotto</TableCell>
+                  <TableCell>Categoria</TableCell>
+                  <TableCell>Quantità Attuale</TableCell>
+                  <TableCell>Valore Medio</TableCell>
+                  <TableCell>Valore Totale</TableCell>
+                  <TableCell>Scorta Minima</TableCell>
+                  <TableCell>Ultimo Movimento</TableCell>
+                  <TableCell>Stato</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {giacenze.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Nessuna giacenza disponibile
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  giacenze.map((giacenza) => (
+                    <TableRow key={giacenza._id}>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold">
+                          {giacenza.prodotto?.nome || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {giacenza.prodotto?.categoria || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {giacenza.quantitaAttuale} {giacenza.unita}
+                      </TableCell>
+                      <TableCell>
+                        € {(giacenza.valoreMedio || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold">
+                          € {(giacenza.quantitaAttuale * giacenza.valoreMedio || 0).toFixed(2)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {giacenza.scorta?.minima || 0} {giacenza.unita}
+                      </TableCell>
+                      <TableCell>
+                        {giacenza.ultimoMovimento ? (
+                          <Box>
+                            <Typography variant="caption">
+                              {formatDate(giacenza.ultimoMovimento.data)}
+                            </Typography>
+                            <br />
+                            <Chip 
+                              label={giacenza.ultimoMovimento.tipo}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Box>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={
+                            giacenza.quantitaAttuale <= 0 ? 'Esaurito' :
+                            giacenza.quantitaAttuale < (giacenza.scorta?.minima || 0) ? 'Sotto scorta' :
+                            'Disponibile'
+                          }
+                          color={getColorByQuantita(giacenza.quantitaAttuale, giacenza.scorta?.minima || 0)}
+                          size="small"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </TabPanel>
 
-       {/* Tab Sotto Scorta */}
-       <TabPanel value={tab} index={2}>
-         {stats?.prodottiSottoScorta?.length > 0 ? (
-           <TableContainer component={Paper}>
-             <Table>
-               <TableHead>
-                 <TableRow>
-                   <TableCell>Prodotto</TableCell>
-                   <TableCell>Quantità Attuale</TableCell>
-                   <TableCell>Scorta Minima</TableCell>
-                   <TableCell>Da Ordinare</TableCell>
-                   <TableCell>Priorità</TableCell>
-                   <TableCell>Azioni</TableCell>
-                 </TableRow>
-               </TableHead>
-               <TableBody>
-                 {stats.prodottiSottoScorta.map((prodotto, index) => (
-                   <TableRow key={index}>
-                     <TableCell>
-                       <Typography variant="body2" fontWeight="bold">
-                         {prodotto.prodotto}
-                       </Typography>
-                     </TableCell>
-                     <TableCell>
-                       <Typography color="error">
-                         {prodotto.quantitaAttuale}
-                       </Typography>
-                     </TableCell>
-                     <TableCell>
-                       {prodotto.scortaMinima}
-                     </TableCell>
-                     <TableCell>
-                       <Typography variant="body2" fontWeight="bold">
-                         {Math.max(0, prodotto.daOrdinare)}
-                       </Typography>
-                     </TableCell>
-                     <TableCell>
-                       <Chip
-                         label={
-                           prodotto.quantitaAttuale <= 0 ? 'URGENTE' :
-                           prodotto.quantitaAttuale < prodotto.scortaMinima * 0.5 ? 'ALTA' :
-                           'MEDIA'
-                         }
-                         color={
-                           prodotto.quantitaAttuale <= 0 ? 'error' :
-                           prodotto.quantitaAttuale < prodotto.scortaMinima * 0.5 ? 'warning' :
-                           'default'
-                         }
-                         size="small"
-                         icon={<WarningIcon />}
-                       />
-                     </TableCell>
-                     <TableCell>
-                       <Button
-                         variant="contained"
-                         size="small"
-                         onClick={() => {
-                           setNuovoMovimento(prev => ({
-                             ...prev,
-                             tipo: 'carico',
-                             prodotto: { nome: prodotto.prodotto, categoria: '' },
-                             quantita: prodotto.daOrdinare.toString()
-                           }));
-                           setDialogOpen(true);
-                         }}
-                       >
-                         Ordina
-                       </Button>
-                     </TableCell>
-                   </TableRow>
-                 ))}
-               </TableBody>
-             </Table>
-           </TableContainer>
-         ) : (
-           <Box sx={{ textAlign: 'center', py: 4 }}>
-             <Typography variant="h6" color="text.secondary">
-               Nessun prodotto sotto scorta
-             </Typography>
-             <Typography variant="body2" color="text.secondary">
-               Tutti i prodotti hanno quantità sufficienti
-             </Typography>
-           </Box>
-         )}
-       </TabPanel>
-     </Paper>
+        {/* Tab Sotto Scorta */}
+        <TabPanel value={tab} index={2}>
+          {stats?.prodottiSottoScorta?.length > 0 ? (
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Prodotto</TableCell>
+                    <TableCell>Quantità Attuale</TableCell>
+                    <TableCell>Scorta Minima</TableCell>
+                    <TableCell>Da Ordinare</TableCell>
+                    <TableCell>Priorità</TableCell>
+                    <TableCell>Azioni</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {stats.prodottiSottoScorta.map((prodotto, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold">
+                          {prodotto.prodotto}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography color="error">
+                          {prodotto.quantitaAttuale}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {prodotto.scortaMinima}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="bold">
+                          {Math.max(0, prodotto.daOrdinare)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={
+                            prodotto.quantitaAttuale <= 0 ? 'URGENTE' :
+                            prodotto.quantitaAttuale < prodotto.scortaMinima * 0.5 ? 'ALTA' :
+                            'MEDIA'
+                          }
+                          color={
+                            prodotto.quantitaAttuale <= 0 ? 'error' :
+                            prodotto.quantitaAttuale < prodotto.scortaMinima * 0.5 ? 'warning' :
+                            'default'
+                          }
+                          size="small"
+                          icon={<WarningIcon />}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => {
+                            setNuovoMovimento(prev => ({
+                              ...prev,
+                              tipo: 'carico',
+                              prodotto: { nome: prodotto.prodotto, categoria: '' },
+                              quantita: prodotto.daOrdinare.toString()
+                            }));
+                            setDialogOpen(true);
+                          }}
+                        >
+                          Ordina
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" color="text.secondary">
+                Nessun prodotto sotto scorta
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Tutti i prodotti hanno quantità sufficienti
+              </Typography>
+            </Box>
+          )}
+        </TabPanel>
+      </Paper>
 
-     {/* Dialog Nuovo/Modifica Movimento */}
-     <Dialog 
-       open={dialogOpen} 
-       onClose={() => setDialogOpen(false)}
-       maxWidth="md"
-       fullWidth
-     >
-       <form onSubmit={handleSubmit}>
-         <DialogTitle>
-           {editingId ? 'Modifica Movimento' : 'Nuovo Movimento'}
-         </DialogTitle>
-         <DialogContent>
-           <Grid container spacing={2} sx={{ mt: 1 }}>
-             {/* Tipo Movimento */}
-             <Grid item xs={12} md={4}>
-               <FormControl fullWidth>
-                 <InputLabel>Tipo Movimento</InputLabel>
-                 <Select
-                   value={nuovoMovimento.tipo}
-                   onChange={(e) => setNuovoMovimento(prev => ({
-                     ...prev,
-                     tipo: e.target.value
-                   }))}
-                   label="Tipo Movimento"
-                 >
-                   <MenuItem value="carico">Carico</MenuItem>
-                   <MenuItem value="scarico">Scarico</MenuItem>
-                   <MenuItem value="inventario">Inventario</MenuItem>
-                   <MenuItem value="rettifica">Rettifica</MenuItem>
-                 </Select>
-               </FormControl>
-             </Grid>
+      {/* Dialog Nuovo/Modifica Movimento */}
+      <Dialog 
+        open={dialogOpen} 
+        onClose={() => setDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <form onSubmit={handleSubmit}>
+          <DialogTitle>
+            {editingId ? 'Modifica Movimento' : 'Nuovo Movimento'}
+          </DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              {/* Tipo Movimento */}
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth>
+                  <InputLabel>Tipo Movimento</InputLabel>
+                  <Select
+                    value={nuovoMovimento.tipo}
+                    onChange={(e) => setNuovoMovimento(prev => ({
+                      ...prev,
+                      tipo: e.target.value
+                    }))}
+                    label="Tipo Movimento"
+                  >
+                    <MenuItem value="carico">Carico</MenuItem>
+                    <MenuItem value="scarico">Scarico</MenuItem>
+                    <MenuItem value="inventario">Inventario</MenuItem>
+                    <MenuItem value="rettifica">Rettifica</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
 
-             {/* Prodotto */}
-             <Grid item xs={12} md={4}>
-               <TextField
-                 fullWidth
-                 label="Nome Prodotto"
-                 value={nuovoMovimento.prodotto.nome}
-                 onChange={(e) => setNuovoMovimento(prev => ({
-                   ...prev,
-                   prodotto: { ...prev.prodotto, nome: e.target.value }
-                 }))}
-                 required
-                 list="prodotti-suggeriti"
-               />
-               <datalist id="prodotti-suggeriti">
-                 {prodottiSuggeriti.map((prodotto, index) => (
-                   <option key={index} value={prodotto} />
-                 ))}
-               </datalist>
-             </Grid>
+              {/* Prodotto */}
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Nome Prodotto"
+                  value={nuovoMovimento.prodotto.nome}
+                  onChange={(e) => setNuovoMovimento(prev => ({
+                    ...prev,
+                    prodotto: { ...prev.prodotto, nome: e.target.value }
+                  }))}
+                  required
+                  list="prodotti-suggeriti"
+                />
+                <datalist id="prodotti-suggeriti">
+                  {prodottiSuggeriti.map((prodotto, index) => (
+                    <option key={index} value={prodotto} />
+                  ))}
+                </datalist>
+              </Grid>
 
-             {/* Categoria */}
-             <Grid item xs={12} md={4}>
-               <FormControl fullWidth>
-                 <InputLabel>Categoria</InputLabel>
-                 <Select
-                   value={nuovoMovimento.prodotto.categoria}
-                   onChange={(e) => setNuovoMovimento(prev => ({
-                     ...prev,
-                     prodotto: { ...prev.prodotto, categoria: e.target.value }
-                   }))}
-                   label="Categoria"
-                 >
-                   <MenuItem value="Materie Prime">Materie Prime</MenuItem>
-                   <MenuItem value="Ingredienti">Ingredienti</MenuItem>
-                   <MenuItem value="Prodotti Finiti">Prodotti Finiti</MenuItem>
-                   <MenuItem value="Imballaggi">Imballaggi</MenuItem>
-                   <MenuItem value="Accessori">Accessori</MenuItem>
-                 </Select>
-               </FormControl>
-             </Grid>
+              {/* Categoria */}
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth>
+                  <InputLabel>Categoria</InputLabel>
+                  <Select
+                    value={nuovoMovimento.prodotto.categoria}
+                    onChange={(e) => setNuovoMovimento(prev => ({
+                      ...prev,
+                      prodotto: { ...prev.prodotto, categoria: e.target.value }
+                    }))}
+                    label="Categoria"
+                  >
+                    <MenuItem value="Materie Prime">Materie Prime</MenuItem>
+                    <MenuItem value="Ingredienti">Ingredienti</MenuItem>
+                    <MenuItem value="Prodotti Finiti">Prodotti Finiti</MenuItem>
+                    <MenuItem value="Imballaggi">Imballaggi</MenuItem>
+                    <MenuItem value="Accessori">Accessori</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
 
-             {/* Quantità */}
-             <Grid item xs={12} md={6}>
-               <TextField
-                 fullWidth
-                 label="Quantità"
-                 type="number"
-                 value={nuovoMovimento.quantita}
-                 onChange={(e) => setNuovoMovimento(prev => ({
-                   ...prev,
-                   quantita: e.target.value
-                 }))}
-                 required
-                 inputProps={{ min: "0", step: "0.01" }}
-               />
-             </Grid>
+              {/* Quantità */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Quantità"
+                  type="number"
+                  value={nuovoMovimento.quantita}
+                  onChange={(e) => setNuovoMovimento(prev => ({
+                    ...prev,
+                    quantita: e.target.value
+                  }))}
+                  required
+                  inputProps={{ min: "0", step: "0.01" }}
+                />
+              </Grid>
 
-             {/* Unità di Misura */}
-             <Grid item xs={12} md={6}>
-               <FormControl fullWidth>
-                 <InputLabel>Unità di Misura</InputLabel>
-                 <Select
-                   value={nuovoMovimento.unita}
-                   onChange={(e) => setNuovoMovimento(prev => ({
-                     ...prev,
-                     unita: e.target.value
-                   }))}
-                   label="Unità di Misura"
-                 >
-                   <MenuItem value="kg">Kg</MenuItem>
-                   <MenuItem value="g">Grammi</MenuItem>
-                   <MenuItem value="l">Litri</MenuItem>
-                   <MenuItem value="ml">Millilitri</MenuItem>
-                   <MenuItem value="pz">Pezzi</MenuItem>
-                   <MenuItem value="conf">Confezioni</MenuItem>
-                 </Select>
-               </FormControl>
-             </Grid>
+              {/* Unità di Misura */}
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Unità di Misura</InputLabel>
+                  <Select
+                    value={nuovoMovimento.unita}
+                    onChange={(e) => setNuovoMovimento(prev => ({
+                      ...prev,
+                      unita: e.target.value
+                    }))}
+                    label="Unità di Misura"
+                  >
+                    <MenuItem value="kg">Kg</MenuItem>
+                    <MenuItem value="g">Grammi</MenuItem>
+                    <MenuItem value="l">Litri</MenuItem>
+                    <MenuItem value="ml">Millilitri</MenuItem>
+                    <MenuItem value="pz">Pezzi</MenuItem>
+                    <MenuItem value="conf">Confezioni</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
 
-             {/* Prezzo Unitario */}
-             <Grid item xs={12} md={6}>
-               <TextField
-                 fullWidth
-                 label="Prezzo Unitario"
-                 type="number"
-                 value={nuovoMovimento.prezzoUnitario}
-                 onChange={(e) => setNuovoMovimento(prev => ({
-                   ...prev,
-                   prezzoUnitario: e.target.value
-                 }))}
-                 inputProps={{ min: "0", step: "0.01" }}
-                 InputProps={{
-                   startAdornment: <InputAdornment position="start">€</InputAdornment>,
-                 }}
-               />
-             </Grid>
+              {/* Prezzo Unitario */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Prezzo Unitario"
+                  type="number"
+                  value={nuovoMovimento.prezzoUnitario}
+                  onChange={(e) => setNuovoMovimento(prev => ({
+                    ...prev,
+                    prezzoUnitario: e.target.value
+                  }))}
+                  inputProps={{ min: "0", step: "0.01" }}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">€</InputAdornment>,
+                  }}
+                />
+              </Grid>
 
-             {/* Fornitore */}
-             <Grid item xs={12} md={6}>
-               <TextField
-                 fullWidth
-                 label="Fornitore"
-                 value={nuovoMovimento.fornitore.nome}
-                 onChange={(e) => setNuovoMovimento(prev => ({
-                   ...prev,
-                   fornitore: { ...prev.fornitore, nome: e.target.value }
-                 }))}
-               />
-             </Grid>
+              {/* Fornitore */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Fornitore"
+                  value={nuovoMovimento.fornitore.nome}
+                  onChange={(e) => setNuovoMovimento(prev => ({
+                    ...prev,
+                    fornitore: { ...prev.fornitore, nome: e.target.value }
+                  }))}
+                />
+              </Grid>
 
-             {/* Documento di Riferimento */}
-             <Grid item xs={12} md={6}>
-               <TextField
-                 fullWidth
-                 label="Numero Documento"
-                 value={nuovoMovimento.documentoRiferimento.numero}
-                 onChange={(e) => setNuovoMovimento(prev => ({
-                   ...prev,
-                   documentoRiferimento: { 
-                     ...prev.documentoRiferimento, 
-                     numero: e.target.value 
-                   }
-                 }))}
-               />
-             </Grid>
+              {/* Documento di Riferimento */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Numero Documento"
+                  value={nuovoMovimento.documentoRiferimento.numero}
+                  onChange={(e) => setNuovoMovimento(prev => ({
+                    ...prev,
+                    documentoRiferimento: { 
+                      ...prev.documentoRiferimento, 
+                      numero: e.target.value 
+                    }
+                  }))}
+                />
+              </Grid>
 
-             {/* Lotto */}
-             <Grid item xs={12} md={6}>
-               <TextField
-                 fullWidth
-                 label="Lotto"
-                 value={nuovoMovimento.lotto}
-                 onChange={(e) => setNuovoMovimento(prev => ({
-                   ...prev,
-                   lotto: e.target.value
-                 }))}
-               />
-             </Grid>
+              {/* Lotto */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Lotto"
+                  value={nuovoMovimento.lotto}
+                  onChange={(e) => setNuovoMovimento(prev => ({
+                    ...prev,
+                    lotto: e.target.value
+                  }))}
+                />
+              </Grid>
 
-             {/* Data Scadenza */}
-             <Grid item xs={12} md={6}>
-               <TextField
-                 fullWidth
-                 label="Data Scadenza"
-                 type="date"
-                 value={nuovoMovimento.dataScadenza}
-                 onChange={(e) => setNuovoMovimento(prev => ({
-                   ...prev,
-                   dataScadenza: e.target.value
-                 }))}
-                 InputLabelProps={{
-                   shrink: true,
-                 }}
-               />
-             </Grid>
+              {/* Data Scadenza */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Data Scadenza"
+                  type="date"
+                  value={nuovoMovimento.dataScadenza}
+                  onChange={(e) => setNuovoMovimento(prev => ({
+                    ...prev,
+                    dataScadenza: e.target.value
+                  }))}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
 
-             {/* Note */}
-             <Grid item xs={12}>
-               <TextField
-                 fullWidth
-                 label="Note"
-                 multiline
-                 rows={3}
-                 value={nuovoMovimento.note}
-                 onChange={(e) => setNuovoMovimento(prev => ({
-                   ...prev,
-                   note: e.target.value
-                 }))}
-               />
-             </Grid>
+              {/* Note */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Note"
+                  multiline
+                  rows={3}
+                  value={nuovoMovimento.note}
+                  onChange={(e) => setNuovoMovimento(prev => ({
+                    ...prev,
+                    note: e.target.value
+                  }))}
+                />
+              </Grid>
 
-             {/* Riepilogo Valore */}
-             {nuovoMovimento.quantita && nuovoMovimento.prezzoUnitario && (
-               <Grid item xs={12}>
-                 <Card variant="outlined">
-                   <CardContent>
-                     <Typography variant="h6">
-                       Valore Totale Movimento: € {(
-                         parseFloat(nuovoMovimento.quantita || 0) * 
-                         parseFloat(nuovoMovimento.prezzoUnitario || 0)
-                       ).toFixed(2)}
-                     </Typography>
-                   </CardContent>
-                 </Card>
-               </Grid>
-             )}
-           </Grid>
-         </DialogContent>
-         <DialogActions>
-           <Button onClick={() => setDialogOpen(false)}>
-             Annulla
-           </Button>
-           <Button 
-             type="submit" 
-            variant="contained" 
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : null}
-          >
-            {editingId ? 'Aggiorna' : 'Salva'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
-  </Container>
-);
+              {/* Riepilogo Valore */}
+              {nuovoMovimento.quantita && nuovoMovimento.prezzoUnitario && (
+                <Grid item xs={12}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="h6">
+                        Valore Totale Movimento: € {(
+                          parseFloat(nuovoMovimento.quantita || 0) * 
+                          parseFloat(nuovoMovimento.prezzoUnitario || 0)
+                        ).toFixed(2)}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={20} /> : null}
+            >
+              {editingId ? 'Aggiorna' : 'Salva'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+    </Container>
+  );
 }
