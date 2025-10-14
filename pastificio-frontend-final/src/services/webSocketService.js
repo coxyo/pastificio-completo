@@ -1,4 +1,6 @@
+// Version 2.0.1 - Fixed isConnected method conflict
 // services/webSocketService.js
+
 import io from 'socket.io-client';
 
 class WebSocketService {
