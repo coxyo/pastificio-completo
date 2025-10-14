@@ -274,8 +274,8 @@ app.use('/api/clienti', clientiRoutes);
 
 // Routes protette
 app.use('/api/backup', protect, backupRoutes);
-app.use('/api/magazzino', protect, magazzinoRoutes);
-app.use('/api/magazzino/ingredienti', protect, ingredientiRoutes);
+app.use('/api/magazzino', magazzinoRoutes);
+app.use('/api/magazzino/ingredienti', ingredientiRoutes);
 app.use('/api/fornitori', protect, fornitoriRoutes);
 app.use('/api/report', protect, reportRoutes);
 app.use('/api/notifiche', protect, notificheRoutes);
