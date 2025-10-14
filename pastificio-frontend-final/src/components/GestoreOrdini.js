@@ -1,4 +1,4 @@
-// src/components/GestoreOrdini.js - ✅ FIX COMPLETO FINALE
+// src/components/GestoreOrdini.js - ✅ VERSIONE FINALE CON DB PRODOTTI
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -43,69 +43,6 @@ import RiepilogoGiornaliero from './RiepilogoGiornaliero';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
-
-// Configurazione prodotti aggiornata con nuovo sistema
-const prodottiDisponibili = {
-  pasta: LISTA_PRODOTTI.filter(p => {
-    const config = getProdottoConfig(p);
-    return config?.categoria === 'Ravioli' || p.includes('Culurgiones');
-  }).map(p => {
-    const config = getProdottoConfig(p);
-    return {
-      nome: p,
-      prezzo: config.prezzoKg || config.prezzoPezzo || 0,
-      unita: config.unitaMisuraDisponibili[0] || 'Kg',
-      descrizione: config.descrizione || '',
-      pezziPerKg: config.pezziPerKg,
-      config: config
-    };
-  }),
-  
-  dolci: LISTA_PRODOTTI.filter(p => {
-    const config = getProdottoConfig(p);
-    return config?.categoria === 'Dolci' || config?.categoria === 'Pardulas';
-  }).map(p => {
-    const config = getProdottoConfig(p);
-    return {
-      nome: p,
-      prezzo: config.prezzoKg || config.prezzoPezzo || 0,
-      unita: config.unitaMisuraDisponibili[0] || 'Kg',
-      descrizione: config.descrizione || '',
-      pezziPerKg: config.pezziPerKg,
-      config: config
-    };
-  }),
-  
-  panadas: LISTA_PRODOTTI.filter(p => {
-    const config = getProdottoConfig(p);
-    return config?.categoria === 'Panadas';
-  }).map(p => {
-    const config = getProdottoConfig(p);
-    return {
-      nome: p,
-      prezzo: config.prezzoKg || config.prezzoPezzo || 0,
-      unita: config.unitaMisuraDisponibili[0] || 'Kg',
-      descrizione: config.descrizione || '',
-      pezziPerKg: config.pezziPerKg,
-      config: config
-    };
-  }),
-  
-  altro: LISTA_PRODOTTI.filter(p => {
-    const config = getProdottoConfig(p);
-    return config?.categoria === 'Altro';
-  }).map(p => {
-    const config = getProdottoConfig(p);
-    return {
-      nome: p,
-      prezzo: config.prezzoKg || config.prezzoPezzo || 0,
-      unita: config.unitaMisuraDisponibili[0] || 'Kg',
-      descrizione: config.descrizione || '',
-      pezziPerKg: config.pezziPerKg,
-      config: config
-    };
-  })
-};
 
 // Componente Riepilogo Semplice
 function RiepilogoSemplice({ ordini, dataSelezionata }) {
@@ -310,9 +247,175 @@ export default function GestoreOrdini() {
   const [performanceScore, setPerformanceScore] = useState(100);
   const [notifica, setNotifica] = useState({ aperta: false, messaggio: '', tipo: 'info' });
   
+  // ✅ NUOVO: State per prodotti dal DB
+  const [prodottiDisponibili, setProdottiDisponibili] = useState({
+    pasta: [],
+    dolci: [],
+    panadas: [],
+    altro: []
+  });
+  const [prodottiCaricati, setProdottiCaricati] = useState(false);
+  
   const wsRef = useRef(null);
   const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  
+  // ✅ NUOVO: Carica prodotti dal database
+  useEffect(() => {
+    const caricaProdottiDB = async () => {
+      try {
+        console.log('📦 Caricamento prodotti dal database...');
+        
+        const response = await fetch(`${API_URL}/prodotti/disponibili`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const prodottiDB = data.data || [];
+          
+          console.log(`✅ Ricevuti ${prodottiDB.length} prodotti dal server`);
+          
+          // Raggruppa per categoria
+          const raggruppati = {
+            pasta: prodottiDB
+              .filter(p => p.categoria === 'Ravioli')
+              .map(p => ({
+                nome: p.nome,
+                prezzo: p.prezzoKg || p.prezzoPezzo || 0,
+                unita: p.unitaMisuraDisponibili[0] || 'Kg',
+                descrizione: p.descrizione || '',
+                pezziPerKg: p.pezziPerKg,
+                config: p
+              })),
+            
+            dolci: prodottiDB
+              .filter(p => p.categoria === 'Dolci' || p.categoria === 'Pardulas')
+              .map(p => ({
+                nome: p.nome,
+                prezzo: p.prezzoKg || p.prezzoPezzo || 0,
+                unita: p.unitaMisuraDisponibili[0] || 'Kg',
+                descrizione: p.descrizione || '',
+                pezziPerKg: p.pezziPerKg,
+                config: p
+              })),
+            
+            panadas: prodottiDB
+              .filter(p => p.categoria === 'Panadas')
+              .map(p => ({
+                nome: p.nome,
+                prezzo: p.prezzoKg || p.prezzoPezzo || 0,
+                unita: p.unitaMisuraDisponibili[0] || 'Kg',
+                descrizione: p.descrizione || '',
+                pezziPerKg: p.pezziPerKg,
+                config: p
+              })),
+            
+            altro: prodottiDB
+              .filter(p => p.categoria === 'Altro')
+              .map(p => ({
+                nome: p.nome,
+                prezzo: p.prezzoKg || p.prezzoPezzo || 0,
+                unita: p.unitaMisuraDisponibili[0] || 'Kg',
+                descrizione: p.descrizione || '',
+                pezziPerKg: p.pezziPerKg,
+                config: p
+              }))
+          };
+          
+          setProdottiDisponibili(raggruppati);
+          setProdottiCaricati(true);
+          
+          console.log('✅ Prodotti raggruppati per categoria:');
+          console.log(`   - Pasta: ${raggruppati.pasta.length}`);
+          console.log(`   - Dolci: ${raggruppati.dolci.length}`);
+          console.log(`   - Panadas: ${raggruppati.panadas.length}`);
+          console.log(`   - Altro: ${raggruppati.altro.length}`);
+          
+          mostraNotifica(`Caricati ${prodottiDB.length} prodotti dal database`, 'success');
+          
+        } else {
+          throw new Error(`Errore ${response.status}`);
+        }
+      } catch (error) {
+        console.error('❌ Errore caricamento prodotti:', error);
+        mostraNotifica('Usando prodotti di default', 'warning');
+        
+        // ✅ FALLBACK: Usa prodotti hardcoded se il caricamento fallisce
+        console.warn('⚠️ Usando prodotti hardcoded come fallback');
+        
+        const fallbackProdotti = {
+          pasta: LISTA_PRODOTTI.filter(p => {
+            const config = getProdottoConfig(p);
+            return config?.categoria === 'Ravioli' || p.includes('Culurgiones');
+          }).map(p => {
+            const config = getProdottoConfig(p);
+            return {
+              nome: p,
+              prezzo: config.prezzoKg || config.prezzoPezzo || 0,
+              unita: config.unitaMisuraDisponibili[0] || 'Kg',
+              descrizione: config.descrizione || '',
+              pezziPerKg: config.pezziPerKg,
+              config: config
+            };
+          }),
+          
+          dolci: LISTA_PRODOTTI.filter(p => {
+            const config = getProdottoConfig(p);
+            return config?.categoria === 'Dolci' || config?.categoria === 'Pardulas';
+          }).map(p => {
+            const config = getProdottoConfig(p);
+            return {
+              nome: p,
+              prezzo: config.prezzoKg || config.prezzoPezzo || 0,
+              unita: config.unitaMisuraDisponibili[0] || 'Kg',
+              descrizione: config.descrizione || '',
+              pezziPerKg: config.pezziPerKg,
+              config: config
+            };
+          }),
+          
+          panadas: LISTA_PRODOTTI.filter(p => {
+            const config = getProdottoConfig(p);
+            return config?.categoria === 'Panadas';
+          }).map(p => {
+            const config = getProdottoConfig(p);
+            return {
+              nome: p,
+              prezzo: config.prezzoKg || config.prezzoPezzo || 0,
+              unita: config.unitaMisuraDisponibili[0] || 'Kg',
+              descrizione: config.descrizione || '',
+              pezziPerKg: config.pezziPerKg,
+              config: config
+            };
+          }),
+          
+          altro: LISTA_PRODOTTI.filter(p => {
+            const config = getProdottoConfig(p);
+            return config?.categoria === 'Altro';
+          }).map(p => {
+            const config = getProdottoConfig(p);
+            return {
+              nome: p,
+              prezzo: config.prezzoKg || config.prezzoPezzo || 0,
+              unita: config.unitaMisuraDisponibili[0] || 'Kg',
+              descrizione: config.descrizione || '',
+              pezziPerKg: config.pezziPerKg,
+              config: config
+            };
+          })
+        };
+        
+        setProdottiDisponibili(fallbackProdotti);
+        setProdottiCaricati(true);
+      }
+    };
+    
+    caricaProdottiDB();
+  }, []); // Esegui solo al mount
   
   // Keep-alive per mantenere il backend Railway attivo
   useEffect(() => {
@@ -326,7 +429,7 @@ export default function GestoreOrdini() {
       } catch (error) {
         console.log('Keep-alive fallito:', error.message);
       }
-    }, 4 * 60 * 1000); // Ogni 4 minuti
+    }, 4 * 60 * 1000);
 
     return () => clearInterval(keepAlive);
   }, []);
@@ -356,6 +459,10 @@ export default function GestoreOrdini() {
             case 'ordine_creato':
             case 'ordine_eliminato':
               sincronizzaConMongoDB();
+              break;
+            case 'alert-scorte':
+              // Mostra notifica giacenze
+              mostraNotifica(`⚠️ Scorta bassa: ${data.prodotto} (${data.quantita} ${data.unita})`, 'warning');
               break;
             case 'ping':
               if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -387,7 +494,7 @@ export default function GestoreOrdini() {
     }
   }, []);
   
-  // ✅ FIX CRITICO: Sincronizzazione SENZA manipolare i dati del server
+  // Sincronizzazione con MongoDB
   const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
@@ -418,18 +525,14 @@ export default function GestoreOrdini() {
         
         console.log(`✅ Sincronizzati ${ordiniBackend.length} ordini dal server`);
         
-        // ✅ FIX CRITICO: USA I DATI DEL SERVER ESATTAMENTE COME SONO!
-        // NON manipolare, NON ricalcolare, NON modificare NULLA
-        const ordiniFinali = ordiniBackend; // ⬅️ NESSUNA TRASFORMAZIONE!
+        const ordiniFinali = ordiniBackend;
         
-        // Ordina solo per data di creazione (più recenti prima)
         ordiniFinali.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.dataRitiro);
           const dateB = new Date(b.createdAt || b.dataRitiro);
           return dateB - dateA;
         });
         
-        // ✅ Salva DIRETTAMENTE senza modifiche
         localStorage.setItem('ordini', JSON.stringify(ordiniFinali));
         setOrdini(ordiniFinali);
         
@@ -439,18 +542,13 @@ export default function GestoreOrdini() {
         console.log('✅ Ordini sincronizzati ESATTAMENTE come sul server');
         
         return true;
-      } else if (response.status === 404) {
-        console.log('Endpoint non trovato, usando dati locali');
-        throw new Error('Endpoint not found');
       } else {
         throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('Errore sincronizzazione:', error);
       
-      // Retry logic
       if (retry < 2 && navigator.onLine) {
-        console.log(`Riprovo tra 3 secondi... (tentativo ${retry + 2}/3)`);
         setTimeout(() => {
           sincronizzaConMongoDB(retry + 1);
         }, 3000);
@@ -459,7 +557,6 @@ export default function GestoreOrdini() {
       
       setIsConnected(false);
       
-      // Usa cache locale
       const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
       setOrdini(ordiniCache);
       
@@ -514,14 +611,12 @@ export default function GestoreOrdini() {
   useEffect(() => {
     console.log('Inizializzazione GestoreOrdini...');
     
-    // Carica ordini dalla cache
     const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
     if (ordiniCache.length > 0) {
       setOrdini(ordiniCache);
       console.log(`Caricati ${ordiniCache.length} ordini dalla cache`);
     }
     
-    // Wake up del server Railway
     const wakeUpServer = async () => {
       try {
         await fetch(`${API_URL.replace('/api', '')}/health`, { 
@@ -533,7 +628,6 @@ export default function GestoreOrdini() {
         console.log('Wake up server fallito:', error.message);
       }
       
-      // Sincronizza dopo 1 secondo
       setTimeout(() => {
         sincronizzaConMongoDB();
       }, 1000);
@@ -542,7 +636,6 @@ export default function GestoreOrdini() {
     wakeUpServer();
     connectWebSocket();
     
-    // Sincronizzazione automatica ogni 30 secondi
     syncIntervalRef.current = setInterval(() => {
       sincronizzaConMongoDB();
     }, 30000);
@@ -584,7 +677,6 @@ export default function GestoreOrdini() {
   
   // Creazione nuovo ordine
   const creaOrdine = async (ordine) => {
-    // Calcola i prezzi SOLO per inviarli al backend
     let totaleOrdine = 0;
     const prodottiConCalcolo = (ordine.prodotti || []).map(p => {
       const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
@@ -635,10 +727,8 @@ export default function GestoreOrdini() {
         const ordineCreato = await response.json();
         console.log('✅ Ordine creato con successo:', ordineCreato);
         
-        // ✅ Ricarica TUTTI gli ordini dal server
         await sincronizzaConMongoDB();
         
-        // Notifica via WebSocket
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({
             type: 'ordine_creato',
@@ -646,21 +736,19 @@ export default function GestoreOrdini() {
           }));
         }
         
-        mostraNotifica('Ordine salvato e sincronizzato', 'success');
+        mostraNotifica('Ordine salvato e giacenze aggiornate', 'success');
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ Errore backend:', response.status, errorData);
-        throw new Error(`Server error: ${response.status} - ${errorData.message || 'Unknown error'}`);
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('❌ Errore creazione ordine:', error);
       
-      // Salva offline
       const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
       ordiniOffline.push(nuovoOrdine);
       localStorage.setItem('ordiniOffline', JSON.stringify(ordiniOffline));
       
-      // Aggiungi alla lista locale con flag di sincronizzazione pendente
       const ordineConFlag = { ...nuovoOrdine, _syncPending: true };
       setOrdini(prev => [ordineConFlag, ...prev]);
       
@@ -715,7 +803,6 @@ export default function GestoreOrdini() {
       });
       
       if (response.ok) {
-        // ✅ Ricarica TUTTI gli ordini dal server
         await sincronizzaConMongoDB();
         mostraNotifica('Ordine aggiornato', 'success');
       } else {
@@ -724,7 +811,6 @@ export default function GestoreOrdini() {
     } catch (error) {
       console.error('Errore aggiornamento:', error);
       
-      // Aggiorna cache locale
       setOrdini(prev => prev.map(o => 
         (o._id || o.id) === (ordineAggiornato._id || ordineAggiornato.id) 
           ? { ...ordineAggiornato, _syncPending: true }
@@ -752,7 +838,6 @@ export default function GestoreOrdini() {
       });
       
       if (response.ok) {
-        // ✅ Ricarica TUTTI gli ordini dal server
         await sincronizzaConMongoDB();
         mostraNotifica('Ordine eliminato', 'success');
       } else {
@@ -824,7 +909,7 @@ export default function GestoreOrdini() {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
 
-  // Export functions
+  // Export functions (resto del codice invariato)
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -1007,7 +1092,7 @@ export default function GestoreOrdini() {
     return () => clearInterval(interval);
   }, [ordini]);
   
-  // RENDER
+  // RENDER (resto del codice UI invariato - troppo lungo per includerlo tutto)
   return (
     <>
       <style jsx global>{`
@@ -1026,7 +1111,7 @@ export default function GestoreOrdini() {
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
             <Typography variant="h4" component="h1">
-              Gestione Ordini
+              Gestione Ordini {prodottiCaricati && `✅ (${Object.values(prodottiDisponibili).flat().length} prodotti caricati)`}
             </Typography>
             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -1177,7 +1262,7 @@ export default function GestoreOrdini() {
                 {isConnected ? <WifiIcon /> : <WifiOffIcon />}
                 <Typography variant="body2">
                   {isConnected 
-                    ? '✅ Sistema Calcolo Prezzi Attivo - Sincronizzazione attiva' 
+                    ? '✅ Prodotti dal DB - Giacenze automatiche attive - Sincronizzazione OK' 
                     : 'Modalità Offline - I dati verranno sincronizzati al ripristino della connessione'}
                 </Typography>
               </Box>
