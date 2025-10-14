@@ -633,7 +633,7 @@ export default function MovimentiMagazzino() {
       
       aggiornaGiacenzeOffline(movimentoOffline);
       
-      if (webSocketService.isConnected() && !webSocketService.isMockMode()) {
+if (webSocketService.isConnected && !webSocketService.isMockMode) {
         console.log('📤 Invio movimento via WebSocket...');
         webSocketService.emit('aggiungi_movimento', movimentoOffline);
       }
@@ -742,7 +742,7 @@ export default function MovimentiMagazzino() {
       localStorage.setItem('movimentiMagazzino', JSON.stringify(nuoviMovimenti));
       setMovimenti(nuoviMovimenti);
       
-      if (webSocketService.isConnected()) {
+      if (webSocketService.isConnected) {
         webSocketService.emit('elimina_movimento', { id });
       }
       
