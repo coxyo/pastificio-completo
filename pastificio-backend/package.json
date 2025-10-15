@@ -24,7 +24,8 @@
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "db:seed": "node scripts/seed.js",
     "db:reset": "node scripts/reset.js",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+"seed": "node scripts/seedUsers.js"
   },
   "keywords": [
     "pastificio",

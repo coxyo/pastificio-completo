@@ -12,6 +12,23 @@ import { dirname } from 'path';
 import path from 'path';
 import fs from 'fs';
 import cron from 'node-cron';
+import * as Sentry from '@sentry/node';
+
+// Configurazione path
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Carica variabili ambiente
+dotenv.config();
+
+// ✅ INIZIALIZZA SENTRY SUBITO (PRIMA DI TUTTO)
+Sentry.init({
+  dsn: process.env.SENTRY_DSN_BACKEND,
+  environment: process.env.NODE_ENV || 'production',
+  tracesSampleRate: 1.0,
+});
+
+console.log('✅ Sentry Backend inizializzato');
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -52,13 +69,6 @@ import backupService from './services/backupService.js';
 import whatsappService from './services/whatsappService.js';
 import schedulerService from './services/schedulerService.js';
 import schedulerWhatsApp from './services/schedulerWhatsApp.js';
-
-// Configurazione path
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Carica variabili ambiente
-dotenv.config();
 
 // Configura Mongoose
 mongoose.set('strictQuery', false);
@@ -118,8 +128,8 @@ const corsOptions = {
       'http://localhost:3001',
       'https://pastificio-frontend-final.vercel.app',
       'https://pastificio-nonna-claudia.vercel.app',
-      process.env.FRONTEND_URL // ⬅️ AGGIUNTO: Legge da variabile Railway
-    ].filter(Boolean); // ⬅️ AGGIUNTO: Rimuove undefined
+      process.env.FRONTEND_URL
+    ].filter(Boolean);
     
     // Permetti richieste senza origin (es. Postman, app mobile, server-to-server)
     if (!origin) {
@@ -135,7 +145,6 @@ const corsOptions = {
       callback(null, true);
     } else {
       logger.warn('CORS blocked origin:', origin);
-      // ⬅️ MODIFICATO: Non bloccare più in produzione
       callback(null, true); 
     }
   },
@@ -150,6 +159,10 @@ app.use(cors(corsOptions));
 
 // Gestione OPTIONS per preflight
 app.options('*', cors(corsOptions));
+
+// ✅ MIDDLEWARE SENTRY (DOPO CORS, PRIMA DELLE ROUTE)
+app.use(Sentry.Handlers.requestHandler());
+app.use(Sentry.Handlers.tracingHandler());
 
 // Middleware parsing
 app.use(express.json({ limit: '50mb' }));
@@ -262,6 +275,11 @@ app.get('/api/health', (req, res) => {
     whatsapp: whatsappService.isReady() ? 'connected' : 'disconnected',
     schedulerWhatsApp: schedulerWhatsApp && schedulerWhatsApp.jobs ? schedulerWhatsApp.jobs.size : 0
   });
+});
+
+// ✅ ROUTE TEST SENTRY (TEMPORANEA - RIMUOVERE DOPO TEST)
+app.get('/api/sentry-test', (req, res) => {
+  throw new Error('🧪 Test Sentry Backend - Errore Intenzionale');
 });
 
 // Auth routes - NON PROTETTE
@@ -823,6 +841,10 @@ app.use((req, res, next) => {
   });
 });
 
+// ✅ ERROR HANDLER SENTRY (PRIMA DELL'ERROR HANDLER FINALE)
+app.use(Sentry.Handlers.errorHandler());
+
+// Error handler finale
 app.use((err, req, res, next) => {
   logger.error('Errore del server', { 
     error: err.message, 
@@ -909,7 +931,8 @@ const startServer = async () => {
         mongoUri: process.env.MONGODB_URI?.substring(0, 20) + '...',
         whatsapp: whatsappService.isReady() ? 'connesso' : 'non connesso',
         schedulerWhatsApp: schedulerWhatsApp && schedulerWhatsApp.jobs ? schedulerWhatsApp.jobs.size : 0,
-        frontendUrl: process.env.FRONTEND_URL || 'non configurato' // ⬅️ AGGIUNTO
+        frontendUrl: process.env.FRONTEND_URL || 'non configurato',
+        sentry: '✅ inizializzato'
       });
       
       // Se WhatsApp si connette dopo, attiva lo scheduler
