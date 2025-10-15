@@ -245,13 +245,89 @@ const prodottiController = {
     }
   },
 
-  // PUT /api/prodotti/:id - Aggiorna prodotto
+  // PUT /api/prodotti/:id - Aggiorna prodotto ✅ FIX VARIANTI
   update: async (req, res) => {
     try {
+      // ✅ NUOVO: Validazione e sanitizzazione varianti se presenti
+      if (req.body.varianti && Array.isArray(req.body.varianti)) {
+        logger.info(`Aggiornamento prodotto con ${req.body.varianti.length} varianti`);
+        
+        // Valida che ogni variante abbia almeno nome
+        for (let i = 0; i < req.body.varianti.length; i++) {
+          const variante = req.body.varianti[i];
+          
+          // Nome obbligatorio
+          if (!variante.nome || variante.nome.trim() === '') {
+            return res.status(400).json({
+              success: false,
+              message: `Variante #${i + 1}: il nome è obbligatorio`
+            });
+          }
+          
+          // Sanitizza prezzo
+          if (variante.prezzo !== undefined && variante.prezzo !== null) {
+            variante.prezzo = parseFloat(variante.prezzo);
+            if (isNaN(variante.prezzo) || variante.prezzo < 0) {
+              return res.status(400).json({
+                success: false,
+                message: `Variante "${variante.nome}": prezzo non valido (${variante.prezzo})`
+              });
+            }
+          } else {
+            variante.prezzo = 0; // Default
+          }
+          
+          // Sanitizza prezzoMaggiorazione
+          if (variante.prezzoMaggiorazione !== undefined && variante.prezzoMaggiorazione !== null) {
+            variante.prezzoMaggiorazione = parseFloat(variante.prezzoMaggiorazione);
+            if (isNaN(variante.prezzoMaggiorazione)) {
+              variante.prezzoMaggiorazione = 0;
+            }
+          } else {
+            variante.prezzoMaggiorazione = 0; // Default
+          }
+          
+          // Sanitizza disponibile
+          if (variante.disponibile === undefined) {
+            variante.disponibile = true; // Default
+          } else {
+            variante.disponibile = Boolean(variante.disponibile);
+          }
+          
+          // Sanitizza descrizione
+          if (variante.descrizione && typeof variante.descrizione === 'string') {
+            variante.descrizione = variante.descrizione.trim();
+          }
+          
+          logger.debug(`Variante sanitizzata: ${JSON.stringify(variante)}`);
+        }
+      }
+      
+      // ✅ Sanitizza altri campi numerici
+      if (req.body.prezzoKg !== undefined) {
+        req.body.prezzoKg = parseFloat(req.body.prezzoKg);
+        if (isNaN(req.body.prezzoKg)) req.body.prezzoKg = 0;
+      }
+      
+      if (req.body.prezzoPezzo !== undefined) {
+        req.body.prezzoPezzo = parseFloat(req.body.prezzoPezzo);
+        if (isNaN(req.body.prezzoPezzo)) req.body.prezzoPezzo = 0;
+      }
+      
+      if (req.body.pezziPerKg !== undefined) {
+        req.body.pezziPerKg = parseInt(req.body.pezziPerKg);
+        if (isNaN(req.body.pezziPerKg)) req.body.pezziPerKg = 0;
+      }
+      
+      // Aggiorna prodotto
       const prodotto = await Prodotto.findByIdAndUpdate(
         req.params.id,
         req.body,
-        { new: true, runValidators: true }
+        { 
+          new: true, 
+          runValidators: true,
+          context: 'query' // ✅ IMPORTANTE: serve per validazioni con update
+        }
       );
       
       if (!prodotto) {
@@ -261,7 +337,11 @@ const prodottiController = {
         });
       }
       
-      logger.info(`Prodotto aggiornato: ${prodotto.nome}`);
+      logger.info(`✅ Prodotto aggiornato: ${prodotto.nome}`, {
+        id: prodotto._id,
+        hasVarianti: !!(prodotto.varianti && prodotto.varianti.length > 0),
+        numVarianti: prodotto.varianti ? prodotto.varianti.length : 0
+      });
       
       res.json({
         success: true,
@@ -269,7 +349,13 @@ const prodottiController = {
         data: prodotto
       });
     } catch (error) {
-      logger.error('Errore aggiornamento prodotto:', error);
+      logger.error('❌ Errore aggiornamento prodotto:', {
+        error: error.message,
+        stack: error.stack,
+        prodottoId: req.params.id,
+        body: JSON.stringify(req.body).substring(0, 200) // Log primi 200 caratteri
+      });
+      
       res.status(500).json({
         success: false,
         message: 'Errore aggiornamento prodotto',
