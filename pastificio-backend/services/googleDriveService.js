@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import logger from '../config/logger.js';
 
 const BACKUP_FOLDER_NAME = 'Pastificio_Backup';
-const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+const SCOPES = ['https://www.googleapis.com/auth/drive']; // ✅ CAMBIATO DA drive.file A drive
 
 class GoogleDriveService {
   constructor() {
@@ -73,6 +73,7 @@ class GoogleDriveService {
           logger.info(`✅ Cartella verificata: ${folder.data.name}`);
         } catch (error) {
           logger.error('❌ Cartella non accessibile. Verifica ID e permessi.');
+          logger.error('Dettagli errore:', error.message);
           return false;
         }
       } else {
