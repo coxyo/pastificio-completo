@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-"build": "next build --no-lint",    "start": "next start",
+    "build": "next build --no-lint",
+    "start": "next start",
     "lint": "next lint",
     "test": "jest --watch",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
@@ -29,7 +30,7 @@
     "@mui/x-date-pickers": "^8.9.2",
     "@radix-ui/react-popover": "^1.1.14",
     "@radix-ui/react-tabs": "^1.1.12",
-    "@sentry/nextjs": "^10.5.0",
+    "@sentry/nextjs": "^10.19.0",
     "@uiw/react-codemirror": "^4.24.2",
     "axios": "^1.11.0",
     "chart.js": "^4.4.9",

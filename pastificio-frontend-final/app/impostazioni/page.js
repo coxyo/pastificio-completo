@@ -7,7 +7,11 @@ import {
   Button, Tabs, Tab, Alert, Divider, Switch,
   FormControlLabel, InputAdornment
 } from '@mui/material';
-import { Save, Business, Receipt, Email } from '@mui/icons-material';
+import { 
+  Save, Business, Receipt, Email, 
+  CloudUpload // ✅ AGGIUNTO per icona Backup
+} from '@mui/icons-material';
+import BackupManager from '@/components/Backup/BackupManager'; // ✅ IMPORT
 
 export default function ImpostazioniPage() {
   const [tabValue, setTabValue] = useState(0);
@@ -34,11 +38,7 @@ export default function ImpostazioniPage() {
     // Email
     emailNotifiche: true,
     emailOrdini: '',
-    emailFatture: '',
-    
-    // Backup
-    backupAutomatico: true,
-    intervalloBackup: 'giornaliero'
+    emailFatture: ''
   });
 
   useEffect(() => {
@@ -78,6 +78,7 @@ export default function ImpostazioniPage() {
           <Tab icon={<Business />} label="Dati Azienda" />
           <Tab icon={<Receipt />} label="Fatturazione" />
           <Tab icon={<Email />} label="Notifiche" />
+          <Tab icon={<CloudUpload />} label="Backup" /> {/* ✅ NUOVA TAB */}
         </Tabs>
       </Paper>
 
@@ -264,16 +265,24 @@ export default function ImpostazioniPage() {
         </Paper>
       )}
 
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <Button
-          variant="contained"
-          size="large"
-          startIcon={<Save />}
-          onClick={handleSave}
-        >
-          Salva Impostazioni
-        </Button>
-      </Box>
+      {/* ✅ NUOVA TAB BACKUP */}
+      {tabValue === 3 && (
+        <BackupManager />
+      )}
+
+      {/* Pulsante Salva solo per le altre tab */}
+      {tabValue !== 3 && (
+        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<Save />}
+            onClick={handleSave}
+          >
+            Salva Impostazioni
+          </Button>
+        </Box>
+      )}
     </Container>
   );
 }
