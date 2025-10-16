@@ -1,4 +1,4 @@
-// models/Ordine.js - ✅ MODELLO OTTIMIZZATO CON CALCOLO PREZZI CENTRALIZZATO
+// models/Ordine.js - ✅ MODELLO OTTIMIZZATO CON SUPPORTO VASSOIO DOLCI MISTI
 import mongoose from 'mongoose';
 // ✅ FIX: Import sistema calcolo prezzi
 import calcoliPrezzi from '../utils/calcoliPrezzi.js';
@@ -17,12 +17,28 @@ const prodottoSchema = new mongoose.Schema({
   },
   unita: {
     type: String,
-    enum: ['kg', 'Kg', 'KG', 'pezzi', 'Pezzi', 'PEZZI', 'unità', 'Unità', '€', 'EUR', 'g', 'G', 'l', 'L'],
+    enum: [
+      'kg', 'Kg', 'KG', 
+      'pezzi', 'Pezzi', 'PEZZI', 
+      'unità', 'Unità', 
+      '€', 'EUR', 
+      'g', 'G', 
+      'l', 'L',
+      'vassoio' // ✅ AGGIUNTO PER VASSOI DOLCI MISTI
+    ],
     default: 'kg'
   },
   unitaMisura: {
     type: String,
-    enum: ['kg', 'Kg', 'KG', 'pezzi', 'Pezzi', 'PEZZI', 'unità', 'Unità', '€', 'EUR', 'g', 'G', 'l', 'L'],
+    enum: [
+      'kg', 'Kg', 'KG', 
+      'pezzi', 'Pezzi', 'PEZZI', 
+      'unità', 'Unità', 
+      '€', 'EUR', 
+      'g', 'G', 
+      'l', 'L',
+      'vassoio' // ✅ AGGIUNTO PER VASSOI DOLCI MISTI
+    ],
     default: 'kg'
   },
   prezzo: {
@@ -46,9 +62,16 @@ const prodottoSchema = new mongoose.Schema({
     trim: true,
     comment: 'Es: ricotta, carne, verdure, etc.'
   },
+  // ✅ CAMPO FONDAMENTALE PER VASSOI
   dettagliCalcolo: {
     type: mongoose.Schema.Types.Mixed,
-    comment: 'Dati di calcolo dal backend per debug/audit'
+    comment: 'Dati di calcolo dal backend per debug/audit. Per vassoi contiene la composizione dettagliata'
+  },
+  // ✅ NUOVO: Note specifiche per il prodotto (es. per vassoi)
+  note: {
+    type: String,
+    trim: true,
+    comment: 'Note specifiche per questo prodotto (es. "Confezionare insieme" per vassoi)'
   }
 }, { _id: false });
 
@@ -261,27 +284,58 @@ ordineSchema.index({ pagato: 1, dataRitiro: 1 });
 // ==========================================
 
 /**
- * ✅ FIX: Calcola il totale ordine usando il sistema centralizzato
- * Ricalcola SEMPRE i prezzi usando calcoliPrezzi.js per garantire coerenza
+ * ✅ FIX: Calcola il totale ordine con supporto VASSOIO
+ * Ricalcola i prezzi usando il sistema centralizzato, MA rispetta i vassoi
  */
 ordineSchema.methods.calcolaTotale = function() {
-  // ✅ RICALCOLA ogni prodotto usando il sistema centralizzato
+  // ✅ RICALCOLA ogni prodotto, MA SALTA i vassoi
   this.prodotti = this.prodotti.map(p => {
-    const risultatoCalcolo = calcoliPrezzi.calcolaPrezzoOrdine(
-      p.nome,
-      p.quantita,
-      p.unita || p.unitaMisura || 'kg'
-    );
+    // ✅ SE È UN VASSOIO, USA IL PREZZO GIÀ CALCOLATO (non ricalcolare)
+    if (p.nome === 'Vassoio Dolci Misti' || p.unita === 'vassoio') {
+      console.log(`🎂 Vassoio rilevato: ${p.nome} - Prezzo: €${p.prezzo} (non ricalcolato)`);
+      
+      // Mantieni prezzo e dettagli esistenti
+      return {
+        ...p,
+        prezzo: p.prezzo || 0,
+        dettagliCalcolo: p.dettagliCalcolo || {
+          dettagli: 'Vassoio personalizzato',
+          prezzoTotale: p.prezzo || 0
+        }
+      };
+    }
     
-    // Aggiorna il prezzo con quello calcolato correttamente
-    p.prezzo = risultatoCalcolo.prezzoTotale;
-    p.prezzoUnitario = risultatoCalcolo.prezzoTotale / p.quantita;
-    p.dettagliCalcolo = risultatoCalcolo;
-    
-    return p;
+    // ✅ PRODOTTO NORMALE: Ricalcola usando sistema centralizzato
+    try {
+      const risultatoCalcolo = calcoliPrezzi.calcolaPrezzoOrdine(
+        p.nome,
+        p.quantita,
+        p.unita || p.unitaMisura || 'kg'
+      );
+      
+      // Aggiorna il prezzo con quello calcolato correttamente
+      p.prezzo = risultatoCalcolo.prezzoTotale;
+      p.prezzoUnitario = risultatoCalcolo.prezzoTotale / p.quantita;
+      p.dettagliCalcolo = risultatoCalcolo;
+      
+      return p;
+    } catch (error) {
+      console.error(`❌ Errore calcolo prezzo per ${p.nome}:`, error.message);
+      
+      // Fallback: mantieni prezzo esistente
+      return {
+        ...p,
+        prezzo: p.prezzo || 0,
+        dettagliCalcolo: {
+          dettagli: `${p.quantita} ${p.unita}`,
+          prezzoTotale: p.prezzo || 0,
+          errore: error.message
+        }
+      };
+    }
   });
   
-  // Somma i prezzi ricalcolati
+  // Somma i prezzi (sia vassoi che prodotti normali)
   this.totaleCalcolato = this.prodotti.reduce((sum, p) => {
     return sum + (p.prezzo || 0);
   }, 0);
@@ -307,6 +361,11 @@ ordineSchema.methods.calcolaTotale = function() {
  */
 ordineSchema.methods.getCategoriaProdotto = function(nomeProdotto) {
   const nome = nomeProdotto?.toLowerCase() || '';
+  
+  // ✅ VASSOI
+  if (nome.includes('vassoio')) {
+    return 'dolci';
+  }
   
   // Panadas
   if (nome.includes('panada') || nome.includes('panadine')) {
@@ -383,13 +442,26 @@ ordineSchema.methods.completaOrdine = function() {
 // ==========================================
 
 /**
- * ✅ FIX: Hook pre-save con ricalcolo prezzi intelligente
+ * ✅ FIX: Hook pre-save con ricalcolo prezzi intelligente E supporto VASSOIO
  */
 ordineSchema.pre('save', function(next) {
   // ✅ NORMALIZZA PRODOTTI E RICALCOLA SE NECESSARIO
   let needsRecalculation = false;
   
   this.prodotti = this.prodotti.map(p => {
+    // ✅ SE È UN VASSOIO, NON NORMALIZZARE/RICALCOLARE
+    if (p.nome === 'Vassoio Dolci Misti' || p.unita === 'vassoio') {
+      console.log(`🎂 Vassoio rilevato in pre-save: ${p.nome} - Mantengo prezzo €${p.prezzo}`);
+      
+      // Assicura che abbia categoria dolci
+      if (!p.categoria || p.categoria === 'altro') {
+        p.categoria = 'dolci';
+      }
+      
+      // Non marcare per ricalcolo
+      return p;
+    }
+    
     // Pulisci nome prodotto (rimuovi quantità se presente)
     if (p.nome) {
       p.nome = p.nome
