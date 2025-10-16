@@ -1,4 +1,4 @@
-// server.js
+// server.js - ✅ VERSIONE COMPLETA CON ROUTE LIMITI
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -16,6 +16,7 @@ import cron from 'node-cron';
 // Import routes
 import authRoutes from './routes/auth.js';
 import ordiniRoutes from './routes/ordini.js';
+import limitiRoutes from './routes/limiti.js'; // ✅ NUOVO
 import dashboardRoutes from './routes/dashboard.js';
 import backupRoutes from './routes/backup.js';
 import magazzinoRoutes from './routes/magazzino.js';
@@ -270,6 +271,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/ordini', ordiniRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/clienti', clientiRoutes);
+app.use('/api/limiti', limitiRoutes); // ✅ NUOVO
 
 // Routes protette
 app.use('/api/backup', backupRoutes);
@@ -370,7 +372,6 @@ io.on('connection', (socket) => {
   // NUOVO: Handler per eventi ordini
   socket.on('ordine-creato', (data) => {
     logger.info('📦 Nuovo ordine ricevuto via WebSocket:', data);
-    // Broadcast a tutti TRANNE il mittente
     socket.broadcast.emit('ordine-creato', data);
   });
 

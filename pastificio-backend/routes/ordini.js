@@ -1,7 +1,8 @@
-// routes/ordini.js - VERSIONE COMPLETA CON GIACENZE
+// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE E LIMITI
 import express from 'express';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
+import LimiteGiornaliero from '../models/LimiteGiornaliero.js'; // ✅ NUOVO
 import { protect } from '../middleware/auth.js';
 import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
@@ -84,12 +85,31 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/ordini - Crea nuovo ordine (CON GIACENZE)
+// POST /api/ordini - Crea nuovo ordine (CON GIACENZE E LIMITI)
 router.post('/', async (req, res, next) => {
   try {
     logger.info('📥 Ricevuta richiesta creazione ordine');
     
     const ordineData = req.body;
+    
+    // ✅ NUOVO: Verifica limiti giornalieri PRIMA di salvare
+    if (ordineData.dataRitiro && ordineData.prodotti) {
+      const verificaLimiti = await LimiteGiornaliero.verificaOrdine(
+        ordineData.dataRitiro,
+        ordineData.prodotti
+      );
+      
+      if (!verificaLimiti.ok) {
+        logger.warn(`⚠️ Ordine supera limiti per ${ordineData.dataRitiro}:`, verificaLimiti.errori);
+        
+        return res.status(400).json({
+          success: false,
+          message: 'Ordine supera i limiti di capacità produttiva',
+          erroriLimiti: verificaLimiti.errori,
+          limiti: verificaLimiti.limiti
+        });
+      }
+    }
     
     // Verifica cliente
     let clienteId = null;
@@ -127,6 +147,12 @@ router.post('/', async (req, res, next) => {
     
     logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - €${nuovoOrdine.totale}`);
     
+    // ✅ NUOVO: Aggiorna contatori limiti dopo salvataggio
+    if (nuovoOrdine.dataRitiro && nuovoOrdine.prodotti) {
+      await LimiteGiornaliero.aggiornaDopoOrdine(nuovoOrdine.dataRitiro, nuovoOrdine.prodotti);
+      logger.info(`📊 Limiti aggiornati per ordine ${nuovoOrdine._id}`);
+    }
+    
     // ✅ SALVA IN res.locals PER MIDDLEWARE GIACENZE
     res.locals.ordineCreato = nuovoOrdine;
     
@@ -161,10 +187,52 @@ router.post('/', async (req, res, next) => {
   });
 });
 
-// PUT /api/ordini/:id - Aggiorna ordine
+// PUT /api/ordini/:id - Aggiorna ordine (CON VERIFICA LIMITI)
 router.put('/:id', async (req, res) => {
   try {
     const ordineData = req.body;
+    
+    const ordineEsistente = await Ordine.findById(req.params.id);
+    
+    if (!ordineEsistente) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ordine non trovato'
+      });
+    }
+    
+    // ✅ NUOVO: Se cambia data o prodotti, verifica limiti
+    if (ordineData.dataRitiro || ordineData.prodotti) {
+      const dataVerifica = ordineData.dataRitiro || ordineEsistente.dataRitiro;
+      const prodottiVerifica = ordineData.prodotti || ordineEsistente.prodotti;
+      
+      // Rimuovi quantità vecchio ordine dai contatori
+      await LimiteGiornaliero.aggiornaDopoOrdine(
+        ordineEsistente.dataRitiro,
+        ordineEsistente.prodotti.map(p => ({
+          ...p.toObject(),
+          quantita: -p.quantita // Sottrai
+        }))
+      );
+      
+      // Verifica con nuovo ordine
+      const verificaLimiti = await LimiteGiornaliero.verificaOrdine(dataVerifica, prodottiVerifica);
+      
+      if (!verificaLimiti.ok) {
+        // Ripristina quantità vecchio ordine
+        await LimiteGiornaliero.aggiornaDopoOrdine(ordineEsistente.dataRitiro, ordineEsistente.prodotti);
+        
+        return res.status(400).json({
+          success: false,
+          message: 'Modifica supera i limiti di capacità produttiva',
+          erroriLimiti: verificaLimiti.errori,
+          limiti: verificaLimiti.limiti
+        });
+      }
+      
+      // Aggiungi quantità nuovo ordine
+      await LimiteGiornaliero.aggiornaDopoOrdine(dataVerifica, prodottiVerifica);
+    }
     
     // Gestisci cliente
     let clienteId = null;
@@ -218,10 +286,10 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/ordini/:id - Elimina ordine
+// DELETE /api/ordini/:id - Elimina ordine (E RIPRISTINA LIMITI)
 router.delete('/:id', async (req, res) => {
   try {
-    const ordine = await Ordine.findByIdAndDelete(req.params.id);
+    const ordine = await Ordine.findById(req.params.id);
     
     if (!ordine) {
       return res.status(404).json({
@@ -229,6 +297,20 @@ router.delete('/:id', async (req, res) => {
         message: 'Ordine non trovato'
       });
     }
+    
+    // ✅ NUOVO: Ripristina limiti sottraendo quantità
+    if (ordine.dataRitiro && ordine.prodotti) {
+      await LimiteGiornaliero.aggiornaDopoOrdine(
+        ordine.dataRitiro,
+        ordine.prodotti.map(p => ({
+          ...p.toObject(),
+          quantita: -p.quantita // Sottrai per ripristinare
+        }))
+      );
+      logger.info(`📊 Limiti ripristinati dopo eliminazione ordine ${ordine._id}`);
+    }
+    
+    await ordine.deleteOne();
     
     logger.info(`🗑️ Ordine eliminato: ${ordine.numeroOrdine}`);
     
