@@ -1,6 +1,9 @@
 # Usa Node 20
 FROM node:20-alpine
 
+# Force rebuild - Cache invalidation 2025-10-16 06:52
+# This comment forces Docker to rebuild without cache
+
 # Installa dipendenze per Puppeteer
 RUN apk add --no-cache \
     chromium \
@@ -23,7 +26,7 @@ COPY package*.json ./
 # Installa dipendenze
 RUN npm ci --omit=dev
 
-# Copia tutto il codice
+# Copia tutto il codice (force rebuild)
 COPY . .
 
 # Crea directory per WhatsApp
