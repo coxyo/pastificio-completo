@@ -1,4 +1,4 @@
-// routes/limiti.js - NUOVA ROUTE
+// routes/limiti.js - ✅ VERSIONE CORRETTA
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
@@ -198,7 +198,8 @@ router.post('/bulk', async (req, res) => {
       });
     }
     
-    const limiti Creati = await LimiteGiornaliero.insertMany(limiti);
+    // ✅ FIX: Nome variabile corretto senza spazio
+    const limitiCreati = await LimiteGiornaliero.insertMany(limiti);
     
     logger.info(`✅ Creati ${limitiCreati.length} limiti in massa`);
     
