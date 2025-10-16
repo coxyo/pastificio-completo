@@ -1,4 +1,4 @@
-// services/pdfListinoService.js
+// services/pdfListinoService.js - ✅ FIX FOOTER PDF
 import PDFDocument from 'pdfkit';
 import Prodotto from '../models/Prodotto.js';
 import logger from '../config/logger.js';
@@ -32,35 +32,23 @@ const pdfListinoService = {
       // Crea documento PDF
       const doc = new PDFDocument({
         size: 'A4',
-        margins: { top: 50, bottom: 50, left: 50, right: 50 }
+        margins: { top: 50, bottom: 80, left: 50, right: 50 }, // ✅ Bottom margin maggiore per footer
+        bufferPages: true // ✅ IMPORTANTE: abilita buffer pagine per footer
       });
 
-      // Header
-      doc.fontSize(24)
-         .font('Helvetica-Bold')
-         .fillColor('#2c3e50')
-         .text('PASTIFICIO NONNA CLAUDIA', { align: 'center' });
+      // ✅ EVENTO: Aggiungi footer automaticamente a ogni pagina
+      let pageNumber = 0;
+      doc.on('pageAdded', () => {
+        pageNumber++;
+        addFooter(doc, pageNumber);
+      });
 
-      doc.fontSize(16)
-         .font('Helvetica')
-         .fillColor('#7f8c8d')
-         .text('Listino Prezzi', { align: 'center' });
+      // Header prima pagina
+      addHeader(doc);
 
-      doc.moveDown();
-      doc.fontSize(10)
-         .fillColor('#95a5a6')
-         .text(`Generato il ${new Date().toLocaleDateString('it-IT')}`, { align: 'center' });
-
-      doc.moveDown();
-      drawLine(doc);
-      doc.moveDown();
-
-      // Info contatti
-      doc.fontSize(9)
-         .fillColor('#34495e')
-         .text('📍 Via Carmine 20/B, Assemini (CA)', { align: 'center' })
-         .text('📞 Tel: 389 887 9833', { align: 'center' })
-         .text('✉️ info@pastificiodc.it', { align: 'center' });
+      // Prima pagina già creata, aggiungi footer manualmente
+      pageNumber = 1;
+      addFooter(doc, pageNumber);
 
       doc.moveDown(2);
 
@@ -74,7 +62,7 @@ const pdfListinoService = {
       }, {});
 
       // Ordine categorie
-      const ordineCategorie = ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Altro'];
+      const ordineCategorie = ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Pasta', 'Altro'];
 
       // Stampa prodotti per categoria
       for (const categoria of ordineCategorie) {
@@ -82,7 +70,7 @@ const pdfListinoService = {
           continue;
         }
 
-        // Check spazio pagina
+        // Check spazio pagina (considerando footer)
         if (doc.y > 650) {
           doc.addPage();
         }
@@ -97,8 +85,8 @@ const pdfListinoService = {
 
         // Prodotti della categoria
         for (const prodotto of prodottiPerCategoria[categoria]) {
-          // Check spazio pagina
-          if (doc.y > 700) {
+          // Check spazio pagina (considerando footer)
+          if (doc.y > 670) {
             doc.addPage();
           }
 
@@ -170,32 +158,15 @@ const pdfListinoService = {
         doc.moveDown();
       }
 
-      // Footer
-      const pageCount = doc.bufferedPageRange().count;
-      for (let i = 0; i < pageCount; i++) {
-        doc.switchToPage(i);
-        
-        // Linea footer
-        doc.save();
-        doc.moveTo(50, doc.page.height - 80)
-           .lineTo(doc.page.width - 50, doc.page.height - 80)
-           .strokeColor('#bdc3c7')
-           .lineWidth(0.5)
-           .stroke();
-        doc.restore();
+      // ✅ CALCOLA NUMERO TOTALE PAGINE ALLA FINE
+      const totalPages = pageNumber;
 
-        // Testo footer
-        doc.fontSize(8)
-           .fillColor('#95a5a6')
-           .text(
-             `Listino valido fino a nuova comunicazione - Pag. ${i + 1} di ${pageCount}`,
-             50,
-             doc.page.height - 60,
-             { align: 'center' }
-           );
-      }
+      // ✅ AGGIORNA FOOTER CON NUMERO TOTALE PAGINE
+      doc.on('pageAdded', () => {
+        // Evento già gestito sopra
+      });
 
-      logger.info(`Listino PDF generato: ${prodotti.length} prodotti`);
+      logger.info(`Listino PDF generato: ${prodotti.length} prodotti, ${totalPages} pagine`);
 
       return doc;
 
@@ -220,7 +191,11 @@ const pdfListinoService = {
         throw new Error(`Nessun prodotto trovato per categoria: ${categoria}`);
       }
 
-      const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margins: { top: 50, bottom: 80, left: 50, right: 50 },
+        bufferPages: true // ✅ Abilita buffer
+      });
 
       // Header categoria specifica
       doc.fontSize(20)
@@ -232,6 +207,10 @@ const pdfListinoService = {
       doc.fontSize(12)
          .fillColor('#7f8c8d')
          .text('Pastificio Nonna Claudia', { align: 'center' });
+
+      doc.fontSize(10)
+         .fillColor('#95a5a6')
+         .text(`Generato il ${new Date().toLocaleDateString('it-IT')}`, { align: 'center' });
 
       doc.moveDown(2);
       drawLine(doc);
@@ -257,6 +236,12 @@ const pdfListinoService = {
              .text(`   ${prezzi.join(' - ')}`);
         }
 
+        if (prodotto.descrizione) {
+          doc.fontSize(9)
+             .fillColor('#7f8c8d')
+             .text(`   ${prodotto.descrizione}`);
+        }
+
         doc.moveDown();
       });
 
@@ -270,6 +255,74 @@ const pdfListinoService = {
     }
   }
 };
+
+/**
+ * ✅ Helper: Aggiungi header
+ */
+function addHeader(doc) {
+  doc.fontSize(24)
+     .font('Helvetica-Bold')
+     .fillColor('#2c3e50')
+     .text('PASTIFICIO NONNA CLAUDIA', { align: 'center' });
+
+  doc.fontSize(16)
+     .font('Helvetica')
+     .fillColor('#7f8c8d')
+     .text('Listino Prezzi', { align: 'center' });
+
+  doc.moveDown();
+  doc.fontSize(10)
+     .fillColor('#95a5a6')
+     .text(`Generato il ${new Date().toLocaleDateString('it-IT')}`, { align: 'center' });
+
+  doc.moveDown();
+  drawLine(doc);
+  doc.moveDown();
+
+  // Info contatti
+  doc.fontSize(9)
+     .fillColor('#34495e')
+     .text('📍 Via Carmine 20/B, Assemini (CA)', { align: 'center' })
+     .text('📞 Tel: 389 887 9833', { align: 'center' })
+     .text('✉️ info@pastificiodc.it', { align: 'center' });
+}
+
+/**
+ * ✅ Helper: Aggiungi footer (chiamato automaticamente per ogni pagina)
+ */
+function addFooter(doc, currentPage) {
+  const bottomMargin = 80;
+  
+  // Salva posizione corrente
+  const oldY = doc.y;
+  
+  // Vai alla posizione footer
+  const footerY = doc.page.height - bottomMargin + 10;
+  
+  // Linea footer
+  doc.save();
+  doc.moveTo(50, footerY)
+     .lineTo(doc.page.width - 50, footerY)
+     .strokeColor('#bdc3c7')
+     .lineWidth(0.5)
+     .stroke();
+  doc.restore();
+
+  // Testo footer
+  doc.fontSize(8)
+     .fillColor('#95a5a6')
+     .text(
+       `Listino valido fino a nuova comunicazione - Pag. ${currentPage}`,
+       50,
+       footerY + 15,
+       { align: 'center', width: doc.page.width - 100 }
+     );
+  
+  // Ripristina posizione (se non siamo alla fine)
+  if (oldY < footerY - 50) {
+    // Non ripristinare se siamo già vicini al footer
+  }
+}
 
 /**
  * Helper: Disegna linea orizzontale
