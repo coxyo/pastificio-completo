@@ -31,6 +31,18 @@ router.post('/create', async (req, res) => {
   }
 });
 
+// GET /api/backup/create (per test dal browser)
+router.get('/create', async (req, res) => {
+  try {
+    logger.info('📤 Backup manuale richiesto via GET');
+    const result = await backupService.createBackup();
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('Errore creazione backup:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // POST /api/backup/restore
 router.post('/restore', async (req, res) => {
   try {
