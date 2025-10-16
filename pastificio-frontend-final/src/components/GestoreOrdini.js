@@ -1,4 +1,4 @@
-// src/components/GestoreOrdini.js - ✅ VERSIONE FINALE CON FIX VASSOIO
+// src/components/GestoreOrdini.js - ✅ VERSIONE FINALE CON LIMITI E VASSOIO
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -23,7 +23,8 @@ import {
   Add as AddIcon,
   Sync as SyncIcon,
   LocalShipping as ShippingIcon,
-  Assessment as AssessmentIcon
+  Assessment as AssessmentIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 
 // Import nuovi moduli di calcolo prezzi
@@ -39,6 +40,7 @@ import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
+import GestioneLimiti from './GestioneLimiti'; // ✅ NUOVO IMPORT
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -241,6 +243,7 @@ export default function GestoreOrdini() {
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
+  const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false); // ✅ NUOVO STATE
   const [menuExport, setMenuExport] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [storageUsed, setStorageUsed] = useState(0);
@@ -258,7 +261,8 @@ export default function GestoreOrdini() {
   const wsRef = useRef(null);
   const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
-// ✅ NUOVO: Carica prodotti dal database
+
+  // ✅ NUOVO: Carica prodotti dal database
   useEffect(() => {
     const caricaProdottiDB = async () => {
       try {
@@ -686,6 +690,14 @@ export default function GestoreOrdini() {
         mostraNotifica('Ordine salvato e giacenze aggiornate', 'success');
       } else {
         const errorData = await response.json().catch(() => ({}));
+        
+        // ✅ Se errore limiti, mostra messaggio specifico
+        if (errorData.erroriLimiti) {
+          const messaggiErrore = errorData.erroriLimiti.map(e => e.messaggio).join('\n');
+          mostraNotifica(`⚠️ Limiti superati:\n${messaggiErrore}`, 'error');
+          return;
+        }
+        
         console.error('❌ Errore backend:', response.status, errorData);
         throw new Error(`Server error: ${response.status}`);
       }
@@ -781,6 +793,15 @@ export default function GestoreOrdini() {
         await sincronizzaConMongoDB();
         mostraNotifica('Ordine aggiornato', 'success');
       } else {
+        const errorData = await response.json().catch(() => ({}));
+        
+        // ✅ Se errore limiti, mostra messaggio specifico
+        if (errorData.erroriLimiti) {
+          const messaggiErrore = errorData.erroriLimiti.map(e => e.messaggio).join('\n');
+          mostraNotifica(`⚠️ Limiti superati:\n${messaggiErrore}`, 'error');
+          return;
+        }
+        
         throw new Error('Update failed');
       }
     } catch (error) {
@@ -795,7 +816,8 @@ export default function GestoreOrdini() {
       mostraNotifica('Ordine aggiornato localmente', 'warning');
     }
   };
-// Eliminazione ordine
+
+  // Eliminazione ordine
   const eliminaOrdine = async (id) => {
     if (!confirm('Confermi eliminazione ordine?')) return;
     
@@ -883,7 +905,7 @@ export default function GestoreOrdini() {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
 
-  // Export functions
+  // Export functions (mantieni le tue funzioni esistenti)
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -1134,7 +1156,7 @@ export default function GestoreOrdini() {
     };
   }, [sincronizzaConMongoDB, connectWebSocket]);
   
-  // RENDER UI (il tuo codice UI esistente rimane IDENTICO)
+  // RENDER UI
   return (
     <>
       <style jsx global>{`
@@ -1166,6 +1188,16 @@ export default function GestoreOrdini() {
                   </IconButton>
                 </span>
               </Tooltip>
+              
+              {/* ✅ NUOVO BOTTONE LIMITI */}
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<SettingsIcon />}
+                onClick={() => setDialogLimitiOpen(true)}
+              >
+                📊 Limiti Produzione
+              </Button>
               
               <Button
                 variant="contained"
@@ -1247,12 +1279,39 @@ export default function GestoreOrdini() {
             </Box>
           </Box>
           
-          {/* Progress Bars - IL TUO CODICE ESISTENTE */}
-          {/* Connection Status - IL TUO CODICE ESISTENTE */}
-          {/* Main Content - IL TUO CODICE ESISTENTE */}
-          {/* Dialogs - IL TUO CODICE ESISTENTE */}
-          {/* ... (tutto il resto del render rimane identico) */}
+          {/* Connection Status */}
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Chip
+              icon={isConnected ? <WifiIcon /> : <WifiOffIcon />}
+              label={isConnected ? 'Online' : 'Offline'}
+              color={isConnected ? 'success' : 'error'}
+              size="small"
+            />
+            
+            {ultimaSync && (
+              <Typography variant="caption" color="text.secondary">
+                Ultimo sync: {ultimaSync.toLocaleTimeString('it-IT')}
+              </Typography>
+            )}
+            
+            {storageUsed > 0 && (
+              <Chip
+                icon={<StorageIcon />}
+                label={`Storage: ${storageUsed} MB`}
+                size="small"
+                variant="outlined"
+              />
+            )}
+            
+            {syncInProgress && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={16} />
+                <Typography variant="caption">Sincronizzazione...</Typography>
+              </Box>
+            )}
+          </Box>
           
+          {syncInProgress && <LinearProgress sx={{ mb: 2 }} />}
         </Box>
         
         {caricamento ? (
@@ -1310,6 +1369,32 @@ export default function GestoreOrdini() {
             submitInCorso={submitInCorso}
           />
         )}
+        
+        {/* ✅ NUOVO DIALOG LIMITI */}
+        <Dialog 
+          open={dialogLimitiOpen} 
+          onClose={() => setDialogLimitiOpen(false)}
+          maxWidth="xl"
+          fullWidth
+          PaperProps={{ sx: { height: '90vh' } }}
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">📊 Gestione Limiti Capacità Produttiva</Typography>
+              <IconButton onClick={() => setDialogLimitiOpen(false)} size="small">
+                ×
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <GestioneLimiti />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDialogLimitiOpen(false)}>
+              Chiudi
+            </Button>
+          </DialogActions>
+        </Dialog>
         
         <Dialog 
           open={riepilogoAperto} 

@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - ✅ CON TAB VASSOIO DOLCI MISTI
+// components/NuovoOrdine.js - ✅ CON ALERT LIMITI REAL-TIME
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -31,7 +31,10 @@ import {
   CircularProgress,
   Chip,
   Tabs,
-  Tab
+  Tab,
+  Alert,
+  AlertTitle,
+  LinearProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,10 +43,13 @@ import {
   ExpandMore as ExpandMoreIcon,
   ShoppingCart as CartIcon,
   Person as PersonIcon,
-  Cake as CakeIcon
+  Cake as CakeIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+  CheckCircle as CheckIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
-import VassoidDolciMisti from './VassoidDolciMisti'; // ✅ NUOVO IMPORT
+import VassoidDolciMisti from './VassoidDolciMisti';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -73,12 +79,15 @@ export default function NuovoOrdine({
   const [clienti, setClienti] = useState([]);
   const [loadingClienti, setLoadingClienti] = useState(false);
   
-  // ✅ STATE PER PRODOTTI DA DATABASE
   const [prodottiDB, setProdottiDB] = useState([]);
   const [loadingProdotti, setLoadingProdotti] = useState(false);
 
-  // ✅ NUOVO STATE PER TAB
   const [tabValue, setTabValue] = useState(0);
+
+  // ✅ NUOVO: State per limiti
+  const [limiti, setLimiti] = useState([]);
+  const [loadingLimiti, setLoadingLimiti] = useState(false);
+  const [alertLimiti, setAlertLimiti] = useState([]);
 
   const [formData, setFormData] = useState({
     cliente: null,
@@ -107,7 +116,6 @@ export default function NuovoOrdine({
   }, [isConnected]);
 
   const caricaProdotti = async () => {
-    // Usa cache se disponibile
     const now = Date.now();
     if (prodottiCache && prodottiCacheTime && (now - prodottiCacheTime) < CACHE_DURATION) {
       console.log('✅ Prodotti caricati dalla cache');
@@ -119,14 +127,12 @@ export default function NuovoOrdine({
       setLoadingProdotti(true);
       console.log('🔄 Caricamento prodotti da API...');
       
-      // ✅ CHIAMATA API PUBBLICA (senza autenticazione)
       const response = await fetch(`${API_URL}/prodotti/disponibili`);
 
       if (response.ok) {
         const data = await response.json();
         const prodottiData = data.data || data || [];
         
-        // Salva in cache
         prodottiCache = prodottiData;
         prodottiCacheTime = Date.now();
         
@@ -137,7 +143,6 @@ export default function NuovoOrdine({
       }
     } catch (error) {
       console.error('Errore caricamento prodotti:', error);
-      // Usa cache anche se scaduta
       if (prodottiCache) {
         setProdottiDB(prodottiCache);
         console.log('⚠️ Usando cache prodotti (scaduta)');
@@ -145,6 +150,149 @@ export default function NuovoOrdine({
     } finally {
       setLoadingProdotti(false);
     }
+  };
+
+  // ✅ NUOVO: Carica limiti quando cambia data
+  useEffect(() => {
+    if (formData.dataRitiro && isConnected) {
+      caricaLimiti(formData.dataRitiro);
+    }
+  }, [formData.dataRitiro, isConnected]);
+
+  // ✅ NUOVO: Funzione per caricare limiti
+  const caricaLimiti = async (data) => {
+    try {
+      setLoadingLimiti(true);
+      console.log('🔄 Caricamento limiti per data:', data);
+      
+      const response = await fetch(`${API_URL}/limiti?data=${data}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        const limitiData = result.data || [];
+        setLimiti(limitiData);
+        console.log(`✅ ${limitiData.length} limiti caricati per ${data}`);
+        
+        // Verifica limiti appena caricati
+        verificaLimiti();
+      } else {
+        console.error('Errore caricamento limiti:', response.status);
+        setLimiti([]);
+      }
+    } catch (error) {
+      console.error('Errore caricamento limiti:', error);
+      setLimiti([]);
+    } finally {
+      setLoadingLimiti(false);
+    }
+  };
+
+  // ✅ NUOVO: Verifica limiti ogni volta che cambiano prodotti
+  useEffect(() => {
+    if (formData.prodotti.length > 0 && limiti.length > 0) {
+      verificaLimiti();
+    } else {
+      setAlertLimiti([]);
+    }
+  }, [formData.prodotti, limiti]);
+
+  // ✅ NUOVO: Funzione verifica limiti lato client
+  const verificaLimiti = () => {
+    if (limiti.length === 0) {
+      setAlertLimiti([]);
+      return;
+    }
+
+    const alerts = [];
+
+    // Raggruppa prodotti per nome e categoria
+    const prodottiRaggruppati = {};
+    const categorieRaggruppate = {};
+
+    formData.prodotti.forEach(p => {
+      // Skip vassoi (già espansi)
+      if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti') {
+        return;
+      }
+
+      const nome = p.nome;
+      const categoria = p.categoria || 'Altro';
+      const quantita = parseFloat(p.quantita) || 0;
+      const unita = p.unita || 'Kg';
+
+      // Converti in Kg se necessario
+      let quantitaKg = quantita;
+      if (unita === 'g') {
+        quantitaKg = quantita / 1000;
+      }
+
+      // Raggruppa per prodotto
+      if (!prodottiRaggruppati[nome]) {
+        prodottiRaggruppati[nome] = 0;
+      }
+      prodottiRaggruppati[nome] += quantitaKg;
+
+      // Raggruppa per categoria
+      if (!categorieRaggruppate[categoria]) {
+        categorieRaggruppate[categoria] = 0;
+      }
+      categorieRaggruppate[categoria] += quantitaKg;
+    });
+
+    // Verifica ogni limite
+    limiti.forEach(limite => {
+      // Limite per prodotto specifico
+      if (limite.prodotto) {
+        const quantitaOrdine = prodottiRaggruppati[limite.prodotto] || 0;
+        const quantitaTotale = limite.quantitaOrdinata + quantitaOrdine;
+        const quantitaDisponibile = limite.limiteQuantita - limite.quantitaOrdinata;
+
+        if (quantitaTotale > limite.limiteQuantita) {
+          alerts.push({
+            tipo: 'error',
+            prodotto: limite.prodotto,
+            messaggio: `LIMITE SUPERATO: ${limite.prodotto}`,
+            dettaglio: `Richiesti ${quantitaOrdine.toFixed(1)} ${limite.unitaMisura}, disponibili ${quantitaDisponibile.toFixed(1)} ${limite.unitaMisura}`,
+            percentuale: (quantitaTotale / limite.limiteQuantita) * 100
+          });
+        } else if (quantitaTotale >= limite.limiteQuantita * (limite.sogliAllerta / 100)) {
+          alerts.push({
+            tipo: 'warning',
+            prodotto: limite.prodotto,
+            messaggio: `ATTENZIONE: ${limite.prodotto}`,
+            dettaglio: `Richiesti ${quantitaOrdine.toFixed(1)} ${limite.unitaMisura}, disponibili ${quantitaDisponibile.toFixed(1)} ${limite.unitaMisura}`,
+            percentuale: (quantitaTotale / limite.limiteQuantita) * 100
+          });
+        }
+      }
+
+      // Limite per categoria
+      if (limite.categoria) {
+        const quantitaOrdine = categorieRaggruppate[limite.categoria] || 0;
+        const quantitaTotale = limite.quantitaOrdinata + quantitaOrdine;
+        const quantitaDisponibile = limite.limiteQuantita - limite.quantitaOrdinata;
+
+        if (quantitaTotale > limite.limiteQuantita) {
+          alerts.push({
+            tipo: 'error',
+            categoria: limite.categoria,
+            messaggio: `LIMITE SUPERATO: Categoria ${limite.categoria}`,
+            dettaglio: `Richiesti ${quantitaOrdine.toFixed(1)} ${limite.unitaMisura}, disponibili ${quantitaDisponibile.toFixed(1)} ${limite.unitaMisura}`,
+            percentuale: (quantitaTotale / limite.limiteQuantita) * 100
+          });
+        } else if (quantitaTotale >= limite.limiteQuantita * (limite.sogliAllerta / 100)) {
+          alerts.push({
+            tipo: 'warning',
+            categoria: limite.categoria,
+            messaggio: `ATTENZIONE: Categoria ${limite.categoria}`,
+            dettaglio: `Richiesti ${quantitaOrdine.toFixed(1)} ${limite.unitaMisura}, disponibili ${quantitaDisponibile.toFixed(1)} ${limite.unitaMisura}`,
+            percentuale: (quantitaTotale / limite.limiteQuantita) * 100
+          });
+        }
+      }
+    });
+
+    setAlertLimiti(alerts);
   };
 
   // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA (da DB)
@@ -190,7 +338,7 @@ export default function NuovoOrdine({
         daViaggio: false
       });
     }
-  }, [ordineIniziale, open]); // ✅ Aggiungi 'open' per resettare quando si apre
+  }, [ordineIniziale, open]);
 
   // ✅ CARICA CLIENTI
   useEffect(() => {
@@ -254,7 +402,6 @@ export default function NuovoOrdine({
     }
   };
 
-  // ✅ GET PRODOTTO CONFIG DA DATABASE
   const getProdottoConfigDB = (nomeProdotto) => {
     return prodottiDB.find(p => p.nome === nomeProdotto) || null;
   };
@@ -291,7 +438,6 @@ export default function NuovoOrdine({
     });
   };
 
-  // ✅ CALCOLO PREZZO DIRETTO DA DB
   useEffect(() => {
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
@@ -304,7 +450,6 @@ export default function NuovoOrdine({
 
       let prezzo = 0;
       
-      // Se ha varianti, usa il prezzo della variante
       if (prodotto.hasVarianti && prodottoCorrente.variante) {
         const variante = prodotto.varianti.find(v => v.nome === prodottoCorrente.variante);
         if (variante) {
@@ -315,7 +460,6 @@ export default function NuovoOrdine({
           }
         }
       } else {
-        // Prezzo normale
         if (prodottoCorrente.unita === 'Kg') {
           prezzo = prodotto.prezzoKg * prodottoCorrente.quantita;
         } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
@@ -381,7 +525,6 @@ export default function NuovoOrdine({
     });
   };
 
-  // ✅ NUOVA FUNZIONE: Aggiungi vassoio al carrello
   const aggiungiVassoioAlCarrello = (vassoio) => {
     console.log('🎂 Aggiunto vassoio al carrello:', vassoio);
     
@@ -390,7 +533,6 @@ export default function NuovoOrdine({
       prodotti: [...formData.prodotti, vassoio]
     });
     
-    // Torna al tab prodotti per vedere il vassoio aggiunto
     setTabValue(0);
   };
 
@@ -398,10 +540,26 @@ export default function NuovoOrdine({
     return formData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
   };
 
-  const handleSalva = () => {
+  // ✅ NUOVO: Verifica limiti PRIMA di salvare
+  const handleSalva = async () => {
     if (!formData.nomeCliente || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
       alert('Compila tutti i campi obbligatori: cliente, data ritiro, ora ritiro e almeno un prodotto');
       return;
+    }
+
+    // ✅ Se ci sono errori di limiti, chiedi conferma
+    const erroriCritici = alertLimiti.filter(a => a.tipo === 'error');
+    if (erroriCritici.length > 0) {
+      const conferma = window.confirm(
+        `⚠️ ATTENZIONE!\n\n` +
+        `L'ordine supera i limiti di capacità produttiva:\n\n` +
+        erroriCritici.map(e => `• ${e.messaggio}\n  ${e.dettaglio}`).join('\n\n') +
+        `\n\nVuoi procedere comunque?`
+      );
+      
+      if (!conferma) {
+        return;
+      }
     }
 
     const ordineData = {
@@ -421,7 +579,44 @@ export default function NuovoOrdine({
       </DialogTitle>
 
       <DialogContent>
-        {/* ✅ TABS: Prodotti Singoli vs Vassoio Misti */}
+        {/* ✅ NUOVO: Alert Limiti in alto */}
+        {alertLimiti.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            {alertLimiti.map((alert, index) => (
+              <Alert 
+                key={index}
+                severity={alert.tipo} 
+                icon={alert.tipo === 'error' ? <ErrorIcon /> : <WarningIcon />}
+                sx={{ mb: 1 }}
+              >
+                <AlertTitle>{alert.messaggio}</AlertTitle>
+                {alert.dettaglio}
+                <LinearProgress 
+                  variant="determinate" 
+                  value={Math.min(alert.percentuale, 100)}
+                  color={alert.tipo === 'error' ? 'error' : 'warning'}
+                  sx={{ mt: 1 }}
+                />
+                <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                  Capacità utilizzata: {alert.percentuale.toFixed(0)}%
+                </Typography>
+              </Alert>
+            ))}
+          </Box>
+        )}
+
+        {/* ✅ Info Limiti per data selezionata */}
+        {limiti.length > 0 && (
+          <Paper sx={{ p: 1.5, mb: 2, bgcolor: 'info.light' }}>
+            <Typography variant="caption" display="flex" alignItems="center" gap={1}>
+              <CheckIcon fontSize="small" />
+              Limiti configurati per {new Date(formData.dataRitiro).toLocaleDateString('it-IT')}: {limiti.length}
+              {loadingLimiti && <CircularProgress size={14} />}
+            </Typography>
+          </Paper>
+        )}
+
+        {/* TABS: Prodotti Singoli vs Vassoio Misti */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
           <Tabs 
             value={tabValue} 
@@ -441,9 +636,7 @@ export default function NuovoOrdine({
           </Tabs>
         </Box>
 
-        {/* ========================================== */}
         {/* TAB 0: PRODOTTI SINGOLI */}
-        {/* ========================================== */}
         {tabValue === 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
             
@@ -681,16 +874,12 @@ export default function NuovoOrdine({
           </Box>
         )}
 
-        {/* ========================================== */}
         {/* TAB 1: VASSOIO DOLCI MISTI */}
-        {/* ========================================== */}
         {tabValue === 1 && (
           <VassoidDolciMisti onAggiungiAlCarrello={aggiungiVassoioAlCarrello} />
         )}
 
-        {/* ========================================== */}
-        {/* SEZIONI COMUNI (sempre visibili) */}
-        {/* ========================================== */}
+        {/* SEZIONI COMUNI */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
           
           {/* SEZIONE CLIENTE */}
@@ -803,8 +992,13 @@ export default function NuovoOrdine({
 
       <DialogActions>
         <Button onClick={onClose}>Annulla</Button>
-        <Button variant="contained" onClick={handleSalva} size="large">
-          Salva Ordine
+        <Button 
+          variant="contained" 
+          onClick={handleSalva} 
+          size="large"
+          color={alertLimiti.some(a => a.tipo === 'error') ? 'warning' : 'primary'}
+        >
+          {alertLimiti.some(a => a.tipo === 'error') ? '⚠️ Salva (Supera Limiti)' : 'Salva Ordine'}
         </Button>
       </DialogActions>
     </Dialog>
