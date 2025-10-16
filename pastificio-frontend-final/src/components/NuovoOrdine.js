@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - ✅ CARICAMENTO PRODOTTI DA DATABASE
+// components/NuovoOrdine.js - ✅ CON TAB VASSOIO DOLCI MISTI
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -29,7 +29,9 @@ import {
   Grid,
   Divider,
   CircularProgress,
-  Chip
+  Chip,
+  Tabs,
+  Tab
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,9 +39,11 @@ import {
   Luggage as LuggageIcon,
   ExpandMore as ExpandMoreIcon,
   ShoppingCart as CartIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Cake as CakeIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
+import VassoidDolciMisti from './VassoidDolciMisti'; // ✅ NUOVO IMPORT
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -72,6 +76,9 @@ export default function NuovoOrdine({
   // ✅ STATE PER PRODOTTI DA DATABASE
   const [prodottiDB, setProdottiDB] = useState([]);
   const [loadingProdotti, setLoadingProdotti] = useState(false);
+
+  // ✅ NUOVO STATE PER TAB
+  const [tabValue, setTabValue] = useState(0);
 
   const [formData, setFormData] = useState({
     cliente: null,
@@ -112,7 +119,7 @@ export default function NuovoOrdine({
       setLoadingProdotti(true);
       console.log('🔄 Caricamento prodotti da API...');
       
-      // ✅ CHIAMATA API PUBBLIC (senza autenticazione)
+      // ✅ CHIAMATA API PUBBLICA (senza autenticazione)
       const response = await fetch(`${API_URL}/prodotti/disponibili`);
 
       if (response.ok) {
@@ -183,7 +190,7 @@ export default function NuovoOrdine({
         daViaggio: false
       });
     }
-  }, [ordineIniziale]);
+  }, [ordineIniziale, open]); // ✅ Aggiungi 'open' per resettare quando si apre
 
   // ✅ CARICA CLIENTI
   useEffect(() => {
@@ -374,6 +381,19 @@ export default function NuovoOrdine({
     });
   };
 
+  // ✅ NUOVA FUNZIONE: Aggiungi vassoio al carrello
+  const aggiungiVassoioAlCarrello = (vassoio) => {
+    console.log('🎂 Aggiunto vassoio al carrello:', vassoio);
+    
+    setFormData({
+      ...formData,
+      prodotti: [...formData.prodotti, vassoio]
+    });
+    
+    // Torna al tab prodotti per vedere il vassoio aggiunto
+    setTabValue(0);
+  };
+
   const calcolaTotale = () => {
     return formData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
   };
@@ -401,227 +421,279 @@ export default function NuovoOrdine({
       </DialogTitle>
 
       <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
-          
-          {/* ========================================== */}
-          {/* ✅ SEZIONE 1: PRODOTTI */}
-          {/* ========================================== */}
-          <Paper sx={{ p: 2, bgcolor: 'primary.light' }}>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CartIcon /> Seleziona Prodotti
-              {loadingProdotti && <CircularProgress size={20} />}
-            </Typography>
+        {/* ✅ TABS: Prodotti Singoli vs Vassoio Misti */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={(e, newValue) => setTabValue(newValue)}
+            variant="fullWidth"
+          >
+            <Tab 
+              label="🛒 Prodotti Singoli" 
+              icon={<CartIcon />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="🎂 Vassoio Dolci Misti" 
+              icon={<CakeIcon />}
+              iconPosition="start"
+            />
+          </Tabs>
+        </Box>
 
-            {Object.entries(prodottiPerCategoria).map(([categoria, prodotti]) => (
-              prodotti.length > 0 && (
-                <Accordion key={categoria} defaultExpanded={categoria === 'Ravioli'}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {categoria} ({prodotti.length})
-                    </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Grid container spacing={1}>
-                      {prodotti.map((p) => (
-                        <Grid item xs={6} sm={4} md={3} key={p._id || p.nome}>
-                          <Button
-                            fullWidth
-                            variant={prodottoCorrente.nome === p.nome ? "contained" : "outlined"}
-                            onClick={() => handleProdottoSelect(p)}
-                            sx={{ 
-                              justifyContent: 'flex-start', 
-                              textAlign: 'left',
-                              height: '100%',
-                              flexDirection: 'column',
-                              alignItems: 'flex-start',
-                              p: 1.5
-                            }}
+        {/* ========================================== */}
+        {/* TAB 0: PRODOTTI SINGOLI */}
+        {/* ========================================== */}
+        {tabValue === 0 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
+            
+            {/* SEZIONE PRODOTTI */}
+            <Paper sx={{ p: 2, bgcolor: 'primary.light' }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CartIcon /> Seleziona Prodotti
+                {loadingProdotti && <CircularProgress size={20} />}
+              </Typography>
+
+              {Object.entries(prodottiPerCategoria).map(([categoria, prodotti]) => (
+                prodotti.length > 0 && (
+                  <Accordion key={categoria} defaultExpanded={categoria === 'Ravioli'}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        {categoria} ({prodotti.length})
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Grid container spacing={1}>
+                        {prodotti.map((p) => (
+                          <Grid item xs={6} sm={4} md={3} key={p._id || p.nome}>
+                            <Button
+                              fullWidth
+                              variant={prodottoCorrente.nome === p.nome ? "contained" : "outlined"}
+                              onClick={() => handleProdottoSelect(p)}
+                              sx={{ 
+                                justifyContent: 'flex-start', 
+                                textAlign: 'left',
+                                height: '100%',
+                                flexDirection: 'column',
+                                alignItems: 'flex-start',
+                                p: 1.5
+                              }}
+                            >
+                              <Typography variant="body2" fontWeight="bold">
+                                {p.nome}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {p.prezzoKg ? `€${p.prezzoKg}/Kg` : p.prezzoPezzo ? `€${p.prezzoPezzo}/pz` : ''}
+                              </Typography>
+                            </Button>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </AccordionDetails>
+                  </Accordion>
+                )
+              ))}
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Form Aggiunta Prodotto */}
+              {prodottoCorrente.nome && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: '#CFD8DC', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Configura: <strong>{prodottoCorrente.nome}</strong>
+                  </Typography>
+
+                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {hasVarianti && (
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Variante *</InputLabel>
+                          <Select
+                            value={prodottoCorrente.variante}
+                            onChange={handleVarianteChange}
+                            label="Variante *"
                           >
-                            <Typography variant="body2" fontWeight="bold">
-                              {p.nome}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {p.prezzoKg ? `€${p.prezzoKg}/Kg` : p.prezzoPezzo ? `€${p.prezzoPezzo}/pz` : ''}
-                            </Typography>
-                          </Button>
-                        </Grid>
-                      ))}
+                            {varianti.map((v) => (
+                              <MenuItem key={v.nome} value={v.nome}>
+                                {v.label} - €{v.prezzoKg}/Kg
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    )}
+
+                    <Grid item xs={6} sm={3}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Quantità"
+                        placeholder="0"
+                        value={prodottoCorrente.quantita}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            setProdottoCorrente({ ...prodottoCorrente, quantita: '' });
+                            return;
+                          }
+                          const parsedValue = prodottoCorrente.unita === 'Kg' 
+                            ? parseFloat(value) || 0
+                            : parseInt(value) || 0;
+                          setProdottoCorrente({ ...prodottoCorrente, quantita: parsedValue });
+                        }}
+                        inputProps={{ 
+                          min: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
+                          step: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
+                          style: { MozAppearance: 'textfield' }
+                        }}
+                        sx={{
+                          '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
+                            WebkitAppearance: 'none',
+                            margin: 0
+                          }
+                        }}
+                        size="small"
+                      />
                     </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              )
-            ))}
 
-            <Divider sx={{ my: 2 }} />
-
-            {/* Form Aggiunta Prodotto */}
-            {prodottoCorrente.nome && (
-              <Box sx={{ mt: 2, p: 2, bgcolor: '#CFD8DC', borderRadius: 1 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Configura: <strong>{prodottoCorrente.nome}</strong>
-                </Typography>
-
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  {hasVarianti && (
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={6} sm={3}>
                       <FormControl fullWidth size="small">
-                        <InputLabel>Variante *</InputLabel>
+                        <InputLabel>Unità</InputLabel>
                         <Select
-                          value={prodottoCorrente.variante}
-                          onChange={handleVarianteChange}
-                          label="Variante *"
+                          value={prodottoCorrente.unita}
+                          onChange={(e) => setProdottoCorrente({ 
+                            ...prodottoCorrente, 
+                            unita: e.target.value,
+                            quantita: ''
+                          })}
+                          label="Unità"
                         >
-                          {varianti.map((v) => (
-                            <MenuItem key={v.nome} value={v.nome}>
-                              {v.label} - €{v.prezzoKg}/Kg
-                            </MenuItem>
+                          {(prodottoConfig?.unitaMisuraDisponibili || ['Kg']).map((u) => (
+                            <MenuItem key={u} value={u}>{u}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
                     </Grid>
-                  )}
 
-                  <Grid item xs={6} sm={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Quantità"
-                      placeholder="0"
-                      value={prodottoCorrente.quantita}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '') {
-                          setProdottoCorrente({ ...prodottoCorrente, quantita: '' });
-                          return;
-                        }
-                        const parsedValue = prodottoCorrente.unita === 'Kg' 
-                          ? parseFloat(value) || 0
-                          : parseInt(value) || 0;
-                        setProdottoCorrente({ ...prodottoCorrente, quantita: parsedValue });
-                      }}
-                      inputProps={{ 
-                        min: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
-                        step: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
-                        style: { MozAppearance: 'textfield' }
-                      }}
-                      sx={{
-                        '& input[type=number]::-webkit-outer-spin-button, & input[type=number]::-webkit-inner-spin-button': {
-                          WebkitAppearance: 'none',
-                          margin: 0
-                        }
-                      }}
-                      size="small"
-                    />
-                  </Grid>
-
-                  <Grid item xs={6} sm={3}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Unità</InputLabel>
-                      <Select
-                        value={prodottoCorrente.unita}
-                        onChange={(e) => setProdottoCorrente({ 
-                          ...prodottoCorrente, 
-                          unita: e.target.value,
-                          quantita: ''
-                        })}
-                        label="Unità"
-                      >
-                        {(prodottoConfig?.unitaMisuraDisponibili || ['Kg']).map((u) => (
-                          <MenuItem key={u} value={u}>{u}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  {/* Griglia Valori Rapidi */}
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                      ⚡ Valori rapidi:
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {VALORI_RAPIDI[prodottoCorrente.unita]?.map((valore) => (
-                        <Chip
-                          key={valore}
-                          label={`${valore} ${prodottoCorrente.unita}`}
-                          onClick={() => handleValoreRapido(valore)}
-                          color={prodottoCorrente.quantita === valore ? "primary" : "default"}
-                          variant={prodottoCorrente.quantita === valore ? "filled" : "outlined"}
-                          sx={{ cursor: 'pointer' }}
-                        />
-                      ))}
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={8} sm={hasVarianti ? 8 : 4}>
-                    <TextField
-                      fullWidth
-                      label="Prezzo Totale"
-                      value={`€${prodottoCorrente.prezzo.toFixed(2)}`}
-                      size="small"
-                      InputProps={{ readOnly: true }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={4} sm={hasVarianti ? 4 : 2}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      color="success"
-                      startIcon={<AddIcon />}
-                      onClick={handleAggiungiProdotto}
-                      sx={{ height: '40px' }}
-                    >
-                      Aggiungi
-                    </Button>
-                  </Grid>
-                </Grid>
-              </Box>
-            )}
-          </Paper>
-
-          {/* Lista Prodotti Aggiunti */}
-          {formData.prodotti.length > 0 && (
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>📦 Prodotti nel Carrello</Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Prodotto</TableCell>
-                    <TableCell align="center">Quantità</TableCell>
-                    <TableCell align="right">Prezzo</TableCell>
-                    <TableCell align="center">Azioni</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {formData.prodotti.map((p, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{p.nome}</TableCell>
-                      <TableCell align="center">
-                        {p.quantita} {p.unita}
-                      </TableCell>
-                      <TableCell align="right">€{p.prezzo.toFixed(2)}</TableCell>
-                      <TableCell align="center">
-                        <IconButton size="small" color="error" onClick={() => handleRimuoviProdotto(index)}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell colSpan={2}><strong>TOTALE</strong></TableCell>
-                    <TableCell align="right">
-                      <Typography variant="h6" color="primary">
-                        €{calcolaTotale().toFixed(2)}
+                    {/* Griglia Valori Rapidi */}
+                    <Grid item xs={12}>
+                      <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                        ⚡ Valori rapidi:
                       </Typography>
-                    </TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </Paper>
-          )}
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {VALORI_RAPIDI[prodottoCorrente.unita]?.map((valore) => (
+                          <Chip
+                            key={valore}
+                            label={`${valore} ${prodottoCorrente.unita}`}
+                            onClick={() => handleValoreRapido(valore)}
+                            color={prodottoCorrente.quantita === valore ? "primary" : "default"}
+                            variant={prodottoCorrente.quantita === valore ? "filled" : "outlined"}
+                            sx={{ cursor: 'pointer' }}
+                          />
+                        ))}
+                      </Box>
+                    </Grid>
 
-          {/* SEZIONE 2: CLIENTE */}
+                    <Grid item xs={8} sm={hasVarianti ? 8 : 4}>
+                      <TextField
+                        fullWidth
+                        label="Prezzo Totale"
+                        value={`€${prodottoCorrente.prezzo.toFixed(2)}`}
+                        size="small"
+                        InputProps={{ readOnly: true }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={4} sm={hasVarianti ? 4 : 2}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        color="success"
+                        startIcon={<AddIcon />}
+                        onClick={handleAggiungiProdotto}
+                        sx={{ height: '40px' }}
+                      >
+                        Aggiungi
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
+            </Paper>
+
+            {/* Lista Prodotti Aggiunti */}
+            {formData.prodotti.length > 0 && (
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="subtitle1" gutterBottom>📦 Prodotti nel Carrello</Typography>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Prodotto</TableCell>
+                      <TableCell align="center">Quantità</TableCell>
+                      <TableCell align="right">Prezzo</TableCell>
+                      <TableCell align="center">Azioni</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {formData.prodotti.map((p, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2" fontWeight="bold">
+                              {p.nome}
+                            </Typography>
+                            {p.dettagliCalcolo?.dettagli && (
+                              <Typography variant="caption" color="text.secondary">
+                                {p.dettagliCalcolo.dettagli}
+                              </Typography>
+                            )}
+                            {p.note && (
+                              <Typography variant="caption" color="warning.main" display="block">
+                                📝 {p.note}
+                              </Typography>
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          {p.quantita} {p.unita}
+                        </TableCell>
+                        <TableCell align="right">€{p.prezzo.toFixed(2)}</TableCell>
+                        <TableCell align="center">
+                          <IconButton size="small" color="error" onClick={() => handleRimuoviProdotto(index)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={2}><strong>TOTALE</strong></TableCell>
+                      <TableCell align="right">
+                        <Typography variant="h6" color="primary">
+                          €{calcolaTotale().toFixed(2)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </Paper>
+            )}
+          </Box>
+        )}
+
+        {/* ========================================== */}
+        {/* TAB 1: VASSOIO DOLCI MISTI */}
+        {/* ========================================== */}
+        {tabValue === 1 && (
+          <VassoidDolciMisti onAggiungiAlCarrello={aggiungiVassoioAlCarrello} />
+        )}
+
+        {/* ========================================== */}
+        {/* SEZIONI COMUNI (sempre visibili) */}
+        {/* ========================================== */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
+          
+          {/* SEZIONE CLIENTE */}
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <PersonIcon /> Dati Cliente
