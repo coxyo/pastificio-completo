@@ -1,4 +1,4 @@
-// services/pdfListinoService.js - ✅ FIX FOOTER PDF
+// services/pdfListinoService.js - ✅ FIX LOOP INFINITO
 import PDFDocument from 'pdfkit';
 import Prodotto from '../models/Prodotto.js';
 import logger from '../config/logger.js';
@@ -6,8 +6,6 @@ import logger from '../config/logger.js';
 const pdfListinoService = {
   /**
    * Genera PDF del listino prezzi
-   * @param {Object} options - Opzioni di generazione
-   * @returns {PDFDocument} - Stream PDF
    */
   generaListinoPDF: async (options = {}) => {
     try {
@@ -18,7 +16,7 @@ const pdfListinoService = {
         includiAllergeni = false
       } = options;
 
-      // Recupera prodotti dal database
+      // Recupera prodotti
       const filter = { attivo: true };
       if (disponibiliOnly) filter.disponibile = true;
 
@@ -29,27 +27,17 @@ const pdfListinoService = {
         throw new Error('Nessun prodotto trovato per il listino');
       }
 
-      // Crea documento PDF
+      // Crea documento PDF - ✅ SENZA bufferPages e SENZA evento pageAdded
       const doc = new PDFDocument({
         size: 'A4',
-        margins: { top: 50, bottom: 80, left: 50, right: 50 }, // ✅ Bottom margin maggiore per footer
-        bufferPages: true // ✅ IMPORTANTE: abilita buffer pagine per footer
+        margins: { top: 50, bottom: 100, left: 50, right: 50 }
       });
 
-      // ✅ EVENTO: Aggiungi footer automaticamente a ogni pagina
-      let pageNumber = 0;
-      doc.on('pageAdded', () => {
-        pageNumber++;
-        addFooter(doc, pageNumber);
-      });
+      // ✅ AGGIUNGI FOOTER MANUALMENTE SOLO ALLA FINE
+      let currentPage = 1;
 
-      // Header prima pagina
+      // Header
       addHeader(doc);
-
-      // Prima pagina già creata, aggiungi footer manualmente
-      pageNumber = 1;
-      addFooter(doc, pageNumber);
-
       doc.moveDown(2);
 
       // Raggruppa prodotti per categoria
@@ -70,9 +58,11 @@ const pdfListinoService = {
           continue;
         }
 
-        // Check spazio pagina (considerando footer)
+        // Check spazio pagina (lascia 130px per footer)
         if (doc.y > 650) {
+          addFooterToCurrentPage(doc, currentPage);
           doc.addPage();
+          currentPage++;
         }
 
         // Titolo categoria
@@ -85,18 +75,20 @@ const pdfListinoService = {
 
         // Prodotti della categoria
         for (const prodotto of prodottiPerCategoria[categoria]) {
-          // Check spazio pagina (considerando footer)
-          if (doc.y > 670) {
+          // Check spazio pagina
+          if (doc.y > 650) {
+            addFooterToCurrentPage(doc, currentPage);
             doc.addPage();
+            currentPage++;
           }
 
           // Nome prodotto
           doc.fontSize(11)
              .font('Helvetica-Bold')
              .fillColor('#2c3e50')
-             .text(prodotto.nome, { continued: false });
+             .text(prodotto.nome);
 
-          // Descrizione (opzionale)
+          // Descrizione
           if (includiDescrizioni && prodotto.descrizione) {
             doc.fontSize(9)
                .font('Helvetica')
@@ -120,7 +112,7 @@ const pdfListinoService = {
                .text(`   ${prezzi.join(' - ')}`, { indent: 20 });
           }
 
-          // Unità di misura disponibili
+          // Unità di misura
           if (prodotto.unitaMisuraDisponibili && prodotto.unitaMisuraDisponibili.length > 0) {
             doc.fontSize(8)
                .font('Helvetica')
@@ -128,7 +120,7 @@ const pdfListinoService = {
                .text(`   Disponibile in: ${prodotto.unitaMisuraDisponibili.join(', ')}`, { indent: 20 });
           }
 
-          // Varianti (opzionale)
+          // Varianti
           if (includiVarianti && prodotto.varianti && prodotto.varianti.length > 0) {
             doc.fontSize(8)
                .fillColor('#95a5a6')
@@ -140,12 +132,14 @@ const pdfListinoService = {
                 if (variante.prezzoKg > 0) prezziVariante.push(`€${variante.prezzoKg.toFixed(2)}/Kg`);
                 if (variante.prezzoPezzo > 0) prezziVariante.push(`€${variante.prezzoPezzo.toFixed(2)}/pz`);
                 
-                doc.text(`     • ${variante.nome}: ${prezziVariante.join(' - ')}`, { indent: 30 });
+                if (prezziVariante.length > 0) {
+                  doc.text(`     • ${variante.nome}: ${prezziVariante.join(' - ')}`, { indent: 30 });
+                }
               }
             });
           }
 
-          // Allergeni (opzionale)
+          // Allergeni
           if (includiAllergeni && prodotto.allergeni && prodotto.allergeni.length > 0) {
             doc.fontSize(7)
                .fillColor('#e67e22')
@@ -158,15 +152,10 @@ const pdfListinoService = {
         doc.moveDown();
       }
 
-      // ✅ CALCOLA NUMERO TOTALE PAGINE ALLA FINE
-      const totalPages = pageNumber;
+      // ✅ AGGIUNGI FOOTER ALL'ULTIMA PAGINA
+      addFooterToCurrentPage(doc, currentPage);
 
-      // ✅ AGGIORNA FOOTER CON NUMERO TOTALE PAGINE
-      doc.on('pageAdded', () => {
-        // Evento già gestito sopra
-      });
-
-      logger.info(`Listino PDF generato: ${prodotti.length} prodotti, ${totalPages} pagine`);
+      logger.info(`Listino PDF generato: ${prodotti.length} prodotti, ${currentPage} pagine`);
 
       return doc;
 
@@ -193,11 +182,12 @@ const pdfListinoService = {
 
       const doc = new PDFDocument({ 
         size: 'A4', 
-        margins: { top: 50, bottom: 80, left: 50, right: 50 },
-        bufferPages: true // ✅ Abilita buffer
+        margins: { top: 50, bottom: 100, left: 50, right: 50 }
       });
 
-      // Header categoria specifica
+      let currentPage = 1;
+
+      // Header
       doc.fontSize(20)
          .font('Helvetica-Bold')
          .fillColor('#2c3e50')
@@ -218,7 +208,11 @@ const pdfListinoService = {
 
       // Prodotti
       prodotti.forEach(prodotto => {
-        if (doc.y > 700) doc.addPage();
+        if (doc.y > 650) {
+          addFooterToCurrentPage(doc, currentPage);
+          doc.addPage();
+          currentPage++;
+        }
 
         doc.fontSize(12)
            .font('Helvetica-Bold')
@@ -244,6 +238,9 @@ const pdfListinoService = {
 
         doc.moveDown();
       });
+
+      // Footer ultima pagina
+      addFooterToCurrentPage(doc, currentPage);
 
       logger.info(`Listino categoria PDF generato: ${categoria}, ${prodotti.length} prodotti`);
 
@@ -288,16 +285,16 @@ function addHeader(doc) {
 }
 
 /**
- * ✅ Helper: Aggiungi footer (chiamato automaticamente per ogni pagina)
+ * ✅ Helper: Aggiungi footer SOLO alla pagina corrente (senza triggering eventi)
  */
-function addFooter(doc, currentPage) {
-  const bottomMargin = 80;
+function addFooterToCurrentPage(doc, pageNumber) {
+  const footerY = doc.page.height - 80;
   
-  // Salva posizione corrente
-  const oldY = doc.y;
+  // Salva stato corrente
+  const currentY = doc.y;
   
   // Vai alla posizione footer
-  const footerY = doc.page.height - bottomMargin + 10;
+  doc.y = footerY;
   
   // Linea footer
   doc.save();
@@ -308,20 +305,15 @@ function addFooter(doc, currentPage) {
      .stroke();
   doc.restore();
 
-  // Testo footer
+  // Testo footer - ✅ SENZA width per evitare line wrap
   doc.fontSize(8)
      .fillColor('#95a5a6')
      .text(
-       `Listino valido fino a nuova comunicazione - Pag. ${currentPage}`,
+       `Listino valido fino a nuova comunicazione - Pag. ${pageNumber}`,
        50,
        footerY + 15,
-       { align: 'center', width: doc.page.width - 100 }
+       { align: 'center', lineBreak: false } // ✅ lineBreak: false evita creazione nuova pagina
      );
-  
-  // Ripristina posizione (se non siamo alla fine)
-  if (oldY < footerY - 50) {
-    // Non ripristinare se siamo già vicini al footer
-  }
 }
 
 /**
