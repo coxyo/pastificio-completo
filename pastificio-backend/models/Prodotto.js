@@ -1,4 +1,4 @@
-// models/Prodotto.js
+// models/Prodotto.js - ✅ FIX ENUM UNITÀ MISURA
 import mongoose from 'mongoose';
 
 const varianteSchema = new mongoose.Schema({
@@ -14,9 +14,21 @@ const varianteSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  pezziPerKg: {  // ✅ AGGIUNTO per varianti come "Ravioli piccoli"
+    type: Number,
+    default: null
+  },
   disponibile: {
     type: Boolean,
     default: true
+  },
+  descrizione: {  // ✅ AGGIUNTO per descrizioni varianti
+    type: String,
+    default: ''
+  },
+  prezzoMaggiorazione: {  // ✅ AGGIUNTO per prezzi differenziati
+    type: Number,
+    default: 0
   }
 }, { _id: false });
 
@@ -34,7 +46,7 @@ const prodottoSchema = new mongoose.Schema({
   categoria: {
     type: String,
     required: true,
-    enum: ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Altro'],
+    enum: ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Pasta', 'Altro'],  // ✅ Aggiunta "Pasta"
     default: 'Altro'
   },
   prezzoKg: {
@@ -51,10 +63,26 @@ const prodottoSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
+  // ✅ FIX PRINCIPALE: ENUM COMPLETO
   unitaMisuraDisponibili: [{
     type: String,
-    enum: ['Kg', 'g', 'pz', 'dozzina', 'mezzo kg']
+    enum: [
+      'Kg', 
+      'g', 
+      'pz', 
+      'Pezzi',        // ✅ AGGIUNTO
+      'Unità',        // ✅ AGGIUNTO
+      'dozzina', 
+      'mezzo kg',
+      '€'             // ✅ AGGIUNTO
+    ]
   }],
+  // ✅ AGGIUNTO: Flag per indicare se ha varianti
+  hasVarianti: {
+    type: Boolean,
+    default: false
+  },
+  // ✅ ARRAY VARIANTI (già presente ma migliorato)
   varianti: [varianteSchema],
   disponibile: {
     type: Boolean,
@@ -79,7 +107,7 @@ const prodottoSchema = new mongoose.Schema({
     type: String
   }],
   tempoPreparazione: {
-    type: Number, // minuti
+    type: Number,
     default: 0
   },
   giacenzaMinima: {
@@ -122,9 +150,46 @@ prodottoSchema.virtual('prezzoDisplay').get(function() {
   return 'N/D';
 });
 
+// ✅ NUOVO: Virtual per controllare se è configurato correttamente
+prodottoSchema.virtual('isConfiguratoCorrettamente').get(function() {
+  // Deve avere almeno un prezzo configurato
+  const haPrezzo = this.prezzoKg > 0 || this.prezzoPezzo > 0;
+  
+  // Se ha varianti, devono essere valide
+  const variantiValide = !this.hasVarianti || 
+    (this.varianti && this.varianti.length > 0 && 
+     this.varianti.every(v => v.nome && (v.prezzoKg > 0 || v.prezzoPezzo > 0)));
+  
+  return haPrezzo && variantiValide;
+});
+
 // Pre-save middleware
 prodottoSchema.pre('save', function(next) {
   this.updatedAt = new Date();
+  
+  // ✅ Auto-imposta hasVarianti in base all'array
+  if (this.varianti && this.varianti.length > 0) {
+    this.hasVarianti = true;
+  } else {
+    this.hasVarianti = false;
+  }
+  
+  next();
+});
+
+// ✅ NUOVO: Pre-update middleware per gestire varianti
+prodottoSchema.pre(['findOneAndUpdate', 'updateOne'], function(next) {
+  const update = this.getUpdate();
+  
+  // Auto-imposta hasVarianti se ci sono varianti nell'update
+  if (update.varianti !== undefined) {
+    if (update.varianti && Array.isArray(update.varianti) && update.varianti.length > 0) {
+      update.hasVarianti = true;
+    } else {
+      update.hasVarianti = false;
+    }
+  }
+  
   next();
 });
 
