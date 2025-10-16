@@ -1,4 +1,4 @@
-// components/Backup/BackupManager.js (o components/BackupManager.js)
+// components/Backup/BackupManager.js
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -104,20 +104,40 @@ const BackupManager = () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/backup/list`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setBackupsDrive(data.data || []);
-          
-          if (data.data.length > 0) {
-            const latest = data.data[0];
-            setLastBackup(latest.createdTime);
-          }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Backup Drive response:', data); // DEBUG
+      
+      if (data.success) {
+        // ✅ FIX: Gestisci vari formati di risposta
+        let backupsArray = [];
+        
+        if (Array.isArray(data.data)) {
+          backupsArray = data.data;
+        } else if (data.data && typeof data.data === 'object') {
+          // Se è un oggetto, prova a estrarre un array
+          backupsArray = data.data.files || data.data.backups || [];
         }
+        
+        console.log('✅ Backups array:', backupsArray); // DEBUG
+        setBackupsDrive(backupsArray);
+        
+        if (backupsArray.length > 0) {
+          const latest = backupsArray[0];
+          setLastBackup(latest.createdTime || latest.createdAt);
+        }
+      } else {
+        console.warn('⚠️ Backup API returned success: false');
+        setBackupsDrive([]);
       }
     } catch (error) {
-      console.error('Errore caricamento backup Drive:', error);
-      toast.error('Errore caricamento backup da Google Drive');
+      console.error('❌ Errore caricamento backup Drive:', error);
+      setBackupsDrive([]); // ✅ Sempre array vuoto in caso di errore
+      toast.error('Errore caricamento backup: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -136,9 +156,8 @@ const BackupManager = () => {
         const backupInfo = data.data;
         
         toast.success(
-          `Backup creato con successo!\n` +
-          `File: ${backupInfo.fileName}\n` +
-          `${backupInfo.driveUploaded ? '✅ Caricato su Google Drive' : '⚠️ Solo backup locale'}`
+          `Backup creato con successo!\nFile: ${backupInfo.fileName}\n${backupInfo.driveUploaded ? '✅ Caricato su Google Drive' : '⚠️ Solo backup locale'}`,
+          { autoClose: 5000 }
         );
         
         await loadDriveBackups();
@@ -172,6 +191,8 @@ const BackupManager = () => {
         window.URL.revokeObjectURL(url);
         
         toast.success('Backup scaricato!');
+      } else {
+        throw new Error('Errore download');
       }
     } catch (error) {
       console.error('Errore download:', error);
@@ -192,6 +213,8 @@ const BackupManager = () => {
       if (response.ok) {
         toast.success('Backup eliminato da Google Drive');
         await loadDriveBackups();
+      } else {
+        throw new Error('Errore eliminazione');
       }
     } catch (error) {
       console.error('Errore eliminazione:', error);
@@ -204,26 +227,36 @@ const BackupManager = () => {
   // ==========================================
 
   const loadBackupHistory = () => {
-    const savedBackups = localStorage.getItem('backupHistory');
-    if (savedBackups) {
-      setBackupsLocal(JSON.parse(savedBackups));
+    try {
+      const savedBackups = localStorage.getItem('backupHistory');
+      if (savedBackups) {
+        const parsed = JSON.parse(savedBackups);
+        setBackupsLocal(Array.isArray(parsed) ? parsed : []);
+      }
+      
+      const totalSize = Object.keys(localStorage).reduce((acc, key) => {
+        return acc + new Blob([localStorage.getItem(key)]).size;
+      }, 0);
+      setStorageUsed(totalSize / (1024 * 1024));
+    } catch (error) {
+      console.error('Errore caricamento backup locali:', error);
+      setBackupsLocal([]);
     }
-    
-    const totalSize = Object.keys(localStorage).reduce((acc, key) => {
-      return acc + new Blob([localStorage.getItem(key)]).size;
-    }, 0);
-    setStorageUsed(totalSize / (1024 * 1024));
   };
 
   const checkAutoBackupSettings = () => {
-    const settings = localStorage.getItem('backupSettings');
-    if (settings) {
-      const parsed = JSON.parse(settings);
-      setAutoBackup(parsed.autoBackup);
-      setBackupFrequency(parsed.frequency);
-      if (parsed.lastBackup && !lastBackup) {
-        setLastBackup(parsed.lastBackup);
+    try {
+      const settings = localStorage.getItem('backupSettings');
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        setAutoBackup(parsed.autoBackup);
+        setBackupFrequency(parsed.frequency);
+        if (parsed.lastBackup && !lastBackup) {
+          setLastBackup(parsed.lastBackup);
+        }
       }
+    } catch (error) {
+      console.error('Errore caricamento impostazioni:', error);
     }
   };
 
@@ -325,7 +358,8 @@ const BackupManager = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `backup_pastificio_${formatDate(backup.date).replace(/[/:]/g, '-')}.json`;
+      const dateStr = formatDate(backup.date).replace(/[/:]/g, '-').replace(/ /g, '_');
+      a.download = `backup_pastificio_${dateStr}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Backup esportato');
@@ -620,7 +654,7 @@ const BackupManager = () => {
                             💾 {formatFileSize(backup.size)}
                           </Typography>
                           <Typography variant="caption" display="block">
-                            📦 {backup.items.ordini} ordini, {backup.items.clienti} clienti, {backup.items.prodotti} prodotti
+                            📦 {backup.items?.ordini || 0} ordini, {backup.items?.clienti || 0} clienti, {backup.items?.prodotti || 0} prodotti
                           </Typography>
                         </Box>
                       }
@@ -663,7 +697,7 @@ const BackupManager = () => {
             </Typography>
             <LinearProgress 
               variant="determinate" 
-              value={(storageUsed / 5) * 100} 
+              value={Math.min((storageUsed / 5) * 100, 100)} 
               sx={{ mt: 1 }}
             />
           </Alert>
@@ -728,7 +762,7 @@ const BackupManager = () => {
                 </Typography>
                 <LinearProgress 
                   variant="determinate" 
-                  value={(storageUsed / 5) * 100} 
+                  value={Math.min((storageUsed / 5) * 100, 100)} 
                   sx={{ mt: 1 }}
                 />
                 <Typography variant="caption" color="textSecondary">
