@@ -1,13 +1,16 @@
-// components/GestioneLimiti.js - NUOVO COMPONENTE
-'use client';
-
+// src/components/GestioneLimiti.js - ✅ CON AUTENTICAZIONE
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Container,
-  Paper,
-  Typography,
   Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -17,23 +20,20 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Switch,
-  FormControlLabel,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  IconButton,
   Chip,
-  Alert,
+  Typography,
   LinearProgress,
-  Grid
+  Alert,
+  Grid,
+  Card,
+  CardContent,
+  Snackbar
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Refresh as RefreshIcon,
   Warning as WarningIcon,
   CheckCircle as CheckIcon,
   Error as ErrorIcon
@@ -41,164 +41,167 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
+// ✅ HELPER: Ottieni token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+};
+
 export default function GestioneLimiti() {
   const [limiti, setLimiti] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [limiteCorrente, setLimiteCorrente] = useState(null);
+  const [editingLimite, setEditingLimite] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  
   const [formData, setFormData] = useState({
     data: new Date().toISOString().split('T')[0],
     prodotto: '',
     categoria: '',
     limiteQuantita: '',
     unitaMisura: 'Kg',
-    sogliAllerta: 80,
     attivo: true,
+    sogliAllerta: 80,
     note: ''
   });
 
-  const CATEGORIE = ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Pasta', 'Pane', 'Altro'];
-  
-  const PRODOTTI_COMUNI = [
-    'Pardulas',
-    'Ciambelle',
-    'Culurgiones ricotta',
-    'Culurgiones patate',
-    'Ravioli carne',
-    'Papassini',
-    'Amaretti',
-    'Seadas'
-  ];
-
-  useEffect(() => {
-    caricaLimiti();
-  }, []);
-
+  // ✅ Carica limiti con autenticazione
   const caricaLimiti = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/limiti`);
+      
+      const response = await fetch(`${API_URL}/limiti`, {
+        method: 'GET',
+        headers: getAuthHeaders() // ✅ CON TOKEN
+      });
       
       if (response.ok) {
         const data = await response.json();
         setLimiti(data.data || []);
+        console.log(`✅ Caricati ${data.data?.length || 0} limiti`);
+      } else if (response.status === 401) {
+        mostraSnackbar('Autenticazione necessaria', 'warning');
+      } else {
+        throw new Error(`Errore ${response.status}`);
       }
     } catch (error) {
       console.error('Errore caricamento limiti:', error);
+      mostraSnackbar('Errore caricamento limiti', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSalva = async () => {
-    try {
-      // Validazione
-      if (!formData.limiteQuantita || formData.limiteQuantita <= 0) {
-        alert('Inserisci una quantità limite valida');
-        return;
-      }
-      
-      if (!formData.prodotto && !formData.categoria) {
-        alert('Seleziona un prodotto O una categoria');
-        return;
-      }
-      
-      if (formData.prodotto && formData.categoria) {
-        alert('Seleziona O un prodotto O una categoria, non entrambi');
-        return;
-      }
-      
-      const url = limiteCorrente 
-        ? `${API_URL}/limiti/${limiteCorrente._id}`
-        : `${API_URL}/limiti`;
-      
-      const method = limiteCorrente ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (response.ok) {
-        await caricaLimiti();
-        handleChiudiDialog();
-        alert(limiteCorrente ? 'Limite aggiornato' : 'Limite creato');
-      } else {
-        const error = await response.json();
-        alert(`Errore: ${error.message}`);
-      }
-    } catch (error) {
-      console.error('Errore salvataggio:', error);
-      alert('Errore salvataggio limite');
-    }
+  useEffect(() => {
+    caricaLimiti();
+  }, []);
+
+  const mostraSnackbar = (message, severity = 'info') => {
+    setSnackbar({ open: true, message, severity });
   };
 
-  const handleElimina = async (id) => {
-    if (!confirm('Confermi eliminazione limite?')) return;
-    
-    try {
-      const response = await fetch(`${API_URL}/limiti/${id}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        await caricaLimiti();
-        alert('Limite eliminato');
-      }
-    } catch (error) {
-      console.error('Errore eliminazione:', error);
-      alert('Errore eliminazione limite');
-    }
-  };
-
-  const handleApriDialog = (limite = null) => {
-    if (limite) {
-      setLimiteCorrente(limite);
-      setFormData({
-        data: new Date(limite.data).toISOString().split('T')[0],
-        prodotto: limite.prodotto || '',
-        categoria: limite.categoria || '',
-        limiteQuantita: limite.limiteQuantita,
-        unitaMisura: limite.unitaMisura,
-        sogliAllerta: limite.sogliAllerta,
-        attivo: limite.attivo,
-        note: limite.note || ''
-      });
-    } else {
-      setLimiteCorrente(null);
-      setFormData({
-        data: new Date().toISOString().split('T')[0],
-        prodotto: '',
-        categoria: '',
-        limiteQuantita: '',
-        unitaMisura: 'Kg',
-        sogliAllerta: 80,
-        attivo: true,
-        note: ''
-      });
-    }
+  const handleNuovoLimite = () => {
+    setEditingLimite(null);
+    setFormData({
+      data: new Date().toISOString().split('T')[0],
+      prodotto: '',
+      categoria: '',
+      limiteQuantita: '',
+      unitaMisura: 'Kg',
+      attivo: true,
+      sogliAllerta: 80,
+      note: ''
+    });
     setDialogOpen(true);
   };
 
-  const handleChiudiDialog = () => {
-    setDialogOpen(false);
-    setLimiteCorrente(null);
+  const handleEditLimite = (limite) => {
+    setEditingLimite(limite);
+    setFormData({
+      data: new Date(limite.data).toISOString().split('T')[0],
+      prodotto: limite.prodotto || '',
+      categoria: limite.categoria || '',
+      limiteQuantita: limite.limiteQuantita,
+      unitaMisura: limite.unitaMisura,
+      attivo: limite.attivo,
+      sogliAllerta: limite.sogliAllerta,
+      note: limite.note || ''
+    });
+    setDialogOpen(true);
   };
 
-  const getStatoChip = (limite) => {
-    const stato = limite.statoCapacita;
-    
-    if (stato === 'esaurito') {
-      return <Chip icon={<ErrorIcon />} label="ESAURITO" color="error" size="small" />;
-    } else if (stato === 'in_esaurimento') {
-      return <Chip icon={<WarningIcon />} label="IN ESAURIMENTO" color="warning" size="small" />;
-    } else {
-      return <Chip icon={<CheckIcon />} label="Disponibile" color="success" size="small" />;
+  // ✅ Salva con autenticazione
+  const handleSalvaLimite = async () => {
+    try {
+      if (!formData.limiteQuantita || formData.limiteQuantita <= 0) {
+        mostraSnackbar('Inserisci una quantità valida', 'warning');
+        return;
+      }
+
+      if (!formData.prodotto && !formData.categoria) {
+        mostraSnackbar('Specifica un prodotto o una categoria', 'warning');
+        return;
+      }
+
+      const url = editingLimite 
+        ? `${API_URL}/limiti/${editingLimite._id}`
+        : `${API_URL}/limiti`;
+      
+      const method = editingLimite ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: getAuthHeaders(), // ✅ CON TOKEN
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        mostraSnackbar(
+          editingLimite ? 'Limite aggiornato' : 'Limite creato',
+          'success'
+        );
+        setDialogOpen(false);
+        caricaLimiti();
+      } else if (response.status === 401) {
+        mostraSnackbar('Autenticazione necessaria', 'warning');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Errore salvataggio');
+      }
+    } catch (error) {
+      console.error('Errore salvataggio limite:', error);
+      mostraSnackbar(error.message || 'Errore salvataggio limite', 'error');
     }
   };
 
-  // ✅ FUNZIONE HELPER: Crea limiti Natale
+  // ✅ Elimina con autenticazione
+  const handleEliminaLimite = async (id) => {
+    if (!confirm('Confermi eliminazione limite?')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/limiti/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders() // ✅ CON TOKEN
+      });
+
+      if (response.ok) {
+        mostraSnackbar('Limite eliminato', 'success');
+        caricaLimiti();
+      } else if (response.status === 401) {
+        mostraSnackbar('Autenticazione necessaria', 'warning');
+      } else {
+        throw new Error('Errore eliminazione');
+      }
+    } catch (error) {
+      console.error('Errore eliminazione limite:', error);
+      mostraSnackbar('Errore eliminazione limite', 'error');
+    }
+  };
+
+  // ✅ Template con autenticazione
   const creaLimitiNatale = async () => {
     const limitiNatale = [
       {
@@ -206,8 +209,8 @@ export default function GestioneLimiti() {
         prodotto: 'Pardulas',
         limiteQuantita: 60,
         unitaMisura: 'Kg',
-        sogliAllerta: 80,
         attivo: true,
+        sogliAllerta: 80,
         note: 'Natale 2025'
       },
       {
@@ -215,8 +218,8 @@ export default function GestioneLimiti() {
         prodotto: 'Ciambelle',
         limiteQuantita: 40,
         unitaMisura: 'Kg',
-        sogliAllerta: 80,
         attivo: true,
+        sogliAllerta: 80,
         note: 'Natale 2025'
       },
       {
@@ -224,262 +227,330 @@ export default function GestioneLimiti() {
         categoria: 'Ravioli',
         limiteQuantita: 50,
         unitaMisura: 'Kg',
-        sogliAllerta: 80,
         attivo: true,
-        note: 'Natale 2025 - Tutti i ravioli'
+        sogliAllerta: 80,
+        note: 'Natale 2025'
       }
     ];
-    
+
     try {
       const response = await fetch(`${API_URL}/limiti/bulk`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(), // ✅ CON TOKEN
         body: JSON.stringify({ limiti: limitiNatale })
       });
-      
+
       if (response.ok) {
-        await caricaLimiti();
-        alert('Limiti Natale creati con successo!');
+        mostraSnackbar('Limiti Natale creati!', 'success');
+        caricaLimiti();
+      } else if (response.status === 401) {
+        mostraSnackbar('Autenticazione necessaria', 'warning');
+      } else {
+        throw new Error('Errore creazione limiti bulk');
       }
     } catch (error) {
       console.error('Errore creazione limiti Natale:', error);
-      alert('Errore creazione limiti');
+      mostraSnackbar('Errore creazione limiti', 'error');
     }
   };
 
-  return (
-    <Container maxWidth="xl">
-      <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h4">
-            📊 Limiti Capacità Produttiva
-          </Typography>
-          
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              onClick={creaLimitiNatale}
-            >
-              🎄 Crea Limiti Natale
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleApriDialog()}
-            >
-              Nuovo Limite
-            </Button>
-          </Box>
-        </Box>
+  const calcolaPercentualeUtilizzo = (limite) => {
+    if (!limite.limiteQuantita) return 0;
+    return Math.min((limite.quantitaOrdinata / limite.limiteQuantita) * 100, 100);
+  };
 
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Configura i limiti di produzione giornalieri per prodotto o categoria. 
-          Il sistema bloccherà automaticamente gli ordini che superano la capacità.
-        </Alert>
+  const getColoreSoglia = (percentuale) => {
+    if (percentuale >= 100) return 'error';
+    if (percentuale >= 80) return 'warning';
+    return 'success';
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5">📊 Gestione Limiti Capacità Produttiva</Typography>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={caricaLimiti}
+            disabled={loading}
+          >
+            Ricarica
+          </Button>
+          
+          <Button
+            variant="outlined"
+            onClick={creaLimitiNatale}
+          >
+            🎄 Crea Limiti Natale
+          </Button>
+          
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleNuovoLimite}
+          >
+            Nuovo Limite
+          </Button>
+        </Box>
       </Box>
 
+      {/* Statistiche */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Limiti Attivi
+              </Typography>
+              <Typography variant="h4">
+                {limiti.filter(l => l.attivo).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Limiti Superati
+              </Typography>
+              <Typography variant="h4" color="error">
+                {limiti.filter(l => calcolaPercentualeUtilizzo(l) >= 100).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                In Allerta (>80%)
+              </Typography>
+              <Typography variant="h4" color="warning.main">
+                {limiti.filter(l => {
+                  const perc = calcolaPercentualeUtilizzo(l);
+                  return perc >= 80 && perc < 100;
+                }).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Tabella Limiti */}
       {loading ? (
-        <CircularProgress />
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <LinearProgress sx={{ width: '50%' }} />
+        </Box>
+      ) : limiti.length === 0 ? (
+        <Alert severity="info">
+          Nessun limite configurato. Clicca "Nuovo Limite" per iniziare.
+        </Alert>
       ) : (
-        <Paper>
+        <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Data</TableCell>
                 <TableCell>Prodotto/Categoria</TableCell>
-                <TableCell>Limite</TableCell>
-                <TableCell>Ordinato</TableCell>
-                <TableCell>Disponibile</TableCell>
+                <TableCell align="right">Limite</TableCell>
+                <TableCell align="right">Ordinato</TableCell>
+                <TableCell align="right">Disponibile</TableCell>
                 <TableCell>Utilizzo</TableCell>
                 <TableCell>Stato</TableCell>
-                <TableCell>Azioni</TableCell>
+                <TableCell align="center">Azioni</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {limiti.map((limite) => (
-                <TableRow key={limite._id}>
-                  <TableCell>
-                    {new Date(limite.data).toLocaleDateString('it-IT')}
-                  </TableCell>
-                  <TableCell>
-                    <strong>{limite.prodotto || limite.categoria}</strong>
-                    {limite.categoria && <Chip label="Categoria" size="small" sx={{ ml: 1 }} />}
-                    {!limite.attivo && <Chip label="Disattivato" size="small" color="default" sx={{ ml: 1 }} />}
-                  </TableCell>
-                  <TableCell>
-                    {limite.limiteQuantita} {limite.unitaMisura}
-                  </TableCell>
-                  <TableCell>
-                    {limite.quantitaOrdinata.toFixed(1)} {limite.unitaMisura}
-                  </TableCell>
-                  <TableCell>
-                    <strong>{limite.quantitaDisponibile.toFixed(1)} {limite.unitaMisura}</strong>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min(limite.percentualeUtilizzo, 100)}
-                        sx={{ width: 100, height: 8, borderRadius: 4 }}
-                        color={
-                          limite.percentualeUtilizzo >= 100 ? 'error' :
-                          limite.percentualeUtilizzo >= limite.sogliAllerta ? 'warning' :
-                          'success'
-                        }
-                      />
-                      <Typography variant="caption">
-                        {limite.percentualeUtilizzo}%
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    {getStatoChip(limite)}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton size="small" onClick={() => handleApriDialog(limite)}>
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton size="small" color="error" onClick={() => handleElimina(limite._id)}>
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-              
-              {limiti.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    <Typography color="text.secondary">
-                      Nessun limite configurato. Clicca "Nuovo Limite" per iniziare.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
+              {limiti.map((limite) => {
+                const percentuale = calcolaPercentualeUtilizzo(limite);
+                const disponibile = Math.max(0, limite.limiteQuantita - limite.quantitaOrdinata);
+                
+                return (
+                  <TableRow key={limite._id}>
+                    <TableCell>
+                      {new Date(limite.data).toLocaleDateString('it-IT')}
+                    </TableCell>
+                    <TableCell>
+                      {limite.prodotto || `Categoria: ${limite.categoria}`}
+                    </TableCell>
+                    <TableCell align="right">
+                      {limite.limiteQuantita} {limite.unitaMisura}
+                    </TableCell>
+                    <TableCell align="right">
+                      {limite.quantitaOrdinata.toFixed(1)} {limite.unitaMisura}
+                    </TableCell>
+                    <TableCell align="right">
+                      {disponibile.toFixed(1)} {limite.unitaMisura}
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ width: '100%', mr: 1 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={percentuale}
+                          color={getColoreSoglia(percentuale)}
+                          sx={{ height: 8, borderRadius: 4 }}
+                        />
+                        <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                          {percentuale.toFixed(0)}%
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      {limite.attivo ? (
+                        percentuale >= 100 ? (
+                          <Chip
+                            icon={<ErrorIcon />}
+                            label="SUPERATO"
+                            color="error"
+                            size="small"
+                          />
+                        ) : percentuale >= limite.sogliAllerta ? (
+                          <Chip
+                            icon={<WarningIcon />}
+                            label="ALLERTA"
+                            color="warning"
+                            size="small"
+                          />
+                        ) : (
+                          <Chip
+                            icon={<CheckIcon />}
+                            label="OK"
+                            color="success"
+                            size="small"
+                          />
+                        )
+                      ) : (
+                        <Chip label="Disattivo" size="small" variant="outlined" />
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditLimite(limite)}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleEliminaLimite(limite._id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
-        </Paper>
+        </TableContainer>
       )}
 
-      {/* Dialog Nuovo/Modifica Limite */}
-      <Dialog open={dialogOpen} onClose={handleChiudiDialog} maxWidth="md" fullWidth>
+      {/* Dialog Form */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {limiteCorrente ? 'Modifica Limite' : 'Nuovo Limite'}
+          {editingLimite ? 'Modifica Limite' : 'Nuovo Limite'}
         </DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Data"
-                value={formData.data}
-                onChange={(e) => setFormData({ ...formData, data: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <TextField
+              label="Data"
+              type="date"
+              value={formData.data}
+              onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
 
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Prodotto Specifico</InputLabel>
-                <Select
-                  value={formData.prodotto}
-                  onChange={(e) => setFormData({ ...formData, prodotto: e.target.value, categoria: '' })}
-                  label="Prodotto Specifico"
-                >
-                  <MenuItem value="">Nessuno</MenuItem>
-                  {PRODOTTI_COMUNI.map((p) => (
-                    <MenuItem key={p} value={p}>{p}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+            <TextField
+              label="Prodotto (specifico)"
+              value={formData.prodotto}
+              onChange={(e) => setFormData({ ...formData, prodotto: e.target.value, categoria: '' })}
+              fullWidth
+              disabled={!!formData.categoria}
+            />
 
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>O Categoria</InputLabel>
-                <Select
-                  value={formData.categoria}
-                  onChange={(e) => setFormData({ ...formData, categoria: e.target.value, prodotto: '' })}
-                  label="O Categoria"
-                  disabled={!!formData.prodotto}
-                >
-                  <MenuItem value="">Nessuna</MenuItem>
-                  {CATEGORIE.map((c) => (
-                    <MenuItem key={c} value={c}>{c}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+            <Typography variant="caption" align="center">- OPPURE -</Typography>
 
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Quantità Limite"
-                value={formData.limiteQuantita}
-                onChange={(e) => setFormData({ ...formData, limiteQuantita: e.target.value })}
-                inputProps={{ min: 0, step: 0.1 }}
-              />
-            </Grid>
+            <FormControl fullWidth disabled={!!formData.prodotto}>
+              <InputLabel>Categoria</InputLabel>
+              <Select
+                value={formData.categoria}
+                onChange={(e) => setFormData({ ...formData, categoria: e.target.value, prodotto: '' })}
+                label="Categoria"
+              >
+                <MenuItem value="">Nessuna</MenuItem>
+                <MenuItem value="Ravioli">Ravioli</MenuItem>
+                <MenuItem value="Dolci">Dolci</MenuItem>
+                <MenuItem value="Pardulas">Pardulas</MenuItem>
+                <MenuItem value="Panadas">Panadas</MenuItem>
+              </Select>
+            </FormControl>
 
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Unità Misura</InputLabel>
-                <Select
-                  value={formData.unitaMisura}
-                  onChange={(e) => setFormData({ ...formData, unitaMisura: e.target.value })}
-                  label="Unità Misura"
-                >
-                  <MenuItem value="Kg">Kg</MenuItem>
-                  <MenuItem value="Pezzi">Pezzi</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+            <TextField
+              label="Quantità Limite"
+              type="number"
+              value={formData.limiteQuantita}
+              onChange={(e) => setFormData({ ...formData, limiteQuantita: parseFloat(e.target.value) })}
+              fullWidth
+            />
 
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Soglia Alert (%)"
-                value={formData.sogliAllerta}
-                onChange={(e) => setFormData({ ...formData, sogliAllerta: e.target.value })}
-                inputProps={{ min: 0, max: 100 }}
-                helperText="Percentuale a cui ricevere alert (es: 80 = avviso all'80%)"
-              />
-            </Grid>
+            <FormControl fullWidth>
+              <InputLabel>Unità Misura</InputLabel>
+              <Select
+                value={formData.unitaMisura}
+                onChange={(e) => setFormData({ ...formData, unitaMisura: e.target.value })}
+                label="Unità Misura"
+              >
+                <MenuItem value="Kg">Kg</MenuItem>
+                <MenuItem value="Pezzi">Pezzi</MenuItem>
+              </Select>
+            </FormControl>
 
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                label="Note"
-                value={formData.note}
-                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                placeholder="es: Natale - alta domanda"
-              />
-            </Grid>
+            <TextField
+              label="Soglia Allerta (%)"
+              type="number"
+              value={formData.sogliAllerta}
+              onChange={(e) => setFormData({ ...formData, sogliAllerta: parseInt(e.target.value) })}
+              fullWidth
+              inputProps={{ min: 0, max: 100 }}
+            />
 
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.attivo}
-                    onChange={(e) => setFormData({ ...formData, attivo: e.target.checked })}
-                  />
-                }
-                label="Limite Attivo"
-              />
-            </Grid>
-          </Grid>
+            <TextField
+              label="Note"
+              value={formData.note}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+              fullWidth
+              multiline
+              rows={2}
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleChiudiDialog}>Annulla</Button>
-          <Button variant="contained" onClick={handleSalva}>
+          <Button onClick={() => setDialogOpen(false)}>Annulla</Button>
+          <Button onClick={handleSalvaLimite} variant="contained">
             Salva
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }
