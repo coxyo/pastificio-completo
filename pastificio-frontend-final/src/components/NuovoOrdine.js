@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - ✅ CON ALERT LIMITI REAL-TIME
+// components/NuovoOrdine.js - ✅ CON ALERT LIMITI E PARDULAS NEI DOLCI
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -295,7 +295,7 @@ export default function NuovoOrdine({
     setAlertLimiti(alerts);
   };
 
-  // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA (da DB)
+  // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA (INCLUDI PARDULAS NEI DOLCI)
   const prodottiPerCategoria = useMemo(() => {
     const categorie = {
       Ravioli: [],
@@ -306,7 +306,11 @@ export default function NuovoOrdine({
 
     prodottiDB.forEach(prodotto => {
       const categoria = prodotto.categoria || 'Altro';
-      if (categorie[categoria]) {
+      
+      // ✅ FIX: Pardulas vanno nei Dolci
+      if (categoria === 'Pardulas') {
+        categorie.Dolci.push(prodotto);
+      } else if (categorie[categoria]) {
         categorie[categoria].push(prodotto);
       }
     });
