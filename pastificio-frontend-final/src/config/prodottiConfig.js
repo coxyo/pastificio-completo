@@ -105,7 +105,7 @@ export const PRODOTTI_CONFIG = {
   },
 
   // ========== CIAMBELLE CON VARIANTI ==========
-  'Cimbelle': {
+  'Ciambelle': {
     categoria: 'Dolci',
     hasVarianti: true,
     prezzoKg: 17.00,
