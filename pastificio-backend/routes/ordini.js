@@ -1,4 +1,4 @@
-// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE E VERIFICA LIMITI
+// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE, LIMITI E FORCE OVERRIDE
 import express from 'express';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
@@ -85,41 +85,44 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/ordini - Crea nuovo ordine (CON VERIFICA LIMITI)
+// POST /api/ordini - Crea nuovo ordine (CON VERIFICA LIMITI E FORCE OVERRIDE)
 router.post('/', async (req, res, next) => {
   try {
     logger.info('📥 Ricevuta richiesta creazione ordine');
     
     const ordineData = req.body;
     
-    // ✅ VERIFICA LIMITI GIORNALIERI PRIMA DI SALVARE
+    // ✅ VERIFICA LIMITI SOLO SE NON È UN FORCE OVERRIDE
     if (ordineData.dataRitiro && ordineData.prodotti && ordineData.prodotti.length > 0) {
-      try {
-        const verificaLimiti = await LimiteGiornaliero.verificaOrdine(
-          ordineData.dataRitiro,
-          ordineData.prodotti
-        );
-        
-        // Se ci sono errori (limiti superati)
-        if (verificaLimiti.errori && verificaLimiti.errori.length > 0) {
-          const erroriBloccanti = verificaLimiti.errori.filter(e => e.superato);
+      
+      // ✅ Controlla se l'utente ha forzato l'override
+      if (!ordineData.forceOverride) {
+        try {
+          const verificaLimiti = await LimiteGiornaliero.verificaOrdine(
+            ordineData.dataRitiro,
+            ordineData.prodotti
+          );
           
-          if (erroriBloccanti.length > 0) {
-            logger.error('❌ Ordine supera limiti:', erroriBloccanti);
+          if (verificaLimiti.errori && verificaLimiti.errori.length > 0) {
+            const erroriBloccanti = verificaLimiti.errori.filter(e => e.superato);
             
-            return res.status(400).json({
-              success: false,
-              message: 'Ordine supera i limiti di capacità produttiva',
-              erroriLimiti: erroriBloccanti,
-              superaLimiti: true
-            });
-          } else {
-            // Solo warning, permetti comunque
-            logger.warn('⚠️ Ordine vicino ai limiti:', verificaLimiti.errori);
+            if (erroriBloccanti.length > 0) {
+              logger.error('❌ Ordine supera limiti:', erroriBloccanti);
+              
+              return res.status(400).json({
+                success: false,
+                message: 'Ordine supera i limiti di capacità produttiva',
+                erroriLimiti: erroriBloccanti,
+                superaLimiti: true
+              });
+            }
           }
+        } catch (limiteError) {
+          logger.warn('⚠️ Errore verifica limiti (continuo comunque):', limiteError.message);
         }
-      } catch (limiteError) {
-        logger.warn('⚠️ Errore verifica limiti (continuo comunque):', limiteError.message);
+      } else {
+        // ✅ OVERRIDE FORZATO: Logga ma continua
+        logger.warn('⚠️ Ordine creato con FORCE OVERRIDE (limiti ignorati)');
       }
     }
     
@@ -132,7 +135,6 @@ router.post('/', async (req, res, next) => {
         clienteId = ordineData.cliente._id;
       }
       
-      // Verifica esistenza cliente
       if (clienteId) {
         const clienteEsiste = await Cliente.findById(clienteId);
         if (!clienteEsiste) {
@@ -142,9 +144,11 @@ router.post('/', async (req, res, next) => {
       }
     }
     
-    // Prepara dati ordine
+    // ✅ Prepara dati ordine (RIMUOVI forceOverride prima di salvare)
+    const { forceOverride, ...ordineDataPulito } = ordineData;
+    
     const nuovoOrdineData = {
-      ...ordineData,
+      ...ordineDataPulito,
       cliente: clienteId,
       numeroOrdine: `ORD${Date.now().toString().slice(-8)}`,
       stato: ordineData.stato || 'nuovo',
@@ -157,7 +161,7 @@ router.post('/', async (req, res, next) => {
     const nuovoOrdine = new Ordine(nuovoOrdineData);
     await nuovoOrdine.save();
     
-    logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - €${nuovoOrdine.totale}`);
+    logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - €${nuovoOrdine.totale}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
     
     // ✅ AGGIORNA CONTATORI LIMITI DOPO SALVATAGGIO
     if (nuovoOrdine.dataRitiro && nuovoOrdine.prodotti && nuovoOrdine.prodotti.length > 0) {
@@ -203,7 +207,7 @@ router.post('/', async (req, res, next) => {
   });
 });
 
-// PUT /api/ordini/:id - Aggiorna ordine (CON VERIFICA LIMITI)
+// PUT /api/ordini/:id - Aggiorna ordine (CON VERIFICA LIMITI E FORCE OVERRIDE)
 router.put('/:id', async (req, res) => {
   try {
     const ordineData = req.body;
@@ -217,8 +221,8 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    // ✅ SE CAMBIA DATA O PRODOTTI, VERIFICA LIMITI
-    if (ordineData.dataRitiro || ordineData.prodotti) {
+    // ✅ SE CAMBIA DATA O PRODOTTI, VERIFICA LIMITI (SOLO SE NON FORCE OVERRIDE)
+    if ((ordineData.dataRitiro || ordineData.prodotti) && !ordineData.forceOverride) {
       const dataVerifica = ordineData.dataRitiro || ordineEsistente.dataRitiro;
       const prodottiVerifica = ordineData.prodotti || ordineEsistente.prodotti;
       
@@ -261,6 +265,8 @@ router.put('/:id', async (req, res) => {
       } catch (limiteError) {
         logger.warn('⚠️ Errore verifica/aggiornamento limiti:', limiteError.message);
       }
+    } else if (ordineData.forceOverride) {
+      logger.warn('⚠️ Ordine aggiornato con FORCE OVERRIDE (limiti ignorati)');
     }
     
     // Gestisci cliente
@@ -273,10 +279,13 @@ router.put('/:id', async (req, res) => {
       }
     }
     
+    // ✅ Rimuovi forceOverride prima di salvare
+    const { forceOverride, ...ordineDataPulito } = ordineData;
+    
     const ordineAggiornato = await Ordine.findByIdAndUpdate(
       req.params.id,
       {
-        ...ordineData,
+        ...ordineDataPulito,
         cliente: clienteId,
         updatedAt: new Date()
       },
@@ -290,7 +299,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    logger.info(`✅ Ordine aggiornato: ${ordineAggiornato.numeroOrdine}`);
+    logger.info(`✅ Ordine aggiornato: ${ordineAggiornato.numeroOrdine}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
     
     // Notifica WebSocket
     if (global.io) {
