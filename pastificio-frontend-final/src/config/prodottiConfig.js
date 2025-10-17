@@ -67,7 +67,7 @@ export const PRODOTTI_CONFIG = {
   // ========== CULURGIONES ==========
   'Culurgiones': {
     categoria: 'Ravioli',
-    prezzoKg: 18.00,
+    prezzoKg: 16.00,
     pezziPerKg: 32,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
@@ -77,7 +77,7 @@ export const PRODOTTI_CONFIG = {
   'Pardulas': {
     categoria: 'Dolci',
     hasVarianti: true,
-    prezzoKg: 28.00,
+    prezzoKg: 20.00,
     prezzoPezzo: 0.76,
     pezziPerKg: 25,
     modalitaVendita: MODALITA_VENDITA.MISTA,
@@ -86,19 +86,19 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'base',
         label: 'Pardulas (base)',
-        prezzoKg: 28.00,
+        prezzoKg: 20.00,
         prezzoPezzo: 0.76
       },
       {
         nome: 'con_glassa',
         label: 'Pardulas con glassa',
-        prezzoKg: 28.00,
+        prezzoKg: 20.00,
         prezzoPezzo: 0.76
       },
       {
         nome: 'zucchero_velo',
         label: 'Pardulas con zucchero a velo',
-        prezzoKg: 28.00,
+        prezzoKg: 20.00,
         prezzoPezzo: 0.76
       }
     ]
@@ -108,7 +108,7 @@ export const PRODOTTI_CONFIG = {
   'Cimbelle': {
     categoria: 'Dolci',
     hasVarianti: true,
-    prezzoKg: 18.00,
+    prezzoKg: 17.00,
     pezziPerKg: 30,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
@@ -116,42 +116,42 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'base',
         label: 'Ciambelle solo base',
-        prezzoKg: 18.00
+        prezzoKg: 17.00
       },
       {
         nome: 'albicocca',
         label: 'Ciambelle con marmellata di albicocca',
-        prezzoKg: 18.00
+        prezzoKg: 17.00
       },
       {
         nome: 'ciliegia',
         label: 'Ciambelle con marmellata di ciliegia',
-        prezzoKg: 18.00
+        prezzoKg: 17.00
       },
       {
         nome: 'nutella',
         label: 'Ciambelle con nutella',
-        prezzoKg: 20.00 // ✅ Prezzo maggiorato per nutella
+        prezzoKg: 17.00 // ✅ Prezzo maggiorato per nutella
       },
       {
         nome: 'zucchero_velo',
         label: 'Ciambelle con zucchero a velo',
-        prezzoKg: 18.00
+        prezzoKg: 17.00
       },
       {
         nome: 'miste_marmellata_nutella',
         label: 'Ciambelle miste: marmellata - nutella',
-        prezzoKg: 19.00 // ✅ Prezzo medio tra marmellata e nutella
+        prezzoKg: 17.00 // ✅ Prezzo medio tra marmellata e nutella
       },
       {
         nome: 'miste_marmellata_zucchero',
         label: 'Ciambelle miste: marmellata - zucchero a velo',
-        prezzoKg: 18.00
+        prezzoKg: 17.00
       },
       {
         nome: 'miste_marmellata_base',
         label: 'Ciambelle miste: marmellata - solo base',
-        prezzoKg: 18.00
+        prezzoKg: 17.00
       }
     ]
   },
@@ -166,7 +166,7 @@ export const PRODOTTI_CONFIG = {
 
   'Amaretti': {
     categoria: 'Dolci',
-    prezzoKg: 18.00,
+    prezzoKg: 22.00,
     pezziPerKg: 35,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
@@ -174,7 +174,7 @@ export const PRODOTTI_CONFIG = {
 
   'Papassini': {
     categoria: 'Dolci',
-    prezzoKg: 18.50,
+    prezzoKg: 22.00,
     pezziPerKg: 30,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
@@ -182,7 +182,7 @@ export const PRODOTTI_CONFIG = {
 
   'Gueffus': {
     categoria: 'Dolci',
-    prezzoKg: 18.00,
+    prezzoKg: 22.00,
     pezziPerKg: 65,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
@@ -190,7 +190,7 @@ export const PRODOTTI_CONFIG = {
 
   'Bianchini': {
     categoria: 'Dolci',
-    prezzoKg: 18.00,
+    prezzoKg: 15.00,
     pezziPerKg: 100,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
@@ -198,7 +198,7 @@ export const PRODOTTI_CONFIG = {
 
   'Torta di saba': {
     categoria: 'Dolci',
-    prezzoKg: 20.00,
+    prezzoKg: 26.00,
     prezzoPezzo: 15.00,
     modalitaVendita: MODALITA_VENDITA.PESO_VARIABILE,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
@@ -206,7 +206,7 @@ export const PRODOTTI_CONFIG = {
 
   'Dolci misti': {
     categoria: 'Dolci',
-    prezzoKg: 18.50,
+    prezzoKg: 19.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
     composizione: {
@@ -262,7 +262,7 @@ export const PRODOTTI_CONFIG = {
   },
 
   'Pizzette sfoglia': {
-    prezzoKg: 15.00,
+    prezzoKg: 16.00,
     pezziPerKg: 30,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     categoria: 'Pasta',
@@ -270,14 +270,14 @@ export const PRODOTTI_CONFIG = {
   },
 
   'Pasta per panada e pizza': {
-    prezzoKg: 8.00,
+    prezzoKg: 5.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Pasta',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
   },
 
   'Sfoglia per lasagne': {
-    prezzoKg: 8.00,
+    prezzoKg: 5.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Pasta',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
