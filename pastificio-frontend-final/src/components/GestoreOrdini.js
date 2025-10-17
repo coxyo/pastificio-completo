@@ -27,7 +27,6 @@ import {
   Settings as SettingsIcon
 } from '@mui/icons-material';
 
-// Import nuovi moduli di calcolo prezzi
 import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
 import { 
   calcolaPrezzoOrdine, 
@@ -40,7 +39,7 @@ import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
-import GestioneLimiti from './GestioneLimiti'; // ✅ NUOVO IMPORT
+import GestioneLimiti from './GestioneLimiti';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -243,7 +242,7 @@ export default function GestoreOrdini() {
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
-  const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false); // ✅ NUOVO STATE
+  const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false);
   const [menuExport, setMenuExport] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [storageUsed, setStorageUsed] = useState(0);
@@ -261,8 +260,7 @@ export default function GestoreOrdini() {
   const wsRef = useRef(null);
   const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
-
-  // ✅ NUOVO: Carica prodotti dal database
+// ✅ NUOVO: Carica prodotti dal database
   useEffect(() => {
     const caricaProdottiDB = async () => {
       try {
@@ -403,6 +401,47 @@ export default function GestoreOrdini() {
     };
     
     caricaProdottiDB();
+  }, []);
+
+  // ✅ NUOVO: Pre-caricamento clienti e prodotti all'avvio
+  useEffect(() => {
+    const preCaricaDati = async () => {
+      try {
+        // Pre-carica clienti
+        const responseClienti = await fetch(`${API_URL}/clienti?attivo=true`);
+        if (responseClienti.ok) {
+          const dataClienti = await responseClienti.json();
+          const clientiData = dataClienti.data || dataClienti.clienti || dataClienti || [];
+          
+          localStorage.setItem('clienti_cache', JSON.stringify(clientiData));
+          localStorage.setItem('clienti_cache_time', Date.now().toString());
+          
+          console.log(`⚡ Pre-caricati ${clientiData.length} clienti in background`);
+        }
+
+        // Pre-carica prodotti
+        const responseProdotti = await fetch(`${API_URL}/prodotti/disponibili`);
+        if (responseProdotti.ok) {
+          const dataProdotti = await responseProdotti.json();
+          const prodottiData = dataProdotti.data || dataProdotti || [];
+          
+          localStorage.setItem('prodotti_cache', JSON.stringify(prodottiData));
+          localStorage.setItem('prodotti_cache_time', Date.now().toString());
+          
+          console.log(`⚡ Pre-caricati ${prodottiData.length} prodotti in background`);
+        }
+      } catch (error) {
+        console.error('Errore pre-caricamento dati:', error);
+      }
+    };
+
+    // Pre-carica appena l'app si avvia
+    preCaricaDati();
+    
+    // Ricarica ogni 5 minuti
+    const intervalId = setInterval(preCaricaDati, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
   }, []);
   
   // Keep-alive per mantenere il backend Railway attivo
@@ -556,8 +595,7 @@ export default function GestoreOrdini() {
       setSyncInProgress(false);
     }
   }, [syncInProgress]);
-  
-  // Invio ordini salvati offline
+// Invio ordini salvati offline
   const inviaOrdiniOffline = async () => {
     const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
     
@@ -905,7 +943,7 @@ export default function GestoreOrdini() {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
 
-  // Export functions (mantieni le tue funzioni esistenti)
+  // Export functions
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -977,8 +1015,7 @@ export default function GestoreOrdini() {
   const exportToPDF = (ordiniData) => {
     printOrdini(ordiniData);
   };
-  
-  const printOrdini = (ordiniData) => {
+const printOrdini = (ordiniData) => {
     const printWindow = window.open('', '_blank');
     const html = `
       <!DOCTYPE html>
@@ -1189,7 +1226,6 @@ export default function GestoreOrdini() {
                 </span>
               </Tooltip>
               
-              {/* ✅ NUOVO BOTTONE LIMITI */}
               <Button
                 variant="outlined"
                 size="small"
@@ -1279,7 +1315,6 @@ export default function GestoreOrdini() {
             </Box>
           </Box>
           
-          {/* Connection Status */}
           <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
             <Chip
               icon={isConnected ? <WifiIcon /> : <WifiOffIcon />}
@@ -1370,7 +1405,6 @@ export default function GestoreOrdini() {
           />
         )}
         
-        {/* ✅ NUOVO DIALOG LIMITI */}
         <Dialog 
           open={dialogLimitiOpen} 
           onClose={() => setDialogLimitiOpen(false)}

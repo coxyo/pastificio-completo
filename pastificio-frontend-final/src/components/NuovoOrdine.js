@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - ✅ CON FORCE OVERRIDE LIMITI
+// components/NuovoOrdine.js - ✅ CON CACHE OTTIMIZZATA E FIX PREZZO VARIANTI
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -53,14 +53,12 @@ import VassoidDolciMisti from './VassoidDolciMisti';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
-// ✅ CACHE GLOBALE CLIENTI
+// ✅ CACHE GLOBALE - NON MODIFICARE
 let clientiCache = null;
 let clientiCacheTime = null;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
-
-// ✅ CACHE GLOBALE PRODOTTI
 let prodottiCache = null;
 let prodottiCacheTime = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
 
 // ✅ VALORI PREIMPOSTATI PER GRIGLIA RAPIDA
 const VALORI_RAPIDI = {
@@ -84,7 +82,6 @@ export default function NuovoOrdine({
 
   const [tabValue, setTabValue] = useState(0);
 
-  // ✅ State per limiti
   const [limiti, setLimiti] = useState([]);
   const [loadingLimiti, setLoadingLimiti] = useState(false);
   const [alertLimiti, setAlertLimiti] = useState([]);
@@ -108,7 +105,7 @@ export default function NuovoOrdine({
     prezzo: 0
   });
 
-  // ✅ CARICA PRODOTTI DA DATABASE
+  // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
   useEffect(() => {
     if (isConnected) {
       caricaProdotti();
@@ -116,13 +113,27 @@ export default function NuovoOrdine({
   }, [isConnected]);
 
   const caricaProdotti = async () => {
+    // ✅ PROVA PRIMA DALLA CACHE LOCALSTORAGE
+    const cacheTime = localStorage.getItem('prodotti_cache_time');
     const now = Date.now();
-    if (prodottiCache && prodottiCacheTime && (now - prodottiCacheTime) < CACHE_DURATION) {
-      console.log('✅ Prodotti caricati dalla cache');
-      setProdottiDB(prodottiCache);
-      return;
+    
+    if (cacheTime && (now - parseInt(cacheTime)) < CACHE_DURATION) {
+      const cached = localStorage.getItem('prodotti_cache');
+      if (cached) {
+        try {
+          const prodottiData = JSON.parse(cached);
+          console.log('⚡ LOAD ISTANTANEO prodotti dalla cache:', prodottiData.length);
+          setProdottiDB(prodottiData);
+          prodottiCache = prodottiData;
+          prodottiCacheTime = now;
+          return;
+        } catch (e) {
+          console.error('Cache prodotti corrotta, ricarico...');
+        }
+      }
     }
 
+    // Se cache mancante/scaduta, carica da API
     try {
       setLoadingProdotti(true);
       console.log('🔄 Caricamento prodotti da API...');
@@ -133,8 +144,11 @@ export default function NuovoOrdine({
         const data = await response.json();
         const prodottiData = data.data || data || [];
         
+        // Salva in cache
         prodottiCache = prodottiData;
         prodottiCacheTime = Date.now();
+        localStorage.setItem('prodotti_cache', JSON.stringify(prodottiData));
+        localStorage.setItem('prodotti_cache_time', Date.now().toString());
         
         setProdottiDB(prodottiData);
         console.log(`✅ ${prodottiData.length} prodotti caricati e cachati`);
@@ -159,7 +173,6 @@ export default function NuovoOrdine({
     }
   }, [formData.dataRitiro, isConnected]);
 
-  // ✅ Funzione per caricare limiti
   const caricaLimiti = async (data) => {
     try {
       setLoadingLimiti(true);
@@ -193,7 +206,6 @@ export default function NuovoOrdine({
     }
   }, [formData.prodotti, limiti]);
 
-  // ✅ Funzione verifica limiti lato client
   const verificaLimiti = () => {
     if (limiti.length === 0) {
       setAlertLimiti([]);
@@ -201,13 +213,10 @@ export default function NuovoOrdine({
     }
 
     const alerts = [];
-
-    // Raggruppa prodotti per nome e categoria
     const prodottiRaggruppati = {};
     const categorieRaggruppate = {};
 
     formData.prodotti.forEach(p => {
-      // Skip vassoi (già espansi)
       if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti') {
         return;
       }
@@ -217,28 +226,23 @@ export default function NuovoOrdine({
       const quantita = parseFloat(p.quantita) || 0;
       const unita = p.unita || 'Kg';
 
-      // Converti in Kg se necessario
       let quantitaKg = quantita;
       if (unita === 'g') {
         quantitaKg = quantita / 1000;
       }
 
-      // Raggruppa per prodotto
       if (!prodottiRaggruppati[nome]) {
         prodottiRaggruppati[nome] = 0;
       }
       prodottiRaggruppati[nome] += quantitaKg;
 
-      // Raggruppa per categoria
       if (!categorieRaggruppate[categoria]) {
         categorieRaggruppate[categoria] = 0;
       }
       categorieRaggruppate[categoria] += quantitaKg;
     });
 
-    // Verifica ogni limite
     limiti.forEach(limite => {
-      // Limite per prodotto specifico
       if (limite.prodotto) {
         const quantitaOrdine = prodottiRaggruppati[limite.prodotto] || 0;
         const quantitaTotale = limite.quantitaOrdinata + quantitaOrdine;
@@ -263,7 +267,6 @@ export default function NuovoOrdine({
         }
       }
 
-      // Limite per categoria
       if (limite.categoria) {
         const quantitaOrdine = categorieRaggruppate[limite.categoria] || 0;
         const quantitaTotale = limite.quantitaOrdinata + quantitaOrdine;
@@ -304,7 +307,6 @@ export default function NuovoOrdine({
     prodottiDB.forEach(prodotto => {
       const categoria = prodotto.categoria || 'Altro';
       
-      // ✅ FIX: Pardulas vanno nei Dolci
       if (categoria === 'Pardulas') {
         categorie.Dolci.push(prodotto);
       } else if (categorie[categoria]) {
@@ -341,7 +343,7 @@ export default function NuovoOrdine({
     }
   }, [ordineIniziale, open]);
 
-  // ✅ CARICA CLIENTI
+  // ✅ CARICA CLIENTI CON CACHE OTTIMIZZATA
   useEffect(() => {
     if (isConnected) {
       caricaClienti();
@@ -349,13 +351,27 @@ export default function NuovoOrdine({
   }, [isConnected]);
 
   const caricaClienti = async () => {
+    // ✅ PROVA PRIMA DALLA CACHE LOCALSTORAGE
+    const cacheTime = localStorage.getItem('clienti_cache_time');
     const now = Date.now();
-    if (clientiCache && clientiCacheTime && (now - clientiCacheTime) < CACHE_DURATION) {
-      console.log('✅ Clienti caricati dalla cache');
-      setClienti(clientiCache);
-      return;
+    
+    if (cacheTime && (now - parseInt(cacheTime)) < CACHE_DURATION) {
+      const cached = localStorage.getItem('clienti_cache');
+      if (cached) {
+        try {
+          const clientiData = JSON.parse(cached);
+          console.log('⚡ LOAD ISTANTANEO clienti dalla cache:', clientiData.length);
+          setClienti(clientiData);
+          clientiCache = clientiData;
+          clientiCacheTime = now;
+          return;
+        } catch (e) {
+          console.error('Cache clienti corrotta, ricarico...');
+        }
+      }
     }
 
+    // Se cache mancante/scaduta, carica da API
     try {
       setLoadingClienti(true);
       console.log('🔄 Caricamento clienti da API...');
@@ -368,8 +384,11 @@ export default function NuovoOrdine({
         const data = await response.json();
         const clientiData = data.data || data.clienti || data || [];
         
+        // Salva in cache
         clientiCache = clientiData;
         clientiCacheTime = Date.now();
+        localStorage.setItem('clienti_cache', JSON.stringify(clientiData));
+        localStorage.setItem('clienti_cache_time', Date.now().toString());
         
         setClienti(clientiData);
         console.log(`✅ ${clientiData.length} clienti caricati e cachati`);
@@ -439,6 +458,7 @@ export default function NuovoOrdine({
     });
   };
 
+  // ✅ FIX CALCOLO PREZZO VARIANTI
   useEffect(() => {
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
@@ -451,18 +471,45 @@ export default function NuovoOrdine({
 
       let prezzo = 0;
       
-      if (prodotto.hasVarianti && prodottoCorrente.variante) {
-        const variante = prodotto.varianti.find(v => v.nome === prodottoCorrente.variante);
-        if (variante) {
-          if (prodottoCorrente.unita === 'Kg') {
-            prezzo = variante.prezzoKg * prodottoCorrente.quantita;
-          } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
-            prezzo = variante.prezzoPezzo * prodottoCorrente.quantita;
-          }
+      // ✅ FIX: Gestione varianti CORRETTA
+      if (prodotto.hasVarianti) {
+        // Se il prodotto ha varianti MA non è stata selezionata ancora
+        if (!prodottoCorrente.variante) {
+          console.log('⚠️ Variante non selezionata per', prodotto.nome);
+          setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
+          return;
         }
+        
+        // Trova la variante selezionata
+        const varianteSelezionata = prodotto.varianti.find(v => v.nome === prodottoCorrente.variante);
+        
+        if (!varianteSelezionata) {
+          console.error('❌ Variante non trovata:', prodottoCorrente.variante);
+          setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
+          return;
+        }
+        
+        // ✅ USA IL PREZZO DELLA VARIANTE SELEZIONATA
+        console.log('✅ Variante selezionata:', varianteSelezionata.nome, varianteSelezionata);
+        
+        if (prodottoCorrente.unita === 'Kg' || prodottoCorrente.unita === 'g') {
+          const quantitaKg = prodottoCorrente.unita === 'g' 
+            ? prodottoCorrente.quantita / 1000 
+            : prodottoCorrente.quantita;
+          prezzo = varianteSelezionata.prezzoKg * quantitaKg;
+        } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
+          prezzo = varianteSelezionata.prezzoPezzo * prodottoCorrente.quantita;
+        }
+        
+        console.log(`💰 Calcolo: ${prodottoCorrente.quantita} ${prodottoCorrente.unita} x €${varianteSelezionata.prezzoKg || varianteSelezionata.prezzoPezzo} = €${prezzo.toFixed(2)}`);
+        
       } else {
-        if (prodottoCorrente.unita === 'Kg') {
-          prezzo = prodotto.prezzoKg * prodottoCorrente.quantita;
+        // ✅ PRODOTTO SENZA VARIANTI (normale)
+        if (prodottoCorrente.unita === 'Kg' || prodottoCorrente.unita === 'g') {
+          const quantitaKg = prodottoCorrente.unita === 'g' 
+            ? prodottoCorrente.quantita / 1000 
+            : prodottoCorrente.quantita;
+          prezzo = prodotto.prezzoKg * quantitaKg;
         } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
           prezzo = prodotto.prezzoPezzo * prodottoCorrente.quantita;
         }
@@ -509,7 +556,6 @@ export default function NuovoOrdine({
       prodotti: [...formData.prodotti, nuovoProdotto]
     });
 
-    // Reset
     setProdottoCorrente({
       nome: '',
       variante: '',
@@ -541,14 +587,13 @@ export default function NuovoOrdine({
     return formData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
   };
 
-  // ✅ NUOVO: Verifica limiti PRIMA di salvare CON FORCE OVERRIDE
+  // ✅ Verifica limiti PRIMA di salvare CON FORCE OVERRIDE
   const handleSalva = async () => {
     if (!formData.nomeCliente || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
       alert('Compila tutti i campi obbligatori: cliente, data ritiro, ora ritiro e almeno un prodotto');
       return;
     }
 
-    // ✅ Se ci sono errori di limiti, chiedi conferma
     const erroriCritici = alertLimiti.filter(a => a.tipo === 'error');
     let forceOverride = false;
     
@@ -564,7 +609,6 @@ export default function NuovoOrdine({
         return;
       }
       
-      // ✅ NUOVO: Segnala che l'utente ha forzato l'override
       forceOverride = true;
       console.log('⚠️ Utente ha confermato override limiti');
     }
@@ -574,10 +618,16 @@ export default function NuovoOrdine({
       cliente: formData.cliente?._id || null,
       totale: calcolaTotale(),
       daViaggio: formData.daViaggio,
-      forceOverride // ✅ AGGIUNGI QUESTO FLAG
+      forceOverride
     };
 
-    console.log('📤 Invio ordine con forceOverride:', forceOverride);
+    console.log('🚀 INVIO ORDINE CON DATI:', JSON.stringify({
+      forceOverride: ordineData.forceOverride,
+      cliente: ordineData.nomeCliente,
+      prodotti: ordineData.prodotti.length,
+      totale: ordineData.totale
+    }, null, 2));
+    
     onSave(ordineData);
   };
 
@@ -588,7 +638,7 @@ export default function NuovoOrdine({
       </DialogTitle>
 
       <DialogContent>
-        {/* ✅ Alert Limiti in alto */}
+        {/* Alert Limiti */}
         {alertLimiti.length > 0 && (
           <Box sx={{ mb: 2 }}>
             {alertLimiti.map((alert, index) => (
@@ -614,7 +664,7 @@ export default function NuovoOrdine({
           </Box>
         )}
 
-        {/* ✅ Info Limiti per data selezionata */}
+        {/* Info Limiti */}
         {limiti.length > 0 && (
           <Paper sx={{ p: 1.5, mb: 2, bgcolor: 'info.light' }}>
             <Typography variant="caption" display="flex" alignItems="center" gap={1}>
@@ -625,7 +675,7 @@ export default function NuovoOrdine({
           </Paper>
         )}
 
-        {/* TABS: Prodotti Singoli vs Vassoio Misti */}
+        {/* TABS */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
           <Tabs 
             value={tabValue} 
@@ -649,7 +699,6 @@ export default function NuovoOrdine({
         {tabValue === 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
             
-            {/* SEZIONE PRODOTTI */}
             <Paper sx={{ p: 2, bgcolor: 'primary.light' }}>
               <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CartIcon /> Seleziona Prodotti
