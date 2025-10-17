@@ -92,11 +92,24 @@ router.post('/', async (req, res, next) => {
     
     const ordineData = req.body;
     
+    // ✅ LOG DEBUG
+    console.log('🔍 DATI RICEVUTI:', JSON.stringify({
+      forceOverride: ordineData.forceOverride,
+      dataRitiro: ordineData.dataRitiro,
+      prodotti: ordineData.prodotti?.length || 0,
+      cliente: ordineData.nomeCliente
+    }, null, 2));
+    
     // ✅ VERIFICA LIMITI SOLO SE NON È UN FORCE OVERRIDE
     if (ordineData.dataRitiro && ordineData.prodotti && ordineData.prodotti.length > 0) {
       
-      // ✅ Controlla se l'utente ha forzato l'override
-      if (!ordineData.forceOverride) {
+      // ✅ LOG DEBUG
+      console.log('🎯 forceOverride =', ordineData.forceOverride, 'tipo:', typeof ordineData.forceOverride);
+      
+      // ✅ VERIFICA PIÙ ROBUSTA (gestisce sia boolean che string)
+      const skipVerificaLimiti = ordineData.forceOverride === true || ordineData.forceOverride === 'true';
+      
+      if (!skipVerificaLimiti) {
         try {
           const verificaLimiti = await LimiteGiornaliero.verificaOrdine(
             ordineData.dataRitiro,
@@ -123,6 +136,7 @@ router.post('/', async (req, res, next) => {
       } else {
         // ✅ OVERRIDE FORZATO: Logga ma continua
         logger.warn('⚠️ Ordine creato con FORCE OVERRIDE (limiti ignorati)');
+        console.log('✅ SKIP VERIFICA LIMITI - forceOverride attivo');
       }
     }
     
@@ -221,8 +235,10 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    // ✅ SE CAMBIA DATA O PRODOTTI, VERIFICA LIMITI (SOLO SE NON FORCE OVERRIDE)
-    if ((ordineData.dataRitiro || ordineData.prodotti) && !ordineData.forceOverride) {
+    // ✅ VERIFICA LIMITI (SOLO SE NON FORCE OVERRIDE)
+    const skipVerificaLimiti = ordineData.forceOverride === true || ordineData.forceOverride === 'true';
+    
+    if ((ordineData.dataRitiro || ordineData.prodotti) && !skipVerificaLimiti) {
       const dataVerifica = ordineData.dataRitiro || ordineEsistente.dataRitiro;
       const prodottiVerifica = ordineData.prodotti || ordineEsistente.prodotti;
       
@@ -233,7 +249,7 @@ router.put('/:id', async (req, res) => {
             ordineEsistente.dataRitiro,
             ordineEsistente.prodotti.map(p => ({
               nome: p.nome,
-              quantita: -p.quantita, // Sottrai
+              quantita: -p.quantita,
               unita: p.unita || p.unitaMisura,
               categoria: p.categoria
             }))
@@ -265,7 +281,7 @@ router.put('/:id', async (req, res) => {
       } catch (limiteError) {
         logger.warn('⚠️ Errore verifica/aggiornamento limiti:', limiteError.message);
       }
-    } else if (ordineData.forceOverride) {
+    } else if (skipVerificaLimiti) {
       logger.warn('⚠️ Ordine aggiornato con FORCE OVERRIDE (limiti ignorati)');
     }
     
@@ -343,7 +359,7 @@ router.delete('/:id', async (req, res) => {
           ordine.dataRitiro,
           ordine.prodotti.map(p => ({
             nome: p.nome,
-            quantita: -p.quantita, // Sottrai per ripristinare
+            quantita: -p.quantita,
             unita: p.unita || p.unitaMisura,
             categoria: p.categoria
           }))
