@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - ✅ CON ALERT LIMITI E PARDULAS NEI DOLCI
+// components/NuovoOrdine.js - ✅ CON FORCE OVERRIDE LIMITI
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -84,7 +84,7 @@ export default function NuovoOrdine({
 
   const [tabValue, setTabValue] = useState(0);
 
-  // ✅ NUOVO: State per limiti
+  // ✅ State per limiti
   const [limiti, setLimiti] = useState([]);
   const [loadingLimiti, setLoadingLimiti] = useState(false);
   const [alertLimiti, setAlertLimiti] = useState([]);
@@ -152,14 +152,14 @@ export default function NuovoOrdine({
     }
   };
 
-  // ✅ NUOVO: Carica limiti quando cambia data
+  // ✅ Carica limiti quando cambia data
   useEffect(() => {
     if (formData.dataRitiro && isConnected) {
       caricaLimiti(formData.dataRitiro);
     }
   }, [formData.dataRitiro, isConnected]);
 
-  // ✅ NUOVO: Funzione per caricare limiti
+  // ✅ Funzione per caricare limiti
   const caricaLimiti = async (data) => {
     try {
       setLoadingLimiti(true);
@@ -172,9 +172,6 @@ export default function NuovoOrdine({
         const limitiData = result.data || [];
         setLimiti(limitiData);
         console.log(`✅ ${limitiData.length} limiti caricati per ${data}`);
-        
-        // Verifica limiti appena caricati
-        verificaLimiti();
       } else {
         console.error('Errore caricamento limiti:', response.status);
         setLimiti([]);
@@ -187,7 +184,7 @@ export default function NuovoOrdine({
     }
   };
 
-  // ✅ NUOVO: Verifica limiti ogni volta che cambiano prodotti
+  // ✅ Verifica limiti ogni volta che cambiano prodotti
   useEffect(() => {
     if (formData.prodotti.length > 0 && limiti.length > 0) {
       verificaLimiti();
@@ -196,7 +193,7 @@ export default function NuovoOrdine({
     }
   }, [formData.prodotti, limiti]);
 
-  // ✅ NUOVO: Funzione verifica limiti lato client
+  // ✅ Funzione verifica limiti lato client
   const verificaLimiti = () => {
     if (limiti.length === 0) {
       setAlertLimiti([]);
@@ -544,7 +541,7 @@ export default function NuovoOrdine({
     return formData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
   };
 
-  // ✅ NUOVO: Verifica limiti PRIMA di salvare
+  // ✅ NUOVO: Verifica limiti PRIMA di salvare CON FORCE OVERRIDE
   const handleSalva = async () => {
     if (!formData.nomeCliente || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
       alert('Compila tutti i campi obbligatori: cliente, data ritiro, ora ritiro e almeno un prodotto');
@@ -553,6 +550,8 @@ export default function NuovoOrdine({
 
     // ✅ Se ci sono errori di limiti, chiedi conferma
     const erroriCritici = alertLimiti.filter(a => a.tipo === 'error');
+    let forceOverride = false;
+    
     if (erroriCritici.length > 0) {
       const conferma = window.confirm(
         `⚠️ ATTENZIONE!\n\n` +
@@ -564,15 +563,21 @@ export default function NuovoOrdine({
       if (!conferma) {
         return;
       }
+      
+      // ✅ NUOVO: Segnala che l'utente ha forzato l'override
+      forceOverride = true;
+      console.log('⚠️ Utente ha confermato override limiti');
     }
 
     const ordineData = {
       ...formData,
       cliente: formData.cliente?._id || null,
       totale: calcolaTotale(),
-      daViaggio: formData.daViaggio
+      daViaggio: formData.daViaggio,
+      forceOverride // ✅ AGGIUNGI QUESTO FLAG
     };
 
+    console.log('📤 Invio ordine con forceOverride:', forceOverride);
     onSave(ordineData);
   };
 
@@ -583,7 +588,7 @@ export default function NuovoOrdine({
       </DialogTitle>
 
       <DialogContent>
-        {/* ✅ NUOVO: Alert Limiti in alto */}
+        {/* ✅ Alert Limiti in alto */}
         {alertLimiti.length > 0 && (
           <Box sx={{ mb: 2 }}>
             {alertLimiti.map((alert, index) => (
