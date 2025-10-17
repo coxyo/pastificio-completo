@@ -330,7 +330,7 @@ export default function GestioneLimiti() {
           <Card>
             <CardContent>
               <Typography color="text.secondary" gutterBottom>
-                In Allerta (>80%)
+                In Allerta (&gt;80%)
               </Typography>
               <Typography variant="h4" color="warning.main">
                 {limiti.filter(l => {
