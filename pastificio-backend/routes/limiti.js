@@ -1,18 +1,19 @@
-// routes/limiti.js - ✅ VERSIONE CORRETTA
+// routes/limiti.js - ✅ VERSIONE SENZA PROTEZIONE PER TEST
+
 import express from 'express';
-import { protect } from '../middleware/auth.js';
+// import { protect } from '../middleware/auth.js'; // ❌ COMMENTATO TEMPORANEAMENTE
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// Tutte le route protette
-router.use(protect);
+// ❌ COMMENTATO TEMPORANEAMENTE PER TEST
+// router.use(protect);
 
 /**
  * @route   GET /api/limiti
  * @desc    Ottieni tutti i limiti
- * @access  Privato
+ * @access  Pubblico (temporaneamente per test)
  */
 router.get('/', async (req, res) => {
   try {
@@ -55,7 +56,7 @@ router.get('/', async (req, res) => {
 /**
  * @route   POST /api/limiti
  * @desc    Crea nuovo limite
- * @access  Privato
+ * @access  Pubblico (temporaneamente per test)
  */
 router.post('/', async (req, res) => {
   try {
@@ -82,7 +83,7 @@ router.post('/', async (req, res) => {
 /**
  * @route   PUT /api/limiti/:id
  * @desc    Aggiorna limite
- * @access  Privato
+ * @access  Pubblico (temporaneamente per test)
  */
 router.put('/:id', async (req, res) => {
   try {
@@ -119,7 +120,7 @@ router.put('/:id', async (req, res) => {
 /**
  * @route   DELETE /api/limiti/:id
  * @desc    Elimina limite
- * @access  Privato
+ * @access  Pubblico (temporaneamente per test)
  */
 router.delete('/:id', async (req, res) => {
   try {
@@ -152,7 +153,7 @@ router.delete('/:id', async (req, res) => {
 /**
  * @route   POST /api/limiti/verifica
  * @desc    Verifica se ordine supera limiti
- * @access  Privato
+ * @access  Pubblico (temporaneamente per test)
  */
 router.post('/verifica', async (req, res) => {
   try {
@@ -184,8 +185,8 @@ router.post('/verifica', async (req, res) => {
 
 /**
  * @route   POST /api/limiti/bulk
- * @desc    Crea limiti in massa (es: per festività)
- * @access  Privato
+ * @desc    Crea limiti in massa
+ * @access  Pubblico (temporaneamente per test)
  */
 router.post('/bulk', async (req, res) => {
   try {
@@ -198,7 +199,6 @@ router.post('/bulk', async (req, res) => {
       });
     }
     
-    // ✅ FIX: Nome variabile corretto senza spazio
     const limitiCreati = await LimiteGiornaliero.insertMany(limiti);
     
     logger.info(`✅ Creati ${limitiCreati.length} limiti in massa`);
