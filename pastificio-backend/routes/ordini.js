@@ -1,8 +1,8 @@
-// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE E LIMITI
+// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE E VERIFICA LIMITI
 import express from 'express';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
-import LimiteGiornaliero from '../models/LimiteGiornaliero.js'; // ✅ NUOVO
+import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
 import { protect } from '../middleware/auth.js';
 import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
@@ -85,29 +85,41 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/ordini - Crea nuovo ordine (CON GIACENZE E LIMITI)
+// POST /api/ordini - Crea nuovo ordine (CON VERIFICA LIMITI)
 router.post('/', async (req, res, next) => {
   try {
     logger.info('📥 Ricevuta richiesta creazione ordine');
     
     const ordineData = req.body;
     
-    // ✅ NUOVO: Verifica limiti giornalieri PRIMA di salvare
-    if (ordineData.dataRitiro && ordineData.prodotti) {
-      const verificaLimiti = await LimiteGiornaliero.verificaOrdine(
-        ordineData.dataRitiro,
-        ordineData.prodotti
-      );
-      
-      if (!verificaLimiti.ok) {
-        logger.warn(`⚠️ Ordine supera limiti per ${ordineData.dataRitiro}:`, verificaLimiti.errori);
+    // ✅ VERIFICA LIMITI GIORNALIERI PRIMA DI SALVARE
+    if (ordineData.dataRitiro && ordineData.prodotti && ordineData.prodotti.length > 0) {
+      try {
+        const verificaLimiti = await LimiteGiornaliero.verificaOrdine(
+          ordineData.dataRitiro,
+          ordineData.prodotti
+        );
         
-        return res.status(400).json({
-          success: false,
-          message: 'Ordine supera i limiti di capacità produttiva',
-          erroriLimiti: verificaLimiti.errori,
-          limiti: verificaLimiti.limiti
-        });
+        // Se ci sono errori (limiti superati)
+        if (verificaLimiti.errori && verificaLimiti.errori.length > 0) {
+          const erroriBloccanti = verificaLimiti.errori.filter(e => e.superato);
+          
+          if (erroriBloccanti.length > 0) {
+            logger.error('❌ Ordine supera limiti:', erroriBloccanti);
+            
+            return res.status(400).json({
+              success: false,
+              message: 'Ordine supera i limiti di capacità produttiva',
+              erroriLimiti: erroriBloccanti,
+              superaLimiti: true
+            });
+          } else {
+            // Solo warning, permetti comunque
+            logger.warn('⚠️ Ordine vicino ai limiti:', verificaLimiti.errori);
+          }
+        }
+      } catch (limiteError) {
+        logger.warn('⚠️ Errore verifica limiti (continuo comunque):', limiteError.message);
       }
     }
     
@@ -147,10 +159,14 @@ router.post('/', async (req, res, next) => {
     
     logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - €${nuovoOrdine.totale}`);
     
-    // ✅ NUOVO: Aggiorna contatori limiti dopo salvataggio
-    if (nuovoOrdine.dataRitiro && nuovoOrdine.prodotti) {
-      await LimiteGiornaliero.aggiornaDopoOrdine(nuovoOrdine.dataRitiro, nuovoOrdine.prodotti);
-      logger.info(`📊 Limiti aggiornati per ordine ${nuovoOrdine._id}`);
+    // ✅ AGGIORNA CONTATORI LIMITI DOPO SALVATAGGIO
+    if (nuovoOrdine.dataRitiro && nuovoOrdine.prodotti && nuovoOrdine.prodotti.length > 0) {
+      try {
+        await LimiteGiornaliero.aggiornaDopoOrdine(nuovoOrdine.dataRitiro, nuovoOrdine.prodotti);
+        logger.info(`📊 Limiti aggiornati per ordine ${nuovoOrdine._id}`);
+      } catch (aggiornaError) {
+        logger.error('⚠️ Errore aggiornamento limiti:', aggiornaError.message);
+      }
     }
     
     // ✅ SALVA IN res.locals PER MIDDLEWARE GIACENZE
@@ -201,37 +217,50 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    // ✅ NUOVO: Se cambia data o prodotti, verifica limiti
+    // ✅ SE CAMBIA DATA O PRODOTTI, VERIFICA LIMITI
     if (ordineData.dataRitiro || ordineData.prodotti) {
       const dataVerifica = ordineData.dataRitiro || ordineEsistente.dataRitiro;
       const prodottiVerifica = ordineData.prodotti || ordineEsistente.prodotti;
       
-      // Rimuovi quantità vecchio ordine dai contatori
-      await LimiteGiornaliero.aggiornaDopoOrdine(
-        ordineEsistente.dataRitiro,
-        ordineEsistente.prodotti.map(p => ({
-          ...p.toObject(),
-          quantita: -p.quantita // Sottrai
-        }))
-      );
-      
-      // Verifica con nuovo ordine
-      const verificaLimiti = await LimiteGiornaliero.verificaOrdine(dataVerifica, prodottiVerifica);
-      
-      if (!verificaLimiti.ok) {
-        // Ripristina quantità vecchio ordine
-        await LimiteGiornaliero.aggiornaDopoOrdine(ordineEsistente.dataRitiro, ordineEsistente.prodotti);
+      try {
+        // Rimuovi quantità vecchio ordine dai contatori
+        if (ordineEsistente.prodotti && ordineEsistente.prodotti.length > 0) {
+          await LimiteGiornaliero.aggiornaDopoOrdine(
+            ordineEsistente.dataRitiro,
+            ordineEsistente.prodotti.map(p => ({
+              nome: p.nome,
+              quantita: -p.quantita, // Sottrai
+              unita: p.unita || p.unitaMisura,
+              categoria: p.categoria
+            }))
+          );
+        }
         
-        return res.status(400).json({
-          success: false,
-          message: 'Modifica supera i limiti di capacità produttiva',
-          erroriLimiti: verificaLimiti.errori,
-          limiti: verificaLimiti.limiti
-        });
+        // Verifica con nuovo ordine
+        const verificaLimiti = await LimiteGiornaliero.verificaOrdine(dataVerifica, prodottiVerifica);
+        
+        if (verificaLimiti.errori && verificaLimiti.errori.length > 0) {
+          const erroriBloccanti = verificaLimiti.errori.filter(e => e.superato);
+          
+          if (erroriBloccanti.length > 0) {
+            // Ripristina quantità vecchio ordine
+            await LimiteGiornaliero.aggiornaDopoOrdine(ordineEsistente.dataRitiro, ordineEsistente.prodotti);
+            
+            return res.status(400).json({
+              success: false,
+              message: 'Modifica supera i limiti di capacità produttiva',
+              erroriLimiti: erroriBloccanti,
+              superaLimiti: true
+            });
+          }
+        }
+        
+        // Aggiungi quantità nuovo ordine
+        await LimiteGiornaliero.aggiornaDopoOrdine(dataVerifica, prodottiVerifica);
+        
+      } catch (limiteError) {
+        logger.warn('⚠️ Errore verifica/aggiornamento limiti:', limiteError.message);
       }
-      
-      // Aggiungi quantità nuovo ordine
-      await LimiteGiornaliero.aggiornaDopoOrdine(dataVerifica, prodottiVerifica);
     }
     
     // Gestisci cliente
@@ -298,16 +327,22 @@ router.delete('/:id', async (req, res) => {
       });
     }
     
-    // ✅ NUOVO: Ripristina limiti sottraendo quantità
-    if (ordine.dataRitiro && ordine.prodotti) {
-      await LimiteGiornaliero.aggiornaDopoOrdine(
-        ordine.dataRitiro,
-        ordine.prodotti.map(p => ({
-          ...p.toObject(),
-          quantita: -p.quantita // Sottrai per ripristinare
-        }))
-      );
-      logger.info(`📊 Limiti ripristinati dopo eliminazione ordine ${ordine._id}`);
+    // ✅ RIPRISTINA LIMITI SOTTRAENDO QUANTITÀ
+    if (ordine.dataRitiro && ordine.prodotti && ordine.prodotti.length > 0) {
+      try {
+        await LimiteGiornaliero.aggiornaDopoOrdine(
+          ordine.dataRitiro,
+          ordine.prodotti.map(p => ({
+            nome: p.nome,
+            quantita: -p.quantita, // Sottrai per ripristinare
+            unita: p.unita || p.unitaMisura,
+            categoria: p.categoria
+          }))
+        );
+        logger.info(`📊 Limiti ripristinati dopo eliminazione ordine ${ordine._id}`);
+      } catch (limiteError) {
+        logger.error('⚠️ Errore ripristino limiti:', limiteError.message);
+      }
     }
     
     await ordine.deleteOne();
