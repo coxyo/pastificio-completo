@@ -1,4 +1,4 @@
-// pastificio-backend/src/services/cx3Service.js
+// pastificio-backend/services/cx3Service.js
 import axios from 'axios';
 import crypto from 'crypto';
 import logger from '../config/logger.js';
@@ -265,22 +265,62 @@ class Cx3Service {
   
   /**
    * 🔵 HEALTH CHECK: Verifica connessione 3CX
+   * ⭐ MIGLIORATO: Funziona anche senza 3CX configurato
    */
   async healthCheck() {
     try {
-      const response = await this.client.get('/system/status');
+      // Verifica configurazione
+      const isConfigured = !!(this.baseURL && this.extension && this.apiKey);
       
-      return {
-        success: true,
-        status: 'connected',
-        version: response.data.version,
-        uptime: response.data.uptime
-      };
+      if (!isConfigured) {
+        return {
+          success: false,
+          status: 'not-configured',
+          message: 'Servizio 3CX non configurato (variabili ambiente mancanti)',
+          config: {
+            baseURL: !!this.baseURL,
+            extension: !!this.extension,
+            apiKey: !!this.apiKey
+          }
+        };
+      }
+      
+      // Prova connessione reale (con timeout breve)
+      try {
+        const response = await this.client.get('/system/status', { timeout: 3000 });
+        
+        return {
+          success: true,
+          status: 'connected',
+          message: '3CX connesso e operativo',
+          version: response.data.version || 'unknown',
+          uptime: response.data.uptime || 0,
+          config: {
+            baseURL: this.baseURL,
+            extension: this.extension
+          }
+        };
+      } catch (connectionError) {
+        // 3CX non raggiungibile ma servizio configurato
+        return {
+          success: true,
+          status: 'configured-but-offline',
+          message: '3CX configurato ma server non raggiungibile',
+          config: {
+            baseURL: this.baseURL,
+            extension: this.extension
+          },
+          lastError: connectionError.message
+        };
+      }
       
     } catch (error) {
+      logger.error('3CX: Errore health check', { error: error.message });
+      
       return {
         success: false,
-        status: 'disconnected',
+        status: 'error',
+        message: 'Errore durante health check',
         error: error.message
       };
     }
