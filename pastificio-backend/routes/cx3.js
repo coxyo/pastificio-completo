@@ -1,4 +1,4 @@
-// pastificio-backend/src/routes/cx3.js
+// pastificio-backend/routes/cx3.js
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import cx3Controller from '../controllers/cx3Controller.js';
@@ -6,13 +6,26 @@ import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// Tutte le route protette tranne webhook
-router.use((req, res, next) => {
-  if (req.path === '/webhook') {
-    return next();
-  }
-  return protect(req, res, next);
-});
+// ✅ ROUTE PUBBLICHE (prima del middleware protect)
+
+/**
+ * @route   GET /api/cx3/health
+ * @desc    Verifica connessione 3CX
+ * @access  Pubblico
+ */
+router.get('/health', cx3Controller.healthCheck);
+
+/**
+ * @route   POST /api/cx3/webhook
+ * @desc    Riceve eventi da 3CX (chiamata in arrivo, terminata, etc.)
+ * @access  Pubblico (ma verificato con signature)
+ */
+router.post('/webhook', cx3Controller.handleWebhook);
+
+// ✅ MIDDLEWARE AUTENTICAZIONE per tutte le altre route
+router.use(protect);
+
+// 🔒 ROUTE PROTETTE (richiedono autenticazione)
 
 /**
  * @route   POST /api/cx3/call
@@ -67,13 +80,6 @@ router.post('/unhold/:callId', cx3Controller.unhold);
 router.post('/transfer/:callId', cx3Controller.transfer);
 
 /**
- * @route   POST /api/cx3/webhook
- * @desc    Riceve eventi da 3CX (chiamata in arrivo, terminata, etc.)
- * @access  Pubblico (ma verificato con signature)
- */
-router.post('/webhook', cx3Controller.handleWebhook);
-
-/**
  * @route   GET /api/cx3/chiamate/:id
  * @desc    Dettaglio chiamata singola
  * @access  Privato
@@ -95,12 +101,5 @@ router.put('/chiamate/:id', cx3Controller.updateChiamata);
  * @query   startDate, endDate, clienteId
  */
 router.get('/stats', cx3Controller.getStatistiche);
-
-/**
- * @route   GET /api/cx3/health
- * @desc    Verifica connessione 3CX
- * @access  Privato
- */
-router.get('/health', cx3Controller.healthCheck);
 
 export default router;
