@@ -50,7 +50,8 @@ import {
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import FormCliente from './FormCliente';
-import ClickToCallButton from './ClickToCallButton'; // ⭐ NUOVO IMPORT
+// ⚠️ TEMPORANEAMENTE COMMENTATO PER DEBUG
+// import ClickToCallButton from './ClickToCallButton';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -536,19 +537,12 @@ function GestioneClienti() {
                     )}
                   </TableCell>
                   
-                  {/* ⭐ SEZIONE CONTATTI MODIFICATA CON CLICK-TO-CALL */}
+                  {/* ⚠️ SEZIONE CONTATTI - TEMPORANEAMENTE SENZA ClickToCallButton */}
                   <TableCell>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       {cliente.telefono && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {/* ⭐ PULSANTE CLICK-TO-CALL */}
-                          <ClickToCallButton
-                            numero={cliente.telefono}
-                            clienteId={cliente._id}
-                            clienteNome={getNomeCompleto(cliente)}
-                            size="small"
-                            variant="ghost"
-                          />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <PhoneIcon fontSize="small" color="action" />
                           <Typography variant="caption">{cliente.telefono}</Typography>
                         </Box>
                       )}
