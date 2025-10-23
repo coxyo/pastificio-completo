@@ -45,10 +45,11 @@ function TabPanel(props) {
   );
 }
 
-function FormCliente({ cliente, onSave, onCancel }) {
+// ⭐ FIXATO: Props corrette (onSalva e onAnnulla invece di onSave e onCancel)
+function FormCliente({ cliente, onSalva, onAnnulla }) {
   const [tabValue, setTabValue] = useState(0);
   const [formData, setFormData] = useState({
-    codiceCliente: '', // AGGIUNTO: Campo per il codice cliente
+    codiceCliente: '',
     tipo: 'privato',
     nome: '',
     cognome: '',
@@ -71,7 +72,6 @@ function FormCliente({ cliente, onSave, onCancel }) {
   const [errors, setErrors] = useState({});
   const [isNewCliente, setIsNewCliente] = useState(true);
 
-  // Funzione per generare il codice cliente
   const generateCodiceCliente = () => {
     const anno = new Date().getFullYear().toString().substr(-2);
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
@@ -80,7 +80,6 @@ function FormCliente({ cliente, onSave, onCancel }) {
 
   useEffect(() => {
     if (cliente) {
-      // Modifica cliente esistente
       setFormData({
         ...formData,
         ...cliente,
@@ -88,7 +87,6 @@ function FormCliente({ cliente, onSave, onCancel }) {
       });
       setIsNewCliente(false);
     } else {
-      // Nuovo cliente - genera codice temporaneo
       const nuovoCodice = generateCodiceCliente();
       setFormData(prev => ({
         ...prev,
@@ -98,61 +96,69 @@ function FormCliente({ cliente, onSave, onCancel }) {
     }
   }, [cliente]);
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
+  const handleChange = (e) => {
+    const { name, value, checked, type } = e.target;
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
 
-  const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    // Rimuovi errore quando l'utente modifica il campo
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
     }
   };
 
-  const handleIndirizzoChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      indirizzo: {
-        ...prev.indirizzo,
-        [field]: value
-      }
-    }));
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
   };
 
   const validaForm = () => {
     const newErrors = {};
 
-    // Validazione base
     if (formData.tipo === 'privato') {
-      if (!formData.nome) newErrors.nome = 'Nome obbligatorio';
-      if (!formData.cognome) newErrors.cognome = 'Cognome obbligatorio';
+      if (!formData.nome?.trim()) {
+        newErrors.nome = 'Il nome è obbligatorio';
+      }
+      if (!formData.cognome?.trim()) {
+        newErrors.cognome = 'Il cognome è obbligatorio';
+      }
     } else {
-      if (!formData.ragioneSociale) newErrors.ragioneSociale = 'Ragione sociale obbligatoria';
+      if (!formData.ragioneSociale?.trim()) {
+        newErrors.ragioneSociale = 'La ragione sociale è obbligatoria';
+      }
     }
-    
-    if (!formData.telefono) newErrors.telefono = 'Telefono obbligatorio';
 
-    // Validazione email se presente
+    if (!formData.telefono?.trim()) {
+      newErrors.telefono = 'Il telefono è obbligatorio';
+    } else if (!/^[0-9\s\+\-\(\)]+$/.test(formData.telefono)) {
+      newErrors.telefono = 'Formato telefono non valido';
+    }
+
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email non valida';
     }
 
-    // Validazione partita IVA per aziende
-    if (formData.tipo === 'azienda' && formData.partitaIva) {
+    if (formData.partitaIva) {
       if (!/^\d{11}$/.test(formData.partitaIva.replace(/\s/g, ''))) {
         newErrors.partitaIva = 'Partita IVA non valida (11 cifre)';
       }
     }
 
-    // Validazione codice fiscale se presente
     if (formData.codiceFiscale) {
       const cfRegex = /^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i;
       if (!cfRegex.test(formData.codiceFiscale.replace(/\s/g, ''))) {
@@ -166,7 +172,6 @@ function FormCliente({ cliente, onSave, onCancel }) {
 
   const handleSubmit = () => {
     if (validaForm()) {
-      // Prepara i dati per l'invio
       const dataToSend = {
         tipo: formData.tipo,
         nome: formData.nome || '',
@@ -182,18 +187,16 @@ function FormCliente({ cliente, onSave, onCancel }) {
         attivo: formData.attivo
       };
 
-      // Aggiungi il codice cliente solo se stiamo modificando un cliente esistente
-      // Per i nuovi clienti, lascia che il backend lo generi automaticamente
       if (!isNewCliente && formData.codiceCliente) {
         dataToSend.codiceCliente = formData.codiceCliente;
       }
       
       console.log('Invio dati cliente:', dataToSend);
-      onSave(dataToSend);
+      // ⭐ FIXATO: Usa onSalva invece di onSave
+      onSalva(dataToSend);
     }
   };
 
-  // Funzione per rigenerare il codice cliente
   const handleRegenerateCodice = () => {
     if (isNewCliente) {
       const nuovoCodice = generateCodiceCliente();
@@ -211,13 +214,13 @@ function FormCliente({ cliente, onSave, onCancel }) {
           <Typography variant="h6">
             {cliente ? 'Modifica Cliente' : 'Nuovo Cliente'}
           </Typography>
-          <IconButton onClick={onCancel} size="small">
+          {/* ⭐ FIXATO: Usa onAnnulla invece di onCancel */}
+          <IconButton onClick={onAnnulla} size="small">
             <CloseIcon />
           </IconButton>
         </Box>
       </DialogTitle>
       <DialogContent dividers>
-        {/* Mostra il codice cliente */}
         {formData.codiceCliente && (
           <Alert 
             severity="info" 
@@ -248,48 +251,59 @@ function FormCliente({ cliente, onSave, onCancel }) {
         <Tabs value={tabValue} onChange={handleTabChange}>
           <Tab label="Dati Anagrafici" icon={<PersonIcon />} iconPosition="start" />
           <Tab label="Indirizzi" icon={<BusinessIcon />} iconPosition="start" />
-          <Tab label="Dati Fiscali" icon={<BusinessIcon />} iconPosition="start" />
-          <Tab label="Preferenze" icon={<PersonIcon />} iconPosition="start" />
+          <Tab label="Dati Fiscali" />
+          {!isNewCliente && <Tab label="Preferenze" />}
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <FormControl fullWidth>
-                <InputLabel>Tipo Cliente</InputLabel>
+                <InputLabel>Tipo Cliente *</InputLabel>
                 <Select
+                  name="tipo"
                   value={formData.tipo}
-                  onChange={(e) => handleChange('tipo', e.target.value)}
-                  label="Tipo Cliente"
+                  onChange={handleChange}
+                  label="Tipo Cliente *"
                 >
-                  <MenuItem value="privato">Privato</MenuItem>
-                  <MenuItem value="azienda">Azienda</MenuItem>
+                  <MenuItem value="privato">
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <PersonIcon fontSize="small" />
+                      Privato
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="azienda">
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <BusinessIcon fontSize="small" />
+                      Azienda
+                    </Box>
+                  </MenuItem>
                 </Select>
               </FormControl>
             </Grid>
 
             {formData.tipo === 'privato' ? (
               <>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
-                    label="Nome"
+                    label="Nome *"
+                    name="nome"
                     value={formData.nome}
-                    onChange={(e) => handleChange('nome', e.target.value)}
+                    onChange={handleChange}
                     error={!!errors.nome}
                     helperText={errors.nome}
-                    required
                   />
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
-                    label="Cognome"
+                    label="Cognome *"
+                    name="cognome"
                     value={formData.cognome}
-                    onChange={(e) => handleChange('cognome', e.target.value)}
+                    onChange={handleChange}
                     error={!!errors.cognome}
                     helperText={errors.cognome}
-                    required
                   />
                 </Grid>
               </>
@@ -297,44 +311,121 @@ function FormCliente({ cliente, onSave, onCancel }) {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Ragione Sociale"
+                  label="Ragione Sociale *"
+                  name="ragioneSociale"
                   value={formData.ragioneSociale}
-                  onChange={(e) => handleChange('ragioneSociale', e.target.value)}
+                  onChange={handleChange}
                   error={!!errors.ragioneSociale}
                   helperText={errors.ragioneSociale}
-                  required
                 />
               </Grid>
             )}
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Telefono"
+                label="Telefono *"
+                name="telefono"
                 value={formData.telefono}
-                onChange={(e) => handleChange('telefono', e.target.value)}
+                onChange={handleChange}
                 error={!!errors.telefono}
-                helperText={errors.telefono || 'Es: 3331234567'}
-                required
+                helperText={errors.telefono || "Es: 3331234567"}
+                placeholder="Es: 3331234567"
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Telefono Secondario"
+                name="telefonoSecondario"
                 value={formData.telefonoSecondario}
-                onChange={(e) => handleChange('telefonoSecondario', e.target.value)}
+                onChange={handleChange}
+                placeholder="Es: 340 820 8314"
               />
             </Grid>
+
             <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Email"
+                name="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
+                onChange={handleChange}
                 error={!!errors.email}
                 helperText={errors.email}
+              />
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Via"
+                name="indirizzo.via"
+                value={formData.indirizzo.via}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Città"
+                name="indirizzo.citta"
+                value={formData.indirizzo.citta}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField
+                fullWidth
+                label="CAP"
+                name="indirizzo.cap"
+                value={formData.indirizzo.cap}
+                onChange={handleChange}
+                inputProps={{ maxLength: 5 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField
+                fullWidth
+                label="Provincia"
+                name="indirizzo.provincia"
+                value={formData.indirizzo.provincia}
+                onChange={handleChange}
+                inputProps={{ maxLength: 2 }}
+              />
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Partita IVA"
+                name="partitaIva"
+                value={formData.partitaIva}
+                onChange={handleChange}
+                error={!!errors.partitaIva}
+                helperText={errors.partitaIva || "11 cifre"}
+                inputProps={{ maxLength: 11 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Codice Fiscale"
+                name="codiceFiscale"
+                value={formData.codiceFiscale}
+                onChange={handleChange}
+                error={!!errors.codiceFiscale}
+                helperText={errors.codiceFiscale}
+                inputProps={{ maxLength: 16 }}
               />
             </Grid>
             <Grid item xs={12}>
@@ -343,9 +434,9 @@ function FormCliente({ cliente, onSave, onCancel }) {
                 multiline
                 rows={3}
                 label="Note"
+                name="note"
                 value={formData.note}
-                onChange={(e) => handleChange('note', e.target.value)}
-                placeholder="Inserisci note sul cliente, preferenze, allergie, etc..."
+                onChange={handleChange}
               />
             </Grid>
             <Grid item xs={12}>
@@ -353,7 +444,8 @@ function FormCliente({ cliente, onSave, onCancel }) {
                 control={
                   <Switch
                     checked={formData.attivo}
-                    onChange={(e) => handleChange('attivo', e.target.checked)}
+                    onChange={handleChange}
+                    name="attivo"
                     color="primary"
                   />
                 }
@@ -363,138 +455,55 @@ function FormCliente({ cliente, onSave, onCancel }) {
           </Grid>
         </TabPanel>
 
-        <TabPanel value={tabValue} index={1}>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom>
-                Indirizzo di Consegna
-              </Typography>
+        {!isNewCliente && (
+          <TabPanel value={tabValue} index={3}>
+            <Grid container spacing={2}>
+              {cliente && (
+                <>
+                  <Grid item xs={12} sm={4}>
+                    <Box textAlign="center" p={2}>
+                      <Chip
+                        label={cliente.livelloFedelta || 'Bronzo'}
+                        color="primary"
+                        sx={{ mb: 1 }}
+                      />
+                      <Typography variant="body2" color="textSecondary">
+                        Livello Fedeltà
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Box textAlign="center" p={2}>
+                      <Typography variant="h6">
+                        {cliente.punti || 0}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Punti Fedeltà
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Box textAlign="center" p={2}>
+                      <Typography variant="h6">
+                        {cliente.statistiche?.numeroOrdini || 0}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        Totale Ordini
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        Totale speso: €{(cliente.statistiche?.totaleSpeso || 0).toFixed(2)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </>
+              )}
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Via/Piazza"
-                value={formData.indirizzo.via}
-                onChange={(e) => handleIndirizzoChange('via', e.target.value)}
-                placeholder="Es: Via Roma 123"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Città"
-                value={formData.indirizzo.citta}
-                onChange={(e) => handleIndirizzoChange('citta', e.target.value)}
-                placeholder="Es: Cagliari"
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="CAP"
-                value={formData.indirizzo.cap}
-                onChange={(e) => handleIndirizzoChange('cap', e.target.value)}
-                placeholder="Es: 09100"
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="Provincia"
-                value={formData.indirizzo.provincia}
-                onChange={(e) => handleIndirizzoChange('provincia', e.target.value)}
-                placeholder="Es: CA"
-                inputProps={{ maxLength: 2 }}
-              />
-            </Grid>
-          </Grid>
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={2}>
-          <Grid container spacing={2}>
-            {formData.tipo === 'azienda' && (
-              <Grid item xs={12}>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  Inserisci i dati fiscali per la fatturazione
-                </Alert>
-              </Grid>
-            )}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Partita IVA"
-                value={formData.partitaIva}
-                onChange={(e) => handleChange('partitaIva', e.target.value)}
-                error={!!errors.partitaIva}
-                helperText={errors.partitaIva || 'Solo per aziende (11 cifre)'}
-                placeholder="12345678901"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Codice Fiscale"
-                value={formData.codiceFiscale}
-                onChange={(e) => handleChange('codiceFiscale', e.target.value.toUpperCase())}
-                error={!!errors.codiceFiscale}
-                helperText={errors.codiceFiscale}
-                placeholder="RSSMRA80A01H501R"
-                inputProps={{ style: { textTransform: 'uppercase' } }}
-              />
-            </Grid>
-          </Grid>
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={3}>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Typography variant="body2" color="textSecondary" gutterBottom>
-                Le preferenze del cliente verranno configurate automaticamente in base agli ordini.
-              </Typography>
-            </Grid>
-            {cliente && (
-              <>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Statistiche Cliente
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Punti Fedeltà
-                    </Typography>
-                    <Typography variant="h6">
-                      {cliente.punti || 0} punti
-                    </Typography>
-                    <Chip 
-                      label={cliente.livelloFedelta || 'Bronzo'} 
-                      size="small" 
-                      color="primary"
-                      sx={{ mt: 1 }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Totale Ordini
-                    </Typography>
-                    <Typography variant="h6">
-                      {cliente.statistiche?.numeroOrdini || 0}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      Totale speso: €{(cliente.statistiche?.totaleSpeso || 0).toFixed(2)}
-                    </Typography>
-                  </Box>
-                </Grid>
-              </>
-            )}
-          </Grid>
-        </TabPanel>
+          </TabPanel>
+        )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel}>Annulla</Button>
+        {/* ⭐ FIXATO: Usa onAnnulla invece di onCancel */}
+        <Button onClick={onAnnulla}>Annulla</Button>
         <Button onClick={handleSubmit} variant="contained" color="primary">
           {cliente ? 'Salva Modifiche' : 'Crea Cliente'}
         </Button>
