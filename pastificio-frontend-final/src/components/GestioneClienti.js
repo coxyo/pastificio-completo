@@ -177,14 +177,25 @@ function GestioneClienti() {
       }
 
       const data = await response.json();
-      console.log('Risposta clienti:', data);
+console.log('Risposta clienti:', data);
 
-      if (data.success) {
-        setClienti(data.clienti || []);
-        setTotalClienti(data.total || 0);
-      } else {
-        throw new Error(data.message || 'Errore nel caricamento clienti');
-      }
+// ⭐ SUPPORTA ENTRAMBE LE STRUTTURE: vecchia e nuova API
+// Backend con typo: 'successs' (3 s) invece di 'success' (2 s)
+const isSuccess = data.success || data.successs;
+
+if (isSuccess) {
+  // Supporta sia 'clienti' che 'data' come array
+  const clientiData = data.clienti || data.data || [];
+  // Supporta sia 'total' che 'pagination.total'
+  const totalData = data.total || data.pagination?.total || 0;
+  
+  console.log('📊 Clienti caricati:', clientiData.length, 'su', totalData);
+  
+  setClienti(clientiData);
+  setTotalClienti(totalData);
+} else {
+  throw new Error(data.message || 'Errore nel caricamento clienti');
+}
     } catch (error) {
       console.error('Errore nel caricamento clienti:', error);
       showToast('Errore nel caricamento clienti: ' + error.message, 'error');
