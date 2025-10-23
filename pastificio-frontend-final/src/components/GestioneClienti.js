@@ -50,6 +50,7 @@ import {
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import FormCliente from './FormCliente';
+import ClickToCallButton from './ClickToCallButton'; // ⭐ NUOVO IMPORT
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -100,7 +101,7 @@ function GestioneClienti() {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            username: 'admin',  // Usa username invece di email
+            username: 'admin',
             password: 'admin123'
           })
         });
@@ -137,7 +138,6 @@ function GestioneClienti() {
       const token = await ensureAuthenticated();
       if (!token) return;
 
-      // Costruisci i parametri della query
       const params = new URLSearchParams({
         limit: rowsPerPage.toString(),
         skip: (page * rowsPerPage).toString(),
@@ -154,56 +154,39 @@ function GestioneClienti() {
         params.append('attivo', filtroAttivo);
       }
 
-      const url = `${API_URL}/clienti?${params}`;
-      console.log('Chiamata API:', url);
+      console.log('Caricamento clienti con parametri:', params.toString());
 
-      const response = await fetch(url, {
+      const response = await fetch(`${API_URL}/clienti?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
 
-      console.log('Response status:', response.status);
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        await ensureAuthenticated();
+        return caricaClienti();
+      }
 
       if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          showToast('Sessione scaduta. Effettua nuovamente il login.', 'error');
-          router.push('/login');
-          return;
-        }
-        
-        const errorData = await response.json().catch(() => ({ error: 'Errore sconosciuto' }));
-        throw new Error(errorData.error || `Errore HTTP: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Errore ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('Dati ricevuti:', data);
-      
-      if (data.success && Array.isArray(data.data)) {
-        setClienti(data.data);
-        setTotalClienti(data.pagination?.total || data.data.length);
-        console.log(`Caricati ${data.data.length} clienti`);
-        
-        if (data.data.length === 0 && page === 0 && !searchTerm && !filtroTipo && !filtroAttivo) {
-          showToast('Nessun cliente trovato. Aggiungi il primo cliente!', 'info');
-        }
+      console.log('Risposta clienti:', data);
+
+      if (data.success) {
+        setClienti(data.clienti || []);
+        setTotalClienti(data.total || 0);
       } else {
-        console.warn('Formato risposta non atteso:', data);
-        setClienti([]);
-        setTotalClienti(0);
-        showToast('Formato risposta non valido', 'warning');
+        throw new Error(data.message || 'Errore nel caricamento clienti');
       }
-      
     } catch (error) {
-      console.error('Errore caricamento clienti:', error);
-      showToast(`Errore: ${error.message}`, 'error');
-      setClienti([]);
-      setTotalClienti(0);
+      console.error('Errore nel caricamento clienti:', error);
+      showToast('Errore nel caricamento clienti: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -211,7 +194,23 @@ function GestioneClienti() {
 
   useEffect(() => {
     caricaClienti();
-  }, [page, rowsPerPage, searchTerm, filtroTipo, filtroAttivo]);
+  }, [page, rowsPerPage, filtroTipo, filtroAttivo]);
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (page === 0) {
+        caricaClienti();
+      } else {
+        setPage(0);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -222,9 +221,14 @@ function GestioneClienti() {
     setPage(0);
   };
 
-  const handleSearch = (event) => {
-    setSearchTerm(event.target.value);
-    setPage(0);
+  const handleRefresh = () => {
+    caricaClienti();
+    showToast('Lista clienti aggiornata', 'success');
+  };
+
+  const handleNuovoCliente = () => {
+    setClienteSelezionato(null);
+    setOpenDialog(true);
   };
 
   const handleMenuOpen = (event, cliente) => {
@@ -237,28 +241,21 @@ function GestioneClienti() {
     setMenuCliente(null);
   };
 
-  const handleNuovoCliente = () => {
-    setClienteSelezionato(null);
-    setOpenDialog(true);
+  const handleVisualizzaCliente = (cliente) => {
+    console.log('Visualizza cliente:', cliente);
+    setClienteSelezionato(cliente);
+    handleMenuClose();
   };
 
   const handleModificaCliente = (cliente) => {
+    console.log('Modifica cliente:', cliente);
     setClienteSelezionato(cliente);
     setOpenDialog(true);
     handleMenuClose();
   };
 
-  const handleVisualizzaCliente = (cliente) => {
-    router.push(`/clienti/${cliente._id}`);
-    handleMenuClose();
-  };
-
   const handleEliminaCliente = async (cliente) => {
-    const nomeCompleto = cliente.tipo === 'azienda' ? 
-      cliente.ragioneSociale : 
-      `${cliente.nome} ${cliente.cognome}`;
-      
-    if (!window.confirm(`Sei sicuro di voler disattivare il cliente ${nomeCompleto}?`)) {
+    if (!window.confirm(`Sei sicuro di voler eliminare il cliente ${getNomeCompleto(cliente)}?`)) {
       return;
     }
 
@@ -269,130 +266,96 @@ function GestioneClienti() {
       const response = await fetch(`${API_URL}/clienti/${cliente._id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Errore durante l\'eliminazione');
-      }
+      const data = await response.json();
 
-      showToast('Cliente disattivato con successo', 'success');
-      caricaClienti();
+      if (data.success) {
+        showToast('Cliente eliminato con successo', 'success');
+        caricaClienti();
+      } else {
+        throw new Error(data.message || 'Errore eliminazione cliente');
+      }
     } catch (error) {
       console.error('Errore eliminazione cliente:', error);
-      showToast(`Errore: ${error.message}`, 'error');
+      showToast('Errore nell\'eliminazione del cliente', 'error');
     }
     handleMenuClose();
   };
 
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setClienteSelezionato(null);
-  };
-
-  const handleSaveCliente = async (clienteData) => {
+  const handleSalvaCliente = async (datiCliente) => {
     try {
-      console.log('Salvataggio cliente:', clienteData);
-      
       const token = await ensureAuthenticated();
       if (!token) return;
-      
-      const method = clienteSelezionato ? 'PUT' : 'POST';
+
       const url = clienteSelezionato 
         ? `${API_URL}/clienti/${clienteSelezionato._id}`
         : `${API_URL}/clienti`;
-
-      console.log('Invio richiesta a:', url);
+      
+      const method = clienteSelezionato ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(clienteData)
+        body: JSON.stringify(datiCliente)
       });
 
-      console.log('Response status:', response.status);
-      
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-      
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Errore parsing JSON:', parseError);
-        throw new Error('Risposta del server non valida');
-      }
+      const data = await response.json();
 
-      if (response.status === 200 || response.status === 201 || result.success === true) {
-        console.log('Cliente salvato con successo');
-        
-        if (clienteSelezionato) {
-          showToast('Cliente aggiornato con successo', 'success');
-        } else {
-          showToast('Cliente creato con successo', 'success');
-        }
-        
-        handleCloseDialog();
-        
-        setTimeout(() => {
-          console.log('Ricaricamento lista clienti...');
-          caricaClienti();
-        }, 500);
-        
+      if (data.success) {
+        showToast(
+          clienteSelezionato ? 'Cliente modificato con successo' : 'Cliente creato con successo',
+          'success'
+        );
+        setOpenDialog(false);
+        setClienteSelezionato(null);
+        caricaClienti();
       } else {
-        throw new Error(result.error || result.message || 'Errore durante il salvataggio');
+        throw new Error(data.message || 'Errore salvataggio cliente');
       }
-      
     } catch (error) {
-      console.error('Errore durante il salvataggio:', error);
-      showToast(error.message || 'Errore durante il salvataggio', 'error');
+      console.error('Errore salvataggio cliente:', error);
+      showToast('Errore nel salvataggio del cliente: ' + error.message, 'error');
     }
-  };
-
-  const handleRefresh = () => {
-    console.log('Refresh manuale...');
-    caricaClienti();
   };
 
   const handleExportExcel = async () => {
     try {
       const token = await ensureAuthenticated();
       if (!token) return;
-      
-      showToast('Preparazione export in corso...', 'info');
-      
+
+      showToast('Esportazione in corso...', 'info');
+
       const response = await fetch(`${API_URL}/clienti/export/excel`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Errore export' }));
-        throw new Error(errorData.error || 'Errore durante l\'export');
+        throw new Error('Errore nell\'esportazione');
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      const fileName = `clienti_${new Date().toISOString().split('T')[0]}.xlsx`;
-      link.setAttribute('download', fileName);
+      link.download = `clienti_${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(link);
       link.click();
-      link.remove();
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       showToast('Export completato con successo', 'success');
     } catch (error) {
-      console.error('Errore export Excel:', error);
-      showToast(`Errore durante l'export: ${error.message}`, 'error');
+      console.error('Errore export:', error);
+      showToast('Errore nell\'esportazione: ' + error.message, 'error');
     }
   };
 
@@ -572,11 +535,20 @@ function GestioneClienti() {
                       </Typography>
                     )}
                   </TableCell>
+                  
+                  {/* ⭐ SEZIONE CONTATTI MODIFICATA CON CLICK-TO-CALL */}
                   <TableCell>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       {cliente.telefono && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <PhoneIcon fontSize="small" color="action" />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {/* ⭐ PULSANTE CLICK-TO-CALL */}
+                          <ClickToCallButton
+                            numero={cliente.telefono}
+                            clienteId={cliente._id}
+                            clienteNome={getNomeCompleto(cliente)}
+                            size="small"
+                            variant="ghost"
+                          />
                           <Typography variant="caption">{cliente.telefono}</Typography>
                         </Box>
                       )}
@@ -588,6 +560,7 @@ function GestioneClienti() {
                       )}
                     </Box>
                   </TableCell>
+                  
                   <TableCell>{getLivelloChip(cliente.livelloFedelta)}</TableCell>
                   <TableCell>{cliente.punti || 0}</TableCell>
                   <TableCell>
@@ -649,44 +622,40 @@ function GestioneClienti() {
           sx={{ color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          Disattiva
+          Elimina
         </MenuItem>
       </Menu>
 
       <Dialog
         open={openDialog}
-        onClose={handleCloseDialog}
+        onClose={() => {
+          setOpenDialog(false);
+          setClienteSelezionato(null);
+        }}
         maxWidth="md"
         fullWidth
       >
         <FormCliente
           cliente={clienteSelezionato}
-          onSave={handleSaveCliente}
-          onCancel={handleCloseDialog}
+          onSalva={handleSalvaCliente}
+          onAnnulla={() => {
+            setOpenDialog(false);
+            setClienteSelezionato(null);
+          }}
         />
       </Dialog>
-
-      <Fab
-        color="primary"
-        aria-label="nuovo cliente"
-        onClick={handleNuovoCliente}
-        sx={{
-          position: 'fixed',
-          bottom: 16,
-          right: 16,
-          display: { xs: 'flex', md: 'none' }
-        }}
-      >
-        <AddIcon />
-      </Fab>
 
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
@@ -695,4 +664,3 @@ function GestioneClienti() {
 }
 
 export default GestioneClienti;
-
