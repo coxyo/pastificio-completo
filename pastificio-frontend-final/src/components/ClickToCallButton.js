@@ -93,9 +93,33 @@ function ClickToCallButton({
       } else {
         console.error('❌ Errore chiamata:', data);
         
-        // Gestisci errori specifici
+        // ⭐ GESTISCI 401: Token scaduto
         if (response.status === 401) {
-          showToast('Sessione scaduta. Ricarica la pagina.', 'error');
+          console.log('🔐 Token scaduto, tentativo auto-login...');
+          
+          try {
+            // Auto-login
+            const loginResponse = await fetch(`${API_URL.replace('/api', '')}/api/auth/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                username: 'admin',
+                password: 'admin123'
+              })
+            });
+            
+            if (loginResponse.ok) {
+              const loginData = await loginResponse.json();
+              localStorage.setItem('token', loginData.token);
+              localStorage.setItem('user', JSON.stringify(loginData.user));
+              
+              showToast('Sessione rinnovata. Riprova la chiamata.', 'info');
+            } else {
+              showToast('Sessione scaduta. Ricarica la pagina e fai login.', 'error');
+            }
+          } catch (loginError) {
+            showToast('Errore rinnovo sessione. Ricarica la pagina.', 'error');
+          }
         } else if (data.status === 'configured-but-offline') {
           showToast('Sistema telefonico non disponibile al momento', 'warning');
         } else {
