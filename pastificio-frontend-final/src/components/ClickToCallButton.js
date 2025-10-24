@@ -98,13 +98,13 @@ function ClickToCallButton({
           console.log('🔐 Token scaduto, tentativo auto-login...');
           
           try {
-            // Auto-login
+            // Auto-login con EMAIL (NON username!)
             const loginResponse = await fetch(`${API_URL.replace('/api', '')}/api/auth/login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                username: 'admin',
-                password: 'admin123'
+                email: 'demo@pastificio.com',  // ✅ EMAIL invece di username
+                password: 'demo123'
               })
             });
             
