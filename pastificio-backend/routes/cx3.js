@@ -22,18 +22,18 @@ router.get('/health', cx3Controller.healthCheck);
  */
 router.post('/webhook', cx3Controller.handleWebhook);
 
+/**
+ * @route   POST /api/cx3/call
+ * @desc    Inizia chiamata verso numero (click-to-call)
+ * @access  Pubblico (NO AUTH - uso interno)
+ * @body    { numero, clienteId?, clienteNome? }
+ */
+router.post('/call', cx3Controller.makeCall);
+
 // ✅ MIDDLEWARE AUTENTICAZIONE per tutte le altre route
 router.use(protect);
 
 // 🔒 ROUTE PROTETTE (richiedono autenticazione)
-
-/**
- * @route   POST /api/cx3/call
- * @desc    Inizia chiamata verso numero (click-to-call)
- * @access  Privato
- * @body    { numero, clienteId?, clienteNome? }
- */
-router.post('/call', cx3Controller.makeCall);
 
 /**
  * @route   GET /api/cx3/status
