@@ -62,6 +62,10 @@ function ClickToCallButton({
       if (!token) {
         showToast('Sessione scaduta. Effettua il login.', 'error');
         setLoading(false);
+        // Redirect a login dopo 2 secondi
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
         return;
       }
 
@@ -93,33 +97,14 @@ function ClickToCallButton({
       } else {
         console.error('❌ Errore chiamata:', data);
         
-        // ⭐ GESTISCI 401: Token scaduto
+        // Gestisci errori specifici
         if (response.status === 401) {
-          console.log('🔐 Token scaduto, tentativo auto-login...');
-          
-          try {
-            // Auto-login con EMAIL (NON username!)
-            const loginResponse = await fetch(`${API_URL.replace('/api', '')}/api/auth/login`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: 'myadmin@pastificio.com',  // ✅ EMAIL invece di username
-                password: 'MyPassword123!'
-              })
-            });
-            
-            if (loginResponse.ok) {
-              const loginData = await loginResponse.json();
-              localStorage.setItem('token', loginData.token);
-              localStorage.setItem('user', JSON.stringify(loginData.user));
-              
-              showToast('Sessione rinnovata. Riprova la chiamata.', 'info');
-            } else {
-              showToast('Sessione scaduta. Ricarica la pagina e fai login.', 'error');
-            }
-          } catch (loginError) {
-            showToast('Errore rinnovo sessione. Ricarica la pagina.', 'error');
-          }
+          showToast('Sessione scaduta. Verrai reindirizzato al login...', 'warning');
+          // Pulisci storage e redirect dopo 2 secondi
+          setTimeout(() => {
+            localStorage.clear();
+            window.location.href = '/';
+          }, 2000);
         } else if (data.status === 'configured-but-offline') {
           showToast('Sistema telefonico non disponibile al momento', 'warning');
         } else {
