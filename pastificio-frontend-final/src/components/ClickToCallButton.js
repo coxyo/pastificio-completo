@@ -12,14 +12,15 @@ import {
 } from '@mui/material';
 import {
   Phone as PhoneIcon,
-  PhoneInTalk as PhoneInTalkIcon
+  PhoneInTalk as PhoneInTalkIcon,
+  ContentCopy as CopyIcon
 } from '@mui/icons-material';
 
 /**
- * CLICK-TO-CALL BUTTON (3CX PROTOCOL HANDLER)
+ * CLICK-TO-CALL BUTTON (COPY TO CLIPBOARD)
  * 
- * Usa 3cx://call/NUMERO per aprire 3CX Desktop Client
- * NON richiede API Key, funziona subito!
+ * Copia il numero negli appunti per incollarlo in 3CX
+ * Soluzione universale che funziona sempre!
  * 
  * @param {string} numero - Numero di telefono da chiamare
  * @param {string} clienteId - ID cliente (opzionale)
@@ -55,52 +56,31 @@ function ClickToCallButton({
       return;
     }
 
+    setLoading(true);
+
     try {
-      console.log('[INFO] Iniziando chiamata 3CX:', { 
+      console.log('[INFO] Copiando numero per chiamata:', { 
         numero: numeroPulito, 
         clienteId, 
         clienteNome 
       });
 
-      // Costruisci URL 3CX protocol handler
-      const cx3Url = `3cx://call/${numeroPulito}`;
+      // Copia numero negli appunti
+      await navigator.clipboard.writeText(numeroPulito);
       
-      console.log('[INFO] Apertura 3CX Client:', cx3Url);
+      console.log('[INFO] Numero copiato negli appunti:', numeroPulito);
 
-      // Apri 3CX Desktop Client (se installato)
-      const popup = window.open(cx3Url, '_blank');
-
-      // Se popup bloccato o 3CX non installato
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        console.warn('[WARN] Popup bloccato o 3CX non installato');
-        
-        // Fallback: mostra alert con link
-        const userConfirmed = window.confirm(
-          `Impossibile aprire 3CX automaticamente.\n\n` +
-          `Vuoi provare a chiamare ${numero} manualmente?\n\n` +
-          `Clicca OK per copiare il numero negli appunti.`
-        );
-
-        if (userConfirmed) {
-          // Copia numero negli appunti
-          await navigator.clipboard.writeText(numeroPulito);
-          showToast(`Numero ${numero} copiato! Incolla in 3CX`, 'info');
-        }
-      } else {
-        // Successo
-        showToast(`Apertura 3CX per chiamare ${numero}...`, 'success');
-      }
+      // Mostra toast di successo con istruzioni
+      showToast(
+        `Numero ${numero} copiato! Apri 3CX e incolla (Ctrl+V) per chiamare`,
+        'success'
+      );
 
     } catch (error) {
-      console.error('[ERROR] Errore chiamata:', error);
-      
-      // Fallback: copia numero
-      try {
-        await navigator.clipboard.writeText(numeroPulito);
-        showToast(`Errore: numero ${numero} copiato negli appunti`, 'warning');
-      } catch (clipboardError) {
-        showToast('Errore: impossibile avviare chiamata', 'error');
-      }
+      console.error('[ERROR] Errore copia numero:', error);
+      showToast('Errore: impossibile copiare il numero', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -125,7 +105,7 @@ function ClickToCallButton({
   if (variant === 'icon') {
     return (
       <>
-        <Tooltip title={`Chiama ${numero} con 3CX`} arrow>
+        <Tooltip title={`Copia ${numero} per chiamare con 3CX`} arrow>
           <span>
             <IconButton
               onClick={handleCall}
@@ -150,15 +130,19 @@ function ClickToCallButton({
 
         <Snackbar
           open={snackbar.open}
-          autoHideDuration={4000}
+          autoHideDuration={6000}
           onClose={handleCloseSnackbar}
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
           <Alert 
             onClose={handleCloseSnackbar} 
             severity={snackbar.severity}
-            sx={{ width: '100%' }}
-            icon={snackbar.severity === 'success' ? <PhoneInTalkIcon /> : undefined}
+            sx={{ 
+              width: '100%',
+              fontSize: '0.95rem',
+              fontWeight: 500
+            }}
+            icon={snackbar.severity === 'success' ? <CopyIcon /> : undefined}
           >
             {snackbar.message}
           </Alert>
@@ -179,20 +163,24 @@ function ClickToCallButton({
           size={size}
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PhoneIcon />}
         >
-          {loading ? 'Chiamando...' : 'Chiama con 3CX'}
+          {loading ? 'Copiando...' : 'Copia per 3CX'}
         </Button>
 
         <Snackbar
           open={snackbar.open}
-          autoHideDuration={4000}
+          autoHideDuration={6000}
           onClose={handleCloseSnackbar}
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
           <Alert 
             onClose={handleCloseSnackbar} 
             severity={snackbar.severity}
-            sx={{ width: '100%' }}
-            icon={snackbar.severity === 'success' ? <PhoneInTalkIcon /> : undefined}
+            sx={{ 
+              width: '100%',
+              fontSize: '0.95rem',
+              fontWeight: 500
+            }}
+            icon={snackbar.severity === 'success' ? <CopyIcon /> : undefined}
           >
             {snackbar.message}
           </Alert>
@@ -204,7 +192,7 @@ function ClickToCallButton({
   // Variante GHOST (icona minimale, per tabelle)
   return (
     <>
-      <Tooltip title={`Chiama ${numero} con 3CX`} arrow>
+      <Tooltip title={`Copia ${numero} per chiamare con 3CX`} arrow>
         <IconButton
           onClick={handleCall}
           disabled={disabled || loading}
@@ -228,15 +216,19 @@ function ClickToCallButton({
 
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={4000}
+        autoHideDuration={6000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert 
           onClose={handleCloseSnackbar} 
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
-          icon={snackbar.severity === 'success' ? <PhoneInTalkIcon /> : undefined}
+          sx={{ 
+            width: '100%',
+            fontSize: '0.95rem',
+            fontWeight: 500
+          }}
+          icon={snackbar.severity === 'success' ? <CopyIcon /> : undefined}
         >
           {snackbar.message}
         </Alert>
