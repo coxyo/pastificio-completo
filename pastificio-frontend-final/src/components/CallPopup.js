@@ -125,7 +125,11 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          py: 2
+          py: 2,
+          '& @keyframes pulse': {
+            '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+            '50%': { opacity: 0.8, transform: 'scale(1.1)' }
+          }
         }}
       >
         <Box display="flex" alignItems="center" gap={1}>
@@ -355,15 +359,5 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     </Dialog>
   );
 }
-
-// Animazione pulse per icona telefono
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
-  }
-`;
-document.head.appendChild(style);
 
 export default CallPopup;
