@@ -1,531 +1,480 @@
-// pastificio-backend/src/controllers/cx3Controller.js
-import cx3Service from '../services/cx3Service.js';
+// controllers/cx3Controller.js - AGGIORNAMENTO con gestione chiamate
+
 import Chiamata from '../models/Chiamata.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 
-const cx3Controller = {
-  
-  /**
-   * 🔵 CLICK-TO-CALL: Inizia chiamata
-   */
-  makeCall: async (req, res) => {
-    try {
-      const { numero, clienteId, clienteNome } = req.body;
-      
-      if (!numero) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Numero telefono obbligatorio' 
-        });
-      }
-      
-      logger.info('Controller: Click-to-call richiesto', { 
-        numero, 
-        clienteId, 
-        userId: req.user?._id 
-      });
-      
-      // Inizia chiamata tramite 3CX
-      const result = await cx3Service.makeCall(numero, clienteId, clienteNome);
-      
-      if (!result.success) {
-        return res.status(500).json(result);
-      }
-      
-      // Cerca cliente da numero se non fornito
-      let cliente = null;
-      if (clienteId) {
-        cliente = await Cliente.findById(clienteId);
-      } else {
-        cliente = await Chiamata.cercaClienteDaNumero(numero);
-      }
-      
-      // Salva chiamata nel database
-      const nuovaChiamata = new Chiamata({
-        callId: result.callId,
-        direzione: 'outbound',
-        numero: numero.replace(/\s+/g, ''),
-        cliente: cliente?._id || null,
-        clienteNome: cliente?.nomeCompleto || clienteNome || 'Sconosciuto',
-        interno: process.env.CX3_EXTENSION,
-        stato: 'ringing',
-        inizioChiamata: new Date(),
-        metadata: {
-          userAgent: req.headers['user-agent'],
-          ip: req.ip
-        }
-      });
-      
-      await nuovaChiamata.save();
-      
-      logger.info('Chiamata salvata in database', { 
-        callId: result.callId,
-        chiamataId: nuovaChiamata._id 
-      });
-      
-      res.json({
-        success: true,
-        message: result.message,
-        callId: result.callId,
-        chiamata: nuovaChiamata,
-        cliente: cliente ? {
-          _id: cliente._id,
-          nomeCompleto: cliente.nomeCompleto,
-          telefono: cliente.telefono
-        } : null
-      });
-      
-    } catch (error) {
-      logger.error('Errore click-to-call', { error: error.message });
-      res.status(500).json({ 
-        success: false, 
-        message: 'Errore durante chiamata',
-        error: error.message 
-      });
+/**
+ * WEBHOOK 3CX - Riceve eventi chiamate
+ * 
+ * Eventi supportati:
+ * - call.ringing (chiamata in arrivo)
+ * - call.answered (chiamata risposta)
+ * - call.ended (chiamata terminata)
+ * - call.missed (chiamata persa)
+ */
+export const handleWebhook = async (req, res) => {
+  try {
+    const evento = req.body;
+    
+    logger.info('[3CX WEBHOOK] Evento ricevuto:', {
+      tipo: evento.eventType,
+      callId: evento.callId,
+      numero: evento.callerNumber || evento.calledNumber
+    });
+
+    // Gestisci evento in base al tipo
+    switch (evento.eventType) {
+      case 'call.ringing':
+      case 'call.inbound':
+        await handleIncomingCall(evento);
+        break;
+
+      case 'call.answered':
+        await handleAnsweredCall(evento);
+        break;
+
+      case 'call.ended':
+      case 'call.hangup':
+        await handleEndedCall(evento);
+        break;
+
+      case 'call.missed':
+        await handleMissedCall(evento);
+        break;
+
+      case 'call.outbound':
+        await handleOutgoingCall(evento);
+        break;
+
+      default:
+        logger.warn('[3CX WEBHOOK] Evento non gestito:', evento.eventType);
     }
-  },
-  
-  /**
-   * 🔵 STATO INTERNO
-   */
-  getStatus: async (req, res) => {
-    try {
-      const status = await cx3Service.getExtensionStatus();
-      
-      res.json(status);
-      
-    } catch (error) {
-      logger.error('Errore stato interno', { error: error.message });
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 STORICO CHIAMATE
-   */
-  getHistory: async (req, res) => {
-    try {
-      const { 
-        limit = 50, 
-        startDate, 
-        endDate, 
-        clienteId,
-        direzione,
-        stato
-      } = req.query;
-      
-      // Costruisci filtri MongoDB
-      const filtri = {};
-      
-      if (startDate) {
-        filtri.inizioChiamata = { 
-          $gte: new Date(startDate) 
-        };
-      }
-      
-      if (endDate) {
-        filtri.inizioChiamata = {
-          ...filtri.inizioChiamata,
-          $lte: new Date(endDate)
-        };
-      }
-      
-      if (clienteId) {
-        filtri.cliente = clienteId;
-      }
-      
-      if (direzione) {
-        filtri.direzione = direzione;
-      }
-      
-      if (stato) {
-        filtri.stato = stato;
-      }
-      
-      // Query database
-      const chiamate = await Chiamata.find(filtri)
-        .populate('cliente', 'nomeCompleto telefono email')
-        .populate('ordineCreato', 'numeroOrdine totale')
-        .sort({ inizioChiamata: -1 })
-        .limit(parseInt(limit));
-      
-      const totale = await Chiamata.countDocuments(filtri);
-      
-      res.json({
-        success: true,
-        chiamate,
-        totale,
-        filtri
-      });
-      
-    } catch (error) {
-      logger.error('Errore storico chiamate', { error: error.message });
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 TERMINA CHIAMATA
-   */
-  hangup: async (req, res) => {
-    try {
-      const { callId } = req.params;
-      
-      const result = await cx3Service.hangupCall(callId);
-      
-      if (result.success) {
-        // Aggiorna stato in database
-        const chiamata = await Chiamata.findOne({ callId });
-        if (chiamata) {
-          await chiamata.aggiornaStato('completed');
-        }
-      }
-      
-      res.json(result);
-      
-    } catch (error) {
-      logger.error('Errore terminazione chiamata', { error: error.message });
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 METTI IN ATTESA
-   */
-  hold: async (req, res) => {
-    try {
-      const { callId } = req.params;
-      
-      const result = await cx3Service.holdCall(callId);
-      
-      res.json(result);
-      
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 RIPRENDI CHIAMATA
-   */
-  unhold: async (req, res) => {
-    try {
-      const { callId } = req.params;
-      
-      const result = await cx3Service.unholdCall(callId);
-      
-      res.json(result);
-      
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 TRASFERISCI CHIAMATA
-   */
-  transfer: async (req, res) => {
-    try {
-      const { callId } = req.params;
-      const { destination } = req.body;
-      
-      if (!destination) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Destinazione obbligatoria' 
-        });
-      }
-      
-      const result = await cx3Service.transferCall(callId, destination);
-      
-      res.json(result);
-      
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 WEBHOOK 3CX: Eventi chiamate
-   */
-  handleWebhook: async (req, res) => {
-    try {
-      const signature = req.headers['x-3cx-signature'];
-      const payload = req.body;
-      
-      // Verifica autenticità webhook
-      if (!cx3Service.verifyWebhookSignature(payload, signature)) {
-        logger.warn('Webhook 3CX: Signature non valida');
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Signature non valida' 
-        });
-      }
-      
-      const { eventType, callId, data } = payload;
-      
-      logger.info('Webhook 3CX ricevuto', { eventType, callId });
-      
-      // Gestisci eventi
-      switch (eventType) {
-        case 'call.incoming':
-          await handleIncomingCall(data);
-          break;
-          
-        case 'call.answered':
-          await handleCallAnswered(data);
-          break;
-          
-        case 'call.ended':
-          await handleCallEnded(data);
-          break;
-          
-        case 'call.missed':
-          await handleCallMissed(data);
-          break;
-          
-        default:
-          logger.info('Evento webhook non gestito', { eventType });
-      }
-      
-      res.json({ success: true, received: true });
-      
-    } catch (error) {
-      logger.error('Errore gestione webhook', { error: error.message });
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 DETTAGLIO CHIAMATA
-   */
-  getChiamata: async (req, res) => {
-    try {
-      const { id } = req.params;
-      
-      const chiamata = await Chiamata.findById(id)
-        .populate('cliente', 'nomeCompleto telefono email statistiche')
-        .populate('ordineCreato', 'numeroOrdine totale prodotti');
-      
-      if (!chiamata) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Chiamata non trovata' 
-        });
-      }
-      
-      res.json({
-        success: true,
-        chiamata
-      });
-      
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 AGGIORNA CHIAMATA
-   */
-  updateChiamata: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { note, esito, tags } = req.body;
-      
-      const chiamata = await Chiamata.findById(id);
-      
-      if (!chiamata) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Chiamata non trovata' 
-        });
-      }
-      
-      if (note !== undefined) chiamata.note = note;
-      if (esito !== undefined) chiamata.esito = esito;
-      if (tags !== undefined) chiamata.tags = tags;
-      
-      await chiamata.save();
-      
-      logger.info('Chiamata aggiornata', { 
-        chiamataId: id, 
-        updates: { note, esito, tags } 
-      });
-      
-      res.json({
-        success: true,
-        chiamata
-      });
-      
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 STATISTICHE CHIAMATE
-   */
-  getStatistiche: async (req, res) => {
-    try {
-      const { startDate, endDate, clienteId } = req.query;
-      
-      const filtri = {};
-      
-      if (startDate || endDate) {
-        filtri.inizioChiamata = {};
-        if (startDate) filtri.inizioChiamata.$gte = new Date(startDate);
-        if (endDate) filtri.inizioChiamata.$lte = new Date(endDate);
-      }
-      
-      if (clienteId) {
-        filtri.cliente = clienteId;
-      }
-      
-      const stats = await Chiamata.getStatistiche(filtri);
-      
-      res.json({
-        success: true,
-        statistiche: stats,
-        filtri
-      });
-      
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
-      });
-    }
-  },
-  
-  /**
-   * 🔵 HEALTH CHECK
-   */
-  healthCheck: async (req, res) => {
-    try {
-      const health = await cx3Service.healthCheck();
-      
-      res.json(health);
-      
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        status: 'error',
-        error: error.message 
-      });
-    }
+
+    // Rispondi sempre 200 OK a 3CX
+    res.status(200).json({
+      success: true,
+      message: 'Webhook ricevuto',
+      eventType: evento.eventType
+    });
+
+  } catch (error) {
+    logger.error('[3CX WEBHOOK] Errore:', error);
+    
+    // Rispondi sempre 200 anche in caso di errore
+    // per non far riprovare 3CX continuamente
+    res.status(200).json({
+      success: false,
+      error: error.message
+    });
   }
 };
 
 /**
- * 🔹 HANDLER EVENTI WEBHOOK
+ * Gestione chiamata in arrivo
  */
-
-async function handleIncomingCall(data) {
+async function handleIncomingCall(evento) {
   try {
-    const { callId, callerNumber, extension } = data;
-    
-    // Cerca cliente
-    const cliente = await Chiamata.cercaClienteDaNumero(callerNumber);
-    
+    const numeroChiamante = pulisciNumero(evento.callerNumber);
+    const numeroChiamato = pulisciNumero(evento.calledNumber);
+
+    logger.info('[CHIAMATA IN ARRIVO]', {
+      callId: evento.callId,
+      da: numeroChiamante,
+      a: numeroChiamato
+    });
+
+    // Cerca cliente per numero
+    const cliente = await Cliente.findOne({
+      telefono: { $regex: numeroChiamante.slice(-9), $options: 'i' }
+    });
+
     // Crea record chiamata
     const chiamata = new Chiamata({
-      callId,
-      direzione: 'inbound',
-      numero: callerNumber,
-      cliente: cliente?._id || null,
-      clienteNome: cliente?.nomeCompleto || 'Sconosciuto',
-      interno: extension,
+      callId: evento.callId,
+      tipo: 'inbound',
+      numeroChiamante,
+      numeroChiamato,
+      cliente: cliente?._id,
+      clienteNome: cliente ? `${cliente.nome} ${cliente.cognome}` : null,
+      estensione: evento.extension,
       stato: 'ringing',
-      inizioChiamata: new Date()
+      dataOraInizio: new Date(),
+      cx3Data: {
+        didNumber: evento.didNumber,
+        queueName: evento.queueName
+      },
+      noteAutomatiche: cliente 
+        ? `Cliente: ${cliente.codiceCliente} - ${cliente.nome} ${cliente.cognome}`
+        : `Chiamata da numero sconosciuto: ${numeroChiamante}`
     });
-    
+
     await chiamata.save();
-    
-    logger.info('Chiamata in arrivo salvata', { 
-      callId, 
-      clienteNome: chiamata.clienteNome 
+
+    // Emetti evento WebSocket per popup frontend
+    if (global.io) {
+      global.io.emit('chiamata:inbound', {
+        callId: evento.callId,
+        numero: numeroChiamante,
+        cliente: cliente ? {
+          id: cliente._id,
+          nome: cliente.nome,
+          cognome: cliente.cognome,
+          telefono: cliente.telefono,
+          email: cliente.email,
+          codiceCliente: cliente.codiceCliente,
+          livelloFedelta: cliente.livelloFedelta,
+          punti: cliente.punti
+        } : null,
+        timestamp: new Date()
+      });
+
+      logger.info('[WEBSOCKET] Evento chiamata:inbound emesso', {
+        callId: evento.callId,
+        hasCliente: !!cliente
+      });
+    }
+
+    logger.info('[CHIAMATA IN ARRIVO] Record creato:', chiamata._id);
+
+  } catch (error) {
+    logger.error('[CHIAMATA IN ARRIVO] Errore:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gestione chiamata risposta
+ */
+async function handleAnsweredCall(evento) {
+  try {
+    logger.info('[CHIAMATA RISPOSTA]', {
+      callId: evento.callId
     });
-    
-    // TODO: Invia evento WebSocket al frontend per popup
-    
-  } catch (error) {
-    logger.error('Errore gestione chiamata in arrivo', { error: error.message });
-  }
-}
 
-async function handleCallAnswered(data) {
-  try {
-    const { callId } = data;
-    
-    const chiamata = await Chiamata.findOne({ callId });
-    if (chiamata) {
-      await chiamata.aggiornaStato('answered');
-      logger.info('Chiamata risposta', { callId });
+    const chiamata = await Chiamata.findOne({ callId: evento.callId });
+
+    if (!chiamata) {
+      logger.warn('[CHIAMATA RISPOSTA] Chiamata non trovata:', evento.callId);
+      return;
     }
-    
-  } catch (error) {
-    logger.error('Errore gestione risposta chiamata', { error: error.message });
-  }
-}
 
-async function handleCallEnded(data) {
-  try {
-    const { callId, duration } = data;
-    
-    const chiamata = await Chiamata.findOne({ callId });
-    if (chiamata) {
-      await chiamata.aggiornaStato('completed', duration);
-      logger.info('Chiamata terminata', { callId, duration });
+    await chiamata.aggiornaStato('answered', {
+      dataOraRisposta: new Date()
+    });
+
+    // Emetti evento WebSocket
+    if (global.io) {
+      global.io.emit('chiamata:answered', {
+        callId: evento.callId,
+        timestamp: new Date()
+      });
     }
-    
+
+    logger.info('[CHIAMATA RISPOSTA] Aggiornata:', chiamata._id);
+
   } catch (error) {
-    logger.error('Errore gestione fine chiamata', { error: error.message });
+    logger.error('[CHIAMATA RISPOSTA] Errore:', error);
+    throw error;
   }
 }
 
-async function handleCallMissed(data) {
+/**
+ * Gestione chiamata terminata
+ */
+async function handleEndedCall(evento) {
   try {
-    const { callId } = data;
-    
-    const chiamata = await Chiamata.findOne({ callId });
-    if (chiamata) {
-      await chiamata.aggiornaStato('missed');
-      logger.info('Chiamata persa', { callId });
-      
-      // TODO: Invia notifica push
+    logger.info('[CHIAMATA TERMINATA]', {
+      callId: evento.callId,
+      durata: evento.duration
+    });
+
+    const chiamata = await Chiamata.findOne({ callId: evento.callId });
+
+    if (!chiamata) {
+      logger.warn('[CHIAMATA TERMINATA] Chiamata non trovata:', evento.callId);
+      return;
     }
-    
+
+    await chiamata.aggiornaStato('ended', {
+      dataOraFine: new Date(),
+      durataChiamata: evento.duration || 0
+    });
+
+    // Emetti evento WebSocket
+    if (global.io) {
+      global.io.emit('chiamata:ended', {
+        callId: evento.callId,
+        durata: chiamata.durataChiamata,
+        timestamp: new Date()
+      });
+    }
+
+    logger.info('[CHIAMATA TERMINATA] Aggiornata:', {
+      id: chiamata._id,
+      durata: chiamata.durataFormattata
+    });
+
   } catch (error) {
-    logger.error('Errore gestione chiamata persa', { error: error.message });
+    logger.error('[CHIAMATA TERMINATA] Errore:', error);
+    throw error;
   }
 }
 
-export default cx3Controller;
+/**
+ * Gestione chiamata persa
+ */
+async function handleMissedCall(evento) {
+  try {
+    logger.info('[CHIAMATA PERSA]', {
+      callId: evento.callId,
+      numero: evento.callerNumber
+    });
+
+    const chiamata = await Chiamata.findOne({ callId: evento.callId });
+
+    if (!chiamata) {
+      // Crea record se non esiste
+      const numeroChiamante = pulisciNumero(evento.callerNumber);
+      const cliente = await Cliente.findOne({
+        telefono: { $regex: numeroChiamante.slice(-9), $options: 'i' }
+      });
+
+      const nuovaChiamata = new Chiamata({
+        callId: evento.callId,
+        tipo: 'inbound',
+        numeroChiamante,
+        numeroChiamato: pulisciNumero(evento.calledNumber),
+        cliente: cliente?._id,
+        clienteNome: cliente ? `${cliente.nome} ${cliente.cognome}` : null,
+        stato: 'missed',
+        esito: 'persa',
+        dataOraInizio: new Date(),
+        dataOraFine: new Date(),
+        richiedeFollowUp: true,
+        noteAutomatiche: 'Chiamata persa - richiamare'
+      });
+
+      await nuovaChiamata.save();
+
+      // Emetti evento WebSocket per alert
+      if (global.io) {
+        global.io.emit('chiamata:missed', {
+          callId: evento.callId,
+          numero: numeroChiamante,
+          cliente: cliente ? {
+            id: cliente._id,
+            nome: cliente.nome,
+            cognome: cliente.cognome
+          } : null,
+          timestamp: new Date()
+        });
+      }
+
+      logger.info('[CHIAMATA PERSA] Record creato:', nuovaChiamata._id);
+      return;
+    }
+
+    await chiamata.aggiornaStato('missed', {
+      dataOraFine: new Date(),
+      esito: 'persa',
+      richiedeFollowUp: true
+    });
+
+    // Emetti evento WebSocket
+    if (global.io) {
+      global.io.emit('chiamata:missed', {
+        callId: evento.callId,
+        numero: chiamata.numeroChiamante,
+        cliente: chiamata.cliente ? {
+          id: chiamata.cliente,
+          nome: chiamata.clienteNome
+        } : null,
+        timestamp: new Date()
+      });
+    }
+
+    logger.info('[CHIAMATA PERSA] Aggiornata:', chiamata._id);
+
+  } catch (error) {
+    logger.error('[CHIAMATA PERSA] Errore:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gestione chiamata in uscita
+ */
+async function handleOutgoingCall(evento) {
+  try {
+    const numeroChiamato = pulisciNumero(evento.calledNumber);
+    
+    logger.info('[CHIAMATA IN USCITA]', {
+      callId: evento.callId,
+      a: numeroChiamato
+    });
+
+    // Cerca cliente
+    const cliente = await Cliente.findOne({
+      telefono: { $regex: numeroChiamato.slice(-9), $options: 'i' }
+    });
+
+    const chiamata = new Chiamata({
+      callId: evento.callId,
+      tipo: 'outbound',
+      numeroChiamante: pulisciNumero(evento.callerNumber),
+      numeroChiamato,
+      cliente: cliente?._id,
+      clienteNome: cliente ? `${cliente.nome} ${cliente.cognome}` : null,
+      estensione: evento.extension,
+      stato: 'ringing',
+      dataOraInizio: new Date()
+    });
+
+    await chiamata.save();
+
+    logger.info('[CHIAMATA IN USCITA] Record creato:', chiamata._id);
+
+  } catch (error) {
+    logger.error('[CHIAMATA IN USCITA] Errore:', error);
+    throw error;
+  }
+}
+
+/**
+ * Utility: pulisci numero telefono
+ */
+function pulisciNumero(numero) {
+  if (!numero) return '';
+  return numero.replace(/[\s\-\(\)]/g, '');
+}
+
+/**
+ * API: Ottieni storico chiamate
+ */
+export const getHistory = async (req, res) => {
+  try {
+    const {
+      limit = 50,
+      startDate,
+      endDate,
+      clienteId,
+      tipo,
+      stato,
+      esito
+    } = req.query;
+
+    const filtri = {};
+
+    if (startDate || endDate) {
+      filtri.dataOraInizio = {};
+      if (startDate) filtri.dataOraInizio.$gte = new Date(startDate);
+      if (endDate) filtri.dataOraInizio.$lte = new Date(endDate);
+    }
+
+    if (clienteId) filtri.cliente = clienteId;
+    if (tipo) filtri.tipo = tipo;
+    if (stato) filtri.stato = stato;
+    if (esito) filtri.esito = esito;
+
+    const chiamate = await Chiamata.findRecenti(parseInt(limit), filtri);
+
+    res.json({
+      success: true,
+      count: chiamate.length,
+      chiamate
+    });
+
+  } catch (error) {
+    logger.error('[GET HISTORY] Errore:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * API: Ottieni statistiche chiamate
+ */
+export const getStatistiche = async (req, res) => {
+  try {
+    const {
+      startDate,
+      endDate,
+      clienteId
+    } = req.query;
+
+    const dataInizio = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const dataFine = endDate ? new Date(endDate) : new Date();
+
+    const filtri = {};
+    if (clienteId) filtri.cliente = clienteId;
+
+    const stats = await Chiamata.getStatistiche(dataInizio, dataFine, filtri);
+
+    res.json({
+      success: true,
+      periodo: {
+        da: dataInizio,
+        a: dataFine
+      },
+      statistiche: stats
+    });
+
+  } catch (error) {
+    logger.error('[GET STATISTICHE] Errore:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * API: Aggiorna note chiamata
+ */
+export const updateChiamata = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note, tags, followUpData, followUpNote } = req.body;
+
+    const chiamata = await Chiamata.findById(id);
+
+    if (!chiamata) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chiamata non trovata'
+      });
+    }
+
+    if (note) chiamata.note = note;
+    if (tags) chiamata.tags = tags;
+    if (followUpData) {
+      chiamata.richiedeFollowUp = true;
+      chiamata.followUpData = new Date(followUpData);
+      if (followUpNote) chiamata.followUpNote = followUpNote;
+    }
+
+    await chiamata.save();
+
+    res.json({
+      success: true,
+      chiamata
+    });
+
+  } catch (error) {
+    logger.error('[UPDATE CHIAMATA] Errore:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+export default {
+  handleWebhook,
+  getHistory,
+  getStatistiche,
+  updateChiamata
+};
