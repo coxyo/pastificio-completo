@@ -15,10 +15,11 @@ import {
   PhoneInTalk as PhoneInTalkIcon
 } from '@mui/icons-material';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
-
 /**
- * 📞 CLICK-TO-CALL BUTTON
+ * 📞 CLICK-TO-CALL BUTTON (3CX PROTOCOL HANDLER)
+ * 
+ * Usa 3cx://call/NUMERO per aprire 3CX Desktop Client
+ * NON richiede API Key, funziona subito!
  * 
  * @param {string} numero - Numero di telefono da chiamare
  * @param {string} clienteId - ID cliente (opzionale)
@@ -54,69 +55,52 @@ function ClickToCallButton({
       return;
     }
 
-    setLoading(true);
-
     try {
-      // Ottieni token
-      const token = localStorage.getItem('token');
-      if (!token) {
-        showToast('Sessione scaduta. Effettua il login.', 'error');
-        setLoading(false);
-        // Redirect a login dopo 2 secondi
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 2000);
-        return;
-      }
-
-      console.log('📞 Iniziando chiamata:', { numero: numeroPulito, clienteId, clienteNome });
-
-      // Chiama API backend
-      const response = await fetch(`${API_URL}/cx3/call`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          numero: numeroPulito,
-          clienteId,
-          clienteNome
-        })
+      console.log('📞 Iniziando chiamata 3CX:', { 
+        numero: numeroPulito, 
+        clienteId, 
+        clienteNome 
       });
 
-      const data = await response.json();
+      // Costruisci URL 3CX protocol handler
+      const cx3Url = `3cx://call/${numeroPulito}`;
+      
+      console.log('🔗 Apertura 3CX Client:', cx3Url);
 
-      if (response.ok && data.success) {
-        console.log('✅ Chiamata avviata:', data);
-        showToast(`Chiamata in corso verso ${numero}...`, 'success');
+      // Apri 3CX Desktop Client (se installato)
+      const popup = window.open(cx3Url, '_blank');
+
+      // Se popup bloccato o 3CX non installato
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        console.warn(⚠️ Popup bloccato o 3CX non installato');
         
-        // Opzionale: Apri 3CX in un popup
-        // window.open(`3cx://call/${numeroPulito}`, '_blank');
-        
-      } else {
-        console.error('❌ Errore chiamata:', data);
-        
-        // Gestisci errori specifici
-        if (response.status === 401) {
-          showToast('Sessione scaduta. Verrai reindirizzato al login...', 'warning');
-          // Pulisci storage e redirect dopo 2 secondi
-          setTimeout(() => {
-            localStorage.clear();
-            window.location.href = '/';
-          }, 2000);
-        } else if (data.status === 'configured-but-offline') {
-          showToast('Sistema telefonico non disponibile al momento', 'warning');
-        } else {
-          showToast(data.message || 'Errore durante la chiamata', 'error');
+        // Fallback: mostra alert con link
+        const userConfirmed = window.confirm(
+          `Impossibile aprire 3CX automaticamente.\n\n` +
+          `Vuoi provare a chiamare ${numero} manualmente?\n\n` +
+          `Clicca OK per copiare il numero negli appunti.`
+        );
+
+        if (userConfirmed) {
+          // Copia numero negli appunti
+          await navigator.clipboard.writeText(numeroPulito);
+          showToast(`Numero ${numero} copiato! Incolla in 3CX`, 'info');
         }
+      } else {
+        // Successo
+        showToast(`Apertura 3CX per chiamare ${numero}...`, 'success');
       }
 
     } catch (error) {
       console.error('❌ Errore chiamata:', error);
-      showToast('Errore di connessione. Riprova.', 'error');
-    } finally {
-      setLoading(false);
+      
+      // Fallback: copia numero
+      try {
+        await navigator.clipboard.writeText(numeroPulito);
+        showToast(`Errore: numero ${numero} copiato negli appunti`, 'warning');
+      } catch (clipboardError) {
+        showToast('Errore: impossibile avviare chiamata', 'error');
+      }
     }
   };
 
@@ -141,7 +125,7 @@ function ClickToCallButton({
   if (variant === 'icon') {
     return (
       <>
-        <Tooltip title={`Chiama ${numero}`} arrow>
+        <Tooltip title={`Chiama ${numero} con 3CX`} arrow>
           <span>
             <IconButton
               onClick={handleCall}
@@ -195,7 +179,7 @@ function ClickToCallButton({
           size={size}
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <PhoneIcon />}
         >
-          {loading ? 'Chiamando...' : 'Chiama'}
+          {loading ? 'Chiamando...' : 'Chiama con 3CX'}
         </Button>
 
         <Snackbar
@@ -220,7 +204,7 @@ function ClickToCallButton({
   // Variante GHOST (icona minimale, per tabelle)
   return (
     <>
-      <Tooltip title={`Chiama ${numero}`} arrow>
+      <Tooltip title={`Chiama ${numero} con 3CX`} arrow>
         <IconButton
           onClick={handleCall}
           disabled={disabled || loading}
