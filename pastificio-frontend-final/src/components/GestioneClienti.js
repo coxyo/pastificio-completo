@@ -50,8 +50,7 @@ import {
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import FormCliente from './FormCliente';
-// ⚠️ TEMPORANEAMENTE COMMENTATO PER DEBUG
-// import ClickToCallButton from './ClickToCallButton';
+import ClickToCallButton from './ClickToCallButton'; // ✅ ATTIVATO
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -548,23 +547,30 @@ if (isSuccess) {
                     )}
                   </TableCell>
                   
-                  {/* ⚠️ SEZIONE CONTATTI - TEMPORANEAMENTE SENZA ClickToCallButton */}
-                  <TableCell>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      {cliente.telefono && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <PhoneIcon fontSize="small" color="action" />
-                          <Typography variant="caption">{cliente.telefono}</Typography>
-                        </Box>
-                      )}
-                      {cliente.email && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <EmailIcon fontSize="small" color="action" />
-                          <Typography variant="caption">{cliente.email}</Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  </TableCell>
+                  {/* ✅ SEZIONE CONTATTI CON CLICK-TO-CALL */}
+<TableCell>
+  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+    {cliente.telefono && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {/* 📞 PULSANTE CLICK-TO-CALL */}
+        <ClickToCallButton
+          numero={cliente.telefono}
+          clienteId={cliente._id}
+          clienteNome={getNomeCompleto(cliente)}
+          size="small"
+          variant="ghost"
+        />
+        <Typography variant="caption">{cliente.telefono}</Typography>
+      </Box>
+    )}
+    {cliente.email && (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <EmailIcon fontSize="small" color="action" />
+        <Typography variant="caption">{cliente.email}</Typography>
+      </Box>
+    )}
+  </Box>
+</TableCell>
                   
                   <TableCell>{getLivelloChip(cliente.livelloFedelta)}</TableCell>
                   <TableCell>{cliente.punti || 0}</TableCell>
