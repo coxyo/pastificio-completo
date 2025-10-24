@@ -16,7 +16,7 @@ import {
 } from '@mui/icons-material';
 
 /**
- * 📞 CLICK-TO-CALL BUTTON (3CX PROTOCOL HANDLER)
+ * CLICK-TO-CALL BUTTON (3CX PROTOCOL HANDLER)
  * 
  * Usa 3cx://call/NUMERO per aprire 3CX Desktop Client
  * NON richiede API Key, funziona subito!
@@ -56,7 +56,7 @@ function ClickToCallButton({
     }
 
     try {
-      console.log('📞 Iniziando chiamata 3CX:', { 
+      console.log('[INFO] Iniziando chiamata 3CX:', { 
         numero: numeroPulito, 
         clienteId, 
         clienteNome 
@@ -65,14 +65,14 @@ function ClickToCallButton({
       // Costruisci URL 3CX protocol handler
       const cx3Url = `3cx://call/${numeroPulito}`;
       
-      console.log('🔗 Apertura 3CX Client:', cx3Url);
+      console.log('[INFO] Apertura 3CX Client:', cx3Url);
 
       // Apri 3CX Desktop Client (se installato)
       const popup = window.open(cx3Url, '_blank');
 
       // Se popup bloccato o 3CX non installato
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        console.warn(⚠️ Popup bloccato o 3CX non installato');
+        console.warn('[WARN] Popup bloccato o 3CX non installato');
         
         // Fallback: mostra alert con link
         const userConfirmed = window.confirm(
@@ -92,7 +92,7 @@ function ClickToCallButton({
       }
 
     } catch (error) {
-      console.error('❌ Errore chiamata:', error);
+      console.error('[ERROR] Errore chiamata:', error);
       
       // Fallback: copia numero
       try {
