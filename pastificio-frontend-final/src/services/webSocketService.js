@@ -1,4 +1,4 @@
-// Version 2.0.1 - Fixed isConnected method conflict
+// Version 2.1.0 - Railway Metal Edge Optimized
 // services/webSocketService.js
 
 import io from 'socket.io-client';
@@ -27,20 +27,45 @@ class WebSocketService {
     return new Promise((resolve, reject) => {
       console.log('🔄 Connessione WebSocket a:', this.BACKEND_URL);
       
-      // Importa e connetti con socket.io-client REALE
+      // ✅ FIX RAILWAY: Configurazione ottimizzata per Metal Edge
       this.socket = io(this.BACKEND_URL, {
-        transports: ['websocket', 'polling'],
+        // ⚡ IMPORTANTE: polling PRIMA per Railway Metal Edge
+        transports: ['polling', 'websocket'],
+        
+        // Path esplicito
+        path: '/socket.io/',
+        
+        // Reconnection strategy
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: 20000,
-        autoConnect: true
+        
+        // Timeout più lungo per Railway
+        timeout: 30000,
+        
+        // Auto-connect
+        autoConnect: true,
+        
+        // ✅ FIX: Disabilita credentials per Railway CORS
+        withCredentials: false,
+        
+        // ✅ Upgrade settings
+        upgrade: true,
+        rememberUpgrade: true,
+        
+        // Query params per debug
+        query: {
+          source: 'pastificio-frontend',
+          timestamp: Date.now()
+        }
       });
 
       // Handler connessione stabilita
       this.socket.on('connect', () => {
         console.log('✅ WebSocket CONNESSO! ID:', this.socket.id);
+        console.log('📡 Transport:', this.socket.io.engine.transport.name);
+        
         this.isConnected = true;
         this.reconnectAttempts = 0;
         
@@ -56,11 +81,21 @@ class WebSocketService {
         resolve();
       });
 
+      // ✅ Monitor transport upgrade (polling → websocket)
+      this.socket.io.engine.on('upgrade', (transport) => {
+        console.log('⬆️ WebSocket upgrade a:', transport.name);
+      });
+
       // Handler disconnessione
       this.socket.on('disconnect', (reason) => {
         console.log('❌ WebSocket disconnesso:', reason);
         this.isConnected = false;
         this.notifyListeners('connection-status', { connected: false, reason });
+        
+        // Auto-reconnect se server ha chiuso
+        if (reason === 'io server disconnect') {
+          this.socket.connect();
+        }
       });
 
       // Handler errore connessione
@@ -86,32 +121,70 @@ class WebSocketService {
         this.socket.emit('request-sync');
       });
 
-      // Eventi ordini
+      this.socket.on('reconnect_attempt', (attemptNumber) => {
+        console.log('🔄 Tentativo riconnessione', attemptNumber);
+      });
+
+      this.socket.on('reconnect_error', (error) => {
+        console.error('❌ Errore riconnessione:', error.message);
+      });
+
+      this.socket.on('reconnect_failed', () => {
+        console.error('❌ Riconnessione fallita dopo tutti i tentativi');
+      });
+
+      // ========================
+      // EVENTI ORDINI
+      // ========================
+      
       this.socket.on('ordine-creato', (data) => {
         console.log('📦 Nuovo ordine ricevuto via WebSocket:', data);
         this.notifyListeners('ordine-creato', data);
+        
+        // Dispatch evento per React
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('ordine-creato', { detail: data }));
+        }
       });
 
       this.socket.on('ordine-aggiornato', (data) => {
         console.log('📝 Ordine aggiornato via WebSocket:', data);
         this.notifyListeners('ordine-aggiornato', data);
+        
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('ordine-aggiornato', { detail: data }));
+        }
       });
 
       this.socket.on('ordine-eliminato', (data) => {
         console.log('🗑️ Ordine eliminato via WebSocket:', data);
         this.notifyListeners('ordine-eliminato', data);
+        
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('ordine-eliminato', { detail: data }));
+        }
       });
 
-      // Eventi magazzino
+      // ========================
+      // EVENTI MAGAZZINO
+      // ========================
+      
       this.socket.on('movimento-creato', (data) => {
         console.log('📦 Nuovo movimento magazzino:', data);
         this.notifyListeners('movimento-creato', data);
+        
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('movimento-creato', { detail: data }));
+        }
       });
 
-      // Eventi inventario
       this.socket.on('inventario_aggiornato', (data) => {
         console.log('📊 Inventario aggiornato:', data);
         this.notifyListeners('inventario_aggiornato', data);
+        
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('inventario_aggiornato', { detail: data }));
+        }
       });
 
       this.socket.on('movimento_aggiunto', (data) => {
@@ -129,10 +202,66 @@ class WebSocketService {
         this.notifyListeners('movimenti_caricati', data);
       });
 
-      // Sync data
+      // ========================
+      // EVENTI CHIAMATE (CX3)
+      // ========================
+      
+      this.socket.on('chiamata:arrivo', (data) => {
+        console.log('📞 Chiamata in arrivo via WebSocket:', data);
+        this.notifyListeners('chiamata:arrivo', data);
+        
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('chiamata:arrivo', { detail: data }));
+        }
+      });
+
+      // ========================
+      // EVENTI SYNC
+      // ========================
+      
       this.socket.on('sync-data', (data) => {
         console.log('🔄 Dati sincronizzati ricevuti');
         this.notifyListeners('sync-data', data);
+      });
+
+      this.socket.on('connected', (data) => {
+        console.log('✅ Conferma connessione dal server:', data);
+      });
+
+      // ========================
+      // EVENTI BACKUP
+      // ========================
+      
+      this.socket.on('backup:created', (data) => {
+        console.log('💾 Backup creato:', data);
+        this.notifyListeners('backup:created', data);
+      });
+
+      this.socket.on('backup:error', (data) => {
+        console.error('❌ Errore backup:', data);
+        this.notifyListeners('backup:error', data);
+      });
+
+      // ========================
+      // EVENTI NOTIFICHE
+      // ========================
+      
+      this.socket.on('notification', (data) => {
+        console.log('🔔 Notifica:', data);
+        this.notifyListeners('notification', data);
+        
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('notification', { detail: data }));
+        }
+      });
+
+      // ========================
+      // EVENTI WHATSAPP
+      // ========================
+      
+      this.socket.on('whatsapp:status', (data) => {
+        console.log('📱 Status WhatsApp:', data);
+        this.notifyListeners('whatsapp:status', data);
       });
 
       // Heartbeat
@@ -150,7 +279,7 @@ class WebSocketService {
 
   startHeartbeat() {
     setInterval(() => {
-      if (this.isConnected) {
+      if (this.isConnected && this.socket) {
         this.socket.emit('ping');
       }
     }, 25000);
@@ -211,7 +340,10 @@ class WebSocketService {
     }
   }
 
-  // Metodi di compatibilità con il vecchio codice
+  // ========================
+  // METODI DI COMPATIBILITÀ
+  // ========================
+  
   addConnectionListener(callback) {
     this.on('connection-status', (data) => {
       callback(data.connected);
@@ -245,9 +377,71 @@ class WebSocketService {
     return this.isConnected;
   }
 
-  
   isMockMode() {
-    return false; // Non più in mock mode!
+    return false;
+  }
+
+  // ========================
+  // METODI UTILITY AGGIUNTIVI
+  // ========================
+  
+  // Test ping/pong
+  ping() {
+    return new Promise((resolve, reject) => {
+      if (!this.isConnected) {
+        reject(new Error('WebSocket non connesso'));
+        return;
+      }
+
+      const startTime = Date.now();
+      
+      this.socket.emit('ping');
+      
+      const timeout = setTimeout(() => {
+        reject(new Error('Ping timeout'));
+      }, 5000);
+      
+      this.socket.once('pong', (data) => {
+        clearTimeout(timeout);
+        const latency = Date.now() - startTime;
+        console.log('🏓 Pong ricevuto! Latency:', latency + 'ms');
+        resolve({ latency, timestamp: data?.timestamp });
+      });
+    });
+  }
+
+  // Autentica utente
+  authenticate(userId) {
+    console.log('🔐 Autenticazione utente:', userId);
+    this.emit('authenticate', { userId });
+  }
+
+  // Join room
+  joinRoom(room) {
+    console.log('🚪 Join room:', room);
+    this.emit('join', room);
+  }
+
+  // Leave room
+  leaveRoom(room) {
+    console.log('🚪 Leave room:', room);
+    this.emit('leave', room);
+  }
+
+  // Forza upgrade a websocket
+  forceUpgrade() {
+    if (this.socket?.io?.engine?.transport?.name === 'polling') {
+      console.log('⬆️ Forzando upgrade a websocket...');
+      this.socket.io.engine.upgrade();
+    } else {
+      console.log('ℹ️ Già su websocket o non disponibile');
+    }
+  }
+
+  // Request sync manuale
+  requestSync() {
+    console.log('🔄 Richiesta sincronizzazione manuale');
+    this.emit('request-sync');
   }
 }
 
@@ -258,7 +452,7 @@ const webSocketService = new WebSocketService();
 if (typeof window !== 'undefined') {
   // Connetti automaticamente
   webSocketService.connect().catch(err => {
-    console.error('Errore connessione iniziale:', err);
+    console.error('❌ Errore connessione iniziale:', err);
   });
   
   // Reconnect quando la pagina torna online
@@ -269,7 +463,7 @@ if (typeof window !== 'undefined') {
 
   // Log quando si va offline
   window.addEventListener('offline', () => {
-    console.log('📵 Rete offline');
+    console.log('🔵 Rete offline');
   });
 
   // Reconnect quando la tab diventa attiva
@@ -279,6 +473,36 @@ if (typeof window !== 'undefined') {
       webSocketService.connect();
     }
   });
+
+  // ✅ Debug helper globale
+  window.wsDebug = {
+    status: () => {
+      const status = webSocketService.getConnectionStatus();
+      console.log('=== WebSocket Status ===');
+      console.log('Connected:', status.connected);
+      console.log('Socket ID:', status.socketId);
+      console.log('Transport:', status.transport);
+      console.log('Backend URL:', status.backendUrl);
+      console.log('Reconnect Attempts:', status.reconnectAttempts);
+      console.log('========================');
+      return status;
+    },
+    connect: () => webSocketService.connect(),
+    disconnect: () => webSocketService.disconnect(),
+    ping: () => webSocketService.ping(),
+    upgrade: () => webSocketService.forceUpgrade(),
+    sync: () => webSocketService.requestSync(),
+    test: () => {
+      webSocketService.emit('test-event', { 
+        message: 'Test from frontend',
+        timestamp: new Date().toISOString() 
+      });
+      console.log('✅ Test event inviato');
+    }
+  };
+  
+  console.log('💡 WebSocket Debug disponibile: window.wsDebug');
+  console.log('💡 Comandi: status(), connect(), disconnect(), ping(), upgrade(), sync(), test()');
 }
 
 // Export default
