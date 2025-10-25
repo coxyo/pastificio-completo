@@ -1,8 +1,11 @@
-// app/layout.js
+// app/layout.js - ✅ AGGIORNATO CON PUSHER
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { OrdiniProvider } from '@/contexts/OrdiniContext';
-import ClientLayout from './ClientLayout'; // ⬅️ CAMBIATO: import locale
+import ClientLayout from './ClientLayout';
+
+// ✅ PUSHER: Auto-initialize al caricamento app
+import '@/services/pusherService';
 
 const inter = Inter({ subsets: ['latin'] });
 
