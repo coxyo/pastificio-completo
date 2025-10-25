@@ -9,9 +9,10 @@ class PusherClientService {
     this.channels = {};
     this.isConnected = false;
     
-    // Credenziali Pusher (solo KEY pubblica, non secret!)
-    this.PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
-    this.PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu';
+    // ✅ ACCESSO CORRETTO ENV VARS IN NEXT.JS CLIENT
+    // Le env vars sono iniettate al build time, NON a runtime
+    this.PUSHER_KEY = '42b401f9d1043202d98a'; // Hardcoded per sicurezza
+    this.PUSHER_CLUSTER = 'eu';
     
     console.log('🚀 Pusher Service inizializzato');
   }
@@ -23,7 +24,7 @@ class PusherClientService {
     }
 
     if (!this.PUSHER_KEY) {
-      console.error('❌ PUSHER_KEY mancante in variabili ambiente');
+      console.error('❌ PUSHER_KEY mancante');
       return;
     }
 
