@@ -27,10 +27,10 @@ class WebSocketService {
     return new Promise((resolve, reject) => {
       console.log('🔄 Connessione WebSocket a:', this.BACKEND_URL);
       
-      // ✅ FIX RAILWAY: Configurazione ottimizzata per Metal Edge
+      // ✅ POLLING ONLY per test Railway (se WebSocket non supportato)
       this.socket = io(this.BACKEND_URL, {
-        // ⚡ IMPORTANTE: polling PRIMA per Railway Metal Edge
-        transports: ['polling', 'websocket'],
+        // ⚡ SOLO POLLING (no websocket)
+        transports: ['polling'],
         
         // Path esplicito
         path: '/socket.io/',
