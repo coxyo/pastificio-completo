@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE FINALE CON CALLPOPUP
+// app/ClientLayout.js - VERSIONE FINALE CON CALLPOPUP + PUSHER
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -32,6 +32,9 @@ import {
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
 
+// ✅ PUSHER: Import ed inizializza qui (client component)
+import pusherService from '@/services/pusherService';
+
 const drawerWidth = 240;
 
 const menuItems = [
@@ -41,7 +44,7 @@ const menuItems = [
   { id: 'magazzino', title: 'Magazzino', icon: <Inventory />, path: '/magazzino' },
   { id: 'report', title: 'Report', icon: <Assessment />, path: '/report' },
   { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
-  { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' }, // NUOVO!
+  { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
   { id: 'fatturazione', title: 'Fatturazione', icon: <Receipt />, path: '/fatturazione' },
   { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni' }
 ];
@@ -58,6 +61,46 @@ export default function ClientLayout({ children }) {
 
   useEffect(() => {
     setMounted(true);
+    
+    // ✅ PUSHER: Inizializza quando component è montato
+    if (typeof window !== 'undefined') {
+      console.log('🔧 Inizializzazione Pusher da ClientLayout');
+      
+      // Verifica se pusherService esiste
+      if (pusherService) {
+        console.log('✅ pusherService disponibile:', pusherService);
+        
+        // Inizializza se non già fatto
+        if (pusherService.initialize && !pusherService.pusher) {
+          pusherService.initialize();
+        }
+        
+        // Setup debug
+        if (!window.pusherDebug) {
+          window.pusherDebug = {
+            status: () => {
+              if (!pusherService.getStatus) {
+                console.error('❌ pusherService.getStatus non disponibile');
+                return null;
+              }
+              const status = pusherService.getStatus();
+              console.log('=== Pusher Status ===');
+              console.log('Initialized:', status.initialized);
+              console.log('Connected:', status.connected);
+              console.log('Socket ID:', status.socketId);
+              console.log('Channels:', status.channels);
+              console.log('Cluster:', status.cluster);
+              console.log('====================');
+              return status;
+            },
+            service: pusherService
+          };
+          console.log('💡 Pusher debug disponibile: window.pusherDebug.status()');
+        }
+      } else {
+        console.error('❌ pusherService NON disponibile!');
+      }
+    }
   }, []);
 
   const handleDrawerToggle = () => {
@@ -79,7 +122,6 @@ export default function ClientLayout({ children }) {
       const token = localStorage.getItem('token');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
-      // Trova chiamata per callId
       const responseHistory = await fetch(
         `${API_URL}/cx3/history?limit=100`,
         {
@@ -94,7 +136,6 @@ export default function ClientLayout({ children }) {
         const chiamata = data.chiamate?.find(c => c.callId === callId);
 
         if (chiamata) {
-          // Aggiorna nota
           await fetch(
             `${API_URL}/cx3/chiamate/${chiamata._id}`,
             {
@@ -165,7 +206,6 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* Indicatore WebSocket (solo development) */}
           {mounted && process.env.NODE_ENV === 'development' && (
             <Box
               sx={{
@@ -195,7 +235,6 @@ export default function ClientLayout({ children }) {
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
-        {/* Mobile drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -209,7 +248,6 @@ export default function ClientLayout({ children }) {
           {drawer}
         </Drawer>
         
-        {/* Desktop drawer */}
         <Drawer
           variant="permanent"
           sx={{
@@ -234,7 +272,6 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* Popup Chiamata in Arrivo */}
       {mounted && chiamataCorrente && (
         <CallPopup
           chiamata={chiamataCorrente}
