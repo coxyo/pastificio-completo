@@ -1,8 +1,9 @@
-// controllers/cx3Controller.js - AGGIORNAMENTO con gestione chiamate
+// controllers/cx3Controller.js - ✅ AGGIORNATO CON PUSHER
 
 import Chiamata from '../models/Chiamata.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
+import pusherService from '../services/pusherService.js'; // ✅ PUSHER
 
 /**
  * WEBHOOK 3CX - Riceve eventi chiamate
@@ -95,7 +96,7 @@ async function handleIncomingCall(evento) {
       tipo: 'inbound',
       numeroChiamante,
       numeroChiamato,
-      cliente: cliente?._id,
+      cliente: cliente?._id || null,
       clienteNome: cliente ? `${cliente.nome} ${cliente.cognome}` : null,
       estensione: evento.extension,
       stato: 'ringing',
@@ -111,25 +112,32 @@ async function handleIncomingCall(evento) {
 
     await chiamata.save();
 
-    // Emetti evento WebSocket per popup frontend
-    if (global.io) {
-      global.io.emit('chiamata:inbound', {
-        callId: evento.callId,
-        numero: numeroChiamante,
-        cliente: cliente ? {
-          id: cliente._id,
-          nome: cliente.nome,
-          cognome: cliente.cognome,
-          telefono: cliente.telefono,
-          email: cliente.email,
-          codiceCliente: cliente.codiceCliente,
-          livelloFedelta: cliente.livelloFedelta,
-          punti: cliente.punti
-        } : null,
-        timestamp: new Date()
-      });
+    // ✅ NOTIFICA VIA PUSHER (invece di WebSocket)
+    const notificationData = {
+      callId: evento.callId,
+      numero: numeroChiamante,
+      cliente: cliente ? {
+        id: cliente._id,
+        nome: cliente.nome,
+        cognome: cliente.cognome,
+        telefono: cliente.telefono,
+        email: cliente.email,
+        codiceCliente: cliente.codiceCliente,
+        livelloFedelta: cliente.livelloFedelta,
+        punti: cliente.punti
+      } : null,
+      timestamp: chiamata.timestamp || new Date()
+    };
 
-      logger.info('[WEBSOCKET] Evento chiamata:inbound emesso', {
+    const pusherResult = await pusherService.notifyIncomingCall(notificationData);
+
+    if (!pusherResult.success) {
+      logger.warn('⚠️ Pusher notification fallita, ma chiamata salvata', {
+        callId: evento.callId,
+        reason: pusherResult.reason
+      });
+    } else {
+      logger.info('📞 Chiamata notificata via Pusher', {
         callId: evento.callId,
         hasCliente: !!cliente
       });
@@ -163,13 +171,11 @@ async function handleAnsweredCall(evento) {
       dataOraRisposta: new Date()
     });
 
-    // Emetti evento WebSocket
-    if (global.io) {
-      global.io.emit('chiamata:answered', {
-        callId: evento.callId,
-        timestamp: new Date()
-      });
-    }
+    // ✅ Notifica via Pusher
+    await pusherService.notify('chiamate', 'chiamata-risposta', {
+      callId: evento.callId,
+      timestamp: new Date()
+    });
 
     logger.info('[CHIAMATA RISPOSTA] Aggiornata:', chiamata._id);
 
@@ -201,14 +207,12 @@ async function handleEndedCall(evento) {
       durataChiamata: evento.duration || 0
     });
 
-    // Emetti evento WebSocket
-    if (global.io) {
-      global.io.emit('chiamata:ended', {
-        callId: evento.callId,
-        durata: chiamata.durataChiamata,
-        timestamp: new Date()
-      });
-    }
+    // ✅ Notifica via Pusher
+    await pusherService.notify('chiamate', 'chiamata-terminata', {
+      callId: evento.callId,
+      durata: chiamata.durataChiamata,
+      timestamp: new Date()
+    });
 
     logger.info('[CHIAMATA TERMINATA] Aggiornata:', {
       id: chiamata._id,
@@ -257,19 +261,17 @@ async function handleMissedCall(evento) {
 
       await nuovaChiamata.save();
 
-      // Emetti evento WebSocket per alert
-      if (global.io) {
-        global.io.emit('chiamata:missed', {
-          callId: evento.callId,
-          numero: numeroChiamante,
-          cliente: cliente ? {
-            id: cliente._id,
-            nome: cliente.nome,
-            cognome: cliente.cognome
-          } : null,
-          timestamp: new Date()
-        });
-      }
+      // ✅ Notifica via Pusher
+      await pusherService.notify('chiamate', 'chiamata-persa', {
+        callId: evento.callId,
+        numero: numeroChiamante,
+        cliente: cliente ? {
+          id: cliente._id,
+          nome: cliente.nome,
+          cognome: cliente.cognome
+        } : null,
+        timestamp: new Date()
+      });
 
       logger.info('[CHIAMATA PERSA] Record creato:', nuovaChiamata._id);
       return;
@@ -281,18 +283,16 @@ async function handleMissedCall(evento) {
       richiedeFollowUp: true
     });
 
-    // Emetti evento WebSocket
-    if (global.io) {
-      global.io.emit('chiamata:missed', {
-        callId: evento.callId,
-        numero: chiamata.numeroChiamante,
-        cliente: chiamata.cliente ? {
-          id: chiamata.cliente,
-          nome: chiamata.clienteNome
-        } : null,
-        timestamp: new Date()
-      });
-    }
+    // ✅ Notifica via Pusher
+    await pusherService.notify('chiamate', 'chiamata-persa', {
+      callId: evento.callId,
+      numero: chiamata.numeroChiamante,
+      cliente: chiamata.cliente ? {
+        id: chiamata.cliente,
+        nome: chiamata.clienteNome
+      } : null,
+      timestamp: new Date()
+    });
 
     logger.info('[CHIAMATA PERSA] Aggiornata:', chiamata._id);
 
@@ -472,9 +472,66 @@ export const updateChiamata = async (req, res) => {
   }
 };
 
+/**
+ * ✅ API: Test chiamata Pusher
+ */
+export const testCall = async (req, res) => {
+  try {
+    const testData = {
+      callId: `test_${Date.now()}`,
+      numero: '+393331234567',
+      cliente: null,
+      timestamp: new Date().toISOString()
+    };
+
+    // Invia via Pusher
+    const result = await pusherService.notifyIncomingCall(testData);
+
+    res.json({
+      success: result.success,
+      message: result.success ? 'Chiamata test inviata via Pusher' : 'Pusher non disponibile',
+      data: testData,
+      pusherEnabled: pusherService.isEnabled()
+    });
+
+  } catch (error) {
+    logger.error('❌ Errore test chiamata:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore invio test',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * ✅ API: Status sistema CX3
+ */
+export const getStatus = async (req, res) => {
+  try {
+    const pusherStatus = pusherService.getStatus();
+
+    res.json({
+      success: true,
+      status: 'active',
+      pusher: pusherStatus,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('❌ Errore status CX3:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore recupero status'
+    });
+  }
+};
+
 export default {
   handleWebhook,
   getHistory,
   getStatistiche,
-  updateChiamata
+  updateChiamata,
+  testCall,
+  getStatus
 };

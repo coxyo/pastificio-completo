@@ -54,6 +54,8 @@ import backupService from './services/backupService.js';
 import whatsappService from './services/whatsappService.js';
 import schedulerService from './services/schedulerService.js';
 import schedulerWhatsApp from './services/schedulerWhatsApp.js';
+import pusherService from './services/pusherService.js'; // ✅ PUSHER
+
 
 // Configurazione path
 const __filename = fileURLToPath(import.meta.url);
@@ -866,6 +868,14 @@ const startServer = async () => {
   try {
     // Connetti al database
     await connectDB();
+
+// ✅ Inizializza Pusher
+    try {
+      pusherService.initialize();
+      logger.info('✅ Pusher service inizializzato');
+    } catch (pusherError) {
+      logger.warn('⚠️ Pusher service non disponibile:', pusherError.message);
+    }
     
     // Inizializza servizio backup - non bloccare se fallisce
     try {
