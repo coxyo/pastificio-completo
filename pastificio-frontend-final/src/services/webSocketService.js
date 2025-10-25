@@ -1,32 +1,32 @@
-// services/webSocketService.js - STUB (disabilitato, usa Pusher)
-// Questo file è mantenuto solo per compatibilità con componenti esistenti
-// WebSocket è sostituito da Pusher per chiamate CX3
+// services/webSocketService.js - STUB COMPLETO (NON fa nulla)
+// WebSocket disabilitato - Pusher gestisce real-time
 
 class WebSocketServiceStub {
   constructor() {
     this.connected = false;
-    console.log('⚠️ WebSocketService disabilitato - Usa Pusher per real-time');
+    this.socket = null;
+    // console.log('⚠️ WebSocketService disabilitato - Usa Pusher');
   }
 
   connect() {
-    console.log('⚠️ WebSocket.connect() chiamato ma disabilitato');
+    // NON fa nulla
     return Promise.resolve();
   }
 
   disconnect() {
-    console.log('⚠️ WebSocket.disconnect() chiamato ma disabilitato');
+    // NON fa nulla
   }
 
   on(event, callback) {
-    console.log(`⚠️ WebSocket.on('${event}') chiamato ma disabilitato`);
+    // NON fa nulla
   }
 
   off(event, callback) {
-    console.log(`⚠️ WebSocket.off('${event}') chiamato ma disabilitato`);
+    // NON fa nulla
   }
 
   emit(event, data) {
-    console.log(`⚠️ WebSocket.emit('${event}') chiamato ma disabilitato`);
+    // NON fa nulla
   }
 
   isConnected() {
@@ -45,6 +45,6 @@ class WebSocketServiceStub {
 // Singleton
 const webSocketService = new WebSocketServiceStub();
 
-// NON auto-connect (disabilitato)
+// NON auto-connect (completamente disabilitato)
 
 export default webSocketService;
