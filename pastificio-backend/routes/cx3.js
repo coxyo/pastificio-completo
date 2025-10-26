@@ -1,8 +1,9 @@
-// routes/cx3.js - Backend
-const express = require('express');
+// routes/cx3.js - Backend (ES6 Modules)
+import express from 'express';
+import Pusher from 'pusher';
+import { protect } from '../middleware/auth.js';
+
 const router = express.Router();
-const Pusher = require('pusher');
-const { protect } = require('../middleware/auth');
 
 // Inizializza Pusher
 const pusher = new Pusher({
@@ -20,7 +21,7 @@ const pusher = new Pusher({
  */
 router.post('/test', protect, async (req, res) => {
   try {
-    console.log('🧪 Test chiamata Pusher richiesto da:', req.user.email);
+    console.log('🧪 Test chiamata Pusher richiesto da:', req.user?.email || 'Unknown');
 
     // Dati chiamata test
     const testCallData = {
@@ -47,7 +48,9 @@ router.post('/test', protect, async (req, res) => {
       success: true,
       message: 'Chiamata test inviata via Pusher',
       data: testCallData,
-      pusherEnabled: true
+      pusherEnabled: true,
+      channel: 'chiamate',
+      event: 'nuova-chiamata'
     });
 
   } catch (error) {
@@ -62,7 +65,7 @@ router.post('/test', protect, async (req, res) => {
 /**
  * @route   POST /api/cx3/incoming
  * @desc    Webhook chiamate in arrivo da CX3
- * @access  Pubblico (con validazione)
+ * @access  Pubblico (con validazione opzionale)
  */
 router.post('/incoming', async (req, res) => {
   try {
@@ -111,7 +114,7 @@ router.post('/incoming', async (req, res) => {
 
 /**
  * @route   GET /api/cx3/history
- * @desc    Storico chiamate
+ * @desc    Storico chiamate (placeholder)
  * @access  Privato
  */
 router.get('/history', protect, async (req, res) => {
@@ -124,7 +127,8 @@ router.get('/history', protect, async (req, res) => {
     res.json({
       success: true,
       chiamate: [],
-      total: 0
+      total: 0,
+      message: 'Storico chiamate - da implementare con MongoDB'
     });
 
   } catch (error) {
@@ -136,4 +140,21 @@ router.get('/history', protect, async (req, res) => {
   }
 });
 
-module.exports = router;
+/**
+ * @route   GET /api/cx3/status
+ * @desc    Status Pusher
+ * @access  Pubblico
+ */
+router.get('/status', (req, res) => {
+  res.json({
+    success: true,
+    pusher: {
+      enabled: true,
+      cluster: process.env.PUSHER_CLUSTER || 'eu',
+      key: process.env.PUSHER_KEY || 'NOT_SET'
+    },
+    timestamp: new Date()
+  });
+});
+
+export default router;
