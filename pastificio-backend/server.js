@@ -292,7 +292,6 @@ app.use('/api/test', testRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/prodotti', prodottiRoutes);
 app.use('/api/cx3', cx3Routes);
-app.use('/api/cx3', require('./routes/cx3'));
 
 // Test route
 app.get('/api/test', (req, res) => {
