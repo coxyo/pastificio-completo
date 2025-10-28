@@ -115,6 +115,7 @@ const io = new Server(server, {
 global.io = io;
 
 // ✅ CORS Middleware - FIX COMPLETO
+// ✅ CORS Middleware - CONFIGURAZIONE UNICA CON 3CX
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
@@ -122,10 +123,11 @@ const corsOptions = {
       'http://localhost:3001',
       'https://pastificio-frontend-final.vercel.app',
       'https://pastificio-nonna-claudia.vercel.app',
+      'https://1655.3cx.cloud', // ✅ AGGIUNTO PER 3CX!
       process.env.FRONTEND_URL
     ].filter(Boolean);
     
-    // Permetti richieste senza origin (es. Postman, app mobile, server-to-server)
+    // Permetti richieste senza origin (es. Postman, app mobile, server-to-server, extension)
     if (!origin) {
       return callback(null, true);
     }
@@ -135,11 +137,16 @@ const corsOptions = {
       return callback(null, true);
     }
     
+    // Permetti domini 3CX
+    if (origin.includes('3cx.cloud')) {
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       logger.warn('CORS blocked origin:', origin);
-      callback(null, true); 
+      callback(null, true); // Permetti comunque per debug
     }
   },
   credentials: true,
@@ -149,6 +156,7 @@ const corsOptions = {
   maxAge: 86400 // Cache preflight per 24 ore
 };
 
+// Applica CORS
 app.use(cors(corsOptions));
 
 // Gestione OPTIONS per preflight
@@ -292,6 +300,7 @@ app.use('/api/test', testRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/prodotti', prodottiRoutes);
 app.use('/api/cx3', cx3Routes);
+
 
 // Test route
 app.get('/api/test', (req, res) => {

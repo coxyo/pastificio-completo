@@ -1,160 +1,86 @@
-// routes/cx3.js - Backend (ES6 Modules)
-import express from 'express';
-import Pusher from 'pusher';
-import { protect } from '../middleware/auth.js';
+// routes/cx3.js - MODIFICA ENDPOINT /api/cx3/incoming
 
-const router = express.Router();
+const processedCalls = new Map(); // Cache chiamate processate
 
-// Inizializza Pusher
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID,
-  key: process.env.PUSHER_KEY,
-  secret: process.env.PUSHER_SECRET,
-  cluster: process.env.PUSHER_CLUSTER || 'eu',
-  useTLS: true
-});
-
-/**
- * @route   POST /api/cx3/test
- * @desc    Test chiamata Pusher
- * @access  Privato
- */
-router.post('/test', protect, async (req, res) => {
-  try {
-    console.log('🧪 Test chiamata Pusher richiesto da:', req.user?.email || 'Unknown');
-
-    // Dati chiamata test
-    const testCallData = {
-      callId: `test_${Date.now()}`,
-      numero: '+393331234567',
-      timestamp: new Date(),
-      cliente: {
-        nome: 'Mario',
-        cognome: 'Rossi',
-        telefono: '+393331234567',
-        codiceCliente: 'CL250001'
-      },
-      tipo: 'inbound',
-      durata: 0,
-      stato: 'ringing'
-    };
-
-    // Invia evento Pusher
-    await pusher.trigger('chiamate', 'nuova-chiamata', testCallData);
-
-    console.log('✅ Evento Pusher inviato:', testCallData.callId);
-
-    res.json({
-      success: true,
-      message: 'Chiamata test inviata via Pusher',
-      data: testCallData,
-      pusherEnabled: true,
-      channel: 'chiamate',
-      event: 'nuova-chiamata'
-    });
-
-  } catch (error) {
-    console.error('❌ Errore test chiamata:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * @route   POST /api/cx3/incoming
- * @desc    Webhook chiamate in arrivo da CX3
- * @access  Pubblico (con validazione opzionale)
- */
 router.post('/incoming', async (req, res) => {
   try {
-    const { callId, numero, cliente } = req.body;
-
+    const { callId, numero, cliente, timestamp } = req.body;
+    
     console.log('📞 Chiamata in arrivo da CX3:', { callId, numero });
-
-    // Valida dati
-    if (!callId || !numero) {
-      return res.status(400).json({
-        success: false,
-        error: 'callId e numero sono richiesti'
-      });
+    
+    // ✅ DEDUPLICAZIONE SERVER-SIDE
+    if (processedCalls.has(numero)) {
+      const lastProcessed = processedCalls.get(numero);
+      const timeDiff = Date.now() - lastProcessed;
+      
+      // Se ultima chiamata < 3 minuti fa, SKIP
+      if (timeDiff < 180000) {
+        console.log('⏭️ Chiamata duplicata, skip:', numero, `(${Math.round(timeDiff/1000)}s fa)`);
+        return res.json({ 
+          success: true, 
+          message: 'Chiamata già processata',
+          skipped: true
+        });
+      }
     }
-
-    // Prepara dati chiamata
-    const callData = {
+    
+    // Aggiungi a processate
+    processedCalls.set(numero, Date.now());
+    
+    // Pulizia automatica dopo 5 minuti
+    setTimeout(() => {
+      processedCalls.delete(numero);
+      console.log('🗑️ Rimossa chiamata da cache:', numero);
+    }, 300000);
+    
+    // ✅ Cerca cliente in database
+    const clienteTrovato = await Cliente.findOne({ 
+      $or: [
+        { telefono: numero },
+        { cellulare: numero }
+      ]
+    });
+    
+    // Prepara dati evento
+    const eventoChiamata = {
       callId,
       numero,
-      timestamp: new Date(),
-      cliente: cliente || null,
+      timestamp: timestamp || new Date(),
+      cliente: clienteTrovato || cliente,
       tipo: 'inbound',
-      durata: 0,
       stato: 'ringing'
     };
-
-    // Invia evento Pusher
-    await pusher.trigger('chiamate', 'nuova-chiamata', callData);
-
-    console.log('✅ Chiamata propagata via Pusher:', callId);
-
-    res.json({
-      success: true,
-      message: 'Chiamata ricevuta e propagata',
-      callId
-    });
-
-  } catch (error) {
-    console.error('❌ Errore ricezione chiamata:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/**
- * @route   GET /api/cx3/history
- * @desc    Storico chiamate (placeholder)
- * @access  Privato
- */
-router.get('/history', protect, async (req, res) => {
-  try {
-    const { limit = 50 } = req.query;
-
-    // TODO: Implementa query MongoDB per storico chiamate
-    // Per ora restituisci array vuoto
     
-    res.json({
-      success: true,
-      chiamate: [],
-      total: 0,
-      message: 'Storico chiamate - da implementare con MongoDB'
+    // ✅ Invia evento Pusher UNA SOLA VOLTA
+    await pusher.trigger('chiamate', 'nuova-chiamata', eventoChiamata);
+    
+    console.log('✅ Chiamata propagata via Pusher:', callId);
+    
+    res.json({ 
+      success: true, 
+      message: 'Chiamata ricevuta e propagata',
+      callId,
+      clienteTrovato: !!clienteTrovato
     });
-
+    
   } catch (error) {
-    console.error('❌ Errore recupero storico:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
+    console.error('❌ Errore gestione chiamata:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
     });
   }
 });
 
-/**
- * @route   GET /api/cx3/status
- * @desc    Status Pusher
- * @access  Pubblico
- */
-router.get('/status', (req, res) => {
-  res.json({
-    success: true,
-    pusher: {
-      enabled: true,
-      cluster: process.env.PUSHER_CLUSTER || 'eu',
-      key: process.env.PUSHER_KEY || 'NOT_SET'
-    },
-    timestamp: new Date()
-  });
-});
+// Pulizia cache ogni 10 minuti
+setInterval(() => {
+  const now = Date.now();
+  for (const [numero, timestamp] of processedCalls.entries()) {
+    if (now - timestamp > 600000) { // 10 minuti
+      processedCalls.delete(numero);
+      console.log('🧹 Pulizia cache chiamata:', numero);
+    }
+  }
+}, 600000);
 
-export default router;
+module.exports = router;
