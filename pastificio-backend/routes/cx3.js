@@ -83,4 +83,4 @@ setInterval(() => {
   }
 }, 600000);
 
-module.exports = router;
+export default router;
