@@ -96,8 +96,8 @@ router.post('/incoming', async (req, res) => {
     
     // ✅ Invia evento Pusher UNA SOLA VOLTA
     try {
-      const pusher = pusherService.getPusher();
-      await pusher.trigger('chiamate', 'nuova-chiamata', eventoChiamata);
+      // ⚡ FIX: Usa direttamente pusherService.trigger()
+      await pusherService.trigger('chiamate', 'nuova-chiamata', eventoChiamata);
       logger.info('✅ Chiamata propagata via Pusher:', callId);
     } catch (pusherError) {
       logger.error('❌ Errore invio Pusher:', pusherError);
