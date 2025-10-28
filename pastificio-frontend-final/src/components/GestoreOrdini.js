@@ -1,4 +1,7 @@
-// src/components/GestoreOrdini.js - ✅ VERSIONE FINALE CON LIMITI E VASSOIO
+// src/components/GestoreOrdini.js - ✅ VERSIONE COMPLETA CON CALLPOPUP + PUSHER INTEGRATION
+// File unico completo - 1600+ linee
+// Data aggiornamento: 28 Ottobre 2025
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -41,11 +44,17 @@ import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
 import GestioneLimiti from './GestioneLimiti';
 
+// ✅ NUOVO: Import per CallPopup e Pusher Integration
+import CallPopup from './CallPopup';
+import pusherClientService from '../services/pusherService';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
 
-// Componente Riepilogo Semplice
+// ====================================================================
+// COMPONENTE RIEPILOGO SEMPLICE
+// ====================================================================
 function RiepilogoSemplice({ ordini, dataSelezionata }) {
   const ordiniFiltrati = ordini.filter(o => {
     const dataOrdine = o.dataRitiro || o.createdAt || '';
@@ -98,8 +107,17 @@ function RiepilogoSemplice({ ordini, dataSelezionata }) {
             {(ordine.prodotti || []).map((p, idx) => {
               const risultatoCalcolo = p.dettagliCalcolo || {};
               return (
-                <Typography key={idx} variant="caption" display="block" color="text.secondary">
-                  • {p.nome}: {risultatoCalcolo.dettagli || `${p.quantita} ${p.unita}`} - {formattaPrezzo(p.prezzo || 0)}
+                <Typography key={idx} variant="body2" color="text.secondary">
+                  • {p.nome} - {p.quantita} {p.unita} - €{(p.prezzo || 0).toFixed(2)}
+                  {risultatoCalcolo.dettagli && (
+                    <Typography 
+                      component="span" 
+                      variant="caption" 
+                      sx={{ display: 'block', pl: 2, fontStyle: 'italic', color: 'info.main' }}
+                    >
+                      {risultatoCalcolo.dettagli}
+                    </Typography>
+                  )}
                 </Typography>
               );
             })}
@@ -110,292 +128,223 @@ function RiepilogoSemplice({ ordini, dataSelezionata }) {
   );
 }
 
-// WhatsApp Helper Component
+// ====================================================================
+// COMPONENTE WHATSAPP HELPER
+// ====================================================================
 function WhatsAppHelperComponent({ ordini }) {
-  const [ordineSelezionato, setOrdineSelezionato] = useState(null);
+  const [selectedOrdine, setSelectedOrdine] = useState(null);
   const [messaggio, setMessaggio] = useState('');
-  
-  const formatMessage = (ordine) => {
-    if (!ordine) return '';
-    
-    const numeroOrdine = ordine.numeroOrdine || ordine._id?.substr(-6) || 'N/A';
-    const prodotti = (ordine.prodotti || [])
-      .map(p => {
-        const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unita || 'Kg'}`;
-        return `• ${p.nome}: ${dettagli}`;
-      })
-      .join('\n');
-    
-    return `🍝 PASTIFICIO NONNA CLAUDIA
-📋 Ordine #${numeroOrdine}
 
-👤 Cliente: ${ordine.nomeCliente}
-📅 Ritiro: ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
-⏰ Ora: ${ordine.oraRitiro || 'Da definire'}
+  useEffect(() => {
+    if (selectedOrdine) {
+      const prodottiText = selectedOrdine.prodotti.map(p => 
+        `- ${p.nome}: ${p.quantita} ${p.unita} (€${(p.prezzo || 0).toFixed(2)})`
+      ).join('\n');
 
-📦 Prodotti:
-${prodotti}
-
-💰 Totale: €${ordine.totale?.toFixed(2) || '0.00'}
-${ordine.note ? `\n📝 Note: ${ordine.note}` : ''}
-
-✅ Il suo ordine è confermato!
-📍 Via Carmine 20/B, Assemini
-📞 Per info: 3898879833
-
-Grazie per averci scelto! 🙏`;
-  };
-  
-  const handleSelectOrdine = (ordine) => {
-    setOrdineSelezionato(ordine);
-    setMessaggio(formatMessage(ordine));
-  };
-  
-  const handleCopy = async () => {
-    if (!messaggio) {
-      alert('Seleziona prima un ordine');
-      return;
+      const msg = `🍝 *Pastificio Nonna Claudia*\n\nCiao ${selectedOrdine.nomeCliente}!\n\nIl tuo ordine è pronto per il ritiro:\n\n${prodottiText}\n\n*Totale: €${(selectedOrdine.totale || 0).toFixed(2)}*\n\nOra ritiro: ${selectedOrdine.oraRitiro || 'da confermare'}\n\nGrazie! 😊`;
+      
+      setMessaggio(msg);
     }
+  }, [selectedOrdine]);
+
+  const inviaWhatsApp = () => {
+    if (!selectedOrdine) return;
     
-    try {
-      await navigator.clipboard.writeText(messaggio);
-      alert('Messaggio copiato! Incollalo su WhatsApp');
-      window.open('https://web.whatsapp.com/', '_blank');
-    } catch (error) {
-      alert('Errore nella copia del messaggio');
-    }
+    const numero = selectedOrdine.telefono.replace(/\D/g, '');
+    const numeroCompleto = numero.startsWith('39') ? numero : `39${numero}`;
+    const messaggioCodificato = encodeURIComponent(messaggio);
+    
+    window.open(`https://wa.me/${numeroCompleto}?text=${messaggioCodificato}`, '_blank');
   };
-  
+
   return (
     <Box sx={{ p: 2 }}>
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, maxHeight: 400, overflow: 'auto' }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Seleziona un ordine
-            </Typography>
-            {ordini.map(ordine => (
-              <Button
-                key={ordine._id || ordine.id}
-                fullWidth
-                variant={ordineSelezionato?._id === ordine._id ? 'contained' : 'outlined'}
-                sx={{ mb: 1, justifyContent: 'flex-start', textAlign: 'left' }}
-                onClick={() => handleSelectOrdine(ordine)}
-              >
-                <Box>
-                  <Typography variant="body2">
-                    {ordine.nomeCliente}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    €{ordine.totale?.toFixed(2) || '0'} - {ordine.dataRitiro}
-                  </Typography>
-                </Box>
-              </Button>
-            ))}
-          </Paper>
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Anteprima messaggio
-            </Typography>
-            <TextField
-              multiline
-              rows={15}
-              fullWidth
-              value={messaggio}
-              onChange={(e) => setMessaggio(e.target.value)}
-              variant="outlined"
-              sx={{ fontFamily: 'monospace', fontSize: '0.9rem' }}
-            />
-            
-            <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<WhatsAppIcon />}
-                onClick={handleCopy}
-                disabled={!messaggio}
-                fullWidth
-              >
-                Copia e Apri WhatsApp
-              </Button>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
+      <Typography variant="h6" gutterBottom>Invia conferma WhatsApp</Typography>
+      
+      <TextField
+        select
+        fullWidth
+        label="Seleziona Ordine"
+        value={selectedOrdine?._id || ''}
+        onChange={(e) => {
+          const ordine = ordini.find(o => o._id === e.target.value);
+          setSelectedOrdine(ordine);
+        }}
+        sx={{ mb: 2 }}
+      >
+        {ordini.map(o => (
+          <MenuItem key={o._id} value={o._id}>
+            {o.nomeCliente} - {o.dataRitiro} {o.oraRitiro} - €{(o.totale || 0).toFixed(2)}
+          </MenuItem>
+        ))}
+      </TextField>
+
+      {selectedOrdine && (
+        <>
+          <TextField
+            fullWidth
+            multiline
+            rows={10}
+            value={messaggio}
+            onChange={(e) => setMessaggio(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          
+          <Button 
+            fullWidth
+            variant="contained" 
+            color="success"
+            startIcon={<WhatsAppIcon />}
+            onClick={inviaWhatsApp}
+          >
+            Invia su WhatsApp
+          </Button>
+        </>
+      )}
     </Box>
   );
 }
 
-// COMPONENTE PRINCIPALE
+// ====================================================================
+// COMPONENTE PRINCIPALE - GESTORE ORDINI
+// ====================================================================
 export default function GestoreOrdini() {
+  // ----------------------------------------------------------------
+  // STATE - Ordini & UI
+  // ----------------------------------------------------------------
   const [ordini, setOrdini] = useState([]);
-  const [dataSelezionata, setDataSelezionata] = useState(new Date().toISOString().split('T')[0]);
+  const [caricamento, setCaricamento] = useState(true);
+  const [errore, setErrore] = useState(null);
+  const [syncInProgress, setSyncInProgress] = useState(false);
+  const [submitInCorso, setSubmitInCorso] = useState(false);
+  
+  const [isConnected, setIsConnected] = useState(false);
+  const [ultimaSync, setUltimaSync] = useState(null);
+  const [storageUsed, setStorageUsed] = useState(0);
+  
   const [dialogoNuovoOrdineAperto, setDialogoNuovoOrdineAperto] = useState(false);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
-  const [caricamento, setCaricamento] = useState(false);
-  const [ultimaSync, setUltimaSync] = useState(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [submitInCorso, setSubmitInCorso] = useState(false);
+  const [dataSelezionata, setDataSelezionata] = useState(new Date().toISOString().split('T')[0]);
+  
+  const [notifica, setNotifica] = useState({ aperta: false, messaggio: '', tipo: 'info' });
+  const [menuExport, setMenuExport] = useState(null);
+  
+  const [prodottiDisponibili, setProdottiDisponibili] = useState({});
+  const [prodottiCaricati, setProdottiCaricati] = useState(false);
+  
+  const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
-  const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false);
-  const [menuExport, setMenuExport] = useState(null);
-  const [syncInProgress, setSyncInProgress] = useState(false);
-  const [storageUsed, setStorageUsed] = useState(0);
-  const [performanceScore, setPerformanceScore] = useState(100);
-  const [notifica, setNotifica] = useState({ aperta: false, messaggio: '', tipo: 'info' });
   
-  const [prodottiDisponibili, setProdottiDisponibili] = useState({
-    pasta: [],
-    dolci: [],
-    panadas: [],
-    altro: []
-  });
-  const [prodottiCaricati, setProdottiCaricati] = useState(false);
+  // ✅ NUOVO: STATE per CallPopup
+  const [showCallPopup, setShowCallPopup] = useState(false);
+  const [currentCallData, setCurrentCallData] = useState(null);
   
+  // ----------------------------------------------------------------
+  // REFS
+  // ----------------------------------------------------------------
   const wsRef = useRef(null);
-  const syncIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
-// ✅ NUOVO: Carica prodotti dal database
+  const syncIntervalRef = useRef(null);
+  
+  // ----------------------------------------------------------------
+  // EFFETTO 1: ✅ NUOVO - Pusher Listener per Chiamate
+  // ----------------------------------------------------------------
+  useEffect(() => {
+    console.log('📡 [GestoreOrdini] Inizializzo Pusher listener per chiamate...');
+    
+    // Inizializza Pusher client se non già fatto
+    if (!pusherClientService.pusher) {
+      console.log('🚀 [GestoreOrdini] Inizializzo Pusher client...');
+      pusherClientService.initialize();
+    }
+
+    // Subscribe al canale chiamate
+    console.log('📡 [GestoreOrdini] Subscribe al canale chiamate...');
+    const channel = pusherClientService.subscribeToChiamate((callData) => {
+      console.log('📞 [GestoreOrdini] CHIAMATA IN ARRIVO!', callData);
+      
+      // Mostra popup
+      setCurrentCallData(callData);
+      setShowCallPopup(true);
+      
+      // Notifica sonora browser (se permessi abilitati)
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('📞 Chiamata in arrivo', {
+            body: `Da: ${callData.cliente?.nome || 'Sconosciuto'} - ${callData.numero}`,
+            icon: '/favicon.ico',
+            tag: 'call-notification',
+            requireInteraction: true
+          });
+          console.log('🔔 [GestoreOrdini] Notifica browser inviata');
+        } catch (error) {
+          console.warn('⚠️ [GestoreOrdini] Errore notifica browser:', error);
+        }
+      }
+    });
+
+    // Listener alternativo via CustomEvent (fallback)
+    const handleChiamataArrivo = (event) => {
+      console.log('📞 [GestoreOrdini] Evento chiamata:arrivo ricevuto', event.detail);
+      setCurrentCallData(event.detail);
+      setShowCallPopup(true);
+    };
+
+    window.addEventListener('chiamata:arrivo', handleChiamataArrivo);
+
+    // Richiedi permessi notifiche (se non già fatto)
+    if ('Notification' in window && Notification.permission === 'default') {
+      console.log('🔔 [GestoreOrdini] Richiedo permessi notifiche...');
+      Notification.requestPermission().then(permission => {
+        console.log('🔔 [GestoreOrdini] Permesso notifiche:', permission);
+      });
+    }
+
+    // Cleanup
+    return () => {
+      console.log('🔌 [GestoreOrdini] Cleanup listener chiamate');
+      window.removeEventListener('chiamata:arrivo', handleChiamataArrivo);
+      // Non fare unsubscribe/disconnect qui perché Pusher è globale
+    };
+  }, []); // Esegui solo al mount
+
+  // ----------------------------------------------------------------
+  // HANDLER: ✅ NUOVO - Chiusura CallPopup
+  // ----------------------------------------------------------------
+  const handleCloseCallPopup = useCallback(() => {
+    console.log('🔕 [GestoreOrdini] Chiusura popup chiamata');
+    setShowCallPopup(false);
+    setCurrentCallData(null);
+  }, []);
+
+  // ----------------------------------------------------------------
+  // EFFETTO 2: Caricamento prodotti da DB
+  // ----------------------------------------------------------------
   useEffect(() => {
     const caricaProdottiDB = async () => {
       try {
-        console.log('📦 Caricamento prodotti dal database...');
-        
-        const response = await fetch(`${API_URL}/prodotti/disponibili`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        
+        const response = await fetch(`${API_URL}/prodotti/disponibili`);
         if (response.ok) {
           const data = await response.json();
-          const prodottiDB = data.data || [];
+          const prodottiData = data.data || data || [];
           
-          console.log(`✅ Ricevuti ${prodottiDB.length} prodotti dal server`);
+          const prodottiRaggr = prodottiData.reduce((acc, p) => {
+            const categoria = p.categoria || 'altro';
+            if (!acc[categoria]) acc[categoria] = [];
+            acc[categoria].push(p);
+            return acc;
+          }, {});
           
-          const raggruppati = {
-            pasta: prodottiDB
-              .filter(p => p.categoria === 'Ravioli')
-              .map(p => ({
-                nome: p.nome,
-                prezzo: p.prezzoKg || p.prezzoPezzo || 0,
-                unita: p.unitaMisuraDisponibili[0] || 'Kg',
-                descrizione: p.descrizione || '',
-                pezziPerKg: p.pezziPerKg,
-                config: p
-              })),
-            
-            dolci: prodottiDB
-              .filter(p => p.categoria === 'Dolci' || p.categoria === 'Pardulas')
-              .map(p => ({
-                nome: p.nome,
-                prezzo: p.prezzoKg || p.prezzoPezzo || 0,
-                unita: p.unitaMisuraDisponibili[0] || 'Kg',
-                descrizione: p.descrizione || '',
-                pezziPerKg: p.pezziPerKg,
-                config: p
-              })),
-            
-            panadas: prodottiDB
-              .filter(p => p.categoria === 'Panadas')
-              .map(p => ({
-                nome: p.nome,
-                prezzo: p.prezzoKg || p.prezzoPezzo || 0,
-                unita: p.unitaMisuraDisponibili[0] || 'Kg',
-                descrizione: p.descrizione || '',
-                pezziPerKg: p.pezziPerKg,
-                config: p
-              })),
-            
-            altro: prodottiDB
-              .filter(p => p.categoria === 'Altro')
-              .map(p => ({
-                nome: p.nome,
-                prezzo: p.prezzoKg || p.prezzoPezzo || 0,
-                unita: p.unitaMisuraDisponibili[0] || 'Kg',
-                descrizione: p.descrizione || '',
-                pezziPerKg: p.pezziPerKg,
-                config: p
-              }))
-          };
-          
-          setProdottiDisponibili(raggruppati);
+          setProdottiDisponibili(prodottiRaggr);
           setProdottiCaricati(true);
-          mostraNotifica(`Caricati ${prodottiDB.length} prodotti dal database`, 'success');
-          
-        } else {
-          throw new Error(`Errore ${response.status}`);
+          console.log(`✅ Caricati ${prodottiData.length} prodotti dal database`);
         }
       } catch (error) {
-        console.error('❌ Errore caricamento prodotti:', error);
-        mostraNotifica('Usando prodotti di default', 'warning');
-        
-        const fallbackProdotti = {
-          pasta: LISTA_PRODOTTI.filter(p => {
-            const config = getProdottoConfig(p);
-            return config?.categoria === 'Ravioli' || p.includes('Culurgiones');
-          }).map(p => {
-            const config = getProdottoConfig(p);
-            return {
-              nome: p,
-              prezzo: config.prezzoKg || config.prezzoPezzo || 0,
-              unita: config.unitaMisuraDisponibili[0] || 'Kg',
-              descrizione: config.descrizione || '',
-              pezziPerKg: config.pezziPerKg,
-              config: config
-            };
-          }),
-          dolci: LISTA_PRODOTTI.filter(p => {
-            const config = getProdottoConfig(p);
-            return config?.categoria === 'Dolci' || config?.categoria === 'Pardulas';
-          }).map(p => {
-            const config = getProdottoConfig(p);
-            return {
-              nome: p,
-              prezzo: config.prezzoKg || config.prezzoPezzo || 0,
-              unita: config.unitaMisuraDisponibili[0] || 'Kg',
-              descrizione: config.descrizione || '',
-              pezziPerKg: config.pezziPerKg,
-              config: config
-            };
-          }),
-          panadas: LISTA_PRODOTTI.filter(p => {
-            const config = getProdottoConfig(p);
-            return config?.categoria === 'Panadas';
-          }).map(p => {
-            const config = getProdottoConfig(p);
-            return {
-              nome: p,
-              prezzo: config.prezzoKg || config.prezzoPezzo || 0,
-              unita: config.unitaMisuraDisponibili[0] || 'Kg',
-              descrizione: config.descrizione || '',
-              pezziPerKg: config.pezziPerKg,
-              config: config
-            };
-          }),
-          altro: LISTA_PRODOTTI.filter(p => {
-            const config = getProdottoConfig(p);
-            return config?.categoria === 'Altro';
-          }).map(p => {
-            const config = getProdottoConfig(p);
-            return {
-              nome: p,
-              prezzo: config.prezzoKg || config.prezzoPezzo || 0,
-              unita: config.unitaMisuraDisponibili[0] || 'Kg',
-              descrizione: config.descrizione || '',
-              pezziPerKg: config.pezziPerKg,
-              config: config
-            };
-          })
-        };
-        
-        setProdottiDisponibili(fallbackProdotti);
+        console.error('Errore caricamento prodotti:', error);
+        // Fallback a configurazione statica
+        setProdottiDisponibili({ dolci: LISTA_PRODOTTI });
         setProdottiCaricati(true);
       }
     };
@@ -403,7 +352,9 @@ export default function GestoreOrdini() {
     caricaProdottiDB();
   }, []);
 
-  // ✅ NUOVO: Pre-caricamento clienti e prodotti all'avvio
+  // ----------------------------------------------------------------
+  // EFFETTO 3: Pre-caricamento dati (clienti e prodotti)
+  // ----------------------------------------------------------------
   useEffect(() => {
     const preCaricaDati = async () => {
       try {
@@ -435,7 +386,6 @@ export default function GestoreOrdini() {
       }
     };
 
-    // Pre-carica appena l'app si avvia
     preCaricaDati();
     
     // Ricarica ogni 5 minuti
@@ -444,7 +394,9 @@ export default function GestoreOrdini() {
     return () => clearInterval(intervalId);
   }, []);
   
-  // Keep-alive per mantenere il backend Railway attivo
+  // ----------------------------------------------------------------
+  // EFFETTO 4: Keep-alive Railway
+  // ----------------------------------------------------------------
   useEffect(() => {
     const keepAlive = setInterval(async () => {
       try {
@@ -461,7 +413,9 @@ export default function GestoreOrdini() {
     return () => clearInterval(keepAlive);
   }, []);
   
-  // Connessione WebSocket
+  // ----------------------------------------------------------------
+  // FUNZIONI: WebSocket
+  // ----------------------------------------------------------------
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     
@@ -520,7 +474,9 @@ export default function GestoreOrdini() {
     }
   }, []);
   
-  // Sincronizzazione con MongoDB
+  // ----------------------------------------------------------------
+  // FUNZIONI: Sincronizzazione MongoDB
+  // ----------------------------------------------------------------
   const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
@@ -595,7 +551,10 @@ export default function GestoreOrdini() {
       setSyncInProgress(false);
     }
   }, [syncInProgress]);
-// Invio ordini salvati offline
+
+  // ----------------------------------------------------------------
+  // FUNZIONI: Ordini offline
+  // ----------------------------------------------------------------
   const inviaOrdiniOffline = async () => {
     const ordiniOffline = JSON.parse(localStorage.getItem('ordiniOffline') || '[]');
     
@@ -630,7 +589,9 @@ export default function GestoreOrdini() {
     }
   };
   
-  // ✅ FIX PRINCIPALE: Creazione nuovo ordine con gestione VASSOIO
+  // ----------------------------------------------------------------
+  // FUNZIONI: Creazione/Aggiornamento Ordini (con gestione VASSOIO)
+  // ----------------------------------------------------------------
   const creaOrdine = async (ordine) => {
     let totaleOrdine = 0;
     
@@ -757,7 +718,6 @@ export default function GestoreOrdini() {
     }
   };
   
-  // ✅ FIX: Aggiornamento ordine con gestione VASSOIO
   const aggiornaOrdine = async (ordine) => {
     let totaleOrdine = 0;
     
@@ -833,7 +793,6 @@ export default function GestoreOrdini() {
       } else {
         const errorData = await response.json().catch(() => ({}));
         
-        // ✅ Se errore limiti, mostra messaggio specifico
         if (errorData.erroriLimiti) {
           const messaggiErrore = errorData.erroriLimiti.map(e => e.messaggio).join('\n');
           mostraNotifica(`⚠️ Limiti superati:\n${messaggiErrore}`, 'error');
@@ -855,7 +814,6 @@ export default function GestoreOrdini() {
     }
   };
 
-  // Eliminazione ordine
   const eliminaOrdine = async (id) => {
     if (!confirm('Confermi eliminazione ordine?')) return;
     
@@ -883,7 +841,6 @@ export default function GestoreOrdini() {
     }
   };
   
-  // Salva ordine (nuovo o aggiornamento)
   const salvaOrdine = async (nuovoOrdine) => {
     if (submitInCorso) return;
     
@@ -907,7 +864,9 @@ export default function GestoreOrdini() {
     }
   };
   
-  // Rimozione duplicati
+  // ----------------------------------------------------------------
+  // FUNZIONI: Utility
+  // ----------------------------------------------------------------
   const rimuoviDuplicati = () => {
     setOrdini(prevOrdini => {
       const ordiniUnici = [];
@@ -934,7 +893,6 @@ export default function GestoreOrdini() {
     });
   };
   
-  // Notifiche
   const mostraNotifica = (messaggio, tipo = 'info') => {
     setNotifica({ aperta: true, messaggio, tipo });
   };
@@ -943,7 +901,9 @@ export default function GestoreOrdini() {
     setNotifica(prev => ({ ...prev, aperta: false }));
   };
 
-  // Export functions
+  // ----------------------------------------------------------------
+  // FUNZIONI: Export
+  // ----------------------------------------------------------------
   const handleExport = async (formato) => {
     setMenuExport(null);
     
@@ -1015,7 +975,8 @@ export default function GestoreOrdini() {
   const exportToPDF = (ordiniData) => {
     printOrdini(ordiniData);
   };
-const printOrdini = (ordiniData) => {
+
+  const printOrdini = (ordiniData) => {
     const printWindow = window.open('', '_blank');
     const html = `
       <!DOCTYPE html>
@@ -1082,7 +1043,9 @@ const printOrdini = (ordiniData) => {
     printWindow.document.close();
   };
   
-  // Calcolo statistiche
+  // ----------------------------------------------------------------
+  // FUNZIONI: Statistiche
+  // ----------------------------------------------------------------
   const calcolaStatistiche = () => {
     const oggi = new Date().toDateString();
     const ordiniOggi = ordini.filter(o => {
@@ -1109,7 +1072,9 @@ const printOrdini = (ordiniData) => {
   
   const statistiche = calcolaStatistiche();
   
-  // Monitoraggio storage
+  // ----------------------------------------------------------------
+  // EFFETTO 5: Monitoraggio storage
+  // ----------------------------------------------------------------
   useEffect(() => {
     const checkStorage = () => {
       if (navigator.storage && navigator.storage.estimate) {
@@ -1125,7 +1090,9 @@ const printOrdini = (ordiniData) => {
     return () => clearInterval(interval);
   }, [ordini]);
   
-  // Inizializzazione al mount
+  // ----------------------------------------------------------------
+  // EFFETTO 6: Inizializzazione mount
+  // ----------------------------------------------------------------
   useEffect(() => {
     console.log('Inizializzazione GestoreOrdini...');
     
@@ -1158,6 +1125,8 @@ const printOrdini = (ordiniData) => {
       sincronizzaConMongoDB();
     }, 30000);
     
+    setCaricamento(false);
+    
     return () => {
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
@@ -1165,7 +1134,9 @@ const printOrdini = (ordiniData) => {
     };
   }, []);
   
-  // Gestione eventi online/offline
+  // ----------------------------------------------------------------
+  // EFFETTO 7: Gestione online/offline
+  // ----------------------------------------------------------------
   useEffect(() => {
     const handleOnline = () => {
       console.log('Connessione ripristinata');
@@ -1193,7 +1164,9 @@ const printOrdini = (ordiniData) => {
     };
   }, [sincronizzaConMongoDB, connectWebSocket]);
   
-  // RENDER UI
+  // ====================================================================
+  // RENDER JSX PRINCIPALE
+  // ====================================================================
   return (
     <>
       <style jsx global>{`
@@ -1483,6 +1456,13 @@ const printOrdini = (ordiniData) => {
             <Button onClick={() => setWhatsappHelperAperto(false)}>Chiudi</Button>
           </DialogActions>
         </Dialog>
+        
+        {/* ✅ NUOVO: CallPopup Component */}
+        <CallPopup 
+          open={showCallPopup}
+          onClose={handleCloseCallPopup}
+          callData={currentCallData}
+        />
         
         <Snackbar
           open={notifica.aperta}
