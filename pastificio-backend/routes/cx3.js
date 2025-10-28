@@ -23,8 +23,8 @@ router.post('/incoming', async (req, res) => {
       const lastProcessed = processedCalls.get(numero);
       const timeDiff = Date.now() - lastProcessed;
       
-      // Se ultima chiamata < 3 minuti fa, SKIP
-      if (timeDiff < 180000) {
+      // Se ultima chiamata < 30 secondi fa, SKIP
+      if (timeDiff < 30000) {
         logger.info('⏭️ Chiamata duplicata, skip:', numero, `(${Math.round(timeDiff/1000)}s fa)`);
         return res.json({ 
           success: true, 
@@ -38,11 +38,11 @@ router.post('/incoming', async (req, res) => {
     // Aggiungi a processate
     processedCalls.set(numero, Date.now());
     
-    // Pulizia automatica dopo 5 minuti
+    // Pulizia automatica dopo 1 minuto
     setTimeout(() => {
       processedCalls.delete(numero);
       logger.debug('🗑️ Rimossa chiamata da cache:', numero);
-    }, 300000);
+    }, 60000);
     
     // ✅ Cerca cliente in database
     let clienteTrovato = null;
