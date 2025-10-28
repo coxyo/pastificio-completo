@@ -94,13 +94,31 @@ router.post('/incoming', async (req, res) => {
       source: source || '3cx-extension'
     };
     
-    // ✅ Invia evento Pusher UNA SOLA VOLTA
+    // ✅ FIX PRINCIPALE: Usa metodo trigger() corretto
+    logger.info('📡 Tentativo invio evento Pusher...', {
+      channel: 'chiamate',
+      event: 'nuova-chiamata',
+      callId
+    });
+    
     try {
-      // ⚡ FIX: Usa direttamente pusherService.trigger()
-      await pusherService.trigger('chiamate', 'nuova-chiamata', eventoChiamata);
-      logger.info('✅ Chiamata propagata via Pusher:', callId);
+      const result = await pusherService.trigger('chiamate', 'nuova-chiamata', eventoChiamata);
+      
+      if (result.success) {
+        logger.info('✅ Chiamata propagata via Pusher con successo!', {
+          callId,
+          numero,
+          clienteTrovato: !!clienteTrovato
+        });
+      } else {
+        logger.warn('⚠️ Pusher non abilitato o errore:', result);
+      }
+      
     } catch (pusherError) {
-      logger.error('❌ Errore invio Pusher:', pusherError);
+      logger.error('❌ Errore invio Pusher:', {
+        error: pusherError.message,
+        stack: pusherError.stack
+      });
       // Non bloccare la risposta se Pusher fallisce
     }
     
@@ -116,7 +134,8 @@ router.post('/incoming', async (req, res) => {
         nome: clienteTrovato.nome,
         cognome: clienteTrovato.cognome
       } : null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      pusherEnabled: pusherService.isEnabled()
     });
     
   } catch (error) {
@@ -125,6 +144,49 @@ router.post('/incoming', async (req, res) => {
       success: false, 
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cx3/test
+ * @desc    Endpoint di test per simulare chiamata (SOLO PER DEBUG)
+ * @access  Pubblico
+ */
+router.post('/test', async (req, res) => {
+  try {
+    logger.info('🧪 TEST: Simulazione chiamata in arrivo');
+    
+    const testCallData = {
+      callId: `TEST-${Date.now()}`,
+      numero: '+393331234567',
+      cliente: {
+        nome: 'Mario',
+        cognome: 'Rossi',
+        codice: 'CL250001'
+      },
+      timestamp: new Date().toISOString(),
+      source: 'test-endpoint'
+    };
+    
+    // Invia evento test
+    const result = await pusherService.trigger('chiamate', 'nuova-chiamata', testCallData);
+    
+    logger.info('✅ Chiamata test inviata', result);
+    
+    res.json({
+      success: true,
+      message: 'Chiamata test inviata',
+      data: testCallData,
+      pusherResult: result,
+      pusherEnabled: pusherService.isEnabled()
+    });
+    
+  } catch (error) {
+    logger.error('❌ Errore test chiamata:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -141,7 +203,8 @@ router.get('/status', (req, res) => {
     status: 'online',
     timestamp: new Date().toISOString(),
     processedCallsCount: processedCalls.size,
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    pusher: pusherService.getStatus()
   });
 });
 

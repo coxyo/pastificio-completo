@@ -1,4 +1,4 @@
-// services/pusherService.js
+// services/pusherService.js - BACKEND
 // Pusher service per notifiche real-time
 
 import Pusher from 'pusher';
@@ -45,6 +45,36 @@ class PusherService {
     } catch (error) {
       logger.error('❌ Errore inizializzazione Pusher:', error);
       this.enabled = false;
+    }
+  }
+
+  /**
+   * ✅ METODO TRIGGER UNIVERSALE (FIX PER CX3.JS)
+   * Questo è il metodo che mancava!
+   */
+  async trigger(channel, event, data) {
+    if (!this.enabled) {
+      logger.warn('⚠️ Pusher non abilitato, evento non inviato');
+      return { success: false, reason: 'pusher_disabled' };
+    }
+
+    try {
+      await this.pusher.trigger(channel, event, {
+        ...data,
+        timestamp: data.timestamp || new Date().toISOString()
+      });
+
+      logger.info(`✅ Evento Pusher inviato: ${channel}/${event}`, {
+        channel,
+        event,
+        dataKeys: Object.keys(data)
+      });
+
+      return { success: true };
+
+    } catch (error) {
+      logger.error('❌ Errore trigger Pusher:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -138,21 +168,10 @@ class PusherService {
   }
 
   /**
-   * Notifica generica
+   * Notifica generica (alias di trigger per retrocompatibilità)
    */
   async notify(channel, event, data) {
-    if (!this.enabled) return;
-
-    try {
-      await this.pusher.trigger(channel, event, {
-        ...data,
-        timestamp: new Date().toISOString()
-      });
-
-      logger.info(`🔔 Notifica inviata: ${channel}/${event}`);
-    } catch (error) {
-      logger.error('❌ Errore notifica generica:', error);
-    }
+    return await this.trigger(channel, event, data);
   }
 
   /**
