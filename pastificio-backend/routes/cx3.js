@@ -1,189 +1,181 @@
-// routes/cx3.js - Route per integrazione 3CX
+// routes/cx3.js - Gestione chiamate 3CX
 import express from 'express';
 import Cliente from '../models/Cliente.js';
-import pusherService from '../services/pusherService.js';
 import logger from '../config/logger.js';
+import pusherService from '../services/pusherService.js';
 
 const router = express.Router();
-const processedCalls = new Map(); // Cache chiamate processate
 
 /**
  * @route   POST /api/cx3/incoming
- * @desc    Riceve chiamate in arrivo da 3CX extension
- * @access  Pubblico (ma dovrebbe essere protetto in produzione)
+ * @desc    Riceve notifica di chiamata in arrivo da Chrome Extension
+ * @access  Public (ma solo da extension)
  */
 router.post('/incoming', async (req, res) => {
+  const { callId, numero, timestamp, source } = req.body;
+  
+  logger.info('📞 Chiamata in arrivo da 3CX', {
+    callId,
+    numero,
+    timestamp,
+    source
+  });
+
   try {
-    const { callId, numero, cliente, timestamp, source } = req.body;
+    // Rimuovi spazi e formatta numero
+    const numeroClean = numero.replace(/\s+/g, '');
     
-    logger.info('📞 Chiamata in arrivo da CX3:', { callId, numero, source });
-    
-    // ✅ DEDUPLICAZIONE SERVER-SIDE
-    if (processedCalls.has(numero)) {
-      const lastProcessed = processedCalls.get(numero);
-      const timeDiff = Date.now() - lastProcessed;
-      
-      // Se ultima chiamata < 30 secondi fa, SKIP
-      if (timeDiff < 30000) {
-        logger.info('⏭️ Chiamata duplicata, skip:', numero, `(${Math.round(timeDiff/1000)}s fa)`);
-        return res.json({ 
-          success: true, 
-          message: 'Chiamata già processata',
-          skipped: true,
-          timeSinceLastCall: timeDiff
-        });
-      }
-    }
-    
-    // Aggiungi a processate
-    processedCalls.set(numero, Date.now());
-    
-    // Pulizia automatica dopo 1 minuto
-    setTimeout(() => {
-      processedCalls.delete(numero);
-      logger.debug('🗑️ Rimossa chiamata da cache:', numero);
-    }, 60000);
-    
-    // ✅ Cerca cliente in database
-    let clienteTrovato = null;
-    try {
-      clienteTrovato = await Cliente.findOne({ 
-        $or: [
-          { telefono: numero },
-          { cellulare: numero },
-          { telefono: numero.replace(/\+39/, '') }, // Prova senza prefisso
-          { cellulare: numero.replace(/\+39/, '') }
-        ]
-      }).select('nome cognome codice telefono cellulare email punti livelloFedelta');
-      
-      if (clienteTrovato) {
-        logger.info('✅ Cliente trovato in database:', {
-          codice: clienteTrovato.codice,
-          nome: clienteTrovato.nome,
-          cognome: clienteTrovato.cognome
-        });
-      } else {
-        logger.info('ℹ️ Cliente non trovato in database per numero:', numero);
-      }
-    } catch (dbError) {
-      logger.error('❌ Errore ricerca cliente:', dbError);
-      // Continua comunque senza cliente
-    }
-    
-    // Prepara dati evento
-    const eventoChiamata = {
-      callId,
-      numero,
-      timestamp: timestamp || new Date().toISOString(),
-      cliente: clienteTrovato ? {
-        _id: clienteTrovato._id,
-        codice: clienteTrovato.codice,
-        nome: clienteTrovato.nome,
-        cognome: clienteTrovato.cognome,
-        telefono: clienteTrovato.telefono,
-        cellulare: clienteTrovato.cellulare,
-        email: clienteTrovato.email,
-        punti: clienteTrovato.punti,
-        livelloFedelta: clienteTrovato.livelloFedelta
-      } : (cliente || {
-        nome: 'Cliente',
-        cognome: 'Sconosciuto'
-      }),
-      tipo: 'inbound',
-      stato: 'ringing',
-      source: source || '3cx-extension'
-    };
-    
-    // ✅ FIX PRINCIPALE: Usa metodo trigger() corretto
-    logger.info('📡 Tentativo invio evento Pusher...', {
-      channel: 'chiamate',
-      event: 'nuova-chiamata',
-      callId
+    // Cerca cliente per numero (telefono o cellulare)
+    const cliente = await Cliente.findOne({
+      $or: [
+        { telefono: numeroClean },
+        { cellulare: numeroClean },
+        { telefono: numero },
+        { cellulare: numero }
+      ]
     });
-    
-    try {
-      const result = await pusherService.trigger('chiamate', 'nuova-chiamata', eventoChiamata);
-      
-      if (result.success) {
-        logger.info('✅ Chiamata propagata via Pusher con successo!', {
-          callId,
-          numero,
-          clienteTrovato: !!clienteTrovato
-        });
-      } else {
-        logger.warn('⚠️ Pusher non abilitato o errore:', result);
-      }
-      
-    } catch (pusherError) {
-      logger.error('❌ Errore invio Pusher:', {
-        error: pusherError.message,
-        stack: pusherError.stack
+
+    if (cliente) {
+      logger.info('✅ Cliente trovato', {
+        clienteId: cliente._id,
+        nome: cliente.nome,
+        cognome: cliente.cognome,
+        codiceCliente: cliente.codiceCliente
       });
-      // Non bloccare la risposta se Pusher fallisce
+
+      // Costruisci payload per frontend
+      const payload = {
+        callId,
+        numero: numeroClean,
+        timestamp,
+        source,
+        cliente: {
+          _id: cliente._id,
+          codiceCliente: cliente.codiceCliente,
+          nome: cliente.nome,
+          cognome: cliente.cognome,
+          ragioneSociale: cliente.ragioneSociale,
+          telefono: cliente.telefono,
+          cellulare: cliente.cellulare,
+          email: cliente.email,
+          indirizzo: cliente.indirizzo,
+          citta: cliente.citta,
+          provincia: cliente.provincia,
+          cap: cliente.cap,
+          note: cliente.note,
+          livelloFedelta: cliente.livelloFedelta,
+          punti: cliente.punti,
+          totaleSpesoStorico: cliente.totaleSpesoStorico
+        }
+      };
+
+      // Invia notifica Pusher a frontend
+      try {
+        await pusherService.trigger('chiamate', 'nuova-chiamata', payload);
+        
+        logger.info('✅ Notifica Pusher inviata', {
+          channel: 'chiamate',
+          event: 'nuova-chiamata',
+          clienteId: cliente._id
+        });
+      } catch (pusherError) {
+        logger.error('❌ Errore invio Pusher', { error: pusherError.message });
+      }
+
+      res.json({
+        success: true,
+        clienteTrovato: true,
+        cliente: payload.cliente
+      });
+
+    } else {
+      logger.warn('⚠️ Cliente NON trovato', {
+        numero: numeroClean,
+        numeroOriginale: numero
+      });
+
+      // Invia notifica anche per cliente sconosciuto
+      const payload = {
+        callId,
+        numero: numeroClean,
+        timestamp,
+        source,
+        cliente: null
+      };
+
+      try {
+        await pusherService.trigger('chiamate', 'nuova-chiamata', payload);
+        
+        logger.info('✅ Notifica cliente sconosciuto inviata', {
+          numero: numeroClean
+        });
+      } catch (pusherError) {
+        logger.error('❌ Errore invio Pusher', { error: pusherError.message });
+      }
+
+      res.json({
+        success: true,
+        clienteTrovato: false,
+        numero: numeroClean
+      });
     }
-    
-    // Risposta di successo
-    res.json({ 
-      success: true, 
-      message: 'Chiamata ricevuta e propagata',
-      callId,
-      numero,
-      clienteTrovato: !!clienteTrovato,
-      cliente: clienteTrovato ? {
-        codice: clienteTrovato.codice,
-        nome: clienteTrovato.nome,
-        cognome: clienteTrovato.cognome
-      } : null,
-      timestamp: new Date().toISOString(),
-      pusherEnabled: pusherService.isEnabled()
-    });
-    
+
   } catch (error) {
-    logger.error('❌ Errore gestione chiamata CX3:', error);
-    res.status(500).json({ 
-      success: false, 
+    logger.error('❌ Errore gestione chiamata 3CX', {
       error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: error.stack
+    });
+
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
 
 /**
  * @route   POST /api/cx3/test
- * @desc    Endpoint di test per simulare chiamata (SOLO PER DEBUG)
- * @access  Pubblico
+ * @desc    Endpoint per testare chiamata simulata
+ * @access  Public
  */
 router.post('/test', async (req, res) => {
+  const numeroTest = req.body.numero || '+393331234567';
+  
+  logger.info('🧪 TEST: Simulazione chiamata in arrivo', { numero: numeroTest });
+
   try {
-    logger.info('🧪 TEST: Simulazione chiamata in arrivo');
-    
-    const testCallData = {
-      callId: `TEST-${Date.now()}`,
-      numero: '+393331234567',
+    const payload = {
+      callId: `CX3-TEST-${Date.now()}`,
+      numero: numeroTest,
+      timestamp: new Date().toISOString(),
+      source: 'test-manual',
       cliente: {
+        _id: 'test-id',
+        codiceCliente: 'CL250001',
         nome: 'Mario',
         cognome: 'Rossi',
-        codice: 'CL250001'
-      },
-      timestamp: new Date().toISOString(),
-      source: 'test-endpoint'
+        telefono: numeroTest,
+        email: 'mario.rossi@example.com',
+        citta: 'Assemini',
+        livelloFedelta: 'oro',
+        punti: 250,
+        totaleSpesoStorico: 1500
+      }
     };
+
+    await pusherService.trigger('chiamate', 'nuova-chiamata', payload);
     
-    // Invia evento test
-    const result = await pusherService.trigger('chiamate', 'nuova-chiamata', testCallData);
-    
-    logger.info('✅ Chiamata test inviata', result);
-    
+    logger.info('✅ Chiamata test inviata', { success: true });
+
     res.json({
       success: true,
-      message: 'Chiamata test inviata',
-      data: testCallData,
-      pusherResult: result,
-      pusherEnabled: pusherService.isEnabled()
+      message: 'Chiamata test inviata con successo',
+      payload
     });
-    
+
   } catch (error) {
-    logger.error('❌ Errore test chiamata:', error);
+    logger.error('❌ Errore test chiamata', { error: error.message });
+    
     res.status(500).json({
       success: false,
       error: error.message
@@ -193,87 +185,21 @@ router.post('/test', async (req, res) => {
 
 /**
  * @route   GET /api/cx3/status
- * @desc    Verifica stato endpoint CX3
- * @access  Pubblico
+ * @desc    Verifica stato del servizio
+ * @access  Public
  */
 router.get('/status', (req, res) => {
   res.json({
     success: true,
     service: '3CX Integration',
-    status: 'online',
-    timestamp: new Date().toISOString(),
-    processedCallsCount: processedCalls.size,
-    uptime: process.uptime(),
-    pusher: pusherService.getStatus()
+    status: 'active',
+    endpoints: {
+      incoming: '/api/cx3/incoming',
+      test: '/api/cx3/test',
+      status: '/api/cx3/status'
+    },
+    timestamp: new Date().toISOString()
   });
 });
-
-/**
- * @route   GET /api/cx3/cache
- * @desc    Visualizza cache chiamate (solo development)
- * @access  Pubblico (ma solo in development)
- */
-router.get('/cache', (req, res) => {
-  if (process.env.NODE_ENV !== 'development') {
-    return res.status(403).json({
-      success: false,
-      error: 'Endpoint disponibile solo in development'
-    });
-  }
-  
-  const cacheData = Array.from(processedCalls.entries()).map(([numero, timestamp]) => ({
-    numero,
-    timestamp: new Date(timestamp).toISOString(),
-    age: Math.round((Date.now() - timestamp) / 1000) + 's'
-  }));
-  
-  res.json({
-    success: true,
-    count: processedCalls.size,
-    calls: cacheData
-  });
-});
-
-/**
- * @route   POST /api/cx3/cache/clear
- * @desc    Pulisce cache chiamate (solo development)
- * @access  Pubblico (ma solo in development)
- */
-router.post('/cache/clear', (req, res) => {
-  if (process.env.NODE_ENV !== 'development') {
-    return res.status(403).json({
-      success: false,
-      error: 'Endpoint disponibile solo in development'
-    });
-  }
-  
-  const count = processedCalls.size;
-  processedCalls.clear();
-  
-  logger.info('🧹 Cache chiamate pulita manualmente');
-  
-  res.json({
-    success: true,
-    message: 'Cache pulita',
-    clearedCount: count
-  });
-});
-
-// Pulizia automatica cache ogni 10 minuti
-setInterval(() => {
-  const now = Date.now();
-  let cleanedCount = 0;
-  
-  for (const [numero, timestamp] of processedCalls.entries()) {
-    if (now - timestamp > 600000) { // 10 minuti
-      processedCalls.delete(numero);
-      cleanedCount++;
-    }
-  }
-  
-  if (cleanedCount > 0) {
-    logger.info(`🧹 Pulizia automatica cache: ${cleanedCount} chiamate rimosse`);
-  }
-}, 600000);
 
 export default router;
