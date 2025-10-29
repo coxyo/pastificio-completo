@@ -46,6 +46,7 @@ import GestioneLimiti from './GestioneLimiti';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
+import { useIncomingCall } from '../hooks/useIncomingCall';
 import pusherClientService from '../services/pusherService';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
@@ -237,9 +238,8 @@ export default function GestoreOrdini() {
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   
-  // ✅ NUOVO: STATE per CallPopup
-  const [showCallPopup, setShowCallPopup] = useState(false);
-  const [currentCallData, setCurrentCallData] = useState(null);
+  // ✅ PUSHER: Hook per chiamate entranti real-time
+  const { incomingCall, isCallPopupOpen, closeCallPopup } = useIncomingCall();
   
   // ----------------------------------------------------------------
   // REFS
@@ -249,8 +249,10 @@ export default function GestoreOrdini() {
   const syncIntervalRef = useRef(null);
   
   // ----------------------------------------------------------------
-  // EFFETTO 1: ✅ NUOVO - Pusher Listener per Chiamate
+  // EFFETTO 1: Pusher Listener per Chiamate
+  // ⚠️ DISABILITATO: Ora gestito da useIncomingCall() hook
   // ----------------------------------------------------------------
+  /* 
   useEffect(() => {
     console.log('📡 [GestoreOrdini] Inizializzo Pusher listener per chiamate...');
     
@@ -309,15 +311,11 @@ export default function GestoreOrdini() {
       // Non fare unsubscribe/disconnect qui perché Pusher è globale
     };
   }, []); // Esegui solo al mount
+  */
 
   // ----------------------------------------------------------------
-  // HANDLER: ✅ NUOVO - Chiusura CallPopup
+  // HANDLER: Chiusura CallPopup (ora gestito da useIncomingCall hook)
   // ----------------------------------------------------------------
-  const handleCloseCallPopup = useCallback(() => {
-    console.log('🔕 [GestoreOrdini] Chiusura popup chiamata');
-    setShowCallPopup(false);
-    setCurrentCallData(null);
-  }, []);
 
   // ----------------------------------------------------------------
   // EFFETTO 2: Caricamento prodotti da DB
@@ -1457,12 +1455,13 @@ export default function GestoreOrdini() {
           </DialogActions>
         </Dialog>
         
-        {/* ✅ NUOVO: CallPopup Component */}
-        <CallPopup 
-          open={showCallPopup}
-          onClose={handleCloseCallPopup}
-          callData={currentCallData}
-        />
+        {/* ✅ CallPopup con Pusher Real-Time */}
+        {isCallPopupOpen && (
+          <CallPopup 
+            chiamata={incomingCall}
+            onClose={closeCallPopup}
+          />
+        )}
         
         <Snackbar
           open={notifica.aperta}
