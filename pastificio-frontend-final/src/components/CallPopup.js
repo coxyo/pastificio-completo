@@ -1,332 +1,189 @@
-// src/components/CallPopup.js
-// Modal popup per chiamate in arrivo con dati cliente e ultimi ordini
-
-'use client';
-
-import React, { useState, useEffect } from 'react';
+// components/CallPopup.js - VERSIONE CORRETTA
+import { useState, useEffect } from 'react';
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  Box,
-  Typography,
-  Button,
-  Avatar,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-  IconButton,
-  CircularProgress,
-  Paper,
-  Grid
-} from '@mui/material';
-import {
-  Phone as PhoneIcon,
-  Close as CloseIcon,
-  Person as PersonIcon,
-  ShoppingCart as OrderIcon,
-  LocalShipping as ShippingIcon,
-  AccountCircle as AccountIcon
-} from '@mui/icons-material';
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Phone, User, ShoppingCart, X, Star } from 'lucide-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
-
-export default function CallPopup({ open, onClose, callData }) {
-  const [clienteDettagli, setClienteDettagli] = useState(null);
-  const [ultomiOrdini, setUltomiOrdini] = useState([]);
+export default function CallPopup({ chiamata, onClose, onSaveNote }) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  // Effetto per caricare dati cliente quando si apre il popup
-  useEffect(() => {
-    if (open && callData?.cliente?._id) {
-      caricaDatiCliente(callData.cliente._id);
-    }
-  }, [open, callData]);
+  // Estrai dati cliente dal payload
+  const cliente = chiamata?.cliente;
+  const numero = chiamata?.numero || 'Numero sconosciuto';
+  const callId = chiamata?.callId;
 
-  // Auto-chiusura dopo 30 secondi
-  useEffect(() => {
-    if (open) {
-      const timer = setTimeout(() => {
-        console.log('[CallPopup] Auto-chiusura dopo 30 secondi');
-        onClose();
-      }, 30000);
+  // Determina nome completo
+  const nomeCompleto = cliente 
+    ? `${cliente.nome || ''} ${cliente.cognome || ''}`.trim() || 'Cliente Sconosciuto'
+    : 'Cliente Sconosciuto';
 
-      return () => clearTimeout(timer);
-    }
-  }, [open, onClose]);
+  // Iniziali per badge
+  const iniziali = cliente
+    ? `${(cliente.nome?.[0] || '')}${(cliente.cognome?.[0] || '')}`.toUpperCase() || '?'
+    : '?';
 
-  // Funzione per caricare dati dettagliati del cliente
-  const caricaDatiCliente = async (clienteId) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Carica dettagli cliente
-      const token = localStorage.getItem('token');
-      const responseCliente = await fetch(`${API_URL}/clienti/${clienteId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!responseCliente.ok) {
-        throw new Error('Errore caricamento cliente');
-      }
-
-      const cliente = await responseCliente.json();
-      setClienteDettagli(cliente);
-
-      // Carica ultimi 5 ordini del cliente
-      const responseOrdini = await fetch(
-        `${API_URL}/ordini?cliente=${clienteId}&limit=5&sort=-createdAt`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (responseOrdini.ok) {
-        const ordini = await responseOrdini.json();
-        setUltomiOrdini(ordini.data || ordini || []);
-      }
-
-    } catch (err) {
-      console.error('[CallPopup] Errore caricamento dati:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  // Livello fedeltà con colori
+  const livelloColors = {
+    'bronze': 'bg-orange-500',
+    'argento': 'bg-gray-400',
+    'oro': 'bg-yellow-500',
+    'platino': 'bg-purple-500',
+    'base': 'bg-gray-300'
   };
 
+  const livelloFedelta = cliente?.livelloFedelta || 'base';
+  const badgeColor = livelloColors[livelloFedelta.toLowerCase()] || 'bg-gray-300';
+
+  // Statistiche cliente
+  const punti = cliente?.punti || 0;
+  const totaleSpeso = cliente?.totaleSpesoStorico || 0;
+  const codiceCliente = cliente?.codiceCliente || 'N/A';
+
+  // Handler nuovo ordine
   const handleNuovoOrdine = () => {
-    // Logica per aprire form nuovo ordine con dati cliente pre-compilati
-    console.log('[CallPopup] Apertura form nuovo ordine per:', callData?.cliente);
-    
-    // Potresti usare un evento custom o state globale
-    window.dispatchEvent(new CustomEvent('apri-nuovo-ordine', {
-      detail: { cliente: clienteDettagli || callData?.cliente }
-    }));
-    
-    onClose();
-  };
-
-  const handleVisualizzaCliente = () => {
-    // Naviga alla pagina del cliente
-    if (callData?.cliente?._id) {
-      window.location.href = `/clienti/${callData.cliente._id}`;
+    if (cliente) {
+      // Naviga a pagina ordini con cliente preselezionato
+      window.location.href = `/?cliente=${cliente._id}`;
+    } else {
+      // Apri form nuovo ordine senza cliente
+      window.location.href = '/';
     }
     onClose();
   };
 
-  if (!callData) return null;
+  // Handler apri scheda cliente
+  const handleAprirScheda = () => {
+    if (cliente?._id) {
+      window.location.href = `/clienti?id=${cliente._id}`;
+    }
+    onClose();
+  };
 
-  const cliente = clienteDettagli || callData.cliente || {};
-  const nomeCompleto = cliente.nome && cliente.cognome 
-    ? `${cliente.nome} ${cliente.cognome}`
-    : cliente.nome || 'Cliente Sconosciuto';
+  // Audio notification (opzionale)
+  useEffect(() => {
+    if (chiamata) {
+      try {
+        const audio = new Audio('/sounds/incoming-call.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(err => console.warn('⚠️ Audio non disponibile:', err));
+      } catch (error) {
+        console.warn('⚠️ Impossibile riprodurre audio:', error);
+      }
+    }
+  }, [chiamata]);
+
+  if (!chiamata) return null;
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
-        }
-      }}
-    >
-      {/* Header con icona telefono animata */}
-      <DialogTitle sx={{ pb: 1, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Box display="flex" alignItems="center" gap={1}>
-            <PhoneIcon sx={{ animation: 'ring 1s ease-in-out infinite' }} />
-            <Typography variant="h6" fontWeight="bold">
-              Chiamata in arrivo
-            </Typography>
-          </Box>
-          <IconButton onClick={onClose} size="small" sx={{ color: 'white' }}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
+    <Dialog open={!!chiamata} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Phone className="h-5 w-5 text-green-600 animate-pulse" />
+            Chiamata in arrivo
+          </DialogTitle>
+          <DialogDescription>
+            {numero}
+          </DialogDescription>
+        </DialogHeader>
 
-      <DialogContent sx={{ pt: 3 }}>
-        {loading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
-            <CircularProgress />
-          </Box>
-        ) : error ? (
-          <Box textAlign="center" py={3}>
-            <Typography color="error">{error}</Typography>
-          </Box>
-        ) : (
-          <>
-            {/* Dati Cliente */}
-            <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
-              <Box display="flex" alignItems="center" gap={2} mb={2}>
-                <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main' }}>
-                  {nomeCompleto.charAt(0).toUpperCase()}
-                </Avatar>
-                <Box flex={1}>
-                  <Typography variant="h6" fontWeight="bold">
-                    {nomeCompleto}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    📞 {callData.numero}
-                  </Typography>
-                  {cliente.codice && (
-                    <Chip 
-                      label={cliente.codice} 
-                      size="small" 
-                      color="primary" 
-                      variant="outlined"
-                      sx={{ mt: 0.5 }}
-                    />
-                  )}
-                </Box>
-              </Box>
-
-              {/* Statistiche Cliente */}
-              {clienteDettagli && (
-                <Grid container spacing={2}>
-                  <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Typography variant="h6" color="primary">
-                        {clienteDettagli.punti || 0}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Punti
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Typography variant="h6" color="success.main">
-                        {ultomiOrdini.length}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Ordini
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={4}>
-                    <Box textAlign="center">
-                      <Chip 
-                        label={clienteDettagli.livelloFedelta || 'Base'}
-                        size="small"
-                        color={
-                          clienteDettagli.livelloFedelta === 'Platinum' ? 'secondary' :
-                          clienteDettagli.livelloFedelta === 'Gold' ? 'warning' :
-                          clienteDettagli.livelloFedelta === 'Silver' ? 'info' : 'default'
-                        }
-                      />
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        Livello
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
+        <div className="space-y-4">
+          {/* Badge Cliente */}
+          <div className="flex items-center gap-4">
+            <div className={`w-16 h-16 rounded-full ${badgeColor} flex items-center justify-center text-white text-2xl font-bold`}>
+              {iniziali}
+            </div>
+            
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold">{nomeCompleto}</h3>
+              {cliente && (
+                <>
+                  <p className="text-sm text-gray-500">{codiceCliente}</p>
+                  <Badge variant="outline" className="mt-1">
+                    {livelloFedelta.toUpperCase()}
+                  </Badge>
+                </>
               )}
-            </Paper>
+            </div>
+          </div>
 
-            {/* Ultimi Ordini */}
-            {ultomiOrdini.length > 0 && (
-              <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  📦 Ultimi {ultomiOrdini.length} ordini
-                </Typography>
-                <Divider sx={{ my: 1 }} />
-                <List dense>
-                  {ultomiOrdini.map((ordine, index) => (
-                    <React.Fragment key={ordine._id || index}>
-                      <ListItem sx={{ px: 0 }}>
-                        <ListItemText
-                          primary={
-                            <Box display="flex" justifyContent="space-between" alignItems="center">
-                              <Typography variant="body2">
-                                {new Date(ordine.dataRitiro || ordine.createdAt).toLocaleDateString('it-IT')}
-                              </Typography>
-                              <Chip 
-                                label={ordine.stato || 'Completato'}
-                                size="small"
-                                color={ordine.stato === 'Completato' ? 'success' : 'default'}
-                              />
-                            </Box>
-                          }
-                          secondary={
-                            <Box>
-                              <Typography variant="caption" color="text.secondary">
-                                {ordine.prodotti?.length || 0} prodotti • €{(ordine.totale || 0).toFixed(2)}
-                              </Typography>
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                      {index < ultomiOrdini.length - 1 && <Divider />}
-                    </React.Fragment>
-                  ))}
-                </List>
-              </Paper>
-            )}
+          {/* Statistiche Cliente */}
+          {cliente && (
+            <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-500">Punti</p>
+                <p className="text-xl font-bold flex items-center gap-1">
+                  <Star className="h-4 w-4 text-yellow-500" />
+                  {punti}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Totale Speso</p>
+                <p className="text-xl font-bold">€{totaleSpeso.toFixed(2)}</p>
+              </div>
+            </div>
+          )}
 
-            {/* Messaggio se cliente nuovo */}
-            {!clienteDettagli && !cliente._id && (
-              <Paper elevation={1} sx={{ p: 2, mt: 2, bgcolor: 'info.light', borderRadius: 2 }}>
-                <Typography variant="body2" color="info.dark">
-                  ℹ️ Questo numero non è ancora registrato nel sistema
-                </Typography>
-              </Paper>
-            )}
-          </>
-        )}
-      </DialogContent>
+          {/* Informazioni Aggiuntive */}
+          {cliente && (
+            <div className="text-sm space-y-1">
+              {cliente.email && (
+                <p className="text-gray-600">📧 {cliente.email}</p>
+              )}
+              {cliente.citta && (
+                <p className="text-gray-600">📍 {cliente.citta}</p>
+              )}
+            </div>
+          )}
 
-      <DialogActions sx={{ p: 2, gap: 1 }}>
-        <Button
-          onClick={onClose}
-          variant="outlined"
-          color="inherit"
-        >
-          Ignora
-        </Button>
-        
-        {cliente._id && (
+          {/* Alert se cliente non trovato */}
+          {!cliente && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                ⚠️ Cliente non trovato nel database. Puoi comunque creare un nuovo ordine.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex gap-2">
           <Button
-            onClick={handleVisualizzaCliente}
-            variant="outlined"
-            startIcon={<AccountIcon />}
+            variant="outline"
+            onClick={onClose}
+            className="flex-1"
           >
-            Scheda Cliente
+            <X className="h-4 w-4 mr-2" />
+            Ignora
           </Button>
-        )}
-        
-        <Button
-          onClick={handleNuovoOrdine}
-          variant="contained"
-          color="primary"
-          startIcon={<OrderIcon />}
-        >
-          Nuovo Ordine
-        </Button>
-      </DialogActions>
 
-      {/* CSS per animazione telefono */}
-      <style jsx global>{`
-        @keyframes ring {
-          0%, 100% { transform: rotate(0deg); }
-          10%, 30% { transform: rotate(-10deg); }
-          20%, 40% { transform: rotate(10deg); }
-          50% { transform: rotate(0deg); }
-        }
-      `}</style>
+          {cliente && (
+            <Button
+              variant="secondary"
+              onClick={handleAprirScheda}
+              className="flex-1"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Scheda Cliente
+            </Button>
+          )}
+
+          <Button
+            onClick={handleNuovoOrdine}
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+          >
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Nuovo Ordine
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   );
 }
