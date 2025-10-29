@@ -9,6 +9,9 @@ class PusherService {
     this.pusher = null;
     this.initialized = false;
     this.enabled = false;
+    
+    // ✅ AUTO-INIZIALIZZAZIONE NEL CONSTRUCTOR
+    this.initialize();
   }
 
   initialize() {
