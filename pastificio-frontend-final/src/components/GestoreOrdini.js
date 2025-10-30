@@ -413,7 +413,9 @@ export default function GestoreOrdini() {
   
   // ----------------------------------------------------------------
   // FUNZIONI: WebSocket
+  // ⚠️ DISABILITATO - Ora si usa Pusher per real-time invece di WebSocket
   // ----------------------------------------------------------------
+  /* 
   const connectWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     
@@ -471,6 +473,7 @@ export default function GestoreOrdini() {
       setIsConnected(false);
     }
   }, []);
+  */
   
   // ----------------------------------------------------------------
   // FUNZIONI: Sincronizzazione MongoDB
@@ -1117,7 +1120,7 @@ export default function GestoreOrdini() {
     };
     
     wakeUpServer();
-    connectWebSocket();
+    // connectWebSocket(); // ⚠️ DISABILITATO - ora si usa Pusher
     
     syncIntervalRef.current = setInterval(() => {
       sincronizzaConMongoDB();
@@ -1142,7 +1145,7 @@ export default function GestoreOrdini() {
       setIsConnected(true);
       sincronizzaConMongoDB();
       inviaOrdiniOffline();
-      connectWebSocket();
+      // connectWebSocket(); // ⚠️ DISABILITATO - ora si usa Pusher
     };
     
     const handleOffline = () => {
