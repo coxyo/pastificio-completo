@@ -34,6 +34,8 @@ import testRoutes from './routes/test.js';
 import adminRoutes from './routes/admin.js';
 import prodottiRoutes from './routes/prodotti.js';
 import cx3Routes from './routes/cx3.js';
+import webhookRoutes from './routes/webhook.js'; // ✅ WEBHOOK 3CX
+
 
 // Import middleware
 import { protect } from './middleware/auth.js';
@@ -285,6 +287,7 @@ app.use('/api/clienti', clientiRoutes);
 app.use('/api/limiti', limitiRoutes); // ✅ NUOVO
 
 // Routes protette
+app.use('/api/webhook', webhookRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/magazzino', magazzinoRoutes);
 app.use('/api/magazzino/ingredienti', ingredientiRoutes);
