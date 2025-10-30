@@ -1,5 +1,5 @@
 // services/pusherService.js - FRONTEND
-// Pusher client per notifiche real-time
+// Pusher client per notifiche real-time - ✅ VERSIONE AGGIORNATA CON FIX SUBSCRIBE
 
 import Pusher from 'pusher-js';
 
@@ -11,8 +11,8 @@ class PusherClientService {
     
     // ✅ ACCESSO CORRETTO ENV VARS IN NEXT.JS CLIENT
     // Le env vars sono iniettate al build time, NON a runtime
-    this.PUSHER_KEY = '42b401f9d1043202d98a'; // Hardcoded per sicurezza
-    this.PUSHER_CLUSTER = 'eu';
+    this.PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY || '42b401f9d1043282d298'; // ✅ Key corretta
+    this.PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu';
     
     console.log('🚀 Pusher Service inizializzato');
   }
@@ -62,7 +62,7 @@ class PusherClientService {
   }
 
   /**
-   * Subscribe al canale chiamate
+   * ✅ AGGIORNATO - Subscribe al canale chiamate con fix
    */
   subscribeToChiamate(callback) {
     if (!this.pusher) {
@@ -70,12 +70,20 @@ class PusherClientService {
       return null;
     }
 
-    try {
-      // Subscribe al canale
-      const channel = this.pusher.subscribe('chiamate');
-      this.channels['chiamate'] = channel;
+    // ✅ FIX: Check se già sottoscritto
+    if (this.channels.chiamate) {
+      console.log('✅ Già sottoscritto al canale chiamate');
+      return this.channels.chiamate;
+    }
 
-      // Bind evento nuova chiamata
+    try {
+      // ✅ Subscribe al canale
+      const channel = this.pusher.subscribe('chiamate');
+      this.channels.chiamate = channel; // ✅ IMPORTANTE: Salva nel channels object
+
+      console.log('✅ Sottoscritto a canale chiamate');
+
+      // ✅ Bind evento nuova chiamata
       channel.bind('nuova-chiamata', (data) => {
         console.log('📞 CHIAMATA IN ARRIVO via Pusher:', data);
         
@@ -90,7 +98,6 @@ class PusherClientService {
         if (callback) callback(data);
       });
 
-      console.log('✅ Sottoscritto a canale chiamate');
       return channel;
 
     } catch (error) {
@@ -105,9 +112,15 @@ class PusherClientService {
   subscribeToOrdini(callbacks = {}) {
     if (!this.pusher) return null;
 
+    // Check se già sottoscritto
+    if (this.channels.ordini) {
+      console.log('✅ Già sottoscritto al canale ordini');
+      return this.channels.ordini;
+    }
+
     try {
       const channel = this.pusher.subscribe('ordini');
-      this.channels['ordini'] = channel;
+      this.channels.ordini = channel;
 
       // Ordine creato
       if (callbacks.onCreate) {
@@ -148,9 +161,15 @@ class PusherClientService {
   subscribeToMagazzino(callback) {
     if (!this.pusher) return null;
 
+    // Check se già sottoscritto
+    if (this.channels.magazzino) {
+      console.log('✅ Già sottoscritto al canale magazzino');
+      return this.channels.magazzino;
+    }
+
     try {
       const channel = this.pusher.subscribe('magazzino');
-      this.channels['magazzino'] = channel;
+      this.channels.magazzino = channel;
 
       channel.bind('movimento-creato', (data) => {
         console.log('📊 Movimento magazzino via Pusher:', data);
@@ -220,14 +239,16 @@ const pusherClientService = new PusherClientService();
 if (typeof window !== 'undefined') {
   pusherClientService.initialize();
   
-  // Subscribe al canale chiamate (sempre attivo se loggato)
+  // ✅ AGGIORNATO: Subscribe al canale chiamate (sempre attivo se loggato)
   const token = localStorage.getItem('token');
   if (token) {
+    console.log('✅ Token trovato, sottoscrivo a chiamate...');
     pusherClientService.subscribeToChiamate();
   }
 
   // Subscribe quando fa login
   window.addEventListener('user-logged-in', () => {
+    console.log('🔐 User logged in, sottoscrivo a tutti i canali...');
     pusherClientService.subscribeToChiamate();
     pusherClientService.subscribeToOrdini({});
     pusherClientService.subscribeToMagazzino();
@@ -235,10 +256,11 @@ if (typeof window !== 'undefined') {
 
   // Unsubscribe quando fa logout
   window.addEventListener('user-logged-out', () => {
+    console.log('🔐 User logged out, disconnetto Pusher...');
     pusherClientService.disconnect();
   });
 
-  // Debug helper
+  // ✅ AGGIORNATO: Debug helper migliorato
   window.pusherDebug = {
     status: () => {
       const status = pusherClientService.getStatus();
@@ -246,24 +268,71 @@ if (typeof window !== 'undefined') {
       console.log('Initialized:', status.initialized);
       console.log('Connected:', status.connected);
       console.log('Socket ID:', status.socketId);
-      console.log('Channels:', status.channels);
+      console.log('Channels:', status.channels); // ✅ Mostra array canali
       console.log('Cluster:', status.cluster);
       console.log('====================');
       return status;
     },
-    test: () => {
-      console.log('🧪 Invia test chiamata al backend...');
-      console.log('Usa: POST /api/cx3/test per testare');
+    
+    // ✅ NUOVO: Forza subscribe a chiamate
+    forceSubscribe: () => {
+      if (!pusherClientService.channels.chiamate) {
+        console.log('🔄 Forzo subscribe a chiamate...');
+        pusherClientService.subscribeToChiamate((data) => {
+          console.log('📞 Chiamata ricevuta dal force subscribe:', data);
+        });
+      } else {
+        console.log('✅ Già sottoscritto a chiamate');
+      }
     },
+    
+    // ✅ NUOVO: Test simulato chiamata
+    testChiamata: async () => {
+      console.log('🧪 Invia test chiamata al backend...');
+      try {
+        const response = await fetch('https://pastificio-backend-production.up.railway.app/api/webhook/chiamata-entrante', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            numero: '+393271234567', // ✅ Modifica con numero reale
+            timestamp: new Date().toISOString(),
+            callId: 'test-' + Date.now(),
+            source: 'debug-console'
+          })
+        });
+        
+        const result = await response.json();
+        console.log('✅ Risposta webhook:', result);
+        return result;
+      } catch (error) {
+        console.error('❌ Errore test chiamata:', error);
+        return { error: error.message };
+      }
+    },
+    
     disconnect: () => pusherClientService.disconnect(),
+    
     reconnect: () => {
+      console.log('🔄 Reconnecting Pusher...');
       pusherClientService.disconnect();
-      pusherClientService.initialize();
-      pusherClientService.subscribeToChiamate();
+      setTimeout(() => {
+        pusherClientService.initialize();
+        pusherClientService.subscribeToChiamate();
+      }, 1000);
+    },
+    
+    // ✅ NUOVO: Lista tutti i canali
+    listChannels: () => {
+      console.log('📺 Canali sottoscritti:', Object.keys(pusherClientService.channels));
+      return Object.keys(pusherClientService.channels);
     }
   };
 
-  console.log('💡 Pusher debug: window.pusherDebug.status()');
+  console.log('💡 Pusher debug disponibili:');
+  console.log('  - window.pusherDebug.status()');
+  console.log('  - window.pusherDebug.forceSubscribe()');
+  console.log('  - window.pusherDebug.testChiamata()');
+  console.log('  - window.pusherDebug.listChannels()');
 }
 
 export default pusherClientService;
