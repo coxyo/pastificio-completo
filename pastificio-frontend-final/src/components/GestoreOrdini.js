@@ -680,12 +680,15 @@ export default function GestoreOrdini() {
         
         await sincronizzaConMongoDB();
         
+        // WebSocket notification disabilitato (ora si usa Pusher)
+        /*
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({
             type: 'ordine_creato',
             ordine: ordineCreato
           }));
         }
+        */
         
         mostraNotifica('Ordine salvato e giacenze aggiornate', 'success');
       } else {
@@ -1131,7 +1134,7 @@ export default function GestoreOrdini() {
     return () => {
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      if (wsRef.current) wsRef.current.close();
+      // if (wsRef.current) wsRef.current.close(); // WebSocket disabilitato
     };
   }, []);
   
@@ -1163,7 +1166,7 @@ export default function GestoreOrdini() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [sincronizzaConMongoDB, connectWebSocket]);
+  }, [sincronizzaConMongoDB]); // Rimosso connectWebSocket (disabilitato)
   
   // ====================================================================
   // RENDER JSX PRINCIPALE
