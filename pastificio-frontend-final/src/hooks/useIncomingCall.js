@@ -1,81 +1,88 @@
-// hooks/useIncomingCall.js - VERSIONE FIXATA con debouncing
+// hooks/useIncomingCall.js
+'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-export const useIncomingCall = () => {
-  const [incomingCall, setIncomingCall] = useState(null);
-  const [isCallPopupOpen, setIsCallPopupOpen] = useState(false);
-  const lastCallIdRef = useRef(null);
-  const debounceTimerRef = useRef(null);
+export default function useIncomingCall() {
+  const [chiamataCorrente, setChiamataCorrente] = useState(null);
+  const [connected, setConnected] = useState(false);
+  const [pusherService, setPusherService] = useState(null);
 
   useEffect(() => {
-    console.log('[useIncomingCall] Hook inizializzato');
+    // ✅ Import dinamico pusherService
+    if (typeof window === 'undefined') return;
 
-    const handleIncomingCall = (event) => {
-      const callData = event.detail;
+    console.log('🔧 [useIncomingCall] Inizializzazione...');
+
+    import('@/services/pusherService').then((module) => {
+      const service = module.default;
+      console.log('✅ [useIncomingCall] pusherService importato');
       
-      console.log('[useIncomingCall] 📞 Evento chiamata ricevuto:', callData);
-      
-      // ✅ DEBOUNCING: Ignora eventi troppo ravvicinati
-      if (debounceTimerRef.current) {
-        console.log('[useIncomingCall] ⏭️ Evento ignorato (debouncing attivo)');
-        return;
+      setPusherService(service);
+
+      // ✅ Verifica stato connessione ogni 2s
+      const checkConnection = () => {
+        const status = service.getStatus();
+        setConnected(status.connected && status.channelSubscribed);
+      };
+
+      checkConnection();
+      const interval = setInterval(checkConnection, 2000);
+
+      // ✅ Listener per evento chiamata
+      const handleIncomingCall = (event) => {
+        console.log('🔔 [useIncomingCall] Evento ricevuto:', event.detail);
+        setChiamataCorrente(event.detail);
+      };
+
+      // ✅ Registra listener globale per eventi custom
+      window.addEventListener('pusher-incoming-call', handleIncomingCall);
+
+      // ✅ Registra listener Pusher diretto
+      if (service.isConnected && service.callChannel) {
+        console.log('✅ [useIncomingCall] Registro listener Pusher');
+        service.onIncomingCall((data) => {
+          console.log('📞 [useIncomingCall] Chiamata Pusher:', data);
+          setChiamataCorrente(data);
+        });
+      } else {
+        // Se non ancora connesso, aspetta e riprova
+        console.log('⏳ [useIncomingCall] Pusher non ancora pronto, attendo...');
+        
+        const retryInterval = setInterval(() => {
+          const status = service.getStatus();
+          if (status.connected && status.channelSubscribed) {
+            console.log('✅ [useIncomingCall] Pusher pronto, registro listener');
+            service.onIncomingCall((data) => {
+              console.log('📞 [useIncomingCall] Chiamata Pusher:', data);
+              setChiamataCorrente(data);
+            });
+            clearInterval(retryInterval);
+          }
+        }, 1000);
+
+        return () => {
+          clearInterval(retryInterval);
+        };
       }
-      
-      // ✅ DEDUPLICAZIONE: Ignora se è la stessa chiamata
-      if (lastCallIdRef.current === callData.callId) {
-        console.log('[useIncomingCall] ⏭️ Chiamata duplicata, skip:', callData.callId);
-        return;
-      }
-      
-      // ✅ Aggiorna riferimento ultima chiamata
-      lastCallIdRef.current = callData.callId;
-      
-      // ✅ Imposta timer debounce di 3 secondi
-      debounceTimerRef.current = setTimeout(() => {
-        debounceTimerRef.current = null;
-        console.log('[useIncomingCall] ⏰ Debounce timer scaduto, pronto per nuova chiamata');
-      }, 3000);
-      
-      console.log('[useIncomingCall] ✅ Chiamata accettata, apertura popup...');
-      
-      // Aggiorna stato
-      setIncomingCall(callData);
-      setIsCallPopupOpen(true);
-      
-      // Reset dopo 2 minuti (chiamata probabilmente terminata)
-      setTimeout(() => {
-        lastCallIdRef.current = null;
-        console.log('[useIncomingCall] 🗑️ Reset chiamata dopo 2 minuti');
-      }, 120000);
-    };
 
-    // Listener evento custom
-    window.addEventListener('chiamata:arrivo', handleIncomingCall);
-
-    console.log('[useIncomingCall] ✅ Listener aggiunto per chiamata:arrivo');
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('chiamata:arrivo', handleIncomingCall);
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      console.log('[useIncomingCall] 🧹 Cleanup listener');
-    };
+      // ✅ Cleanup
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('pusher-incoming-call', handleIncomingCall);
+      };
+    });
   }, []);
 
-  const closeCallPopup = () => {
-    console.log('[useIncomingCall] 🔒 Chiusura popup chiamata');
-    setIsCallPopupOpen(false);
-    setIncomingCall(null);
-  };
+  const clearChiamata = useCallback(() => {
+    console.log('🗑️ [useIncomingCall] Clear chiamata');
+    setChiamataCorrente(null);
+  }, []);
 
   return {
-    incomingCall,
-    isCallPopupOpen,
-    closeCallPopup
+    chiamataCorrente,
+    clearChiamata,
+    connected,
+    pusherService
   };
-};
-
-export default useIncomingCall;
+}

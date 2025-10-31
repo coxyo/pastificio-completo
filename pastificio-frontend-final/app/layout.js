@@ -1,17 +1,14 @@
-// app/layout.js - ✅ AGGIORNATO CON PUSHER
+// app/layout.js - ROOT LAYOUT SEMPLIFICATO
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { OrdiniProvider } from '@/contexts/OrdiniContext';
 import ClientLayout from './ClientLayout';
 
-// ✅ PUSHER: Auto-initialize al caricamento app
-import '@/services/pusherService';
-
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: 'Pastificio Nonna Claudia',
-  description: 'Sistema di gestione ordini',
+  description: 'Sistema di gestione ordini con integrazione 3CX',
 };
 
 export default function RootLayout({ children }) {

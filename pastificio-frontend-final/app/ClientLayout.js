@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE FINALE CON CALLPOPUP + PUSHER
+// app/ClientLayout.js - VERSIONE FINALE CON PUSHER FIX
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -32,9 +32,6 @@ import {
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
 
-// ✅ PUSHER: Import ed inizializza qui (client component)
-import pusherService from '@/services/pusherService';
-
 const drawerWidth = 240;
 
 const menuItems = [
@@ -55,6 +52,7 @@ export default function ClientLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
+  const [pusherInitialized, setPusherInitialized] = useState(false);
 
   // Hook per gestire chiamate in arrivo
   const { chiamataCorrente, clearChiamata, connected } = useIncomingCall();
@@ -62,46 +60,55 @@ export default function ClientLayout({ children }) {
   useEffect(() => {
     setMounted(true);
     
-    // ✅ PUSHER: Inizializza quando component è montato
-    if (typeof window !== 'undefined') {
-      console.log('🔧 Inizializzazione Pusher da ClientLayout');
+    // ✅ PUSHER: Inizializzazione CORRETTA
+    if (typeof window !== 'undefined' && !pusherInitialized) {
+      console.log('🔧 [ClientLayout] Inizializzazione Pusher...');
       
-      // Verifica se pusherService esiste
-      if (pusherService) {
-        console.log('✅ pusherService disponibile:', pusherService);
+      // Import dinamico per evitare SSR issues
+      import('@/services/pusherService').then((module) => {
+        const pusherService = module.default;
         
-        // Inizializza se non già fatto
-        if (pusherService.initialize && !pusherService.pusher) {
-          pusherService.initialize();
-        }
-        
-        // Setup debug
-        if (!window.pusherDebug) {
-          window.pusherDebug = {
-            status: () => {
-              if (!pusherService.getStatus) {
-                console.error('❌ pusherService.getStatus non disponibile');
-                return null;
+        console.log('✅ [ClientLayout] pusherService importato:', pusherService);
+
+        // Verifica se è già inizializzato
+        const status = pusherService.getStatus();
+        console.log('📊 [ClientLayout] Status iniziale:', status);
+
+        if (!status.initialized) {
+          console.log('🚀 [ClientLayout] Inizializzazione in corso...');
+          
+          pusherService.initialize()
+            .then(() => {
+              console.log('✅ [ClientLayout] Pusher inizializzato con successo!');
+              setPusherInitialized(true);
+              
+              // Setup window.pusherDebug se non esiste
+              if (!window.pusherDebug) {
+                window.pusherDebug = {
+                  service: pusherService,
+                  status: () => pusherService.getStatus()
+                };
               }
-              const status = pusherService.getStatus();
-              console.log('=== Pusher Status ===');
-              console.log('Initialized:', status.initialized);
-              console.log('Connected:', status.connected);
-              console.log('Socket ID:', status.socketId);
-              console.log('Channels:', status.channels);
-              console.log('Cluster:', status.cluster);
-              console.log('====================');
-              return status;
-            },
-            service: pusherService
-          };
-          console.log('💡 Pusher debug disponibile: window.pusherDebug.status()');
+            })
+            .catch((error) => {
+              console.error('❌ [ClientLayout] Errore inizializzazione:', error);
+            });
+        } else {
+          console.log('✅ [ClientLayout] Pusher già inizializzato');
+          setPusherInitialized(true);
         }
-      } else {
-        console.error('❌ pusherService NON disponibile!');
-      }
+      }).catch((error) => {
+        console.error('❌ [ClientLayout] Errore import pusherService:', error);
+      });
     }
-  }, []);
+
+    // Richiedi permessi notifiche browser
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log('🔔 [ClientLayout] Permesso notifiche:', permission);
+      });
+    }
+  }, [pusherInitialized]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -206,6 +213,7 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
+          {/* ✅ Indicatore Pusher Connection */}
           {mounted && process.env.NODE_ENV === 'development' && (
             <Box
               sx={{
@@ -216,10 +224,13 @@ export default function ClientLayout({ children }) {
                 bgcolor: connected ? 'success.main' : 'error.main',
                 color: 'white',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5
               }}
             >
-              📞 {connected ? 'ON' : 'OFF'}
+              📞 {connected ? 'PUSHER ON' : 'PUSHER OFF'}
             </Box>
           )}
 
@@ -272,6 +283,7 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
+      {/* ✅ CallPopup quando c'è una chiamata */}
       {mounted && chiamataCorrente && (
         <CallPopup
           chiamata={chiamataCorrente}

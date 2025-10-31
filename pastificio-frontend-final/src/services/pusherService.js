@@ -1,338 +1,397 @@
-// services/pusherService.js - FRONTEND
-// Pusher client per notifiche real-time - ✅ VERSIONE AGGIORNATA CON FIX SUBSCRIBE
+// services/pusherService.js - FRONTEND v5.0 FIXED
+// ✅ INIZIALIZZAZIONE AUTOMATICA + DEBUG COMPLETO
 
 import Pusher from 'pusher-js';
 
 class PusherClientService {
   constructor() {
     this.pusher = null;
-    this.channels = {};
     this.isConnected = false;
+    this.callChannel = null;
+    this.initializationPromise = null;
     
-    // ✅ ACCESSO CORRETTO ENV VARS IN NEXT.JS CLIENT
-    // Le env vars sono iniettate al build time, NON a runtime
-    this.PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY || '42b401f9d1043282d298'; // ✅ Key corretta
-    this.PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu';
+    // ✅ Configurazione
+    this.PUSHER_KEY = '42b401f9d1043282d298';
+    this.PUSHER_CLUSTER = 'eu';
     
-    console.log('🚀 Pusher Service inizializzato');
+    console.log('🚀 Pusher Service v5.0 creato (non ancora inizializzato)');
+    
+    // ✅ AUTO-INIZIALIZZAZIONE solo in browser
+    if (typeof window !== 'undefined') {
+      console.log('🌐 Ambiente browser rilevato, inizializzazione automatica...');
+      this.initialize();
+    }
   }
 
+  // ✅ INIZIALIZZAZIONE
   initialize() {
-    if (this.pusher) {
-      console.log('⚠️ Pusher già inizializzato');
-      return;
+    // Se già inizializzato, ritorna promise esistente
+    if (this.initializationPromise) {
+      console.log('⚠️ Inizializzazione già in corso...');
+      return this.initializationPromise;
     }
 
-    if (!this.PUSHER_KEY) {
-      console.error('❌ PUSHER_KEY mancante');
-      return;
+    // Se già connesso
+    if (this.pusher && this.isConnected) {
+      console.log('✅ Pusher già inizializzato e connesso');
+      return Promise.resolve(this.pusher);
     }
 
-    try {
-      // ✅ Inizializza Pusher client
-      this.pusher = new Pusher(this.PUSHER_KEY, {
-        cluster: this.PUSHER_CLUSTER,
-        encrypted: true,
-        forceTLS: true
-      });
+    console.log('🔧 Inizializzazione Pusher...');
+    console.log('📡 Key:', this.PUSHER_KEY);
+    console.log('🌍 Cluster:', this.PUSHER_CLUSTER);
 
-      // Eventi connessione
-      this.pusher.connection.bind('connected', () => {
-        console.log('✅ Pusher connesso! Socket ID:', this.pusher.connection.socket_id);
-        this.isConnected = true;
-      });
+    this.initializationPromise = new Promise((resolve, reject) => {
+      try {
+        // Crea istanza Pusher
+        this.pusher = new Pusher(this.PUSHER_KEY, {
+          cluster: this.PUSHER_CLUSTER,
+          encrypted: true,
+          forceTLS: true,
+          // ✅ Abilita logging in development
+          enabledTransports: ['ws', 'wss'],
+          disableStats: true,
+        });
 
-      this.pusher.connection.bind('disconnected', () => {
-        console.log('❌ Pusher disconnesso');
-        this.isConnected = false;
-      });
+        console.log('🔌 Pusher client creato, in attesa di connessione...');
 
-      this.pusher.connection.bind('error', (err) => {
-        console.error('❌ Errore Pusher:', err);
-      });
+        // ✅ Handler connessione riuscita
+        this.pusher.connection.bind('connected', () => {
+          console.log('✅ Pusher CONNESSO! Socket ID:', this.pusher.connection.socket_id);
+          this.isConnected = true;
+          
+          // ✅ AUTO-SUBSCRIBE al canale chiamate
+          setTimeout(() => {
+            this.subscribeToCallChannel();
+          }, 500); // Piccolo delay per stabilizzare connessione
+          
+          resolve(this.pusher);
+        });
 
-      console.log('✅ Pusher client inizializzato', {
-        cluster: this.PUSHER_CLUSTER,
-        key: this.PUSHER_KEY.substring(0, 8) + '...'
-      });
+        // ✅ Handler stato connessione
+        this.pusher.connection.bind('state_change', (states) => {
+          console.log(`🔄 Pusher state: ${states.previous} → ${states.current}`);
+        });
 
-    } catch (error) {
-      console.error('❌ Errore inizializzazione Pusher:', error);
-    }
+        // ✅ Handler disconnessione
+        this.pusher.connection.bind('disconnected', () => {
+          console.warn('⚠️ Pusher disconnesso');
+          this.isConnected = false;
+        });
+
+        // ✅ Handler errore
+        this.pusher.connection.bind('error', (err) => {
+          console.error('❌ Errore Pusher:', err);
+          this.isConnected = false;
+          reject(err);
+        });
+
+        // ✅ Handler servizio non disponibile
+        this.pusher.connection.bind('unavailable', () => {
+          console.error('❌ Pusher non disponibile');
+          this.isConnected = false;
+          reject(new Error('Pusher unavailable'));
+        });
+
+        // ✅ Handler fallimento connessione
+        this.pusher.connection.bind('failed', () => {
+          console.error('❌ Connessione Pusher fallita');
+          this.isConnected = false;
+          reject(new Error('Pusher connection failed'));
+        });
+
+        // ✅ Timeout se non si connette entro 10s
+        setTimeout(() => {
+          if (!this.isConnected) {
+            console.error('❌ Timeout connessione Pusher (10s)');
+            reject(new Error('Pusher connection timeout'));
+          }
+        }, 10000);
+
+      } catch (error) {
+        console.error('❌ Errore inizializzazione Pusher:', error);
+        this.initializationPromise = null;
+        reject(error);
+      }
+    });
+
+    return this.initializationPromise;
   }
 
-  /**
-   * ✅ AGGIORNATO - Subscribe al canale chiamate con fix
-   */
-  subscribeToChiamate(callback) {
+  // ✅ SUBSCRIBE CANALE CHIAMATE
+  subscribeToCallChannel() {
     if (!this.pusher) {
-      console.error('❌ Pusher non inizializzato');
+      console.error('❌ Pusher non inizializzato, impossibile fare subscribe');
       return null;
     }
 
-    // ✅ FIX: Check se già sottoscritto
-    if (this.channels.chiamate) {
+    if (this.callChannel) {
       console.log('✅ Già sottoscritto al canale chiamate');
-      return this.channels.chiamate;
+      return this.callChannel;
     }
 
+    console.log('📡 Subscribe al canale "chiamate"...');
+
     try {
-      // ✅ Subscribe al canale
-      const channel = this.pusher.subscribe('chiamate');
-      this.channels.chiamate = channel; // ✅ IMPORTANTE: Salva nel channels object
+      this.callChannel = this.pusher.subscribe('chiamate');
 
-      console.log('✅ Sottoscritto a canale chiamate');
-
-      // ✅ Bind evento nuova chiamata
-      channel.bind('nuova-chiamata', (data) => {
-        console.log('📞 CHIAMATA IN ARRIVO via Pusher:', data);
-        
-        // Trigger evento per CallPopup
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('chiamata:arrivo', {
-            detail: data
-          }));
-        }
-        
-        // Callback opzionale
-        if (callback) callback(data);
+      // ✅ Evento subscription success
+      this.callChannel.bind('pusher:subscription_succeeded', () => {
+        console.log('✅ Subscribe chiamate SUCCESS!');
+        console.log('📞 Listener attivo per evento "nuova-chiamata"');
       });
 
-      return channel;
+      // ✅ Evento subscription error
+      this.callChannel.bind('pusher:subscription_error', (status) => {
+        console.error('❌ Errore subscribe chiamate:', status);
+      });
 
-    } catch (error) {
-      console.error('❌ Errore subscribe chiamate:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Subscribe al canale ordini
-   */
-  subscribeToOrdini(callbacks = {}) {
-    if (!this.pusher) return null;
-
-    // Check se già sottoscritto
-    if (this.channels.ordini) {
-      console.log('✅ Già sottoscritto al canale ordini');
-      return this.channels.ordini;
-    }
-
-    try {
-      const channel = this.pusher.subscribe('ordini');
-      this.channels.ordini = channel;
-
-      // Ordine creato
-      if (callbacks.onCreate) {
-        channel.bind('ordine-creato', (data) => {
-          console.log('📦 Nuovo ordine via Pusher:', data);
-          callbacks.onCreate(data);
-          
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('ordine-creato', { detail: data }));
-          }
+      // ✅ Listener globale per debug (tutti gli eventi)
+      if (process.env.NODE_ENV === 'development') {
+        this.callChannel.bind_global((eventName, data) => {
+          console.log(`🌐 [Pusher Event] ${eventName}:`, data);
         });
       }
 
-      // Ordine aggiornato
-      if (callbacks.onUpdate) {
-        channel.bind('ordine-aggiornato', (data) => {
-          console.log('📝 Ordine aggiornato via Pusher:', data);
-          callbacks.onUpdate(data);
-          
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('ordine-aggiornato', { detail: data }));
-          }
+      return this.callChannel;
+
+    } catch (error) {
+      console.error('❌ Errore subscribe:', error);
+      return null;
+    }
+  }
+
+  // ✅ LISTENER CHIAMATA ENTRANTE
+  onIncomingCall(callback) {
+    if (!this.pusher) {
+      console.warn('⚠️ Pusher non ancora inizializzato, inizializzo ora...');
+      this.initialize().then(() => {
+        this._bindCallListener(callback);
+      });
+      return;
+    }
+
+    if (!this.callChannel) {
+      console.warn('⚠️ Canale non sottoscritto, subscribing...');
+      this.subscribeToCallChannel();
+      
+      // Attendi 1s per subscribe
+      setTimeout(() => {
+        this._bindCallListener(callback);
+      }, 1000);
+      return;
+    }
+
+    this._bindCallListener(callback);
+  }
+
+  // ✅ Helper per bind listener
+  _bindCallListener(callback) {
+    if (!this.callChannel) {
+      console.error('❌ Canale chiamate non disponibile');
+      return;
+    }
+
+    console.log('👂 Listener per "nuova-chiamata" registrato');
+
+    // ✅ Bind evento nuova-chiamata
+    this.callChannel.bind('nuova-chiamata', (data) => {
+      console.log('🔔 CHIAMATA IN ARRIVO via Pusher:', data);
+      
+      // ✅ Mostra notifica browser se permessi concessi
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('📞 Nuova Chiamata', {
+          body: `Chiamata da: ${data.numero}`,
+          icon: '/favicon.ico',
+          tag: data.callId,
+          requireInteraction: true
         });
       }
 
-      console.log('✅ Sottoscritto a canale ordini');
-      return channel;
+      // ✅ Emetti evento custom per hook React
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pusher-incoming-call', { 
+          detail: data 
+        }));
+      }
 
-    } catch (error) {
-      console.error('❌ Errore subscribe ordini:', error);
-      return null;
-    }
+      // ✅ Chiama callback con dati chiamata
+      if (typeof callback === 'function') {
+        callback(data);
+      } else {
+        console.warn('⚠️ Callback non è una funzione');
+      }
+    });
   }
 
-  /**
-   * Subscribe al canale magazzino
-   */
-  subscribeToMagazzino(callback) {
-    if (!this.pusher) return null;
-
-    // Check se già sottoscritto
-    if (this.channels.magazzino) {
-      console.log('✅ Già sottoscritto al canale magazzino');
-      return this.channels.magazzino;
-    }
-
-    try {
-      const channel = this.pusher.subscribe('magazzino');
-      this.channels.magazzino = channel;
-
-      channel.bind('movimento-creato', (data) => {
-        console.log('📊 Movimento magazzino via Pusher:', data);
-        
-        if (callback) callback(data);
-        
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('movimento-creato', { detail: data }));
-        }
-      });
-
-      console.log('✅ Sottoscritto a canale magazzino');
-      return channel;
-
-    } catch (error) {
-      console.error('❌ Errore subscribe magazzino:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Unsubscribe da un canale
-   */
-  unsubscribe(channelName) {
-    if (this.channels[channelName]) {
-      this.pusher.unsubscribe(channelName);
-      delete this.channels[channelName];
-      console.log(`✅ Unsubscribed da ${channelName}`);
-    }
-  }
-
-  /**
-   * Disconnect da Pusher
-   */
+  // ✅ DISCONNECT
   disconnect() {
     if (this.pusher) {
-      Object.keys(this.channels).forEach(channel => {
-        this.unsubscribe(channel);
-      });
+      console.log('🔌 Disconnessione Pusher...');
       
+      if (this.callChannel) {
+        this.callChannel.unbind_all();
+        this.pusher.unsubscribe('chiamate');
+        this.callChannel = null;
+      }
+
       this.pusher.disconnect();
       this.pusher = null;
       this.isConnected = false;
+      this.initializationPromise = null;
       
-      console.log('🔌 Pusher disconnesso');
+      console.log('✅ Pusher disconnesso');
     }
   }
 
-  /**
-   * Status Pusher
-   */
+  // ✅ RECONNECT
+  reconnect() {
+    console.log('🔄 Reconnect Pusher...');
+    this.disconnect();
+    return this.initialize();
+  }
+
+  // ✅ STATUS
   getStatus() {
     return {
       initialized: !!this.pusher,
       connected: this.isConnected,
       socketId: this.pusher?.connection?.socket_id || null,
-      channels: Object.keys(this.channels),
-      cluster: this.PUSHER_CLUSTER
+      connectionState: this.pusher?.connection?.state || 'disconnected',
+      channelSubscribed: !!this.callChannel,
+      channels: this.pusher ? Object.keys(this.pusher.channels?.channels || {}) : [],
+      cluster: this.PUSHER_CLUSTER,
+      key: this.PUSHER_KEY
     };
   }
 }
 
-// Singleton
-const pusherClientService = new PusherClientService();
+// ✅ SINGLETON - Crea istanza unica
+const pusherService = new PusherClientService();
 
-// Auto-initialize quando il modulo viene caricato nel browser
+// ✅ DEBUG HELPER (window.pusherDebug)
 if (typeof window !== 'undefined') {
-  pusherClientService.initialize();
-  
-  // ✅ AGGIORNATO: Subscribe al canale chiamate (sempre attivo se loggato)
-  const token = localStorage.getItem('token');
-  if (token) {
-    console.log('✅ Token trovato, sottoscrivo a chiamate...');
-    pusherClientService.subscribeToChiamate();
-  }
-
-  // Subscribe quando fa login
-  window.addEventListener('user-logged-in', () => {
-    console.log('🔐 User logged in, sottoscrivo a tutti i canali...');
-    pusherClientService.subscribeToChiamate();
-    pusherClientService.subscribeToOrdini({});
-    pusherClientService.subscribeToMagazzino();
-  });
-
-  // Unsubscribe quando fa logout
-  window.addEventListener('user-logged-out', () => {
-    console.log('🔐 User logged out, disconnetto Pusher...');
-    pusherClientService.disconnect();
-  });
-
-  // ✅ AGGIORNATO: Debug helper migliorato
   window.pusherDebug = {
+    service: pusherService,
+    
+    // Status completo
     status: () => {
-      const status = pusherClientService.getStatus();
-      console.log('=== Pusher Status ===');
+      const status = pusherService.getStatus();
+      console.log('📊 ===== PUSHER STATUS =====');
       console.log('Initialized:', status.initialized);
       console.log('Connected:', status.connected);
       console.log('Socket ID:', status.socketId);
-      console.log('Channels:', status.channels); // ✅ Mostra array canali
+      console.log('Connection State:', status.connectionState);
+      console.log('Channel Subscribed:', status.channelSubscribed);
+      console.log('Active Channels:', status.channels);
       console.log('Cluster:', status.cluster);
-      console.log('====================');
+      console.log('Key:', status.key);
+      console.log('============================');
       return status;
     },
     
-    // ✅ NUOVO: Forza subscribe a chiamate
-    forceSubscribe: () => {
-      if (!pusherClientService.channels.chiamate) {
-        console.log('🔄 Forzo subscribe a chiamate...');
-        pusherClientService.subscribeToChiamate((data) => {
-          console.log('📞 Chiamata ricevuta dal force subscribe:', data);
-        });
-      } else {
-        console.log('✅ Già sottoscritto a chiamate');
-      }
-    },
-    
-    // ✅ NUOVO: Test simulato chiamata
-    testChiamata: async () => {
-      console.log('🧪 Invia test chiamata al backend...');
-      try {
-        const response = await fetch('https://pastificio-backend-production.up.railway.app/api/webhook/chiamata-entrante', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            numero: '+393271234567', // ✅ Modifica con numero reale
-            timestamp: new Date().toISOString(),
-            callId: 'test-' + Date.now(),
-            source: 'debug-console'
-          })
-        });
-        
-        const result = await response.json();
-        console.log('✅ Risposta webhook:', result);
-        return result;
-      } catch (error) {
-        console.error('❌ Errore test chiamata:', error);
-        return { error: error.message };
-      }
-    },
-    
-    disconnect: () => pusherClientService.disconnect(),
-    
+    // Reconnect manuale
     reconnect: () => {
-      console.log('🔄 Reconnecting Pusher...');
-      pusherClientService.disconnect();
-      setTimeout(() => {
-        pusherClientService.initialize();
-        pusherClientService.subscribeToChiamate();
-      }, 1000);
+      console.log('🔄 Reconnect manuale richiesto...');
+      return pusherService.reconnect();
     },
     
-    // ✅ NUOVO: Lista tutti i canali
+    // Force subscribe
+    forceSubscribe: () => {
+      console.log('📡 Force subscribe manuale...');
+      return pusherService.subscribeToCallChannel();
+    },
+    
+    // Test chiamata con webhook reale
+    testChiamata: (numero = '+393271234567') => {
+      console.log('🧪 Test chiamata con webhook backend...');
+      console.log('📞 Numero:', numero);
+      
+      fetch('https://pastificio-backend-production.up.railway.app/api/webhook/chiamata-entrante', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          numero: numero,
+          timestamp: new Date().toISOString(),
+          callId: 'debug-test-' + Date.now(),
+          source: 'debug-console',
+          tipo: 'entrante'
+        })
+      })
+      .then(response => {
+        console.log('📡 Response status:', response.status);
+        return response.json();
+      })
+      .then(data => {
+        console.log('✅ Webhook risposta:', data);
+        console.log('⏳ Attendi evento Pusher...');
+      })
+      .catch(error => {
+        console.error('❌ Errore webhook:', error);
+      });
+    },
+    
+    // Test locale (simula evento)
+    testLocale: (numero = '+393271234567') => {
+      console.log('🧪 Test locale (evento simulato)...');
+      
+      if (!pusherService.callChannel) {
+        console.error('❌ Canale non sottoscritto!');
+        return;
+      }
+
+      const fakeData = {
+        numero: numero,
+        timestamp: new Date().toISOString(),
+        callId: 'test-local-' + Date.now(),
+        source: 'test-frontend',
+        tipo: 'entrante',
+        cliente: null
+      };
+
+      console.log('📤 Emetto evento "nuova-chiamata":', fakeData);
+      
+      // Emetti evento custom
+      window.dispatchEvent(new CustomEvent('pusher-incoming-call', { 
+        detail: fakeData 
+      }));
+    },
+    
+    // Lista canali attivi
     listChannels: () => {
-      console.log('📺 Canali sottoscritti:', Object.keys(pusherClientService.channels));
-      return Object.keys(pusherClientService.channels);
+      const channels = Object.keys(pusherService.pusher?.channels?.channels || {});
+      console.log('📡 Canali attivi:', channels);
+      return channels;
+    },
+
+    // Verifica listener
+    checkListeners: () => {
+      if (!pusherService.callChannel) {
+        console.error('❌ Canale non sottoscritto!');
+        return;
+      }
+
+      const callbacks = pusherService.callChannel.callbacks;
+      console.log('👂 Listener registrati:', callbacks);
+      
+      const hasListener = callbacks && callbacks['nuova-chiamata'];
+      console.log('✅ Listener "nuova-chiamata" presente:', !!hasListener);
+      
+      return callbacks;
     }
   };
-
-  console.log('💡 Pusher debug disponibili:');
-  console.log('  - window.pusherDebug.status()');
-  console.log('  - window.pusherDebug.forceSubscribe()');
-  console.log('  - window.pusherDebug.testChiamata()');
-  console.log('  - window.pusherDebug.listChannels()');
+  
+  console.log('💡 ===== PUSHER DEBUG COMMANDS =====');
+  console.log('window.pusherDebug.status()        - Mostra stato');
+  console.log('window.pusherDebug.reconnect()     - Riconnetti');
+  console.log('window.pusherDebug.testChiamata()  - Test webhook backend');
+  console.log('window.pusherDebug.testLocale()    - Test locale (simula)');
+  console.log('window.pusherDebug.forceSubscribe()- Force subscribe');
+  console.log('window.pusherDebug.listChannels()  - Lista canali');
+  console.log('window.pusherDebug.checkListeners()- Verifica listener');
+  console.log('====================================');
 }
 
-export default pusherClientService;
+export default pusherService;
