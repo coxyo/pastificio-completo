@@ -134,4 +134,5 @@ export function DialogFooter({ children, className = "", ...props }) {
   );
 }
 
-export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter };
+// ❌ RIMOSSO: export duplicato che causava l'errore
+// export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter };
