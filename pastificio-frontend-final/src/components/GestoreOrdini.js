@@ -46,7 +46,6 @@ import GestioneLimiti from './GestioneLimiti';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
-import pusherClientService from '../services/pusherService';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -238,8 +237,7 @@ export default function GestoreOrdini() {
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   
   // ✅ PUSHER: Hook per chiamate entranti real-time
-  const { incomingCall, isCallPopupOpen, closeCallPopup } = useIncomingCall();
-  
+    
   // ----------------------------------------------------------------
   // REFS
   // ----------------------------------------------------------------
@@ -1460,14 +1458,7 @@ export default function GestoreOrdini() {
           </DialogActions>
         </Dialog>
         
-        {/* ✅ CallPopup con Pusher Real-Time */}
-        {isCallPopupOpen && (
-          <CallPopup 
-            chiamata={incomingCall}
-            onClose={closeCallPopup}
-          />
-        )}
-        
+               
         <Snackbar
           open={notifica.aperta}
           autoHideDuration={6000}
