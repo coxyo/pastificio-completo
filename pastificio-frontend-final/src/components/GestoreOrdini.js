@@ -46,7 +46,6 @@ import GestioneLimiti from './GestioneLimiti';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
-import { useIncomingCall } from '../hooks/useIncomingCall';
 import pusherClientService from '../services/pusherService';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
