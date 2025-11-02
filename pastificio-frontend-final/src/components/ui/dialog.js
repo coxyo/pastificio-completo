@@ -133,5 +133,3 @@ export function DialogFooter({ children, className = "", ...props }) {
     </div>
   );
 }
-
-export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter };
