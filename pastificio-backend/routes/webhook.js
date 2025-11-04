@@ -40,17 +40,18 @@ router.post('/chiamata-entrante', async (req, res) => {
       });
     }
     
-    // Pulisci numero (rimuovi spazi, trattini, ecc.)
-    const numeroPulito = numero.replace(/[\s\-\(\)]/g, '');
+    // Pulisci numero da tutti i caratteri speciali
+const numeroPulito = numero.replace(/[^\d]/g, ''); // Solo cifre
     
     // ===== CERCA CLIENTE NEL DATABASE =====
     let clienteTrovato = null;
     
     try {
       // Cerca per numero esatto
-      clienteTrovato = await Cliente.findOne({ 
-        telefono: { $regex: numeroPulito, $options: 'i' } 
-      });
+      const escapedNumero = numeroPulito.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+clienteTrovato = await Cliente.findOne({ 
+  telefono: { $regex: escapedNumero, $options: 'i' } 
+});
       
       // Se non trovato, prova con ricerca parziale
       if (!clienteTrovato) {
