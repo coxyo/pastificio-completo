@@ -285,12 +285,24 @@ export default function ClientLayout({ children }) {
 
       {/* ✅ CallPopup quando c'è una chiamata */}
       {mounted && chiamataCorrente && (
-        <CallPopup
-          chiamata={chiamataCorrente}
-          onClose={clearChiamata}
-          onSaveNote={handleSaveNote}
-        />
-      )}
+  <CallPopup
+    isOpen={!!chiamataCorrente}           // ✅ AGGIUNTO
+    callData={chiamataCorrente}           // ✅ RINOMINATO
+    onClose={clearChiamata}               // ✅ OK
+    onAccept={() => {                     // ✅ AGGIUNTO
+      console.log('📞 Accetta chiamata:', chiamataCorrente);
+      
+      // Naviga a pagina nuovo ordine con dati cliente
+      if (chiamataCorrente.cliente) {
+        router.push(`/?clienteId=${chiamataCorrente.cliente._id}`);
+      } else {
+        router.push(`/?numero=${chiamataCorrente.numero}`);
+      }
+      
+      clearChiamata();
+    }}
+  />
+)}
     </Box>
   );
 }
