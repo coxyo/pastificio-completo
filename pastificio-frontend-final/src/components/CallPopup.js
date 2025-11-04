@@ -12,7 +12,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Phone, X, User } from 'lucide-react';
 
-export function CallPopup({ isOpen, onClose, onAccept, callData }) {
+export function CallPopup({ 
+  isOpen = false, 
+  onClose = () => {}, 
+  onAccept = () => {}, 
+  callData = null 
+}) {
   if (!callData) return null;
 
   const { numero, cliente } = callData;
