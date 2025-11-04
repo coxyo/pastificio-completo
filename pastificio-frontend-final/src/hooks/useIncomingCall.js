@@ -32,6 +32,7 @@ export default function useIncomingCall() {
       const handleIncomingCall = (event) => {
         console.log('🔔 [useIncomingCall] Evento ricevuto:', event.detail);
         setChiamataCorrente(event.detail); // ✅ AGGIORNA STATE
+        console.log('✅ [useIncomingCall] State aggiornato via event:', event.detail); //
       };
 
       // Registra listener per eventi custom (da pusherService)
@@ -43,6 +44,7 @@ export default function useIncomingCall() {
         service.onIncomingCall((data) => {
           console.log('📞 [useIncomingCall] Chiamata Pusher:', data);
           setChiamataCorrente(data); // ✅ AGGIORNA STATE
+           console.log('✅ [useIncomingCall] State aggiornato:', data); //
         });
       } else {
         console.log('⏳ [useIncomingCall] Pusher non ancora pronto, attendo...');
