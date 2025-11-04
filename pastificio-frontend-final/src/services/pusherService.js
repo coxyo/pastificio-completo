@@ -11,7 +11,7 @@ class PusherClientService {
     this.initializationPromise = null;
     
     // ✅ Configurazione
-    this.PUSHER_KEY = '42b401f9d1043282d298';
+    this.PUSHER_KEY = '42b401f9d1043202d98a';
     this.PUSHER_CLUSTER = 'eu';
     
     console.log('🚀 Pusher Service v5.0 creato (non ancora inizializzato)');
