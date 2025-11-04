@@ -1,4 +1,3 @@
-// hooks/useIncomingCall.js
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,18 +8,18 @@ export default function useIncomingCall() {
   const [pusherService, setPusherService] = useState(null);
 
   useEffect(() => {
-    // ✅ Import dinamico pusherService
     if (typeof window === 'undefined') return;
 
     console.log('🔧 [useIncomingCall] Inizializzazione...');
 
+    // Import dinamico pusherService
     import('@/services/pusherService').then((module) => {
       const service = module.default;
       console.log('✅ [useIncomingCall] pusherService importato');
       
       setPusherService(service);
 
-      // ✅ Verifica stato connessione ogni 2s
+      // Check connessione ogni 2s
       const checkConnection = () => {
         const status = service.getStatus();
         setConnected(status.connected && status.channelSubscribed);
@@ -29,13 +28,13 @@ export default function useIncomingCall() {
       checkConnection();
       const interval = setInterval(checkConnection, 2000);
 
-      // ✅ Listener per evento chiamata
+      // ✅ LISTENER GLOBALE per eventi custom
       const handleIncomingCall = (event) => {
         console.log('🔔 [useIncomingCall] Evento ricevuto:', event.detail);
-        setChiamataCorrente(event.detail);
+        setChiamataCorrente(event.detail); // ✅ AGGIORNA STATE
       };
 
-      // ✅ Registra listener globale per eventi custom
+      // Registra listener per eventi custom (da pusherService)
       window.addEventListener('pusher-incoming-call', handleIncomingCall);
 
       // ✅ Registra listener Pusher diretto
@@ -43,10 +42,9 @@ export default function useIncomingCall() {
         console.log('✅ [useIncomingCall] Registro listener Pusher');
         service.onIncomingCall((data) => {
           console.log('📞 [useIncomingCall] Chiamata Pusher:', data);
-          setChiamataCorrente(data);
+          setChiamataCorrente(data); // ✅ AGGIORNA STATE
         });
       } else {
-        // Se non ancora connesso, aspetta e riprova
         console.log('⏳ [useIncomingCall] Pusher non ancora pronto, attendo...');
         
         const retryInterval = setInterval(() => {
@@ -55,7 +53,7 @@ export default function useIncomingCall() {
             console.log('✅ [useIncomingCall] Pusher pronto, registro listener');
             service.onIncomingCall((data) => {
               console.log('📞 [useIncomingCall] Chiamata Pusher:', data);
-              setChiamataCorrente(data);
+              setChiamataCorrente(data); // ✅ AGGIORNA STATE
             });
             clearInterval(retryInterval);
           }
@@ -63,10 +61,11 @@ export default function useIncomingCall() {
 
         return () => {
           clearInterval(retryInterval);
+          clearInterval(interval);
+          window.removeEventListener('pusher-incoming-call', handleIncomingCall);
         };
       }
 
-      // ✅ Cleanup
       return () => {
         clearInterval(interval);
         window.removeEventListener('pusher-incoming-call', handleIncomingCall);
