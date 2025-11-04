@@ -1,5 +1,5 @@
-// components/CallPopup.js - VERSIONE SEMPLIFICATA v4.0
-// ✅ Popup chiamata in arrivo
+// components/CallPopup.js - VERSIONE FIX v5.0
+'use client';
 
 import React from 'react';
 import {
@@ -7,20 +7,27 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Phone, X, User } from 'lucide-react';
 
-export function CallPopup({ 
+export default function CallPopup({ 
   isOpen = false, 
   onClose = () => {}, 
   onAccept = () => {}, 
   callData = null 
 }) {
-  if (!callData) return null;
+  console.log('🎨 [CallPopup] Render:', { isOpen, callData });
 
-  const { numero, cliente } = callData;
+  if (!callData) {
+    console.log('⚠️ [CallPopup] No callData, non renderizzato');
+    return null;
+  }
+
+  const { numero, numeroOriginale, cliente, timestamp } = callData;
+  const displayNumero = numeroOriginale || numero;
+
+  console.log('✅ [CallPopup] Rendering popup per:', displayNumero);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -36,8 +43,13 @@ export function CallPopup({
           {/* Numero chiamante */}
           <div className="text-center py-4">
             <p className="text-2xl font-bold text-gray-900">
-              {numero}
+              {displayNumero}
             </p>
+            {timestamp && (
+              <p className="text-sm text-gray-500 mt-2">
+                {new Date(timestamp).toLocaleTimeString('it-IT')}
+              </p>
+            )}
           </div>
 
           {/* Dati cliente */}
@@ -64,6 +76,11 @@ export function CallPopup({
                       {cliente.email}
                     </p>
                   )}
+                  {cliente.numeroOrdini && (
+                    <p className="text-sm text-green-700">
+                      Ordini: {cliente.numeroOrdini}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -76,7 +93,7 @@ export function CallPopup({
                     Cliente Sconosciuto
                   </p>
                   <p className="text-sm text-yellow-700">
-                    Cliente non trovato nel database. Puoi comunque creare un nuovo ordine.
+                    Numero non trovato nel database.
                   </p>
                 </div>
               </div>
@@ -98,7 +115,7 @@ export function CallPopup({
               className="flex-1 bg-green-600 hover:bg-green-700"
             >
               <Phone className="w-4 h-4 mr-2" />
-              Ordine
+              Nuovo Ordine
             </Button>
           </div>
         </div>
@@ -106,5 +123,3 @@ export function CallPopup({
     </Dialog>
   );
 }
-
-export default CallPopup;
