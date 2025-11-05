@@ -46,8 +46,6 @@ import GestioneLimiti from './GestioneLimiti';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
-import { useIncomingCall } from '../hooks/useIncomingCall';
-import pusherClientService from '../services/pusherService';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -239,8 +237,7 @@ export default function GestoreOrdini() {
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   
   // ✅ PUSHER: Hook per chiamate entranti real-time
-  const { incomingCall, isCallPopupOpen, closeCallPopup } = useIncomingCall();
-  
+    
   // ----------------------------------------------------------------
   // REFS
   // ----------------------------------------------------------------
@@ -391,6 +388,40 @@ export default function GestoreOrdini() {
 
     return () => clearInterval(intervalId);
   }, []);
+  
+  // ----------------------------------------------------------------
+  // EFFETTO 4: Gestione chiamata in arrivo da CallPopup
+  // ----------------------------------------------------------------
+  useEffect(() => {
+  const chiamataData = localStorage.getItem('chiamataCliente');
+  
+  if (chiamataData) { // ✅ RIMUOVI CONTROLLO ordini.length > 0
+    try {
+      const { clienteId, telefono } = JSON.parse(chiamataData);
+      
+      console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
+      
+      if (clienteId) {
+        setTimeout(() => {
+          setDialogoNuovoOrdineAperto(true);
+          console.log('✅ Dialog nuovo ordine aperto per cliente:', clienteId);
+        }, 800); // ✅ AUMENTA DELAY A 800ms
+      } else {
+        console.log('⚠️ Cliente sconosciuto, numero:', telefono);
+        setTimeout(() => {
+          setDialogoNuovoOrdineAperto(true);
+        }, 800); // ✅ AUMENTA DELAY A 800ms
+      }
+      
+      localStorage.removeItem('chiamataCliente');
+      console.log('🗑️ Dati chiamata rimossi da localStorage');
+      
+    } catch (error) {
+      console.error('❌ Errore parsing chiamata:', error);
+      localStorage.removeItem('chiamataCliente');
+    }
+  }
+}, []); // ✅ DIPENDENZA VUOTA - ESEGUI UNA SOLA VOLTA AL MOUNT
   
   // ----------------------------------------------------------------
   // EFFETTO 4: Keep-alive Railway
@@ -1461,14 +1492,7 @@ export default function GestoreOrdini() {
           </DialogActions>
         </Dialog>
         
-        {/* ✅ CallPopup con Pusher Real-Time */}
-        {isCallPopupOpen && (
-          <CallPopup 
-            chiamata={incomingCall}
-            onClose={closeCallPopup}
-          />
-        )}
-        
+               
         <Snackbar
           open={notifica.aperta}
           autoHideDuration={6000}
