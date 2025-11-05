@@ -229,6 +229,7 @@ export default function GestoreOrdini() {
   const [menuExport, setMenuExport] = useState(null);
   
   const [prodottiDisponibili, setProdottiDisponibili] = useState({});
+ const [clienteIdDaChiamata, setClienteIdDaChiamata] = useState(null); 
   const [prodottiCaricati, setProdottiCaricati] = useState(false);
   
   const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false);
@@ -395,18 +396,14 @@ export default function GestoreOrdini() {
   useEffect(() => {
   const chiamataData = localStorage.getItem('chiamataCliente');
   
-  if (chiamataData) { // ✅ RIMUOVI CONTROLLO ordini.length > 0
-    try {
-      const { clienteId, telefono } = JSON.parse(chiamataData);
-      
-      console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
-      
-      if (clienteId) {
-        setTimeout(() => {
-          setDialogoNuovoOrdineAperto(true);
-          console.log('✅ Dialog nuovo ordine aperto per cliente:', clienteId);
-        }, 800); // ✅ AUMENTA DELAY A 800ms
-      } else {
+  if (clienteId) {
+  setClienteIdDaChiamata(clienteId); // ✅ NUOVO
+  
+  setTimeout(() => {
+    setDialogoNuovoOrdineAperto(true);
+    console.log('✅ Dialog nuovo ordine aperto per cliente:', clienteId);
+  }, 800);
+} else {
         console.log('⚠️ Cliente sconosciuto, numero:', telefono);
         setTimeout(() => {
           setDialogoNuovoOrdineAperto(true);
@@ -1399,16 +1396,16 @@ export default function GestoreOrdini() {
         </Fab>
         
         {dialogoNuovoOrdineAperto && (
-          <NuovoOrdine 
-            open={dialogoNuovoOrdineAperto}
-            onClose={() => {
-              setDialogoNuovoOrdineAperto(false);
-              setOrdineSelezionato(null);
-            }}
-            onSave={salvaOrdine}
-            ordineIniziale={ordineSelezionato}
-            isConnected={isConnected}
-            prodotti={prodottiDisponibili}
+          <NuovoOrdine
+  open={dialogoNuovoOrdineAperto}
+  onClose={() => {
+    setDialogoNuovoOrdineAperto(false);
+    setClienteIdDaChiamata(null); // ✅ RESET quando chiudi
+  }}
+  onSalva={handleSalvaOrdine}
+  ordineInModifica={ordineSelezionato}
+  clienteIdPreselezionato={clienteIdDaChiamata} // ✅ NUOVO
+  prodottiDisponibili={prodottiDisponibili}
             submitInCorso={submitInCorso}
           />
         )}

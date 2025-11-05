@@ -72,6 +72,7 @@ export default function NuovoOrdine({
   onClose, 
   onSave, 
   ordineIniziale = null,
+clienteIdPreselezionato,
   isConnected = true
 }) {
   const [clienti, setClienti] = useState([]);
@@ -403,6 +404,25 @@ export default function NuovoOrdine({
       setLoadingClienti(false);
     }
   };
+
+// ✅ NUOVO: Preseleziona cliente da chiamata
+  useEffect(() => {
+    if (clienteIdPreselezionato && clienti.length > 0) {
+      const clienteTrovato = clienti.find(c => c._id === clienteIdPreselezionato);
+      
+      if (clienteTrovato) {
+        setFormData(prev => ({
+          ...prev,
+          cliente: clienteTrovato,
+          nomeCliente: `${clienteTrovato.nome} ${clienteTrovato.cognome || ''}`.trim(),
+          telefono: clienteTrovato.telefono || ''
+        }));
+        console.log('✅ Cliente preselezionato da chiamata:', clienteTrovato.nome, clienteTrovato.cognome);
+      } else {
+        console.warn('⚠️ Cliente non trovato con ID:', clienteIdPreselezionato);
+      }
+    }
+  }, [clienteIdPreselezionato, clienti]);
 
   const handleClienteChange = (event, cliente) => {
     if (cliente) {
