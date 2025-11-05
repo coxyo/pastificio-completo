@@ -390,6 +390,42 @@ export default function GestoreOrdini() {
   }, []);
   
   // ----------------------------------------------------------------
+  // EFFETTO 4: Gestione chiamata in arrivo da CallPopup
+  // ----------------------------------------------------------------
+  useEffect(() => {
+    const chiamataData = localStorage.getItem('chiamataCliente');
+    
+    if (chiamataData && ordini.length > 0) {
+      try {
+        const { clienteId, telefono } = JSON.parse(chiamataData);
+        
+        console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
+        
+        if (clienteId) {
+          // Cliente conosciuto
+          setTimeout(() => {
+            setDialogoNuovoOrdineAperto(true);
+            console.log('✅ Dialog nuovo ordine aperto per cliente:', clienteId);
+          }, 500);
+        } else {
+          // Cliente sconosciuto
+          console.log('⚠️ Cliente sconosciuto, numero:', telefono);
+          setTimeout(() => {
+            setDialogoNuovoOrdineAperto(true);
+          }, 500);
+        }
+        
+        localStorage.removeItem('chiamataCliente');
+        console.log('🗑️ Dati chiamata rimossi da localStorage');
+        
+      } catch (error) {
+        console.error('❌ Errore parsing chiamata:', error);
+        localStorage.removeItem('chiamataCliente');
+      }
+    }
+  }, [ordini]);
+  
+  // ----------------------------------------------------------------
   // EFFETTO 4: Keep-alive Railway
   // ----------------------------------------------------------------
   useEffect(() => {
