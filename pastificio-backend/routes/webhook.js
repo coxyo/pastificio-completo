@@ -1,5 +1,6 @@
 // routes/webhook.js - BACKEND
 // Route per gestire chiamate entranti da 3CX Extension
+// ✅ VERSIONE CORRETTA CON NORMALIZZAZIONE NUMERO
 
 import express from 'express';
 import Pusher from 'pusher';
@@ -16,6 +17,35 @@ const pusher = new Pusher({
   cluster: process.env.PUSHER_CLUSTER || 'eu',
   useTLS: true
 });
+
+// ✅ FUNZIONE HELPER: NORMALIZZA NUMERO TELEFONO
+function normalizzaNumero(numero) {
+  if (!numero) return null;
+  
+  // Rimuovi tutti i caratteri tranne cifre e +
+  let clean = numero.replace(/[^\d+]/g, '');
+  
+  // Se inizia con +39, prendi solo i primi 13 caratteri (formato IT standard)
+  if (clean.startsWith('+39')) {
+    clean = clean.substring(0, 13);
+  }
+  
+  // Se inizia con 39 senza +, prendi primi 12 caratteri
+  if (clean.startsWith('39') && !clean.startsWith('+')) {
+    clean = clean.substring(0, 12);
+  }
+  
+  // Rimuovi il + per uniformità database
+  const senzaPrefisso = clean.replace(/^\+/, '');
+  
+  logger.info('🔄 Normalizzazione numero', {
+    originale: numero,
+    pulito: clean,
+    perDatabase: senzaPrefisso
+  });
+  
+  return senzaPrefisso;
+}
 
 /**
  * POST /api/webhook/chiamata-entrante
@@ -40,30 +70,37 @@ router.post('/chiamata-entrante', async (req, res) => {
       });
     }
     
-    // Pulisci numero da tutti i caratteri speciali
-const numeroPulito = numero.replace(/[^\d]/g, ''); // Solo cifre
+    // ✅ NORMALIZZA IL NUMERO PRIMA DELLA RICERCA
+    const numeroNormalizzato = normalizzaNumero(numero);
+    
+    if (!numeroNormalizzato) {
+      return res.status(400).json({
+        success: false,
+        error: 'Numero telefono non valido'
+      });
+    }
     
     // ===== CERCA CLIENTE NEL DATABASE =====
     let clienteTrovato = null;
     
     try {
-      // Cerca per numero esatto
-      const escapedNumero = numeroPulito.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-clienteTrovato = await Cliente.findOne({ 
-  telefono: { $regex: escapedNumero, $options: 'i' } 
-});
+      // Cerca con numero normalizzato (pattern matching multiplo)
+      const escapedNumero = numeroNormalizzato.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       
-      // Se non trovato, prova con ricerca parziale
-      if (!clienteTrovato) {
-        // Prova con ultimi 8 cifre (per numeri internazionali)
-        const ultimeOttoCifre = numeroPulito.slice(-8);
-        clienteTrovato = await Cliente.findOne({
-          telefono: { $regex: ultimeOttoCifre, $options: 'i' }
-        });
-      }
+      clienteTrovato = await Cliente.findOne({
+        $or: [
+          { telefono: numeroNormalizzato },
+          { telefono: `+${numeroNormalizzato}` },
+          { telefono: { $regex: escapedNumero, $options: 'i' } },
+          // Fallback: ultimi 10 cifre (numero senza prefisso internazionale)
+          { telefono: { $regex: numeroNormalizzato.slice(-10), $options: 'i' } }
+        ],
+        attivo: true
+      });
       
       logger.info('🔍 Ricerca cliente completata', {
-        numero: numeroPulito,
+        numeroOriginale: numero,
+        numeroNormalizzato: numeroNormalizzato,
         trovato: !!clienteTrovato,
         clienteId: clienteTrovato?._id
       });
@@ -75,10 +112,10 @@ clienteTrovato = await Cliente.findOne({
     
     // ===== PREPARA DATI POPUP =====
     const popupData = {
-      numero: numero,
-      numeroOriginale: numero,
+      numero: numeroNormalizzato, // ✅ USA NUMERO NORMALIZZATO
+      numeroOriginale: numero,    // ✅ Mantieni originale per debug
       timestamp: timestamp || new Date().toISOString(),
-      callId: callId || 'unknown',
+      callId: callId || `CALL_${numeroNormalizzato}_${Date.now()}`,
       source: source || '3cx',
       cliente: clienteTrovato ? {
         _id: clienteTrovato._id,
@@ -104,7 +141,7 @@ clienteTrovato = await Cliente.findOne({
         canale: 'chiamate',
         evento: 'nuova-chiamata',
         cliente: clienteTrovato?.nome || 'Sconosciuto',
-        numero: numeroPulito
+        numeroNormalizzato: numeroNormalizzato
       });
       
     } catch (pusherError) {
@@ -121,6 +158,8 @@ clienteTrovato = await Cliente.findOne({
       success: true,
       message: 'Evento Pusher inviato',
       callId: callId,
+      numeroOriginale: numero,
+      numeroNormalizzato: numeroNormalizzato,
       cliente: clienteTrovato ? {
         nome: clienteTrovato.nome,
         cognome: clienteTrovato.cognome,
@@ -160,12 +199,32 @@ router.get('/health', (req, res) => {
  */
 router.post('/test', async (req, res) => {
   try {
+    const numeroTest = req.body.numero || '+393408208314';
+    const numeroNormalizzato = normalizzaNumero(numeroTest);
+    
     const testData = {
-      numero: req.body.numero || '+393271234567',
+      numero: numeroNormalizzato,
+      numeroOriginale: numeroTest,
       timestamp: new Date().toISOString(),
       callId: 'test-' + Date.now(),
-      source: 'test-manual'
+      source: 'test-manual',
+      cliente: null
     };
+    
+    // Cerca cliente per test
+    const cliente = await Cliente.findOne({
+      telefono: { $regex: numeroNormalizzato.slice(-10), $options: 'i' }
+    });
+    
+    if (cliente) {
+      testData.cliente = {
+        _id: cliente._id,
+        nome: cliente.nome,
+        cognome: cliente.cognome,
+        telefono: cliente.telefono,
+        email: cliente.email
+      };
+    }
     
     // Invia evento Pusher
     await pusher.trigger('chiamate', 'nuova-chiamata', testData);
