@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE FINALE CON PUSHER FIX
+// app/ClientLayout.js - VERSIONE FINALE CON PRECOMPILAZIONE CHIAMATA
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -124,48 +124,6 @@ export default function ClientLayout({ children }) {
     return pathname === path || pathname.startsWith(path + '/');
   };
 
-  const handleSaveNote = async (callId, note) => {
-    try {
-      const token = localStorage.getItem('token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
-
-      const responseHistory = await fetch(
-        `${API_URL}/cx3/history?limit=100`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (responseHistory.ok) {
-        const data = await responseHistory.json();
-        const chiamata = data.chiamate?.find(c => c.callId === callId);
-
-        if (chiamata) {
-          await fetch(
-            `${API_URL}/cx3/chiamate/${chiamata._id}`,
-            {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ note })
-            }
-          );
-
-          console.log('[CLIENT LAYOUT] Nota salvata per chiamata:', callId);
-        }
-      }
-
-      clearChiamata();
-
-    } catch (error) {
-      console.error('[CLIENT LAYOUT] Errore salvataggio nota:', error);
-    }
-  };
-
   const drawer = (
     <Box>
       <Box sx={{ p: 2, backgroundColor: 'primary.main', color: 'white' }}>
@@ -285,24 +243,46 @@ export default function ClientLayout({ children }) {
 
       {/* ✅ CallPopup quando c'è una chiamata */}
       {mounted && chiamataCorrente && (
-  <CallPopup
-    isOpen={!!chiamataCorrente}           // ✅ AGGIUNTO
-    callData={chiamataCorrente}           // ✅ RINOMINATO
-    onClose={clearChiamata}               // ✅ OK
-    onAccept={() => {                     // ✅ AGGIUNTO
-      console.log('📞 Accetta chiamata:', chiamataCorrente);
-      
-      // Naviga a pagina nuovo ordine con dati cliente
-      if (chiamataCorrente.cliente) {
-        router.push(`/?clienteId=${chiamataCorrente.cliente._id}`);
-      } else {
-        router.push(`/?numero=${chiamataCorrente.numero}`);
-      }
-      
-      clearChiamata();
-    }}
-  />
-)}
+        <CallPopup
+          isOpen={!!chiamataCorrente}
+          callData={chiamataCorrente}
+          onClose={clearChiamata}
+          onAccept={() => {
+            console.log('📞 Accetta chiamata:', chiamataCorrente);
+            
+            // ✅ Salva dati chiamata in localStorage per GestoreOrdini
+            if (chiamataCorrente.cliente) {
+              // Cliente conosciuto
+              localStorage.setItem('chiamataCliente', JSON.stringify({
+                clienteId: chiamataCorrente.cliente._id,
+                nome: chiamataCorrente.cliente.nome,
+                cognome: chiamataCorrente.cliente.cognome || '',
+                telefono: chiamataCorrente.numero,
+                email: chiamataCorrente.cliente.email || '',
+                timestamp: new Date().toISOString()
+              }));
+              console.log('✅ Dati cliente salvati per precompilazione:', chiamataCorrente.cliente.nome);
+            } else {
+              // Cliente sconosciuto
+              localStorage.setItem('chiamataCliente', JSON.stringify({
+                clienteId: null,
+                nome: '',
+                cognome: '',
+                telefono: chiamataCorrente.numero,
+                email: '',
+                timestamp: new Date().toISOString()
+              }));
+              console.log('✅ Numero sconosciuto salvato per precompilazione:', chiamataCorrente.numero);
+            }
+            
+            // Naviga alla pagina ordini
+            router.push('/');
+            
+            // Chiudi popup
+            clearChiamata();
+          }}
+        />
+      )}
     </Box>
   );
 }
