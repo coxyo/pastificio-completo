@@ -275,11 +275,14 @@ export default function ClientLayout({ children }) {
               console.log('✅ Numero sconosciuto salvato per precompilazione:', chiamataCorrente.numero);
             }
             
-            // Naviga alla pagina ordini
+            // ✅ Naviga alla pagina ordini PRIMA
             router.push('/');
             
-            // Chiudi popup
-            clearChiamata();
+            // ✅ Chiudi popup DOPO 2 secondi (permette a GestoreOrdini di leggere localStorage)
+            setTimeout(() => {
+              clearChiamata();
+              console.log('🗑️ Popup chiuso dopo redirect');
+            }, 2000);
           }}
         />
       )}
