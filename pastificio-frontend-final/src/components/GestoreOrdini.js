@@ -431,6 +431,51 @@ export default function GestoreOrdini() {
     }
   }, []);
   
+// ----------------------------------------------------------------
+// EFFETTO 3bis: Listener per chiamate (gestisce anche component già montato)
+// ----------------------------------------------------------------
+useEffect(() => {
+  const handleNuovaChiamata = () => {
+    console.log('🔔 [GestoreOrdini] Evento nuova-chiamata ricevuto');
+    
+    const chiamataData = localStorage.getItem('chiamataCliente');
+    console.log('🔔 [GestoreOrdini] localStorage:', chiamataData);
+    
+    if (chiamataData) {
+      try {
+        const { clienteId, telefono } = JSON.parse(chiamataData);
+        
+        console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
+        
+        if (clienteId) {
+          setClienteIdDaChiamata(clienteId);
+        }
+        
+        setTimeout(() => {
+          setDialogoNuovoOrdineAperto(true);
+          console.log('✅ Dialog nuovo ordine aperto');
+        }, 300);
+        
+        setTimeout(() => {
+          localStorage.removeItem('chiamataCliente');
+          console.log('🗑️ Dati chiamata rimossi da localStorage');
+        }, 500);
+        
+      } catch (error) {
+        console.error('❌ Errore parsing chiamata:', error);
+        localStorage.removeItem('chiamataCliente');
+      }
+    }
+  };
+
+  // Listener per evento custom
+  window.addEventListener('nuova-chiamata', handleNuovaChiamata);
+  
+  return () => {
+    window.removeEventListener('nuova-chiamata', handleNuovaChiamata);
+  };
+}, []);
+
   // ----------------------------------------------------------------
   // EFFETTO 4: Keep-alive Railway
   // ----------------------------------------------------------------
