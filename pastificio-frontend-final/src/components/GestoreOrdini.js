@@ -394,11 +394,10 @@ export default function GestoreOrdini() {
   // EFFETTO 3: Gestione chiamata in arrivo da CallPopup
   // ----------------------------------------------------------------
   useEffect(() => {
-    const chiamataData = localStorage.getItem('chiamataCliente');
-    
-    if (chiamataData) {
-      try {
-        const { clienteId, telefono } = JSON.parse(chiamataData);
+  console.log('🔵 [GestoreOrdini] useEffect MOUNT eseguito');
+  
+  const chiamataData = localStorage.getItem('chiamataCliente');
+  console.log('🔵 [GestoreOrdini] localStorage:', chiamataData);
         
         console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
         
