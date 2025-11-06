@@ -390,7 +390,7 @@ export default function GestoreOrdini() {
     return () => clearInterval(intervalId);
   }, []);
   
- // ----------------------------------------------------------------
+  // ----------------------------------------------------------------
   // EFFETTO 3: Gestione chiamata in arrivo da CallPopup
   // ----------------------------------------------------------------
   useEffect(() => {
@@ -420,9 +420,9 @@ export default function GestoreOrdini() {
         }
         
         setTimeout(() => {
-          localStorage.removeItem('chiamataCliente');
-          console.log('🗑️ Dati chiamata rimossi da localStorage');
-        }, 3000);
+  localStorage.removeItem('chiamataCliente');
+  console.log('🗑️ Dati chiamata rimossi da localStorage');
+}, 500); // ✅ 500ms invece di 3000ms
         
       } catch (error) {
         console.error('❌ Errore parsing chiamata:', error);
