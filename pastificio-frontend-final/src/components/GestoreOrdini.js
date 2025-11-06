@@ -391,10 +391,13 @@ export default function GestoreOrdini() {
   }, []);
   
   // ----------------------------------------------------------------
-  // EFFETTO 4: Gestione chiamata in arrivo da CallPopup
+  // EFFETTO 3: Gestione chiamata in arrivo da CallPopup
   // ----------------------------------------------------------------
   useEffect(() => {
+    console.log('🔵 [GestoreOrdini] useEffect MOUNT eseguito');
+    
     const chiamataData = localStorage.getItem('chiamataCliente');
+    console.log('🔵 [GestoreOrdini] localStorage:', chiamataData);
     
     if (chiamataData) {
       try {
@@ -406,52 +409,20 @@ export default function GestoreOrdini() {
           setClienteIdDaChiamata(clienteId);
           
           setTimeout(() => {
-          setDialogoNuovoOrdineAperto(true);
-          console.log('✅ Dialog nuovo ordine aperto per cliente:', clienteId);
-        }, 300);
-      }
-      
-      setTimeout(() => {
-        localStorage.removeItem('chiamataCliente');
-        console.log('🗑️ Dati chiamata rimossi da localStorage');
-      }, 3000);
-```
-
----
-
-## 🔧 COSA CAMBIA
-
-**PRIMA (SBAGLIATO):**
-```
-1. localStorage salvato
-2. GestoreOrdini legge
-3. setTimeout 800ms
-4. localStorage.removeItem() ← SUBITO!
-5. Dialog si apre dopo 800ms
-6. NuovoOrdine cerca clienteIdPreselezionato
-7. ❌ localStorage già cancellato!
-```
-
-**DOPO (CORRETTO):**
-```
-1. localStorage salvato
-2. GestoreOrdini legge
-3. setTimeout 300ms ← PIÙ VELOCE!
-4. Dialog si apre dopo 300ms
-5. NuovoOrdine legge clienteIdPreselezionato
-6. ✅ localStorage ancora presente!
-7. Cliente precompilato
-8. Dopo 3 secondi: localStorage.removeItem()
-```
-
----
-
-## 📊 TIMING OTTIMALE
-```
-300ms  → Dialog si apre
-500ms  → NuovoOrdine legge clienteId
-2000ms → Popup si chiude (ClientLayout)
-3000ms → localStorage cancellato (GestoreOrdini)
+            setDialogoNuovoOrdineAperto(true);
+            console.log('✅ Dialog nuovo ordine aperto per cliente:', clienteId);
+          }, 300);
+        } else {
+          console.log('⚠️ Cliente sconosciuto, numero:', telefono);
+          setTimeout(() => {
+            setDialogoNuovoOrdineAperto(true);
+          }, 300);
+        }
+        
+        setTimeout(() => {
+  localStorage.removeItem('chiamataCliente');
+  console.log('🗑️ Dati chiamata rimossi da localStorage');
+}, 500); // ✅ 500ms invece di 3000ms
         
       } catch (error) {
         console.error('❌ Errore parsing chiamata:', error);
@@ -460,6 +431,51 @@ export default function GestoreOrdini() {
     }
   }, []);
   
+// ----------------------------------------------------------------
+// EFFETTO 3bis: Listener per chiamate (gestisce anche component già montato)
+// ----------------------------------------------------------------
+useEffect(() => {
+  const handleNuovaChiamata = () => {
+    console.log('🔔 [GestoreOrdini] Evento nuova-chiamata ricevuto');
+    
+    const chiamataData = localStorage.getItem('chiamataCliente');
+    console.log('🔔 [GestoreOrdini] localStorage:', chiamataData);
+    
+    if (chiamataData) {
+      try {
+        const { clienteId, telefono } = JSON.parse(chiamataData);
+        
+        console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
+        
+        if (clienteId) {
+          setClienteIdDaChiamata(clienteId);
+        }
+        
+        setTimeout(() => {
+          setDialogoNuovoOrdineAperto(true);
+          console.log('✅ Dialog nuovo ordine aperto');
+        }, 300);
+        
+        setTimeout(() => {
+          localStorage.removeItem('chiamataCliente');
+          console.log('🗑️ Dati chiamata rimossi da localStorage');
+        }, 500);
+        
+      } catch (error) {
+        console.error('❌ Errore parsing chiamata:', error);
+        localStorage.removeItem('chiamataCliente');
+      }
+    }
+  };
+
+  // Listener per evento custom
+  window.addEventListener('nuova-chiamata', handleNuovaChiamata);
+  
+  return () => {
+    window.removeEventListener('nuova-chiamata', handleNuovaChiamata);
+  };
+}, []);
+
   // ----------------------------------------------------------------
   // EFFETTO 4: Keep-alive Railway
   // ----------------------------------------------------------------
