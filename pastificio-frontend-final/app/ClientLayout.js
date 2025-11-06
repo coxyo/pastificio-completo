@@ -280,9 +280,9 @@ export default function ClientLayout({ children }) {
             
             // ✅ Chiudi popup DOPO 2 secondi (permette a GestoreOrdini di leggere localStorage)
             setTimeout(() => {
-              clearChiamata();
-              console.log('🗑️ Popup chiuso dopo redirect');
-            }, 2000);
+  clearChiamata();
+  console.log('🗑️ Popup chiuso dopo redirect');
+}, 5000); // ✅ 5 secondi invece di 2
           }}
         />
       )}
