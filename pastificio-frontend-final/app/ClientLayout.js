@@ -248,42 +248,39 @@ export default function ClientLayout({ children }) {
           callData={chiamataCorrente}
           onClose={clearChiamata}
           onAccept={() => {
-            console.log('📞 Accetta chiamata:', chiamataCorrente);
-            
-            // ✅ Salva dati chiamata in localStorage per GestoreOrdini
-            if (chiamataCorrente.cliente) {
-              // Cliente conosciuto
-              localStorage.setItem('chiamataCliente', JSON.stringify({
-                clienteId: chiamataCorrente.cliente._id,
-                nome: chiamataCorrente.cliente.nome,
-                cognome: chiamataCorrente.cliente.cognome || '',
-                telefono: chiamataCorrente.numero,
-                email: chiamataCorrente.cliente.email || '',
-                timestamp: new Date().toISOString()
-              }));
-              console.log('✅ Dati cliente salvati per precompilazione:', chiamataCorrente.cliente.nome);
-            } else {
-              // Cliente sconosciuto
-              localStorage.setItem('chiamataCliente', JSON.stringify({
-                clienteId: null,
-                nome: '',
-                cognome: '',
-                telefono: chiamataCorrente.numero,
-                email: '',
-                timestamp: new Date().toISOString()
-              }));
-              console.log('✅ Numero sconosciuto salvato per precompilazione:', chiamataCorrente.numero);
-            }
-            
-            // ✅ Naviga alla pagina ordini PRIMA
-            router.push('/');
-            
-            // ✅ Chiudi popup DOPO 2 secondi (permette a GestoreOrdini di leggere localStorage)
-           // ✅ Chiudi popup immediatamente, NON cancellare localStorage
-clearChiamata();
-console.log('✅ Popup chiuso immediatamente');
-// localStorage verrà cancellato da GestoreOrdini dopo averlo letto
-          }}
+  console.log('📞 Accetta chiamata:', chiamataCorrente);
+  
+  if (chiamataCorrente.cliente) {
+    localStorage.setItem('chiamataCliente', JSON.stringify({
+      clienteId: chiamataCorrente.cliente._id,
+      nome: chiamataCorrente.cliente.nome,
+      cognome: chiamataCorrente.cliente.cognome || '',
+      telefono: chiamataCorrente.numero,
+      email: chiamataCorrente.cliente.email || '',
+      timestamp: new Date().toISOString()
+    }));
+    console.log('✅ Dati cliente salvati:', chiamataCorrente.cliente.nome);
+  } else {
+    localStorage.setItem('chiamataCliente', JSON.stringify({
+      clienteId: null,
+      nome: '',
+      cognome: '',
+      telefono: chiamataCorrente.numero,
+      email: '',
+      timestamp: new Date().toISOString()
+    }));
+    console.log('✅ Numero sconosciuto salvato:', chiamataCorrente.numero);
+  }
+  
+  // ✅ Dispatch evento per GestoreOrdini
+  window.dispatchEvent(new Event('nuova-chiamata'));
+  console.log('📢 Evento nuova-chiamata dispatched');
+  
+  clearChiamata();
+  console.log('✅ Popup chiuso immediatamente');
+  
+  router.push('/');
+}}
         />
       )}
     </Box>
