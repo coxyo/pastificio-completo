@@ -427,7 +427,6 @@ export default function GestoreOrdini() {
       }
     }
   }, []);
-```
   
   // ----------------------------------------------------------------
   // EFFETTO 4: Keep-alive Railway
