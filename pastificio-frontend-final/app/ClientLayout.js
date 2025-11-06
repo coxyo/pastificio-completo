@@ -279,10 +279,10 @@ export default function ClientLayout({ children }) {
             router.push('/');
             
             // ✅ Chiudi popup DOPO 2 secondi (permette a GestoreOrdini di leggere localStorage)
-            setTimeout(() => {
-  clearChiamata();
-  console.log('🗑️ Popup chiuso dopo redirect');
-}, 5000); // ✅ 5 secondi invece di 2
+           // ✅ Chiudi popup immediatamente, NON cancellare localStorage
+clearChiamata();
+console.log('✅ Popup chiuso immediatamente');
+// localStorage verrà cancellato da GestoreOrdini dopo averlo letto
           }}
         />
       )}
