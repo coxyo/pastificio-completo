@@ -390,14 +390,18 @@ export default function GestoreOrdini() {
     return () => clearInterval(intervalId);
   }, []);
   
-  // ----------------------------------------------------------------
+ // ----------------------------------------------------------------
   // EFFETTO 3: Gestione chiamata in arrivo da CallPopup
   // ----------------------------------------------------------------
   useEffect(() => {
-  console.log('🔵 [GestoreOrdini] useEffect MOUNT eseguito');
-  
-  const chiamataData = localStorage.getItem('chiamataCliente');
-  console.log('🔵 [GestoreOrdini] localStorage:', chiamataData);
+    console.log('🔵 [GestoreOrdini] useEffect MOUNT eseguito');
+    
+    const chiamataData = localStorage.getItem('chiamataCliente');
+    console.log('🔵 [GestoreOrdini] localStorage:', chiamataData);
+    
+    if (chiamataData) {
+      try {
+        const { clienteId, telefono } = JSON.parse(chiamataData);
         
         console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
         
