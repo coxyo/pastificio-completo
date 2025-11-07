@@ -46,6 +46,7 @@ import GestioneLimiti from './GestioneLimiti';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
+import useIncomingCall from '@/hooks/useIncomingCall';  // ✅ AGGIUNTO
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -238,6 +239,32 @@ export default function GestoreOrdini() {
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   
   // ✅ PUSHER: Hook per chiamate entranti real-time
+  const {
+    chiamataCorrente,
+    isPopupOpen,
+    handleClosePopup,
+    handleAcceptCall: handleAcceptCallFromHook,
+    clearChiamata,
+    connected: pusherConnected,
+    pusherService
+  } = useIncomingCall();
+
+  // ✅ Handler personalizzato accettazione chiamata
+  const handleAcceptIncomingCall = () => {
+    console.log('🟢 [GestoreOrdini] Chiamata accettata, preparo dati per NuovoOrdine');
+    
+    // Salva dati chiamata per pre-compilare il form
+    if (chiamataCorrente && chiamataCorrente.cliente) {
+      setClienteIdDaChiamata(chiamataCorrente.cliente._id);
+      localStorage.setItem('chiamataCliente', JSON.stringify(chiamataCorrente));
+    }
+    
+    // Apri dialogo nuovo ordine
+    setDialogoNuovoOrdineAperto(true);
+    
+    // Chiudi popup
+    handleAcceptCallFromHook();
+  };
     
   // ----------------------------------------------------------------
   // REFS
@@ -314,6 +341,16 @@ export default function GestoreOrdini() {
   // ----------------------------------------------------------------
   // HANDLER: Chiusura CallPopup (ora gestito da useIncomingCall hook)
   // ----------------------------------------------------------------
+
+  // ----------------------------------------------------------------
+  // DEBUG: Monitoraggio stato chiamata
+  // ----------------------------------------------------------------
+  useEffect(() => {
+    console.log('📊 [GestoreOrdini] Stato chiamata:');
+    console.log('  - isPopupOpen:', isPopupOpen);
+    console.log('  - chiamataCorrente:', chiamataCorrente);
+    console.log('  - pusherConnected:', pusherConnected);
+  }, [isPopupOpen, chiamataCorrente, pusherConnected]);
 
   // ----------------------------------------------------------------
   // EFFETTO 2: Caricamento prodotti da DB
@@ -1560,6 +1597,14 @@ useEffect(() => {
             {notifica.messaggio}
           </Alert>
         </Snackbar>
+
+        {/* ✅ NUOVO: CallPopup per chiamate in arrivo da Pusher/3CX */}
+        <CallPopup
+          isOpen={isPopupOpen}
+          onClose={handleClosePopup}
+          onAccept={handleAcceptIncomingCall}
+          callData={chiamataCorrente}
+        />
       </Container>
     </>
   );
