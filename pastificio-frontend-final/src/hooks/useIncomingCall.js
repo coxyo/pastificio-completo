@@ -70,9 +70,14 @@ export default function useIncomingCall() {
           chiamataCorrente: !!chiamataCorrente
         });
         
-        // ✅ DEBOUNCE: Ignora chiamate duplicate (stesso callId entro 2 secondi)
-        if (lastCallIdRef.current === callData.callId) {
-          console.log('⚠️ [useIncomingCall] Chiamata duplicata ignorata:', callData.callId);
+        // ✅ NUOVO: Usa combinazione numero+timestamp per identificare chiamata unica
+        const chiamataUniqueId = `${callData.numero}_${callData.timestamp}`;
+        const now = Date.now();
+        
+        // ✅ DEBOUNCE MIGLIORATO: Ignora se stesso evento entro 500ms (protezione duplicati Pusher)
+        if (lastCallIdRef.current?.id === chiamataUniqueId && 
+            now - lastCallIdRef.current.time < 500) {
+          console.log('⚠️ [useIncomingCall] Evento duplicato ignorato (stesso timestamp):', chiamataUniqueId);
           return;
         }
         
@@ -87,16 +92,19 @@ export default function useIncomingCall() {
           }
         }
         
-        // Aggiorna last callId
-        lastCallIdRef.current = callData.callId;
+        // Aggiorna last call con ID univoco basato su numero+timestamp
+        lastCallIdRef.current = {
+          id: chiamataUniqueId,
+          time: now
+        };
         
-        // Reset lastCallId dopo 2 secondi (ridotto da 5)
+        // Auto-reset dopo 1 secondo (solo per pulizia, non blocca nuove chiamate)
         setTimeout(() => {
-          if (lastCallIdRef.current === callData.callId) {
-            console.log('🔄 [useIncomingCall] Reset lastCallId per permettere nuove chiamate');
+          if (lastCallIdRef.current?.id === chiamataUniqueId) {
+            console.log('🔄 [useIncomingCall] Reset lastCallId per pulizia');
             lastCallIdRef.current = null;
           }
-        }, 2000);
+        }, 1000);
         
         // ✅ AGGIORNA STATE + APRI POPUP
         setChiamataCorrente(callData);
