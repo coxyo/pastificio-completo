@@ -378,7 +378,7 @@ clienteIdPreselezionato,
       console.log('🔄 Caricamento clienti da API...');
       
      // ✅ Ottieni token JWT
-const token = localStorage.getItem('token');
+const token = localStorage.getItem('token') || 'dev-token-123';
 
 const response = await fetch(`${API_URL}/clienti?attivo=true`, {
   headers: { 
