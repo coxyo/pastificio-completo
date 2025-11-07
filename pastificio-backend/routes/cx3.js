@@ -1,44 +1,16 @@
-// routes/cx3.js - Gestione chiamate 3CX completa
-// ✅ VERSIONE CORRETTA CON NORMALIZZAZIONE NUMERO
-
+// routes/cx3.js - VERSIONE AGGIORNATA CON STORICO
 import express from 'express';
-import { protect } from '../middleware/auth.js';
 import Cliente from '../models/Cliente.js';
-import Chiamata from '../models/Chiamata.js';
+import ChiamataStorico from '../models/ChiamataStorico.js';
 import logger from '../config/logger.js';
 import pusherService from '../services/pusherService.js';
 
 const router = express.Router();
 
-// ✅ FUNZIONE HELPER: NORMALIZZA NUMERO TELEFONO (uguale a webhook.js)
-function normalizzaNumero(numero) {
-  if (!numero) return null;
-  
-  let clean = numero.replace(/[^\d+]/g, '');
-  
-  if (clean.startsWith('+39')) {
-    clean = clean.substring(0, 13);
-  }
-  
-  if (clean.startsWith('39') && !clean.startsWith('+')) {
-    clean = clean.substring(0, 12);
-  }
-  
-  const senzaPrefisso = clean.replace(/^\+/, '');
-  
-  logger.info('🔄 [CX3] Normalizzazione numero', {
-    originale: numero,
-    pulito: clean,
-    perDatabase: senzaPrefisso
-  });
-  
-  return senzaPrefisso;
-}
-
 /**
  * @route   POST /api/cx3/incoming
- * @desc    Riceve notifica di chiamata in arrivo da Chrome Extension
- * @access  Public (ma solo da extension)
+ * @desc    Riceve notifica di chiamata in arrivo + salva storico
+ * @access  Public
  */
 router.post('/incoming', async (req, res) => {
   const { callId, numero, timestamp, source } = req.body;
@@ -51,166 +23,83 @@ router.post('/incoming', async (req, res) => {
   });
 
   try {
-    // ✅ NORMALIZZA IL NUMERO
-    const numeroNormalizzato = normalizzaNumero(numero);
+    // Pulisci numero
+    const numeroClean = numero.replace(/\s+/g, '');
     
-    if (!numeroNormalizzato) {
-      return res.status(400).json({
-        success: false,
-        error: 'Numero telefono non valido'
-      });
-    }
-    
-    // Cerca cliente per numero normalizzato
+    // Cerca cliente
     const cliente = await Cliente.findOne({
       $or: [
-        { telefono: numeroNormalizzato },
-        { telefono: `+${numeroNormalizzato}` },
-        { cellulare: numeroNormalizzato },
-        { cellulare: `+${numeroNormalizzato}` },
-        // Fallback: ultimi 10 cifre
-        { telefono: { $regex: numeroNormalizzato.slice(-10), $options: 'i' } },
-        { cellulare: { $regex: numeroNormalizzato.slice(-10), $options: 'i' } }
-      ],
-      attivo: true
+        { telefono: numeroClean },
+        { cellulare: numeroClean },
+        { telefono: numero },
+        { cellulare: numero }
+      ]
     });
 
-    if (cliente) {
-      logger.info('✅ Cliente trovato', {
-        clienteId: cliente._id,
+    // ✅ NUOVO: Salva chiamata in storico
+    const chiamataData = {
+      callId: callId || `call_${Date.now()}`,
+      numero: numero,
+      numeroNormalizzato: numeroClean,
+      cliente: cliente?._id || null,
+      dataOraChiamata: timestamp ? new Date(timestamp) : new Date(),
+      stato: 'ricevuta',
+      source: source || '3cx_extension'
+    };
+    
+    const chiamataStorico = new ChiamataStorico(chiamataData);
+    await chiamataStorico.save();
+    
+    logger.info('✅ Chiamata salvata in storico', {
+      chiamataId: chiamataStorico._id,
+      clienteId: cliente?._id
+    });
+
+    // Prepara payload Pusher
+    const payload = {
+      callId: chiamataStorico._id.toString(),
+      callIdOriginale: callId,
+      numero: numeroClean,
+      timestamp,
+      source,
+      cliente: cliente ? {
+        _id: cliente._id,
+        codiceCliente: cliente.codiceCliente,
         nome: cliente.nome,
         cognome: cliente.cognome,
-        codiceCliente: cliente.codiceCliente,
-        numeroNormalizzato: numeroNormalizzato
+        ragioneSociale: cliente.ragioneSociale,
+        telefono: cliente.telefono,
+        cellulare: cliente.cellulare,
+        email: cliente.email,
+        livelloFedelta: cliente.livelloFedelta,
+        punti: cliente.punti,
+        totaleSpesoStorico: cliente.totaleSpesoStorico
+      } : null,
+      // ✅ NUOVO: Aggiungi note automatiche
+      noteAutomatiche: chiamataStorico.noteAutomatiche || []
+    };
+
+    // Invia notifica Pusher
+    try {
+      await pusherService.trigger('chiamate', 'nuova-chiamata', payload);
+      
+      logger.info('✅ Notifica Pusher inviata con note automatiche', {
+        channel: 'chiamate',
+        event: 'nuova-chiamata',
+        clienteId: cliente?._id,
+        noteCount: chiamataStorico.noteAutomatiche.length
       });
-
-      // Salva chiamata nel database
-      try {
-        const chiamata = new Chiamata({
-          callId,
-          numero: numeroNormalizzato, // ✅ USA NORMALIZZATO
-          numeroOriginale: numero,
-          cliente: cliente._id,
-          timestamp: timestamp || new Date(),
-          source: source || '3cx-extension',
-          esito: 'in_arrivo',
-          durata: 0
-        });
-        await chiamata.save();
-        logger.info('✅ Chiamata salvata nel database', { 
-          chiamataId: chiamata._id 
-        });
-      } catch (dbError) {
-        logger.warn('⚠️ Errore salvataggio chiamata (non critico)', { 
-          error: dbError.message 
-        });
-      }
-
-      // Costruisci payload per frontend
-      const payload = {
-        callId,
-        numero: numeroNormalizzato, // ✅ USA NORMALIZZATO
-        numeroOriginale: numero,
-        timestamp: timestamp || new Date().toISOString(),
-        source,
-        cliente: {
-          _id: cliente._id,
-          codiceCliente: cliente.codiceCliente,
-          nome: cliente.nome,
-          cognome: cliente.cognome,
-          ragioneSociale: cliente.ragioneSociale,
-          telefono: cliente.telefono,
-          cellulare: cliente.cellulare,
-          email: cliente.email,
-          indirizzo: cliente.indirizzo,
-          citta: cliente.citta,
-          provincia: cliente.provincia,
-          cap: cliente.cap,
-          note: cliente.note,
-          livelloFedelta: cliente.livelloFedelta,
-          punti: cliente.punti,
-          totaleSpesoStorico: cliente.totaleSpesoStorico,
-          numeroOrdini: cliente.numeroOrdini
-        }
-      };
-
-      // Invia notifica Pusher a frontend
-      try {
-        await pusherService.trigger('chiamate', 'nuova-chiamata', payload);
-        
-        logger.info('✅ Notifica Pusher inviata', {
-          channel: 'chiamate',
-          event: 'nuova-chiamata',
-          clienteId: cliente._id,
-          numeroNormalizzato: numeroNormalizzato
-        });
-      } catch (pusherError) {
-        logger.error('❌ Errore invio Pusher', { error: pusherError.message });
-      }
-
-      res.json({
-        success: true,
-        clienteTrovato: true,
-        numeroOriginale: numero,
-        numeroNormalizzato: numeroNormalizzato,
-        cliente: payload.cliente
-      });
-
-    } else {
-      logger.warn('⚠️ Cliente NON trovato', {
-        numeroOriginale: numero,
-        numeroNormalizzato: numeroNormalizzato
-      });
-
-      // Salva chiamata anche per cliente sconosciuto
-      try {
-        const chiamata = new Chiamata({
-          callId,
-          numero: numeroNormalizzato, // ✅ USA NORMALIZZATO
-          numeroOriginale: numero,
-          cliente: null,
-          timestamp: timestamp || new Date(),
-          source: source || '3cx-extension',
-          esito: 'sconosciuto',
-          durata: 0
-        });
-        await chiamata.save();
-        logger.info('✅ Chiamata sconosciuto salvata', { 
-          chiamataId: chiamata._id 
-        });
-      } catch (dbError) {
-        logger.warn('⚠️ Errore salvataggio chiamata (non critico)', { 
-          error: dbError.message 
-        });
-      }
-
-      // Invia notifica anche per cliente sconosciuto
-      const payload = {
-        callId,
-        numero: numeroNormalizzato, // ✅ USA NORMALIZZATO
-        numeroOriginale: numero,
-        timestamp: timestamp || new Date().toISOString(),
-        source,
-        cliente: null
-      };
-
-      try {
-        await pusherService.trigger('chiamate', 'nuova-chiamata', payload);
-        
-        logger.info('✅ Notifica cliente sconosciuto inviata', {
-          numeroNormalizzato: numeroNormalizzato
-        });
-      } catch (pusherError) {
-        logger.error('❌ Errore invio Pusher', { error: pusherError.message });
-      }
-
-      res.json({
-        success: true,
-        clienteTrovato: false,
-        numeroOriginale: numero,
-        numeroNormalizzato: numeroNormalizzato
-      });
+    } catch (pusherError) {
+      logger.error('❌ Errore invio Pusher', { error: pusherError.message });
     }
+
+    res.json({
+      success: true,
+      clienteTrovato: !!cliente,
+      cliente: payload.cliente,
+      chiamataId: chiamataStorico._id,
+      noteAutomatiche: chiamataStorico.noteAutomatiche
+    });
 
   } catch (error) {
     logger.error('❌ Errore gestione chiamata 3CX', {
@@ -225,124 +114,207 @@ router.post('/incoming', async (req, res) => {
   }
 });
 
-// ... (rest of the routes remain the same)
-
-router.get('/history', protect, async (req, res) => {
+/**
+ * @route   GET /api/cx3/history
+ * @desc    Ottiene storico chiamate per cliente
+ * @access  Private
+ */
+router.get('/history', async (req, res) => {
   try {
-    const { clienteId, limit = 10, page = 1, from, to } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const { clienteId, numero, limit = 20, offset = 0 } = req.query;
+    
     const query = {};
-    if (clienteId) query.cliente = clienteId;
-    if (from || to) {
-      query.timestamp = {};
-      if (from) query.timestamp.$gte = new Date(from);
-      if (to) query.timestamp.$lte = new Date(to);
+    
+    if (clienteId) {
+      query.cliente = clienteId;
     }
-    const chiamate = await Chiamata.find(query)
-      .populate('cliente', 'nome cognome codiceCliente telefono cellulare')
-      .sort({ timestamp: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-    const totale = await Chiamata.countDocuments(query);
-    logger.info('✅ Storico chiamate recuperato', { totale, risultati: chiamate.length, clienteId: clienteId || 'tutti' });
-    res.json({ chiamate, totale, pagina: parseInt(page), totalePagine: Math.ceil(totale / parseInt(limit)) });
+    
+    if (numero) {
+      const numeroClean = numero.replace(/\s+/g, '');
+      query.numeroNormalizzato = numeroClean;
+    }
+    
+    const chiamate = await ChiamataStorico.find(query)
+      .populate('cliente', 'nome cognome telefono email livelloFedelta')
+      .populate('ordineCollegato', 'totale stato dataRitiro')
+      .sort({ dataOraChiamata: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(offset))
+      .lean();
+    
+    const totale = await ChiamataStorico.countDocuments(query);
+    
+    res.json({
+      success: true,
+      data: chiamate,
+      pagination: {
+        totale,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: totale > (parseInt(offset) + parseInt(limit))
+      }
+    });
+    
   } catch (error) {
     logger.error('❌ Errore recupero storico chiamate', { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 
-router.get('/chiamate/:id', protect, async (req, res) => {
+/**
+ * @route   GET /api/cx3/stats
+ * @desc    Statistiche chiamate per cliente
+ * @access  Private
+ */
+router.get('/stats', async (req, res) => {
   try {
-    const chiamata = await Chiamata.findById(req.params.id).populate('cliente', 'nome cognome codiceCliente telefono email');
-    if (!chiamata) return res.status(404).json({ error: 'Chiamata non trovata' });
-    res.json(chiamata);
-  } catch (error) {
-    logger.error('❌ Errore recupero chiamata', { error: error.message });
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.put('/chiamate/:id', protect, async (req, res) => {
-  try {
-    const { note, esito, durata } = req.body;
-    const chiamata = await Chiamata.findByIdAndUpdate(req.params.id, { note, esito, durata }, { new: true, runValidators: true });
-    if (!chiamata) return res.status(404).json({ error: 'Chiamata non trovata' });
-    logger.info('✅ Chiamata aggiornata', { chiamataId: chiamata._id, esito, note: note ? 'presente' : 'assente' });
-    res.json(chiamata);
-  } catch (error) {
-    logger.error('❌ Errore aggiornamento chiamata', { error: error.message });
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.get('/statistiche', protect, async (req, res) => {
-  try {
-    const { from, to } = req.query;
-    const query = {};
-    if (from || to) {
-      query.timestamp = {};
-      if (from) query.timestamp.$gte = new Date(from);
-      if (to) query.timestamp.$lte = new Date(to);
+    const { clienteId } = req.query;
+    
+    if (!clienteId) {
+      return res.status(400).json({
+        success: false,
+        error: 'clienteId richiesto'
+      });
     }
-    const totaleChiamate = await Chiamata.countDocuments(query);
-    const chiamateRisposte = await Chiamata.countDocuments({ ...query, esito: { $in: ['risposta', 'completato'] } });
-    const chiamateNonRisposte = await Chiamata.countDocuments({ ...query, esito: 'non_risposta' });
-    const chiamateSconosciuti = await Chiamata.countDocuments({ ...query, cliente: null });
-    const trentaGiorniFa = new Date();
-    trentaGiorniFa.setDate(trentaGiorniFa.getDate() - 30);
-    const chiamatePerGiorno = await Chiamata.aggregate([
-      { $match: { timestamp: { $gte: trentaGiorniFa } } },
-      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } }, count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
-    ]);
-    const stats = {
-      totaleChiamate, chiamateRisposte, chiamateNonRisposte, chiamateSconosciuti,
-      tassoRisposta: totaleChiamate > 0 ? ((chiamateRisposte / totaleChiamate) * 100).toFixed(1) : 0,
-      chiamatePerGiorno
-    };
-    logger.info('✅ Statistiche chiamate calcolate', { totaleChiamate, periodo: from || to ? 'personalizzato' : 'tutto' });
-    res.json(stats);
+    
+    const stats = await ChiamataStorico.getStatisticheCliente(clienteId);
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+    
   } catch (error) {
-    logger.error('❌ Errore calcolo statistiche chiamate', { error: error.message });
-    res.status(500).json({ error: error.message });
+    logger.error('❌ Errore calcolo statistiche', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 
+/**
+ * @route   PATCH /api/cx3/:chiamataId/esito
+ * @desc    Aggiorna esito chiamata (quando ordine viene creato)
+ * @access  Private
+ */
+router.patch('/:chiamataId/esito', async (req, res) => {
+  try {
+    const { chiamataId } = req.params;
+    const { esitoChiamata, ordineCollegato, note, durata } = req.body;
+    
+    const chiamata = await ChiamataStorico.findByIdAndUpdate(
+      chiamataId,
+      {
+        $set: {
+          esitoChiamata,
+          ordineCollegato,
+          note,
+          durata,
+          stato: 'risposta'
+        }
+      },
+      { new: true }
+    );
+    
+    if (!chiamata) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chiamata non trovata'
+      });
+    }
+    
+    logger.info('✅ Esito chiamata aggiornato', {
+      chiamataId,
+      esitoChiamata,
+      ordineCollegato
+    });
+    
+    res.json({
+      success: true,
+      data: chiamata
+    });
+    
+  } catch (error) {
+    logger.error('❌ Errore aggiornamento esito', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route   POST /api/cx3/test
+ * @desc    Test chiamata simulata
+ * @access  Public
+ */
 router.post('/test', async (req, res) => {
   const numeroTest = req.body.numero || '+393408208314';
-  const numeroNormalizzato = normalizzaNumero(numeroTest);
-  logger.info('🧪 TEST: Simulazione chiamata in arrivo', { numeroOriginale: numeroTest, numeroNormalizzato: numeroNormalizzato });
+  
+  logger.info('🧪 TEST: Simulazione chiamata in arrivo', { numero: numeroTest });
+
   try {
-    const cliente = await Cliente.findOne({ telefono: { $regex: numeroNormalizzato.slice(-10), $options: 'i' } });
+    const cliente = await Cliente.findOne({
+      $or: [
+        { telefono: numeroTest.replace(/\s+/g, '') },
+        { cellulare: numeroTest.replace(/\s+/g, '') }
+      ]
+    });
+    
+    // Crea chiamata test
+    const chiamataTest = new ChiamataStorico({
+      callId: `test_${Date.now()}`,
+      numero: numeroTest,
+      numeroNormalizzato: numeroTest.replace(/\s+/g, ''),
+      cliente: cliente?._id || null,
+      dataOraChiamata: new Date(),
+      stato: 'ricevuta',
+      source: 'test-manual'
+    });
+    
+    await chiamataTest.save();
+
     const payload = {
-      callId: `CX3-TEST-${Date.now()}`,
-      numero: numeroNormalizzato,
-      numeroOriginale: numeroTest,
+      callId: chiamataTest._id.toString(),
+      numero: numeroTest.replace(/\s+/g, ''),
       timestamp: new Date().toISOString(),
       source: 'test-manual',
       cliente: cliente ? {
-        _id: cliente._id, codiceCliente: cliente.codiceCliente, nome: cliente.nome, cognome: cliente.cognome,
-        telefono: cliente.telefono, email: cliente.email, citta: cliente.citta, livelloFedelta: cliente.livelloFedelta,
-        punti: cliente.punti, totaleSpesoStorico: cliente.totaleSpesoStorico, numeroOrdini: cliente.numeroOrdini
-      } : null
+        _id: cliente._id,
+        codiceCliente: cliente.codiceCliente,
+        nome: cliente.nome,
+        cognome: cliente.cognome,
+        telefono: cliente.telefono,
+        email: cliente.email,
+        livelloFedelta: cliente.livelloFedelta,
+        punti: cliente.punti
+      } : null,
+      noteAutomatiche: chiamataTest.noteAutomatiche || []
     };
+
     await pusherService.trigger('chiamate', 'nuova-chiamata', payload);
+    
     logger.info('✅ Chiamata test inviata', { success: true });
-    res.json({ success: true, message: 'Chiamata test inviata con successo', payload });
+
+    res.json({
+      success: true,
+      message: 'Chiamata test inviata con successo',
+      payload,
+      chiamataId: chiamataTest._id
+    });
+
   } catch (error) {
     logger.error('❌ Errore test chiamata', { error: error.message });
-    res.status(500).json({ success: false, error: error.message });
+    
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
-});
-
-router.get('/status', (req, res) => {
-  res.json({
-    success: true, service: '3CX Integration', status: 'active',
-    endpoints: { incoming: '/api/cx3/incoming', history: '/api/cx3/history', chiamate: '/api/cx3/chiamate/:id',
-      statistiche: '/api/cx3/statistiche', test: '/api/cx3/test', status: '/api/cx3/status' },
-    timestamp: new Date().toISOString()
-  });
 });
 
 export default router;
