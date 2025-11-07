@@ -377,9 +377,15 @@ clienteIdPreselezionato,
       setLoadingClienti(true);
       console.log('🔄 Caricamento clienti da API...');
       
-      const response = await fetch(`${API_URL}/clienti?attivo=true`, {
-        headers: { 'Content-Type': 'application/json' }
-      });
+     // ✅ Ottieni token JWT
+const token = localStorage.getItem('token');
+
+const response = await fetch(`${API_URL}/clienti?attivo=true`, {
+  headers: { 
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  }
+});
 
       if (response.ok) {
         const data = await response.json();
