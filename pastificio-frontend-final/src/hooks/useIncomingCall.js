@@ -25,6 +25,24 @@ export default function useIncomingCall() {
 
     console.log('🔧 [useIncomingCall] Inizializzazione...');
 
+    // ✅ NUOVO: Listener per visibilità pagina
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('👁️ [useIncomingCall] Tab visibile, verifico Pusher...');
+        
+        if (pusherService && pusherService.getStatus) {
+          const status = pusherService.getStatus();
+          console.log('📡 Stato Pusher al focus:', status);
+          
+          if (!status.connected) {
+            console.warn('⚠️ Pusher disconnesso, tento riconnessione...');
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Import dinamico pusherService
     import('@/services/pusherService').then((module) => {
       const service = module.default;
@@ -46,22 +64,39 @@ export default function useIncomingCall() {
         const callData = event.detail;
         
         console.log('🔔 [useIncomingCall] Evento ricevuto:', callData);
+        console.log('🔍 [useIncomingCall] Stato attuale:', {
+          lastCallId: lastCallIdRef.current,
+          isPopupOpen,
+          chiamataCorrente: !!chiamataCorrente
+        });
         
-        // ✅ DEBOUNCE: Ignora chiamate duplicate (stesso callId entro 5 secondi)
+        // ✅ DEBOUNCE: Ignora chiamate duplicate (stesso callId entro 2 secondi)
         if (lastCallIdRef.current === callData.callId) {
           console.log('⚠️ [useIncomingCall] Chiamata duplicata ignorata:', callData.callId);
           return;
         }
         
+        // Verifica che Pusher sia ancora connesso
+        if (service && service.getStatus) {
+          const status = service.getStatus();
+          console.log('📡 [useIncomingCall] Stato Pusher:', status);
+          
+          if (!status.connected) {
+            console.warn('⚠️ [useIncomingCall] Pusher disconnesso! Tento riconnessione...');
+            // Lascia che il servizio gestisca la riconnessione automatica
+          }
+        }
+        
         // Aggiorna last callId
         lastCallIdRef.current = callData.callId;
         
-        // Reset lastCallId dopo 5 secondi
+        // Reset lastCallId dopo 2 secondi (ridotto da 5)
         setTimeout(() => {
           if (lastCallIdRef.current === callData.callId) {
+            console.log('🔄 [useIncomingCall] Reset lastCallId per permettere nuove chiamate');
             lastCallIdRef.current = null;
           }
-        }, 5000);
+        }, 2000);
         
         // ✅ AGGIORNA STATE + APRI POPUP
         setChiamataCorrente(callData);
@@ -108,6 +143,7 @@ export default function useIncomingCall() {
       return () => {
         clearInterval(interval);
         window.removeEventListener('pusher-incoming-call', handleIncomingCall);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     });
   }, []);
@@ -125,7 +161,7 @@ export default function useIncomingCall() {
     console.log('🟢 [useIncomingCall] Chiamata accettata');
     setIsPopupOpen(false);
     
-    // ✅ NUOVO: Auto-reset dopo 3 secondi
+    // ✅ NUOVO: Auto-reset dopo 10 secondi (aumentato da 3)
     // Questo permette a NuovoOrdine di leggere chiamataCorrente dal localStorage
     // ma poi pulisce lo state per permettere nuove chiamate
     if (resetTimeoutRef.current) {
@@ -136,7 +172,7 @@ export default function useIncomingCall() {
       console.log('🧹 [useIncomingCall] Auto-reset chiamataCorrente dopo accettazione');
       setChiamataCorrente(null);
       lastCallIdRef.current = null;
-    }, 3000); // 3 secondi dovrebbero bastare per salvare in localStorage
+    }, 10000); // 10 secondi per sicurezza
     
   }, []);
 
