@@ -457,9 +457,9 @@ useEffect(() => {
         }, 300);
         
         setTimeout(() => {
-          localStorage.removeItem('chiamataCliente');
-          console.log('🗑️ Dati chiamata rimossi da localStorage');
-        }, 500);
+  localStorage.removeItem('chiamataCliente');
+  console.log('🗑️ Dati chiamata rimossi da localStorage');
+}, 3000); // ✅ 3 secondi invece di 500ms
         
       } catch (error) {
         console.error('❌ Errore parsing chiamata:', error);
