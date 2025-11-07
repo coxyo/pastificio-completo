@@ -411,6 +411,51 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     }
   };
 
+  // ✅ NUOVO: Leggi dati chiamata da localStorage (PRIMA DI TUTTO!)
+  useEffect(() => {
+    console.log('🔍 [NuovoOrdine] Controllo chiamata da localStorage...');
+    
+    const chiamataData = localStorage.getItem('chiamataCliente');
+    
+    if (chiamataData) {
+      try {
+        const dati = JSON.parse(chiamataData);
+        console.log('📞 [NuovoOrdine] Dati chiamata trovati:', dati);
+        
+        // ✅ PRECOMPILA SEMPRE IL TELEFONO
+        if (dati.telefono) {
+          setFormData(prev => ({
+            ...prev,
+            telefono: dati.telefono
+          }));
+          console.log('✅ Telefono precompilato:', dati.telefono);
+        }
+        
+        // ✅ PRECOMPILA NOME SOLO SE CLIENTE TROVATO
+        if (dati.cliente && dati.cliente.nome) {
+          const nomeCompleto = `${dati.cliente.nome || ''} ${dati.cliente.cognome || ''}`.trim();
+          setFormData(prev => ({
+            ...prev,
+            nomeCliente: nomeCompleto
+          }));
+          console.log('✅ Nome precompilato:', nomeCompleto);
+        } else {
+          console.log('ℹ️ Cliente sconosciuto, solo telefono precompilato');
+        }
+        
+        // ✅ PULISCI SOLO DOPO AVER LETTO
+        localStorage.removeItem('chiamataCliente');
+        console.log('🧹 localStorage pulito');
+        
+      } catch (error) {
+        console.error('❌ Errore parsing dati chiamata:', error);
+        localStorage.removeItem('chiamataCliente');
+      }
+    } else {
+      console.log('ℹ️ Nessuna chiamata in localStorage');
+    }
+  }, []); // ⚠️ Array vuoto = esegue solo al mount!
+
 // ✅ NUOVO: Preseleziona cliente da chiamata
   useEffect(() => {
     if (clienteIdPreselezionato && clienti.length > 0) {
