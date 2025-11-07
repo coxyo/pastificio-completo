@@ -1,99 +1,151 @@
-// components/CallPopup.js - VERSIONE DEBUG AVANZATA
+// components/CallPopup-SIMPLE.js - VERSIONE SENZA SHADCN/UI
 import React, { useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Phone, X, User, AlertCircle } from 'lucide-react';
-import StoricoChiamate from './StoricoChiamate';
 
 export function CallPopup({ isOpen, onClose, onAccept, callData }) {
-  // 🔍 DEBUG: Log ogni render del componente
+  // Debug
   useEffect(() => {
-    console.log('🚨🚨🚨 CALLPOPUP RENDER 🚨🚨🚨');
-    console.log('📞 isOpen:', isOpen);
-    console.log('📞 callData:', callData);
-    console.log('📞 onClose:', typeof onClose);
-    console.log('📞 onAccept:', typeof onAccept);
-  }, [isOpen, callData, onClose, onAccept]);
-
-  // 🔍 DEBUG: Log specifico quando isOpen cambia
-  useEffect(() => {
-    if (isOpen) {
-      console.log('✅✅✅ POPUP DOVREBBE ESSERE VISIBILE! ✅✅✅');
-      console.log('CallData ricevuto:', JSON.stringify(callData, null, 2));
-    } else {
-      console.log('❌❌❌ POPUP CHIUSO ❌❌❌');
-    }
+    console.log('🚨 [CallPopup-SIMPLE] Render:', { isOpen, callData: !!callData });
   }, [isOpen, callData]);
 
-  // 🔍 DEBUG: Alert browser per forzare visualizzazione
-  useEffect(() => {
-    if (isOpen && callData) {
-      // Commenta dopo il test!
-      // alert('🚨 POPUP DOVREBBE APRIRSI!\nNumero: ' + callData.numero);
-      console.log('🔔 ALERT TEST: Popup sta per aprirsi per:', callData.numero);
-    }
-  }, [isOpen, callData]);
-
-  // Guard: Se non ci sono dati, non renderizzare
-  if (!callData) {
-    console.warn('⚠️ CallPopup: callData è null/undefined!');
+  // Se non aperto o senza dati, non renderizzare
+  if (!isOpen || !callData) {
     return null;
   }
 
   const { numero, cliente, noteAutomatiche } = callData;
 
-  console.log('🎨 Rendering CallPopup con dati:', { numero, cliente: !!cliente });
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        {/* 🔍 DEBUG: Indicatore visibile sempre */}
-        <div className="absolute top-0 left-0 w-full h-2 bg-red-500 animate-pulse" />
-        
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Phone className="w-5 h-5 text-green-500 animate-pulse" />
-            🚨 DEBUG MODE - Chiamata in arrivo
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      {/* Overlay scuro */}
+      <div 
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          zIndex: 999998,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'fadeIn 200ms ease-out'
+        }}
+      >
+        {/* Popup content */}
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'relative',
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            zIndex: 999999,
+            animation: 'slideIn 300ms ease-out'
+          }}
+        >
+          {/* Barra rossa debug */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            backgroundColor: 'red',
+            animation: 'pulse 1s infinite'
+          }} />
 
-        <div className="space-y-4">
+          {/* Header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '20px',
+            paddingTop: '8px'
+          }}>
+            <Phone style={{ width: '24px', height: '24px', color: '#22c55e' }} />
+            <h2 style={{ 
+              fontSize: '20px', 
+              fontWeight: 'bold',
+              margin: 0,
+              flex: 1
+            }}>
+              🚨 DEBUG MODE - Chiamata in arrivo
+            </h2>
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                color: '#666'
+              }}
+            >
+              <X style={{ width: '24px', height: '24px' }} />
+            </button>
+          </div>
+
           {/* Numero chiamante */}
-          <div className="text-center py-4 bg-yellow-100 border-4 border-yellow-500">
-            <p className="text-3xl font-bold text-red-600">
+          <div style={{
+            textAlign: 'center',
+            padding: '20px',
+            backgroundColor: '#fef3c7',
+            border: '4px solid #f59e0b',
+            borderRadius: '8px',
+            marginBottom: '20px'
+          }}>
+            <p style={{
+              fontSize: '32px',
+              fontWeight: 'bold',
+              color: '#dc2626',
+              margin: '0 0 8px 0'
+            }}>
               {numero || 'NUMERO MANCANTE'}
             </p>
-            <p className="text-xs text-gray-600 mt-2">
+            <p style={{
+              fontSize: '12px',
+              color: '#666',
+              margin: 0
+            }}>
               Debug: isOpen={String(isOpen)}, callData={callData ? 'OK' : 'NULL'}
             </p>
           </div>
 
           {/* Dati cliente */}
           {cliente ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-green-600 mt-0.5" />
-                <div className="flex-1">
-                  <p className="font-semibold text-green-900">
+            <div style={{
+              backgroundColor: '#d1fae5',
+              border: '1px solid #10b981',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <User style={{ width: '20px', height: '20px', color: '#059669', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontWeight: 600, color: '#065f46', margin: '0 0 4px 0' }}>
                     {cliente.nome} {cliente.cognome || ''}
                   </p>
                   {cliente.codiceCliente && (
-                    <p className="text-sm text-green-700">
+                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
                       Codice: {cliente.codiceCliente}
                     </p>
                   )}
                   {cliente.livelloFedelta && (
-                    <p className="text-sm text-green-700">
+                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
                       Livello: {cliente.livelloFedelta}
                     </p>
                   )}
                   {cliente.email && (
-                    <p className="text-sm text-green-700">
+                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
                       {cliente.email}
                     </p>
                   )}
@@ -101,14 +153,20 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
               </div>
             </div>
           ) : (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-yellow-600 mt-0.5" />
+            <div style={{
+              backgroundColor: '#fef3c7',
+              border: '1px solid #f59e0b',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <User style={{ width: '20px', height: '20px', color: '#d97706', flexShrink: 0 }} />
                 <div>
-                  <p className="font-semibold text-yellow-900">
+                  <p style={{ fontWeight: 600, color: '#78350f', margin: '0 0 4px 0' }}>
                     Cliente Sconosciuto
                   </p>
-                  <p className="text-sm text-yellow-700">
+                  <p style={{ fontSize: '14px', color: '#92400e', margin: 0 }}>
                     Cliente non trovato nel database
                   </p>
                 </div>
@@ -118,63 +176,123 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
 
           {/* Note automatiche */}
           {noteAutomatiche && noteAutomatiche.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5 text-blue-600" />
-                <p className="font-semibold text-blue-900">Note Automatiche</p>
+            <div style={{
+              backgroundColor: '#dbeafe',
+              border: '1px solid #3b82f6',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <AlertCircle style={{ width: '20px', height: '20px', color: '#2563eb' }} />
+                <p style={{ fontWeight: 600, color: '#1e40af', margin: 0 }}>
+                  Note Automatiche
+                </p>
               </div>
               {noteAutomatiche.map((nota, index) => (
-                <div key={index} className="text-sm text-blue-800 pl-7">
-                  {nota.messaggio}
+                <div key={index} style={{
+                  fontSize: '14px',
+                  color: '#1e3a8a',
+                  marginLeft: '28px',
+                  marginTop: '4px'
+                }}>
+                  • {nota.messaggio}
                 </div>
               ))}
             </div>
           )}
 
-          {/* Storico chiamate */}
-          {cliente && (
-            <div className="border-t pt-4">
-              <StoricoChiamate clienteId={cliente._id} numero={numero} />
-            </div>
-          )}
-
-          {/* Actions - CON DEBUG */}
-          <div className="flex gap-3">
-            <Button
-              onClick={() => {
-                console.log('🔴 IGNORA CHIAMATA CLICCATO');
-                onClose();
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '12px 24px',
+                backgroundColor: 'white',
+                border: '2px solid #e5e7eb',
+                borderRadius: '6px',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 150ms'
               }}
-              variant="outline"
-              className="flex-1"
+              onMouseOver={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
             >
-              <X className="w-4 h-4 mr-2" />
+              <X style={{ width: '16px', height: '16px' }} />
               Ignora
-            </Button>
-            <Button
-              onClick={() => {
-                console.log('🟢 ACCETTA CHIAMATA CLICCATO');
-                onAccept();
+            </button>
+            <button
+              onClick={onAccept}
+              style={{
+                flex: 1,
+                padding: '12px 24px',
+                backgroundColor: '#22c55e',
+                border: '2px solid #22c55e',
+                borderRadius: '6px',
+                fontSize: '16px',
+                fontWeight: 600,
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 150ms'
               }}
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              onMouseOver={(e) => e.target.style.backgroundColor = '#16a34a'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#22c55e'}
             >
-              <Phone className="w-4 h-4 mr-2" />
+              <Phone style={{ width: '16px', height: '16px' }} />
               Nuovo Ordine
-            </Button>
+            </button>
           </div>
 
-          {/* 🔍 DEBUG INFO PANEL */}
-          <div className="bg-gray-100 p-3 rounded text-xs font-mono space-y-1">
-            <p><strong>Debug Info:</strong></p>
-            <p>isOpen: {String(isOpen)}</p>
-            <p>numero: {numero}</p>
-            <p>cliente: {cliente ? 'TROVATO' : 'NON TROVATO'}</p>
-            <p>callData: {callData ? 'OK' : 'NULL'}</p>
-            <p>timestamp: {new Date().toLocaleTimeString()}</p>
+          {/* Debug panel */}
+          <div style={{
+            backgroundColor: '#f3f4f6',
+            padding: '12px',
+            borderRadius: '6px',
+            marginTop: '16px',
+            fontSize: '12px',
+            fontFamily: 'monospace'
+          }}>
+            <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>Debug Info:</p>
+            <p style={{ margin: '4px 0' }}>isOpen: {String(isOpen)}</p>
+            <p style={{ margin: '4px 0' }}>numero: {numero}</p>
+            <p style={{ margin: '4px 0' }}>cliente: {cliente ? 'TROVATO' : 'NON TROVATO'}</p>
+            <p style={{ margin: '4px 0' }}>timestamp: {new Date().toLocaleTimeString()}</p>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {/* Animazioni */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
+    </>
   );
 }
 
