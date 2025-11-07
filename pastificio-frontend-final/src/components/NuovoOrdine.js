@@ -432,8 +432,9 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         }
         
         // ✅ PRECOMPILA NOME SOLO SE CLIENTE TROVATO
-        if (dati.cliente && dati.cliente.nome) {
-          const nomeCompleto = `${dati.cliente.nome || ''} ${dati.cliente.cognome || ''}`.trim();
+        // I dati arrivano già con nome/cognome al primo livello
+        if (dati.nome) {
+          const nomeCompleto = `${dati.nome || ''} ${dati.cognome || ''}`.trim();
           setFormData(prev => ({
             ...prev,
             nomeCliente: nomeCompleto
