@@ -24,7 +24,7 @@ function invalidateCache() {
 // router.use(protect);
 
 // GET /api/clienti - Lista clienti con filtri (CON CACHE)
-router.get('/', async (req, res) => {
+router.get('/', async (req, res) => {  // ✅ Rimosso protect
   try {
     const { 
       search, 
