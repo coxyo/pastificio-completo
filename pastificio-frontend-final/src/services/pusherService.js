@@ -1,5 +1,5 @@
-// services/pusherService.js - FRONTEND v5.0 FIXED
-// ✅ INIZIALIZZAZIONE AUTOMATICA + DEBUG COMPLETO
+// services/pusherService.js - FRONTEND v5.1 FIXED KEY
+// ✅ INIZIALIZZAZIONE AUTOMATICA + DEBUG COMPLETO + KEY CORRETTA
 
 import Pusher from 'pusher-js';
 
@@ -10,11 +10,11 @@ class PusherClientService {
     this.callChannel = null;
     this.initializationPromise = null;
     
-    // ✅ Configurazione
-    this.PUSHER_KEY = '42b401f9d1043282d298';
+    // ✅ Configurazione - KEY CORRETTA!
+    this.PUSHER_KEY = '42b401f9d1043202d98a';  // ⚠️ FIXED: era 42b401f9d1043282d298
     this.PUSHER_CLUSTER = 'eu';
     
-    console.log('🚀 Pusher Service v5.0 creato (non ancora inizializzato)');
+    console.log('🚀 Pusher Service v5.1 creato (KEY CORRETTA)');
     
     // ✅ AUTO-INIZIALIZZAZIONE solo in browser
     if (typeof window !== 'undefined') {

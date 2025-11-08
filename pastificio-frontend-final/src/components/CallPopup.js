@@ -1,61 +1,195 @@
-// components/CallPopup.js - VERSIONE SEMPLIFICATA v4.0
-// ✅ Popup chiamata in arrivo
-
-import React from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Phone, X, User } from 'lucide-react';
+// components/CallPopup-SIMPLE.js - VERSIONE CON TAG MANAGER
+import React, { useEffect, useState } from 'react';
+import { Phone, X, User, AlertCircle, Tag as TagIcon } from 'lucide-react';
+import TagManager from './TagManager';
 
 export function CallPopup({ isOpen, onClose, onAccept, callData }) {
-  if (!callData) return null;
+  const [showTagManager, setShowTagManager] = useState(false);
+  const [tags, setTags] = useState([]);
 
-  const { numero, cliente } = callData;
+  // Debug
+  useEffect(() => {
+    console.log('🚨 [CallPopup-SIMPLE] Render:', { isOpen, callData: !!callData });
+    if (callData?.chiamataId && callData?.tags) {
+      setTags(callData.tags);
+    }
+  }, [isOpen, callData]);
+
+  // Se non aperto o senza dati, non renderizzare
+  if (!isOpen || !callData) {
+    return null;
+  }
+
+  const { numero, cliente, noteAutomatiche, chiamataId } = callData;
+
+  const handleTagsUpdated = (nuoviTags) => {
+    setTags(nuoviTags);
+    console.log('✅ Tags aggiornati:', nuoviTags);
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Phone className="w-5 h-5 text-green-500 animate-pulse" />
-            Chiamata in arrivo
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      {/* Overlay scuro */}
+      <div 
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          zIndex: 999998,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'fadeIn 200ms ease-out'
+        }}
+      >
+        {/* Popup content */}
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'relative',
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            zIndex: 999999,
+            animation: 'slideIn 300ms ease-out'
+          }}
+        >
+          {/* Barra rossa debug */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            backgroundColor: 'red',
+            animation: 'pulse 1s infinite'
+          }} />
 
-        <div className="space-y-4">
+          {/* Header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '20px',
+            paddingTop: '8px'
+          }}>
+            <Phone style={{ width: '24px', height: '24px', color: '#22c55e' }} />
+            <h2 style={{ 
+              fontSize: '20px', 
+              fontWeight: 'bold',
+              margin: 0,
+              flex: 1
+            }}>
+              🚨 DEBUG MODE - Chiamata in arrivo
+            </h2>
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                color: '#666'
+              }}
+            >
+              <X style={{ width: '24px', height: '24px' }} />
+            </button>
+          </div>
+
           {/* Numero chiamante */}
-          <div className="text-center py-4">
-            <p className="text-2xl font-bold text-gray-900">
-              {numero}
+          <div style={{
+            textAlign: 'center',
+            padding: '20px',
+            backgroundColor: '#fef3c7',
+            border: '4px solid #f59e0b',
+            borderRadius: '8px',
+            marginBottom: '20px'
+          }}>
+            <p style={{
+              fontSize: '32px',
+              fontWeight: 'bold',
+              color: '#dc2626',
+              margin: '0 0 8px 0'
+            }}>
+              {numero || 'NUMERO MANCANTE'}
+            </p>
+            <p style={{
+              fontSize: '12px',
+              color: '#666',
+              margin: 0
+            }}>
+              Debug: isOpen={String(isOpen)}, callData={callData ? 'OK' : 'NULL'}
             </p>
           </div>
 
+          {/* Tags (se presenti) */}
+          {tags && tags.length > 0 && (
+            <div style={{
+              backgroundColor: '#f3f4f6',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <TagIcon style={{ width: '16px', height: '16px', color: '#6b7280' }} />
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>Tag</span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {tags.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: 600
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Dati cliente */}
           {cliente ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-green-600 mt-0.5" />
-                <div className="flex-1">
-                  <p className="font-semibold text-green-900">
+            <div style={{
+              backgroundColor: '#d1fae5',
+              border: '1px solid #10b981',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <User style={{ width: '20px', height: '20px', color: '#059669', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontWeight: 600, color: '#065f46', margin: '0 0 4px 0' }}>
                     {cliente.nome} {cliente.cognome || ''}
                   </p>
-                  {cliente.codice && (
-                    <p className="text-sm text-green-700">
-                      Codice: {cliente.codice}
+                  {cliente.codiceCliente && (
+                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
+                      Codice: {cliente.codiceCliente}
                     </p>
                   )}
-                  {cliente.livello && (
-                    <p className="text-sm text-green-700">
-                      Livello: {cliente.livello}
+                  {cliente.livelloFedelta && (
+                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
+                      Livello: {cliente.livelloFedelta}
                     </p>
                   )}
                   {cliente.email && (
-                    <p className="text-sm text-green-700">
+                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
                       {cliente.email}
                     </p>
                   )}
@@ -63,42 +197,199 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
               </div>
             </div>
           ) : (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-yellow-600 mt-0.5" />
+            <div style={{
+              backgroundColor: '#fef3c7',
+              border: '1px solid #f59e0b',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <User style={{ width: '20px', height: '20px', color: '#d97706', flexShrink: 0 }} />
                 <div>
-                  <p className="font-semibold text-yellow-900">
+                  <p style={{ fontWeight: 600, color: '#78350f', margin: '0 0 4px 0' }}>
                     Cliente Sconosciuto
                   </p>
-                  <p className="text-sm text-yellow-700">
-                    Cliente non trovato nel database. Puoi comunque creare un nuovo ordine.
+                  <p style={{ fontSize: '14px', color: '#92400e', margin: 0 }}>
+                    Cliente non trovato nel database
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3">
-            <Button
+          {/* Note automatiche */}
+          {noteAutomatiche && noteAutomatiche.length > 0 && (
+            <div style={{
+              backgroundColor: '#dbeafe',
+              border: '1px solid #3b82f6',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <AlertCircle style={{ width: '20px', height: '20px', color: '#2563eb' }} />
+                <p style={{ fontWeight: 600, color: '#1e40af', margin: 0 }}>
+                  Note Automatiche
+                </p>
+              </div>
+              {noteAutomatiche.map((nota, index) => (
+                <div key={index} style={{
+                  fontSize: '14px',
+                  color: '#1e3a8a',
+                  marginLeft: '28px',
+                  marginTop: '4px'
+                }}>
+                  • {nota.messaggio}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Actions - 3 PULSANTI */}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+            {/* Pulsante Tag */}
+            {chiamataId && (
+              <button
+                onClick={() => setShowTagManager(true)}
+                style={{
+                  flex: '1 1 auto',
+                  minWidth: '140px',
+                  padding: '12px 16px',
+                  backgroundColor: 'white',
+                  border: '2px solid #3b82f6',
+                  borderRadius: '6px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  color: '#3b82f6',
+                  transition: 'all 150ms'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#3b82f6';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                  e.currentTarget.style.color = '#3b82f6';
+                }}
+              >
+                <TagIcon style={{ width: '16px', height: '16px' }} />
+                Tag
+              </button>
+            )}
+
+            {/* Pulsante Ignora */}
+            <button
               onClick={onClose}
-              variant="outline"
-              className="flex-1"
+              style={{
+                flex: '1 1 auto',
+                minWidth: '140px',
+                padding: '12px 16px',
+                backgroundColor: 'white',
+                border: '2px solid #e5e7eb',
+                borderRadius: '6px',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 150ms'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
             >
-              <X className="w-4 h-4 mr-2" />
+              <X style={{ width: '16px', height: '16px' }} />
               Ignora
-            </Button>
-            <Button
+            </button>
+
+            {/* Pulsante Nuovo Ordine */}
+            <button
               onClick={onAccept}
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              style={{
+                flex: '1 1 auto',
+                minWidth: '140px',
+                padding: '12px 16px',
+                backgroundColor: '#22c55e',
+                border: '2px solid #22c55e',
+                borderRadius: '6px',
+                fontSize: '15px',
+                fontWeight: 600,
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 150ms'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#16a34a'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#22c55e'}
             >
-              <Phone className="w-4 h-4 mr-2" />
-              Ordine
-            </Button>
+              <Phone style={{ width: '16px', height: '16px' }} />
+              Nuovo Ordine
+            </button>
+          </div>
+
+          {/* Debug panel */}
+          <div style={{
+            backgroundColor: '#f3f4f6',
+            padding: '12px',
+            borderRadius: '6px',
+            marginTop: '16px',
+            fontSize: '12px',
+            fontFamily: 'monospace'
+          }}>
+            <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>Debug Info:</p>
+            <p style={{ margin: '4px 0' }}>isOpen: {String(isOpen)}</p>
+            <p style={{ margin: '4px 0' }}>numero: {numero}</p>
+            <p style={{ margin: '4px 0' }}>cliente: {cliente ? 'TROVATO' : 'NON TROVATO'}</p>
+            <p style={{ margin: '4px 0' }}>chiamataId: {chiamataId || 'NON DISPONIBILE'}</p>
+            <p style={{ margin: '4px 0' }}>tags: {tags?.length || 0}</p>
+            <p style={{ margin: '4px 0' }}>timestamp: {new Date().toLocaleTimeString()}</p>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {/* TagManager Dialog */}
+      {chiamataId && (
+        <TagManager
+          isOpen={showTagManager}
+          onClose={() => setShowTagManager(false)}
+          chiamataId={chiamataId}
+          tagsAttuali={tags}
+          onTagsUpdated={handleTagsUpdated}
+        />
+      )}
+
+      {/* Animazioni */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
+    </>
   );
 }
 

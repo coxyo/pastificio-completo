@@ -27,7 +27,8 @@ import {
   Sync as SyncIcon,
   LocalShipping as ShippingIcon,
   Assessment as AssessmentIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Phone as Phone  // ✅ NUOVO per pulsante Storico Chiamate
 } from '@mui/icons-material';
 
 import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
@@ -46,6 +47,11 @@ import GestioneLimiti from './GestioneLimiti';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
+import useIncomingCall from '@/hooks/useIncomingCall';  // ✅ AGGIUNTO
+
+// ✅ NUOVISSIMO: Import per Tag e Statistiche Chiamate (16/11/2025)
+import StoricoChiamate from './StoricoChiamate';
+import StatisticheChiamate from './StatisticheChiamate';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -232,12 +238,42 @@ export default function GestoreOrdini() {
  const [clienteIdDaChiamata, setClienteIdDaChiamata] = useState(null); 
   const [prodottiCaricati, setProdottiCaricati] = useState(false);
   
+  
+  // ✅ NUOVISSIMO: State per Storico Chiamate e Statistiche (16/11/2025)
+  const [storicoChiamateAperto, setStoricoChiamateAperto] = useState(false);
+  const [statisticheChiamateAperto, setStatisticheChiamateAperto] = useState(false);
   const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   
   // ✅ PUSHER: Hook per chiamate entranti real-time
+  const {
+    chiamataCorrente,
+    isPopupOpen,
+    handleClosePopup,
+    handleAcceptCall: handleAcceptCallFromHook,
+    clearChiamata,
+    connected: pusherConnected,
+    pusherService
+  } = useIncomingCall();
+
+  // ✅ Handler personalizzato accettazione chiamata
+  const handleAcceptIncomingCall = () => {
+    console.log('🟢 [GestoreOrdini] Chiamata accettata, preparo dati per NuovoOrdine');
+    
+    // Salva dati chiamata per pre-compilare il form
+    if (chiamataCorrente && chiamataCorrente.cliente) {
+      setClienteIdDaChiamata(chiamataCorrente.cliente._id);
+      localStorage.setItem('chiamataCliente', JSON.stringify(chiamataCorrente));
+    }
+    
+    // Apri dialogo nuovo ordine
+    setDialogoNuovoOrdineAperto(true);
+    
+    // Chiudi popup
+    handleAcceptCallFromHook();
+  };
     
   // ----------------------------------------------------------------
   // REFS
@@ -314,6 +350,16 @@ export default function GestoreOrdini() {
   // ----------------------------------------------------------------
   // HANDLER: Chiusura CallPopup (ora gestito da useIncomingCall hook)
   // ----------------------------------------------------------------
+
+  // ----------------------------------------------------------------
+  // DEBUG: Monitoraggio stato chiamata
+  // ----------------------------------------------------------------
+  useEffect(() => {
+    console.log('📊 [GestoreOrdini] Stato chiamata:');
+    console.log('  - isPopupOpen:', isPopupOpen);
+    console.log('  - chiamataCorrente:', chiamataCorrente);
+    console.log('  - pusherConnected:', pusherConnected);
+  }, [isPopupOpen, chiamataCorrente, pusherConnected]);
 
   // ----------------------------------------------------------------
   // EFFETTO 2: Caricamento prodotti da DB
@@ -457,9 +503,9 @@ useEffect(() => {
         }, 300);
         
         setTimeout(() => {
-          localStorage.removeItem('chiamataCliente');
-          console.log('🗑️ Dati chiamata rimossi da localStorage');
-        }, 500);
+  localStorage.removeItem('chiamataCliente');
+  console.log('🗑️ Dati chiamata rimossi da localStorage');
+}, 3000); // ✅ 3 secondi invece di 500ms
         
       } catch (error) {
         console.error('❌ Errore parsing chiamata:', error);
@@ -1316,6 +1362,27 @@ useEffect(() => {
                 WhatsApp
               </Button>
               
+              {/* ✅ NUOVISSIMO: Pulsanti Chiamate (16/11/2025) */}
+              <Button
+                variant="contained"
+                size="small"
+                color="info"
+                startIcon={<Phone />}
+                onClick={() => setStoricoChiamateAperto(true)}
+              >
+                📞 Storico Chiamate
+              </Button>
+              
+              <Button
+                variant="contained"
+                size="small"
+                color="secondary"
+                startIcon={<AnalyticsIcon />}
+                onClick={() => setStatisticheChiamateAperto(true)}
+              >
+                📊 Statistiche Chiamate
+              </Button>
+              
               <Button
                 variant="contained"
                 size="small"
@@ -1544,6 +1611,47 @@ useEffect(() => {
           </DialogActions>
         </Dialog>
         
+        {/* ✅ NUOVISSIMO: Dialog Storico Chiamate (16/11/2025) */}
+        <Dialog 
+          open={storicoChiamateAperto} 
+          onClose={() => setStoricoChiamateAperto(false)}
+          maxWidth="xl"
+          fullWidth
+          PaperProps={{ sx: { height: '95vh' } }}
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">📞 Storico Chiamate</Typography>
+              <IconButton onClick={() => setStoricoChiamateAperto(false)} size="small">
+                ×
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+            <StoricoChiamate />
+          </DialogContent>
+        </Dialog>
+        
+        {/* ✅ NUOVISSIMO: Dialog Statistiche Chiamate (16/11/2025) */}
+        <Dialog 
+          open={statisticheChiamateAperto} 
+          onClose={() => setStatisticheChiamateAperto(false)}
+          maxWidth="xl"
+          fullWidth
+          PaperProps={{ sx: { height: '95vh' } }}
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">📊 Statistiche Chiamate</Typography>
+              <IconButton onClick={() => setStatisticheChiamateAperto(false)} size="small">
+                ×
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+            <StatisticheChiamate />
+          </DialogContent>
+        </Dialog>
                
         <Snackbar
           open={notifica.aperta}
@@ -1560,6 +1668,14 @@ useEffect(() => {
             {notifica.messaggio}
           </Alert>
         </Snackbar>
+
+        {/* ✅ NUOVO: CallPopup per chiamate in arrivo da Pusher/3CX */}
+        <CallPopup
+          isOpen={isPopupOpen}
+          onClose={handleClosePopup}
+          onAccept={handleAcceptIncomingCall}
+          callData={chiamataCorrente}
+        />
       </Container>
     </>
   );
