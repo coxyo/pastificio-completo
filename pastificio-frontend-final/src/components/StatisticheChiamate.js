@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
 export function StatisticheChiamate() {
   const [statistiche, setStatistiche] = useState(null);
@@ -23,11 +23,11 @@ export function StatisticheChiamate() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${API_URL}/api/statistiche/chiamate?periodo=${periodo}`,
+        `${API_URL}/statistiche/chiamate?periodo=${periodo}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setStatistiche(response.data.data);
-      console.log('📊 Statistiche caricate:', response.data.data);
+      setStatistiche(response.data);
+      console.log('📊 Statistiche caricate:', response.data);
     } catch (error) {
       console.error('Errore caricamento statistiche:', error);
     } finally {
@@ -39,7 +39,7 @@ export function StatisticheChiamate() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${API_URL}/api/statistiche/chiamate/export`,
+        `${API_URL}/statistiche/chiamate/export`,
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'
@@ -75,7 +75,34 @@ export function StatisticheChiamate() {
     );
   }
 
-  const { kpi, trend, grafici, topClienti, durata, ordini } = statistiche;
+  // ✅ CORREZIONE: Aggiungo valori di default per campi opzionali
+  const {
+    kpi = {
+      totaleChiamate: 0,
+      mediaGiornaliera: 0,
+      tassoConversione: 0,
+      chiamateConOrdine: 0
+    },
+    trend = {
+      direzione: 'stabile',
+      variazione: 0
+    },
+    grafici = {
+      chiamatePerGiorno: [],
+      chiamatePerTag: [],
+      distribuzioneOraria: []
+    },
+    topClienti = [],
+    durata = {
+      media: 0,
+      totale: 0
+    },
+    ordini = {
+      count: 0,
+      valoreMedio: 0,
+      valoreTotale: 0
+    }
+  } = statistiche;
 
   return (
     <div style={{ padding: '24px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
@@ -148,7 +175,7 @@ export function StatisticheChiamate() {
                 TOTALE CHIAMATE
               </p>
               <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#111827', margin: 0 }}>
-                {kpi.totaleChiamate}
+                {kpi.totaleChiamate || 0}
               </p>
             </div>
             <div style={{
@@ -168,14 +195,14 @@ export function StatisticheChiamate() {
               <>
                 <TrendingUp style={{ width: '16px', height: '16px', color: '#22c55e' }} />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#22c55e' }}>
-                  +{Math.abs(trend.variazione)}%
+                  +{Math.abs(trend.variazione || 0)}%
                 </span>
               </>
             ) : trend.direzione === 'calo' ? (
               <>
                 <TrendingDown style={{ width: '16px', height: '16px', color: '#ef4444' }} />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#ef4444' }}>
-                  {trend.variazione}%
+                  {trend.variazione || 0}%
                 </span>
               </>
             ) : (
@@ -203,7 +230,7 @@ export function StatisticheChiamate() {
                 MEDIA GIORNALIERA
               </p>
               <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#111827', margin: 0 }}>
-                {kpi.mediaGiornaliera}
+                {kpi.mediaGiornaliera || 0}
               </p>
             </div>
             <div style={{
@@ -219,7 +246,7 @@ export function StatisticheChiamate() {
             </div>
           </div>
           <p style={{ fontSize: '13px', color: '#9ca3af', margin: 0 }}>
-            {kpi.totaleChiamate} chiamate nel periodo
+            {kpi.totaleChiamate || 0} chiamate nel periodo
           </p>
         </div>
 
@@ -236,7 +263,7 @@ export function StatisticheChiamate() {
                 TASSO CONVERSIONE
               </p>
               <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#111827', margin: 0 }}>
-                {kpi.tassoConversione}%
+                {kpi.tassoConversione || 0}%
               </p>
             </div>
             <div style={{
@@ -252,7 +279,7 @@ export function StatisticheChiamate() {
             </div>
           </div>
           <p style={{ fontSize: '13px', color: '#9ca3af', margin: 0 }}>
-            {kpi.chiamateConOrdine} ordini generati
+            {kpi.chiamateConOrdine || 0} ordini generati
           </p>
         </div>
 

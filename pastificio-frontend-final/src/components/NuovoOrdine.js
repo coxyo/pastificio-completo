@@ -49,7 +49,11 @@ import {
   CheckCircle as CheckIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
-import VassoidDolciMisti from './VassoidDolciMisti';
+import VassoidDolciMisti from './VassoidDolciMisti_FINALE';
+import VariantiProdotto, { 
+  generaNomeProdottoConVarianti,
+  prodottoHaVarianti 
+} from './VariantiProdotto';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -99,12 +103,14 @@ clienteIdPreselezionato,
   });
 
   const [prodottoCorrente, setProdottoCorrente] = useState({
-    nome: '',
-    variante: '',
-    quantita: '',
-    unita: 'Kg',
-    prezzo: 0
-  });
+  nome: '',
+  variante: '',
+  quantita: '',
+  unita: 'Kg',
+  prezzo: 0,
+  varianti: [], // ✅ NUOVO: Array varianti per nuovo sistema
+  noteCottura: '' // ✅ NUOVO: Note cottura
+});
 
   // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
   useEffect(() => {
@@ -507,19 +513,32 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
   const varianti = prodottoConfig?.varianti || [];
 
   const handleProdottoSelect = (prodotto) => {
-    setProdottoCorrente({
-      nome: prodotto.nome,
-      variante: '',
-      quantita: '',
-      unita: prodotto.unitaMisuraDisponibili?.[0] || 'Kg',
-      prezzo: 0
-    });
-  };
+  console.log('🎯 Prodotto selezionato:', prodotto.nome);
+  
+  setProdottoCorrente({
+    nome: prodotto.nome,
+    variante: '',
+    quantita: '',
+    unita: prodotto.unitaMisuraDisponibili?.[0] || 'Kg',
+    prezzo: 0,
+    varianti: [], // ✅ Reset varianti nuovo sistema
+    noteCottura: '' // ✅ Reset note cottura
+  });
+};
 
   const handleVarianteChange = (event) => {
     setProdottoCorrente({
       ...prodottoCorrente,
       variante: event.target.value
+    });
+  };
+
+  // ✅ NUOVO: Handler per nuovo sistema varianti
+  const handleVariantiChange = (nuoveVarianti) => {
+    console.log('🎨 Varianti aggiornate (nuovo sistema):', nuoveVarianti);
+    setProdottoCorrente({
+      ...prodottoCorrente,
+      varianti: nuoveVarianti
     });
   };
 
@@ -597,21 +616,34 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     }
   }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.quantita, prodottoCorrente.unita, prodottiDB]);
 
+
   const handleAggiungiProdotto = () => {
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       alert('Seleziona un prodotto e inserisci una quantità valida');
       return;
     }
 
+    // ✅ SISTEMA VECCHIO: Verifica varianti legacy (DB)
     if (hasVarianti && !prodottoCorrente.variante) {
       alert('Seleziona una variante');
       return;
     }
 
+    // ✅ SISTEMA NUOVO: Genera nome con varianti configurate
     let nomeProdottoCompleto = prodottoCorrente.nome;
-    if (prodottoCorrente.variante) {
+    
+    if (prodottoCorrente.varianti && prodottoCorrente.varianti.length > 0) {
+      // Sistema nuovo: usa generaNomeProdottoConVarianti
+      nomeProdottoCompleto = generaNomeProdottoConVarianti(
+        prodottoCorrente.nome,
+        prodottoCorrente.varianti
+      );
+      console.log('✅ Nome con varianti (nuovo sistema):', nomeProdottoCompleto);
+    } else if (prodottoCorrente.variante) {
+      // Sistema vecchio: variante legacy
       const variante = varianti.find(v => v.nome === prodottoCorrente.variante);
       nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
+      console.log('✅ Nome con variante legacy:', nomeProdottoCompleto);
     }
 
     const nuovoProdotto = {
@@ -620,20 +652,28 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       unita: prodottoCorrente.unita,
       unitaMisura: prodottoCorrente.unita,
       prezzo: prodottoCorrente.prezzo,
-      categoria: prodottoConfig?.categoria || 'Altro'
+      categoria: prodottoConfig?.categoria || 'Altro',
+      variante: prodottoCorrente.variante, // Sistema vecchio
+      varianti: prodottoCorrente.varianti, // ✅ Sistema nuovo
+      noteCottura: prodottoCorrente.noteCottura // ✅ Note cottura
     };
+
+    console.log('➕ Prodotto aggiunto al carrello:', nuovoProdotto);
 
     setFormData({
       ...formData,
       prodotti: [...formData.prodotti, nuovoProdotto]
     });
 
+    // Reset completo
     setProdottoCorrente({
       nome: '',
       variante: '',
       quantita: '',
       unita: 'Kg',
-      prezzo: 0
+      prezzo: 0,
+      varianti: [],
+      noteCottura: ''
     });
   };
 
@@ -645,7 +685,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
   };
 
   const aggiungiVassoioAlCarrello = (vassoio) => {
-    console.log('🎂 Aggiunto vassoio al carrello:', vassoio);
+    console.log('🎂 Vassoio aggiunto al carrello:', vassoio);
     
     setFormData({
       ...formData,
@@ -690,7 +730,10 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       cliente: formData.cliente?._id || null,
       totale: calcolaTotale(),
       daViaggio: formData.daViaggio,
-      forceOverride
+      forceOverride,
+      packaging: formData.prodotti.find(p => p.dettagliCalcolo?.packaging)?.dettagliCalcolo.packaging,
+      numeroVassoioDimensione: formData.prodotti.find(p => p.dettagliCalcolo?.numeroVassoioDimensione)?.dettagliCalcolo.numeroVassoioDimensione,
+      opzioniExtra: formData.prodotti.find(p => p.dettagliCalcolo?.opzioni)?.dettagliCalcolo.opzioni || {}
     };
 
     console.log('🚀 INVIO ORDINE CON DATI:', JSON.stringify({
@@ -826,6 +869,17 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                     Configura: <strong>{prodottoCorrente.nome}</strong>
                   </Typography>
 
+                  {/* ✅ NUOVO: Componente VariantiProdotto (sistema configurato) */}
+                  {prodottoHaVarianti(prodottoCorrente.nome) && (
+                    <Box sx={{ my: 2 }}>
+                      <VariantiProdotto
+                        prodotto={prodottoCorrente.nome}
+                        value={prodottoCorrente.varianti}
+                        onChange={handleVariantiChange}
+                      />
+                    </Box>
+                  )}
+
                   <Grid container spacing={2} sx={{ mt: 1 }}>
                     {hasVarianti && (
                       <Grid item xs={12} sm={6}>
@@ -898,6 +952,21 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                       </FormControl>
                     </Grid>
 
+                    {/* ✅ NUOVO: Campo Note Cottura */}
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Note Cottura"
+                        placeholder="Es: ben cotte, poco dorate..."
+                        value={prodottoCorrente.noteCottura}
+                        onChange={(e) => setProdottoCorrente({ 
+                          ...prodottoCorrente, 
+                          noteCottura: e.target.value 
+                        })}
+                        size="small"
+                      />
+                    </Grid>
+
                     {/* Griglia Valori Rapidi */}
                     <Grid item xs={12}>
                       <Typography variant="caption" color="text.secondary" gutterBottom display="block">
@@ -965,9 +1034,24 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                             <Typography variant="body2" fontWeight="bold">
                               {p.nome}
                             </Typography>
-                            {p.dettagliCalcolo?.dettagli && (
+                            {p.variante && (
                               <Typography variant="caption" color="text.secondary">
+                                📦 Variante: {p.variante}
+                              </Typography>
+                            )}
+                            {p.noteCottura && (
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                🔥 {p.noteCottura}
+                              </Typography>
+                            )}
+                            {p.dettagliCalcolo?.dettagli && (
+                              <Typography variant="caption" color="text.secondary" display="block">
                                 {p.dettagliCalcolo.dettagli}
+                              </Typography>
+                            )}
+                            {p.dettagliCalcolo?.composizione && (
+                              <Typography variant="caption" color="primary" display="block">
+                                🎂 Vassoio: {p.dettagliCalcolo.composizione.length} prodotti
                               </Typography>
                             )}
                             {p.note && (
@@ -1006,7 +1090,11 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
 
         {/* TAB 1: VASSOIO DOLCI MISTI */}
         {tabValue === 1 && (
-          <VassoidDolciMisti onAggiungiAlCarrello={aggiungiVassoioAlCarrello} />
+          <VassoidDolciMisti 
+            prodotti={prodottiDB}
+            onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
+            calcolaPrezzoOrdine={calcolaPrezzoOrdine}
+          />
         )}
 
         {/* SEZIONI COMUNI */}

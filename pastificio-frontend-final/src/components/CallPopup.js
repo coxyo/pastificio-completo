@@ -1,4 +1,4 @@
-// components/CallPopup-SIMPLE.js - VERSIONE CON TAG MANAGER
+// components/CallPopup.js - VERSIONE CON TAG MANAGER
 import React, { useEffect, useState } from 'react';
 import { Phone, X, User, AlertCircle, Tag as TagIcon } from 'lucide-react';
 import TagManager from './TagManager';
@@ -6,10 +6,46 @@ import TagManager from './TagManager';
 export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const [tags, setTags] = useState([]);
+  const [countdown, setCountdown] = useState(30); // ✅ NUOVO: Timer 30 secondi
+
+  // ✅ NUOVO: Auto-close dopo 30 secondi + SUONO + VIBRAZIONE
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setCountdown(30); // Reset countdown
+    
+    // 🔊 SUONO NOTIFICA
+    try {
+      const audio = new Audio('/sounds/phone-ring.mp3');
+      audio.volume = 0.7;
+      audio.play().catch(e => console.log('Audio bloccato dal browser:', e));
+    } catch (e) {
+      console.log('Errore audio:', e);
+    }
+
+    // 📳 VIBRAZIONE (se disponibile)
+    if ('vibrate' in navigator) {
+      navigator.vibrate([200, 100, 200]); // Vibra 3 volte
+    }
+
+    // ⏰ TIMER AUTO-CLOSE
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          console.log('⏰ [CallPopup] Auto-close per timeout');
+          onClose();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isOpen, onClose]);
 
   // Debug
   useEffect(() => {
-    console.log('🚨 [CallPopup-SIMPLE] Render:', { isOpen, callData: !!callData });
+    console.log('🚨 [CallPopup] Render:', { isOpen, callData: !!callData });
     if (callData?.chiamataId && callData?.tags) {
       setTags(callData.tags);
     }
@@ -63,16 +99,33 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
             animation: 'slideIn 300ms ease-out'
           }}
         >
-          {/* Barra rossa debug */}
+          {/* Barra rossa debug + countdown */}
           <div style={{
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             height: '4px',
-            backgroundColor: 'red',
-            animation: 'pulse 1s infinite'
+            backgroundColor: countdown > 10 ? '#22c55e' : countdown > 5 ? '#f59e0b' : '#ef4444',
+            animation: 'pulse 1s infinite',
+            transition: 'background-color 300ms'
           }} />
+
+          {/* Countdown badge */}
+          <div style={{
+            position: 'absolute',
+            top: '8px',
+            right: '48px',
+            backgroundColor: countdown > 10 ? '#22c55e' : countdown > 5 ? '#f59e0b' : '#ef4444',
+            color: 'white',
+            padding: '4px 12px',
+            borderRadius: '12px',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            zIndex: 10
+          }}>
+            {countdown}s
+          </div>
 
           {/* Header */}
           <div style={{
@@ -246,20 +299,21 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
             </div>
           )}
 
-          {/* Actions - 3 PULSANTI */}
-          <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+          {/* Actions - 3 PULSANTI TOUCH-FRIENDLY */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
             {/* Pulsante Tag */}
             {chiamataId && (
               <button
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => setShowTagManager(true)}
                 style={{
                   flex: '1 1 auto',
                   minWidth: '140px',
-                  padding: '12px 16px',
+                  padding: '16px 20px', // ✅ AUMENTATO per touch
                   backgroundColor: 'white',
                   border: '2px solid #3b82f6',
-                  borderRadius: '6px',
-                  fontSize: '15px',
+                  borderRadius: '8px', // ✅ AUMENTATO
+                  fontSize: '16px', // ✅ AUMENTATO
                   fontWeight: 600,
                   cursor: 'pointer',
                   display: 'flex',
@@ -267,7 +321,8 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                   justifyContent: 'center',
                   gap: '8px',
                   color: '#3b82f6',
-                  transition: 'all 150ms'
+                  transition: 'all 150ms',
+                  touchAction: 'manipulation' // ✅ NUOVO: migliora touch
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.backgroundColor = '#3b82f6';
@@ -278,48 +333,59 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                   e.currentTarget.style.color = '#3b82f6';
                 }}
               >
-                <TagIcon style={{ width: '16px', height: '16px' }} />
+                <TagIcon style={{ width: '18px', height: '18px' }} />
                 Tag
               </button>
             )}
 
             {/* Pulsante Ignora */}
             <button
-              onClick={onClose}
+              onMouseDown={(e) => e.stopPropagation()} // ✅ FIX doppio click
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('🚫 [CallPopup] Ignora chiamata');
+                onClose();
+              }}
               style={{
                 flex: '1 1 auto',
                 minWidth: '140px',
-                padding: '12px 16px',
+                padding: '16px 20px', // ✅ AUMENTATO per touch
                 backgroundColor: 'white',
                 border: '2px solid #e5e7eb',
-                borderRadius: '6px',
-                fontSize: '15px',
+                borderRadius: '8px', // ✅ AUMENTATO
+                fontSize: '16px', // ✅ AUMENTATO
                 fontWeight: 600,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                transition: 'all 150ms'
+                transition: 'all 150ms',
+                touchAction: 'manipulation' // ✅ NUOVO
               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
             >
-              <X style={{ width: '16px', height: '16px' }} />
-              Ignora
+              <X style={{ width: '18px', height: '18px' }} />
+              Ignora ({countdown}s)
             </button>
 
             {/* Pulsante Nuovo Ordine */}
             <button
-              onClick={onAccept}
+              onMouseDown={(e) => e.stopPropagation()} // ✅ FIX doppio click
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('📞 [CallPopup] Nuovo ordine');
+                onAccept();
+              }}
               style={{
                 flex: '1 1 auto',
                 minWidth: '140px',
-                padding: '12px 16px',
+                padding: '16px 20px', // ✅ AUMENTATO per touch
                 backgroundColor: '#22c55e',
                 border: '2px solid #22c55e',
-                borderRadius: '6px',
-                fontSize: '15px',
+                borderRadius: '8px', // ✅ AUMENTATO
+                fontSize: '16px', // ✅ AUMENTATO
                 fontWeight: 600,
                 color: 'white',
                 cursor: 'pointer',
@@ -327,12 +393,13 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                transition: 'all 150ms'
+                transition: 'all 150ms',
+                touchAction: 'manipulation' // ✅ NUOVO
               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#16a34a'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#22c55e'}
             >
-              <Phone style={{ width: '16px', height: '16px' }} />
+              <Phone style={{ width: '18px', height: '18px' }} />
               Nuovo Ordine
             </button>
           </div>

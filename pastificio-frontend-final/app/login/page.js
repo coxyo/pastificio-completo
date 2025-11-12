@@ -1,46 +1,78 @@
-// app/login/page.js
+// app/login/page.js - VERSIONE DEFINITIVA
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
+  // Check se già loggato all'avvio
+  useEffect(() => {
+    const token = Cookies.get('token') || localStorage.getItem('token');
+    if (token) {
+      console.log('✅ Già loggato, redirect a dashboard...');
+      router.push('/dashboard');
+    }
+  }, [router]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
     setLoading(true);
-    
+
     try {
-      // Genera token demo valido
-      const tokenDemo = btoa(JSON.stringify({
-        userId: 'demo-user-001',
-        username: 'Demo User',
-        email: 'demo@pastificio.com',
-        exp: Date.now() + 86400000 // 24 ore
-      }));
-
-      // Salva nel localStorage
-      localStorage.setItem('token', tokenDemo);
-      localStorage.setItem('user', JSON.stringify({
-        id: 'demo-user-001',
-        username: 'Demo User',
-        email: 'demo@pastificio.com',
-        ruolo: 'admin'
-      }));
-
-      console.log('✅ Login effettuato con successo!');
-      console.log('🔄 Reindirizzamento a dashboard...');
-
-      // Forza reload per inizializzare WebSocket
-      window.location.href = '/dashboard';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
       
+      console.log('🔐 Tentativo login:', { email, API_URL });
+
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+      console.log('📡 Risposta server:', data);
+
+      if (data.success && data.token) {
+        // Salva in ENTRAMBI i posti per massima compatibilità
+        Cookies.set('token', data.token, { 
+          expires: 7, // 7 giorni
+          secure: true, // Solo HTTPS
+          sameSite: 'strict' // Protezione CSRF
+        });
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        console.log('✅ Login effettuato con successo!');
+        console.log('🔑 Token salvato in cookies e localStorage');
+
+        // Redirect al dashboard
+        router.push('/dashboard');
+      } else {
+        setError(data.message || data.error || 'Credenziali non valide');
+        console.error('❌ Login fallito:', data);
+      }
     } catch (error) {
       console.error('❌ Errore login:', error);
-      alert('Errore durante il login');
+      setError('Errore di connessione al server');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Quick login per test
+  const quickLogin = (userEmail, userPassword) => {
+    setEmail(userEmail);
+    setPassword(userPassword);
   };
 
   return (
@@ -50,164 +82,282 @@ export default function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      backgroundColor: '#f5f5f5',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      padding: '20px'
     }}>
       <div style={{
         backgroundColor: 'white',
         padding: '48px',
-        borderRadius: '12px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        textAlign: 'center',
-        maxWidth: '400px',
-        width: '100%'
+        borderRadius: '16px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        width: '100%',
+        maxWidth: '450px'
       }}>
-        {/* Logo */}
-        <div style={{
-          fontSize: '48px',
-          marginBottom: '16px'
-        }}>
-          🍝
-        </div>
-
-        {/* Titolo */}
-        <h1 style={{
-          fontSize: '24px',
-          fontWeight: 'bold',
-          color: '#1976d2',
-          margin: '0 0 8px 0'
-        }}>
-          Pastificio Nonna Claudia
-        </h1>
-        
-        <h2 style={{
-          fontSize: '16px',
-          color: '#666',
-          fontWeight: 'normal',
-          margin: '0 0 32px 0'
-        }}>
-          Accedi al Gestionale
-        </h2>
-
-        {/* Info credenziali */}
-        <div style={{
-          backgroundColor: '#e3f2fd',
-          padding: '16px',
-          borderRadius: '8px',
-          marginBottom: '24px',
-          textAlign: 'left'
-        }}>
-          <div style={{
-            fontSize: '14px',
-            color: '#1565c0',
-            marginBottom: '8px',
-            fontWeight: 'bold'
-          }}>
-            📋 Credenziali Demo:
+        {/* Logo e Titolo */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>
+            🍝
           </div>
-          <div style={{
-            fontSize: '13px',
-            color: '#424242',
-            lineHeight: '1.6'
-          }}>
-            <strong>Username:</strong> Demo User<br />
-            <strong>Token:</strong> Generato automaticamente<br />
-            <strong>Validità:</strong> 24 ore
-          </div>
-        </div>
-
-        {/* Pulsante Login */}
-        <button 
-          onClick={handleLogin}
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '14px',
-            backgroundColor: loading ? '#ccc' : '#1976d2',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
+          <h1 style={{
+            fontSize: '28px',
             fontWeight: 'bold',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.2s',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}
-          onMouseEnter={(e) => {
-            if (!loading) e.target.style.backgroundColor = '#1565c0';
-          }}
-          onMouseLeave={(e) => {
-            if (!loading) e.target.style.backgroundColor = '#1976d2';
-          }}
-        >
-          {loading ? (
+            color: '#1f2937',
+            margin: '0 0 8px 0'
+          }}>
+            Pastificio Nonna Claudia
+          </h1>
+          <p style={{
+            fontSize: '16px',
+            color: '#6b7280',
+            margin: 0
+          }}>
+            Accedi al Sistema Gestionale
+          </p>
+        </div>
+
+        {/* Form Login */}
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: '#374151',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="admin@pastificio.it"
+              autoComplete="email"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '16px',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#667eea'}
+              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+            />
+          </div>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              color: '#374151',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}>
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+              autoComplete="current-password"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '16px',
+                outline: 'none',
+                transition: 'border-color 0.2s'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#667eea'}
+              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+            />
+          </div>
+
+          {/* Errore */}
+          {error && (
             <div style={{
+              padding: '12px 16px',
+              backgroundColor: '#fee2e2',
+              color: '#991b1b',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              fontSize: '14px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
               gap: '8px'
             }}>
-              <div style={{
-                width: '16px',
-                height: '16px',
-                border: '2px solid white',
-                borderTopColor: 'transparent',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-              Accesso in corso...
+              <span style={{ fontSize: '18px' }}>⚠️</span>
+              {error}
             </div>
-          ) : (
-            '🔐 ACCEDI AL GESTIONALE'
           )}
-        </button>
 
-        {/* Features */}
+          {/* Pulsante Login */}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '14px',
+              backgroundColor: loading ? '#9ca3af' : '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: loading ? 'none' : '0 4px 6px rgba(102, 126, 234, 0.4)'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#5568d3';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 12px rgba(102, 126, 234, 0.5)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#667eea';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 6px rgba(102, 126, 234, 0.4)';
+              }
+            }}
+          >
+            {loading ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
+              }}>
+                <div style={{
+                  width: '18px',
+                  height: '18px',
+                  border: '3px solid rgba(255,255,255,0.3)',
+                  borderTopColor: 'white',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite'
+                }} />
+                Accesso in corso...
+              </div>
+            ) : (
+              '🔐 ACCEDI AL GESTIONALE'
+            )}
+          </button>
+        </form>
+
+        {/* Quick Login Buttons */}
         <div style={{
           marginTop: '32px',
+          paddingTop: '24px',
+          borderTop: '1px solid #e5e7eb'
+        }}>
+          <p style={{
+            fontSize: '13px',
+            color: '#9ca3af',
+            marginBottom: '16px',
+            textAlign: 'center',
+            fontWeight: '500'
+          }}>
+            🚀 Accesso Rapido (Test):
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px'
+          }}>
+            {[
+              { name: 'Admin', email: 'admin@pastificio.it', icon: '👨‍💼' },
+              { name: 'Maria', email: 'maria@pastificio.it', icon: '👩' },
+              { name: 'Giuseppe', email: 'giuseppe@pastificio.it', icon: '👨' },
+              { name: 'Anna', email: 'anna@pastificio.it', icon: '👩' }
+            ].map((user) => (
+              <button
+                key={user.email}
+                onClick={() => quickLogin(user.email, 'admin123')}
+                type="button"
+                style={{
+                  padding: '10px',
+                  backgroundColor: '#f3f4f6',
+                  border: '2px solid transparent',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#e5e7eb';
+                  e.target.style.borderColor = '#667eea';
+                  e.target.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#f3f4f6';
+                  e.target.style.borderColor = 'transparent';
+                  e.target.style.transform = 'scale(1)';
+                }}
+              >
+                <span style={{ fontSize: '18px' }}>{user.icon}</span>
+                {user.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Info Credenziali */}
+        <div style={{
+          marginTop: '24px',
           padding: '16px',
-          backgroundColor: '#f5f5f5',
+          backgroundColor: '#f0f9ff',
           borderRadius: '8px',
-          textAlign: 'left'
+          border: '1px solid #bfdbfe'
         }}>
           <div style={{
-            fontSize: '12px',
-            color: '#666',
-            fontWeight: 'bold',
-            marginBottom: '8px'
+            fontSize: '13px',
+            color: '#1e40af',
+            marginBottom: '8px',
+            fontWeight: '600'
           }}>
-            ✨ Funzionalità attive:
+            ℹ️ Credenziali di Test:
           </div>
-          <ul style={{
-            fontSize: '11px',
-            color: '#888',
-            margin: 0,
-            paddingLeft: '20px',
-            lineHeight: '1.8'
+          <div style={{
+            fontSize: '12px',
+            color: '#3b82f6',
+            lineHeight: '1.6'
           }}>
-            <li>Gestione ordini real-time</li>
-            <li>Magazzino con notifiche</li>
-            <li>Dashboard analytics AI</li>
-            <li>Backup automatico</li>
-            <li>WebSocket sync</li>
-          </ul>
+            <strong>Email:</strong> admin@pastificio.it<br />
+            <strong>Password:</strong> admin123<br />
+            <strong>Durata Token:</strong> 7 giorni
+          </div>
         </div>
 
         {/* Footer */}
         <p style={{
           marginTop: '24px',
           fontSize: '12px',
-          color: '#999'
+          color: '#9ca3af',
+          textAlign: 'center'
         }}>
-          Sistema Gestionale v2.0.1 - Produzione
+          Sistema Gestionale v2.0.1 • Produzione
         </p>
       </div>
 
-      {/* CSS Animation */}
+      {/* CSS Animations */}
       <style jsx>{`
         @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

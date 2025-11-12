@@ -57,9 +57,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-p
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
 
-// ====================================================================
+// =============================================================
 // COMPONENTE RIEPILOGO SEMPLICE
-// ====================================================================
+// =============================================================
 function RiepilogoSemplice({ ordini, dataSelezionata }) {
   const ordiniFiltrati = ordini.filter(o => {
     const dataOrdine = o.dataRitiro || o.createdAt || '';
@@ -133,9 +133,9 @@ function RiepilogoSemplice({ ordini, dataSelezionata }) {
   );
 }
 
-// ====================================================================
-// COMPONENTE WHATSAPP HELPER
-// ====================================================================
+// =============================================================
+// COMPONENTE WHATSAPP HELPER  
+// =============================================================
 function WhatsAppHelperComponent({ ordini }) {
   const [selectedOrdine, setSelectedOrdine] = useState(null);
   const [messaggio, setMessaggio] = useState('');
@@ -210,10 +210,8 @@ function WhatsAppHelperComponent({ ordini }) {
   );
 }
 
-// ====================================================================
-// COMPONENTE PRINCIPALE - GESTORE ORDINI
-// ====================================================================
-export default function GestoreOrdini() {
+// =============================================================// COMPONENTE PRINCIPALE - GESTORE ORDINI
+// =============================================================export default function GestoreOrdini() {
   // ----------------------------------------------------------------
   // STATE - Ordini & UI
   // ----------------------------------------------------------------
@@ -1298,10 +1296,8 @@ useEffect(() => {
     };
   }, [sincronizzaConMongoDB]); // Rimosso connectWebSocket (disabilitato)
   
-  // ====================================================================
-  // RENDER JSX PRINCIPALE
-  // ====================================================================
-  return (
+  // =============================================================  // RENDER JSX PRINCIPALE
+  // =============================================================  return (
     <>
       <style jsx global>{`
         @keyframes rotate {
@@ -1680,3 +1676,6 @@ useEffect(() => {
     </>
   );
 }
+
+
+export default GestoreOrdini;

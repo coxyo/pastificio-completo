@@ -133,6 +133,9 @@ export function DialogFooter({ children, className = "", ...props }) {
     </div>
   );
 }
+<<<<<<< HEAD
 
 // ❌ RIMOSSO: export duplicato che causava l'errore
 // export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter };
+=======
+>>>>>>> 404e725c83bf15404071a519931e9c4ae63fe285

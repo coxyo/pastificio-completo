@@ -39,7 +39,7 @@ export function StoricoChiamate() {
       params.append('sort', '-dataChiamata');
 
       const response = await axios.get(
-        `${API_URL}/api/chiamate?${params.toString()}`,
+        `${API_URL}/chiamate?${params.toString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -67,7 +67,8 @@ export function StoricoChiamate() {
   const caricaTuttiITags = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/chiamate/tags/all`, {
+      const response = await axios.get(`${API_URL}/chiamate/tags/all`, {
+
         headers: { Authorization: `Bearer ${token}` }
       });
       setTuttiITags(response.data.data || []);
