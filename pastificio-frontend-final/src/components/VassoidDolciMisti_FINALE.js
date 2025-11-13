@@ -42,8 +42,7 @@ import {
   Tag,
   Calculator,
   ChevronDown,
-  ChevronUp,
-  Check
+  ChevronUp
 } from 'lucide-react';
 import { PRODOTTI_CONFIG, getProdottoConfig } from '../config/prodottiConfig.js';
 
@@ -204,6 +203,34 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     return (raggiuntoValore / totaleTarget.valore) * 100;
   }, [modalita, totaleTarget, pesoTotaleVassoio, totaleVassoio, composizione]);
 
+  // ✅ CALCOLO AUTOMATICO QUANTITÀ IN MODALITÀ TOTALE_PRIMA
+  useEffect(() => {
+    if (modalita !== MODALITA.TOTALE_PRIMA) return;
+    if (composizione.length === 0) return;
+    if (totaleTarget.valore <= 0) return;
+
+    // Conta solo prodotti con flag autoCalc
+    const prodottiDaCalcolare = composizione.filter(item => item.autoCalc);
+    if (prodottiDaCalcolare.length === 0) return;
+
+    // Calcola quantità equa per ogni prodotto
+    const quantitaPerProdotto = totaleTarget.valore / composizione.length;
+
+    setComposizione(prev => prev.map(item => {
+      if (!item.autoCalc) return item;
+
+      const nuovaQuantita = quantitaPerProdotto;
+      const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, nuovaQuantita, 'Kg');
+
+      return {
+        ...item,
+        quantita: nuovaQuantita,
+        unita: 'Kg',
+        prezzo: nuovoPrezzo
+      };
+    }));
+  }, [modalita, composizione.length, totaleTarget.valore]);
+
   // ========== VALIDAZIONI ==========
   
   /**
@@ -317,6 +344,22 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     const config = getProdottoConfig(nomeProdotto);
     if (!config) return;
 
+    // ✅ MODALITÀ TOTALE_PRIMA: Aggiungi solo prodotto, calcolo automatico dopo
+    if (modalita === MODALITA.TOTALE_PRIMA) {
+      const nuovoItem = {
+        id: Date.now() + Math.random(),
+        prodotto: nomeProdotto,
+        quantita: 0, // Verrà calcolato automaticamente
+        unita: 'Kg',
+        prezzo: 0,
+        autoCalc: true // Flag per indicare calcolo automatico
+      };
+
+      setComposizione(prev => [...prev, nuovoItem]);
+      return;
+    }
+
+    // ✅ MODALITÀ LIBERA: Aggiungi con quantità default
     const quantitaDefault = config.modalitaVendita === 'solo_kg' ? 0.5 : 1;
     const unitaDefault = config.unitaMisuraDisponibili?.[0] || 'Kg';
     const prezzo = calcolaPrezzoProdotto(nomeProdotto, quantitaDefault, unitaDefault);
@@ -580,6 +623,19 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
               </Box>
             </Grid>
           </Grid>
+
+          {/* ✅ ALERT ESPLICATIVO MODALITÀ TOTALE_PRIMA */}
+          <Alert severity="info" sx={{ mt: 2, bgcolor: '#E3F2FD' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+              🎯 Modalità "Totale Prima" - Come funziona:
+            </Typography>
+            <Typography variant="body2" component="div">
+              1. Hai impostato un target di <strong>{totaleTarget.valore} {totaleTarget.unita}</strong><br/>
+              2. Seleziona i prodotti che vuoi includere nel vassoio<br/>
+              3. Le quantità verranno <strong>calcolate automaticamente</strong> in modo equo<br/>
+              4. Non devi impostare quantità manualmente!
+            </Typography>
+          </Alert>
         </Paper>
       )}
 
@@ -612,7 +668,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
       {/* ========== SEZIONE 4: LISTA PRODOTTI ========== */}
       {modalita !== MODALITA.MIX_COMPLETO && (
-        <Paper sx={{ p: 3, mb: 3, bgcolor: '#FFF3E0', borderLeft: '4px solid #FF9800' }}>
+        <Paper sx={{ p: 3, mb: 3 }}>
           <Box 
             sx={{ 
               display: 'flex', 
@@ -623,11 +679,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
             }}
             onClick={() => setProdottiExpanded(!prodottiExpanded)}
           >
-            <Typography variant="h6" sx={{ color: '#E65100', fontWeight: 'bold' }}>
-              📋 Prodotti Disponibili ({prodottiDolci.length}) 
-              {!prodottiExpanded && <Typography component="span" sx={{ ml: 2, fontSize: 14, color: 'warning.main' }}>
-                👆 Clicca per espandere
-              </Typography>}
+            <Typography variant="h6">
+              📋 Prodotti Disponibili ({prodottiDolci.length})
             </Typography>
             <IconButton size="small">
               {prodottiExpanded ? <ChevronUp /> : <ChevronDown />}
@@ -635,42 +688,18 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
           </Box>
           
           <Collapse in={prodottiExpanded}>
-            {/* ✅ ALERT ISTRUZIONI PROMINENTE */}
-            <Alert severity="warning" sx={{ mb: 2, bgcolor: '#FFF8E1', border: '2px solid #FFA726' }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                👇 CLICCA SUI PRODOTTI QUI SOTTO PER AGGIUNGERLI AL VASSOIO
-              </Typography>
-              <Typography variant="caption">
-                Ogni prodotto cliccato verrà aggiunto automaticamente alla composizione con quantità iniziale. 
-                Poi potrai modificare le quantità nella sezione "Composizione Vassoio".
-              </Typography>
-            </Alert>
-
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {prodottiDolci.map(prodotto => {
-                const giàAggiunto = composizione.some(item => item.prodotto === prodotto.nome);
-                return (
-                  <Chip
-                    key={prodotto.nome}
-                    label={prodotto.nome}
-                    onClick={() => !giàAggiunto && aggiungiProdotto(prodotto.nome)}
-                    icon={giàAggiunto ? <Check size={16} /> : <Plus size={16} />}
-                    color={giàAggiunto ? 'success' : 'primary'}
-                    variant={giàAggiunto ? 'filled' : 'outlined'}
-                    disabled={giàAggiunto}
-                    sx={{ 
-                      cursor: giàAggiunto ? 'default' : 'pointer',
-                      fontWeight: 'bold',
-                      fontSize: 14,
-                      '&:hover': {
-                        transform: giàAggiunto ? 'none' : 'scale(1.05)',
-                        boxShadow: giàAggiunto ? 'none' : 3
-                      },
-                      transition: 'all 0.2s'
-                    }}
-                  />
-                );
-              })}
+              {prodottiDolci.map(prodotto => (
+                <Chip
+                  key={prodotto.nome}
+                  label={prodotto.nome}
+                  onClick={() => aggiungiProdotto(prodotto.nome)}
+                  icon={<Plus size={16} />}
+                  color="primary"
+                  variant="outlined"
+                  sx={{ cursor: 'pointer' }}
+                />
+              ))}
             </Box>
           </Collapse>
         </Paper>
@@ -691,16 +720,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
         </Typography>
 
         {composizione.length === 0 ? (
-          <Alert severity="info" icon={<Info />} sx={{ bgcolor: '#E3F2FD' }}>
-            <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold' }}>
-              💡 Come comporre il tuo vassoio:
-            </Typography>
-            <Typography variant="body2" component="div">
-              1. Clicca sui prodotti nella sezione "Prodotti Disponibili" qui sopra<br/>
-              2. Ogni prodotto cliccato verrà aggiunto automaticamente alla composizione<br/>
-              3. Imposta le quantità desiderate per ciascun prodotto<br/>
-              4. Il prezzo totale viene calcolato automaticamente a €19/Kg
-            </Typography>
+          <Alert severity="info">
+            Nessun prodotto aggiunto. Inizia a comporre il tuo vassoio!
           </Alert>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -712,34 +733,53 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                       {/* Nome Prodotto */}
-                      <Typography variant="subtitle1" sx={{ minWidth: 150 }}>
+                      <Typography variant="subtitle1" sx={{ minWidth: 150, fontWeight: 'bold' }}>
                         {item.prodotto}
                       </Typography>
 
-                      {/* Controlli Quantità */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => incrementaQuantita(item.id, -1)}
-                        >
-                          <Minus size={16} />
-                        </IconButton>
+                      {/* ✅ MODALITÀ TOTALE_PRIMA: Mostra solo quantità calcolata */}
+                      {modalita === MODALITA.TOTALE_PRIMA && item.autoCalc ? (
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          bgcolor: '#E8F5E9',
+                          px: 2,
+                          py: 1,
+                          borderRadius: 1
+                        }}>
+                          <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                            {item.quantita.toFixed(2)} Kg
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            (calcolato automaticamente)
+                          </Typography>
+                        </Box>
+                      ) : (
+                        /* ✅ MODALITÀ LIBERA: Controlli quantità normali */
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => incrementaQuantita(item.id, -1)}
+                          >
+                            <Minus size={16} />
+                          </IconButton>
 
-                        <TextField
-                          type="number"
-                          value={item.quantita}
-                          onChange={(e) => aggiornaQuantita(item.id, e.target.value)}
-                          size="small"
-                          sx={{ width: 80 }}
-                          inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
-                        />
+                          <TextField
+                            type="number"
+                            value={item.quantita}
+                            onChange={(e) => aggiornaQuantita(item.id, e.target.value)}
+                            size="small"
+                            sx={{ width: 80 }}
+                            inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
+                          />
 
-                        <IconButton 
-                          size="small" 
-                          onClick={() => incrementaQuantita(item.id, 1)}
-                        >
-                          <Plus size={16} />
-                        </IconButton>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => incrementaQuantita(item.id, 1)}
+                          >
+                            <Plus size={16} />
+                          </IconButton>
                       </Box>
 
                       {/* Unità di Misura */}
@@ -976,8 +1016,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
       {/* ========== RIEPILOGO FINALE ========== */}
       {composizione.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3, bgcolor: '#E8F5E9', borderLeft: '4px solid #4CAF50' }}>
-          <Typography variant="h6" gutterBottom sx={{ color: '#2E7D32' }}>
+        <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.light' }}>
+          <Typography variant="h6" gutterBottom>
             💰 Riepilogo Finale
           </Typography>
           
