@@ -1681,5 +1681,3 @@ return (
     </>
   );
 }
-
-export default GestoreOrdini;
