@@ -42,7 +42,8 @@ import {
   Tag,
   Calculator,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Check
 } from 'lucide-react';
 import { PRODOTTI_CONFIG, getProdottoConfig } from '../config/prodottiConfig.js';
 
@@ -611,7 +612,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
       {/* ========== SEZIONE 4: LISTA PRODOTTI ========== */}
       {modalita !== MODALITA.MIX_COMPLETO && (
-        <Paper sx={{ p: 3, mb: 3 }}>
+        <Paper sx={{ p: 3, mb: 3, bgcolor: '#FFF3E0', borderLeft: '4px solid #FF9800' }}>
           <Box 
             sx={{ 
               display: 'flex', 
@@ -622,8 +623,11 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
             }}
             onClick={() => setProdottiExpanded(!prodottiExpanded)}
           >
-            <Typography variant="h6">
-              📋 Prodotti Disponibili ({prodottiDolci.length})
+            <Typography variant="h6" sx={{ color: '#E65100', fontWeight: 'bold' }}>
+              📋 Prodotti Disponibili ({prodottiDolci.length}) 
+              {!prodottiExpanded && <Typography component="span" sx={{ ml: 2, fontSize: 14, color: 'warning.main' }}>
+                👆 Clicca per espandere
+              </Typography>}
             </Typography>
             <IconButton size="small">
               {prodottiExpanded ? <ChevronUp /> : <ChevronDown />}
@@ -631,18 +635,42 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
           </Box>
           
           <Collapse in={prodottiExpanded}>
+            {/* ✅ ALERT ISTRUZIONI PROMINENTE */}
+            <Alert severity="warning" sx={{ mb: 2, bgcolor: '#FFF8E1', border: '2px solid #FFA726' }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                👇 CLICCA SUI PRODOTTI QUI SOTTO PER AGGIUNGERLI AL VASSOIO
+              </Typography>
+              <Typography variant="caption">
+                Ogni prodotto cliccato verrà aggiunto automaticamente alla composizione con quantità iniziale. 
+                Poi potrai modificare le quantità nella sezione "Composizione Vassoio".
+              </Typography>
+            </Alert>
+
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {prodottiDolci.map(prodotto => (
-                <Chip
-                  key={prodotto.nome}
-                  label={prodotto.nome}
-                  onClick={() => aggiungiProdotto(prodotto.nome)}
-                  icon={<Plus size={16} />}
-                  color="primary"
-                  variant="outlined"
-                  sx={{ cursor: 'pointer' }}
-                />
-              ))}
+              {prodottiDolci.map(prodotto => {
+                const giàAggiunto = composizione.some(item => item.prodotto === prodotto.nome);
+                return (
+                  <Chip
+                    key={prodotto.nome}
+                    label={prodotto.nome}
+                    onClick={() => !giàAggiunto && aggiungiProdotto(prodotto.nome)}
+                    icon={giàAggiunto ? <Check size={16} /> : <Plus size={16} />}
+                    color={giàAggiunto ? 'success' : 'primary'}
+                    variant={giàAggiunto ? 'filled' : 'outlined'}
+                    disabled={giàAggiunto}
+                    sx={{ 
+                      cursor: giàAggiunto ? 'default' : 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: 14,
+                      '&:hover': {
+                        transform: giàAggiunto ? 'none' : 'scale(1.05)',
+                        boxShadow: giàAggiunto ? 'none' : 3
+                      },
+                      transition: 'all 0.2s'
+                    }}
+                  />
+                );
+              })}
             </Box>
           </Collapse>
         </Paper>
