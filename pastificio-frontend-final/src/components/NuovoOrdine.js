@@ -112,6 +112,11 @@ clienteIdPreselezionato,
   noteCottura: '' // ✅ NUOVO: Note cottura
 });
 
+  // ✅ STATI PER GESTIONE VASSOIO (AGGIUNTO 13/11/2025)
+  const [modalitaVassoio, setModalitaVassoio] = useState(null);
+  const [composizioneVassoio, setComposizioneVassoio] = useState([]);
+  const [totaleVassoio, setTotaleVassoio] = useState(0);
+
   // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
   useEffect(() => {
     if (isConnected) {
@@ -618,6 +623,60 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
 
 
   const handleAggiungiProdotto = () => {
+    console.log('🔵 handleAggiungiProdotto chiamato', { prodottoCorrente, modalitaVassoio });
+
+    // ✅ SE SIAMO IN MODALITÀ VASSOIO
+    if (modalitaVassoio === 'imposta_totale') {
+      const nuovoItem = {
+        nome: prodottoCorrente.nome,
+        quantita: 0,
+        unita: 'Kg',
+        prezzo: 0,
+        id: `temp_${Date.now()}_${Math.random()}`
+      };
+      
+      setComposizioneVassoio(prev => [...prev, nuovoItem]);
+      console.log('✅ Prodotto aggiunto alla composizione vassoio');
+      
+      setProdottoCorrente({
+        nome: '',
+        variante: '',
+        quantita: '',
+        unita: 'Kg',
+        prezzo: 0,
+        varianti: [],
+        noteCottura: ''
+      });
+      return;
+    }
+
+    // ✅ SE SIAMO IN MODALITÀ DOLCI MISTI COMPLETO
+    if (modalitaVassoio === 'dolci_misti') {
+      const nuovoItem = {
+        nome: prodottoCorrente.nome,
+        quantita: 0,
+        unita: 'Kg',
+        prezzo: 0,
+        pesoMix: 0,
+        id: `temp_${Date.now()}_${Math.random()}`
+      };
+      
+      setComposizioneVassoio(prev => [...prev, nuovoItem]);
+      console.log('✅ Prodotto aggiunto al mix dolci');
+      
+      setProdottoCorrente({
+        nome: '',
+        variante: '',
+        quantita: '',
+        unita: 'Kg',
+        prezzo: 0,
+        varianti: [],
+        noteCottura: ''
+      });
+      return;
+    }
+
+    // ✅ MODALITÀ NORMALE: codice originale
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       alert('Seleziona un prodotto e inserisci una quantità valida');
       return;
@@ -633,14 +692,12 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     let nomeProdottoCompleto = prodottoCorrente.nome;
     
     if (prodottoCorrente.varianti && prodottoCorrente.varianti.length > 0) {
-      // Sistema nuovo: usa generaNomeProdottoConVarianti
       nomeProdottoCompleto = generaNomeProdottoConVarianti(
         prodottoCorrente.nome,
         prodottoCorrente.varianti
       );
       console.log('✅ Nome con varianti (nuovo sistema):', nomeProdottoCompleto);
     } else if (prodottoCorrente.variante) {
-      // Sistema vecchio: variante legacy
       const variante = varianti.find(v => v.nome === prodottoCorrente.variante);
       nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
       console.log('✅ Nome con variante legacy:', nomeProdottoCompleto);
@@ -653,9 +710,9 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       unitaMisura: prodottoCorrente.unita,
       prezzo: prodottoCorrente.prezzo,
       categoria: prodottoConfig?.categoria || 'Altro',
-      variante: prodottoCorrente.variante, // Sistema vecchio
-      varianti: prodottoCorrente.varianti, // ✅ Sistema nuovo
-      noteCottura: prodottoCorrente.noteCottura // ✅ Note cottura
+      variante: prodottoCorrente.variante,
+      varianti: prodottoCorrente.varianti,
+      noteCottura: prodottoCorrente.noteCottura
     };
 
     console.log('➕ Prodotto aggiunto al carrello:', nuovoProdotto);
@@ -665,7 +722,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       prodotti: [...formData.prodotti, nuovoProdotto]
     });
 
-    // Reset completo
     setProdottoCorrente({
       nome: '',
       variante: '',
@@ -693,6 +749,32 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     });
     
     setTabValue(0);
+  };
+
+  // ✅ HANDLER CONFERMA VASSOIO (AGGIUNTO 13/11/2025)
+  const handleConfermaVassoio = (vassoi) => {
+    console.log('🎂 Conferma vassoio ricevuto:', vassoi);
+    
+    setFormData(prev => ({
+      ...prev,
+      prodotti: [...prev.prodotti, ...vassoi]
+    }));
+    
+    setModalitaVassoio(null);
+    setComposizioneVassoio([]);
+    setTotaleVassoio(0);
+    setTabValue(0);
+    
+    console.log('✅ Vassoio aggiunto all\'ordine');
+  };
+
+  // ✅ HANDLER ANNULLA VASSOIO (AGGIUNTO 13/11/2025)
+  const handleAnnullaVassoio = () => {
+    setModalitaVassoio(null);
+    setComposizioneVassoio([]);
+    setTotaleVassoio(0);
+    setTabValue(0);
+    console.log('❌ Vassoio annullato');
   };
 
   const calcolaTotale = () => {
@@ -1091,9 +1173,9 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         {/* TAB 1: VASSOIO DOLCI MISTI */}
         {tabValue === 1 && (
           <VassoidDolciMisti 
-            prodotti={prodottiDB}
-            onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
-            calcolaPrezzoOrdine={calcolaPrezzoOrdine}
+            prodottiDisponibili={prodottiDB}
+            onConferma={handleConfermaVassoio}
+            onAnnulla={handleAnnullaVassoio}
           />
         )}
 
