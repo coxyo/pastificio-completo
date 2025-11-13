@@ -213,7 +213,7 @@ function WhatsAppHelperComponent({ ordini }) {
 // =============================================================
 // COMPONENTE PRINCIPALE - GESTORE ORDINI
 // =============================================================
- export default function GestoreOrdini() {
+export default function GestoreOrdini() {
 
   // ----------------------------------------------------------------
   // STATE - Ordini & UI
