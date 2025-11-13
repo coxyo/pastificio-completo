@@ -1680,5 +1680,4 @@ useEffect(() => {
   );
 }
 
-
 export default GestoreOrdini;
