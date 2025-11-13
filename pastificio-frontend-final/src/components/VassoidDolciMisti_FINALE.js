@@ -280,8 +280,9 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     setErrore('');
     setWarning('');
     
+    // ✅ CAMBIATO: Warning invece di Errore (non blocca più l'ordine)
     if (pesoTotaleVassoio > PESO_MAX_PER_VASSOIO) {
-      setErrore(`⚠️ Peso vassoio ${pesoTotaleVassoio.toFixed(2)} Kg supera il massimo di ${PESO_MAX_PER_VASSOIO} Kg. Dividi in più vassoi!`);
+      setWarning(`⚠️ Peso vassoio ${pesoTotaleVassoio.toFixed(2)} Kg supera il massimo consigliato di ${PESO_MAX_PER_VASSOIO} Kg. Considera di dividere in più vassoi.`);
     } else if (pesoTotaleVassoio > (PESO_MAX_PER_VASSOIO * 0.85)) {
       setWarning(`⚠️ Stai raggiungendo il limite peso (${pesoTotaleVassoio.toFixed(2)} Kg / ${PESO_MAX_PER_VASSOIO} Kg max)`);
     }
@@ -399,17 +400,15 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       return;
     }
 
-    // ✅ MODALITÀ LIBERA: Aggiungi con quantità default
-    const quantitaDefault = config.modalitaVendita === 'solo_kg' ? 0.5 : 1;
+    // ✅ MODALITÀ LIBERA: Aggiungi con quantità VUOTA (0)
     const unitaDefault = config.unitaMisuraDisponibili?.[0] || 'Kg';
-    const prezzo = calcolaPrezzoProdotto(nomeProdotto, quantitaDefault, unitaDefault);
 
     const nuovoItem = {
       id: Date.now() + Math.random(),
       prodotto: nomeProdotto,
-      quantita: quantitaDefault,
+      quantita: 0, // ✅ CAMBIATO: Campo vuoto pronto per input
       unita: unitaDefault,
-      prezzo: prezzo
+      prezzo: 0
     };
 
     setComposizione(prev => [...prev, nuovoItem]);
@@ -810,8 +809,9 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
                           <TextField
                             type="number"
-                            value={item.quantita}
+                            value={item.quantita === 0 ? '' : item.quantita}
                             onChange={(e) => aggiornaQuantita(item.id, e.target.value)}
+                            placeholder="0"
                             size="small"
                             sx={{ width: 80 }}
                             inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
@@ -1109,7 +1109,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
           variant="contained"
           size="large"
           onClick={handleAggiungiAlCarrello}
-          disabled={composizione.length === 0 || !!errore}
+          disabled={composizione.length === 0}
           startIcon={<ShoppingCart />}
         >
           Aggiungi al Carrello
