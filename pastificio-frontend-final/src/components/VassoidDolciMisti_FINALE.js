@@ -67,10 +67,12 @@ const DIMENSIONI_VASSOIO = {
   2: { label: 'Nr 2 - Piccolo', pesoSuggerito: 0.2, range: '~200g' },
   4: { label: 'Nr 4 - Medio', pesoSuggerito: 0.45, range: '~400-500g' },
   6: { label: 'Nr 6 - Grande', pesoSuggerito: 0.85, range: '~700g-1kg' },
-  8: { label: 'Nr 8 - XL', pesoSuggerito: 1.5, range: '~1-2kg' }
+  8: { label: 'Nr 8 - XL', pesoSuggerito: 1.5, range: '~1-2kg' },
+  10: { label: 'Nr 10 - XXL', pesoSuggerito: 2.5, range: '~2-3kg' },
+  12: { label: 'Nr 12 - Famiglia', pesoSuggerito: 4.0, range: '~3-5kg' }
 };
 
-const PESO_MAX_PER_VASSOIO = 2.0; // Kg
+const PESO_MAX_PER_VASSOIO = 5.0; // Kg - Aumentato per vassoi più grandi
 
 // ==========================================
 // 🎯 MODALITÀ COMPOSIZIONE
