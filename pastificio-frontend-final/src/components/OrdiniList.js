@@ -359,8 +359,34 @@ Pastificio Nonna Claudia`;
                         </TableCell>
                         <TableCell>
                           <Box>
-                            {/* ✅ FIX: MOSTRA TUTTI I PRODOTTI o primi 3 se collapsed */}
+                            {/* ✅ FIX: GESTIONE VASSOI E PRODOTTI NORMALI */}
                             {prodottiDaMostrare && prodottiDaMostrare.map((p, index) => {
+                              // Se è un vassoio dolci misti
+                              if (p.nome === 'Vassoio Dolci Misti' && p.dettagliCalcolo?.composizione) {
+                                return (
+                                  <Box key={index} sx={{ mb: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                      🎂 Vassoio Dolci Misti (€{p.prezzo.toFixed(2)})
+                                    </Typography>
+                                    {p.dettagliCalcolo.composizione.map((item, idx) => (
+                                      <Typography 
+                                        key={idx} 
+                                        variant="caption" 
+                                        sx={{ display: 'block', pl: 2, color: 'text.secondary' }}
+                                      >
+                                        • <strong>{item.nome}</strong>: {item.quantita.toFixed(2)} {item.unita} (€{item.prezzo.toFixed(2)})
+                                      </Typography>
+                                    ))}
+                                    {p.note && (
+                                      <Typography variant="caption" sx={{ display: 'block', pl: 2, fontStyle: 'italic', color: 'info.main' }}>
+                                        📝 {p.note}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                );
+                              }
+                              
+                              // Prodotti normali
                               const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
                               return (
                                 <Typography key={index} variant="body2">
