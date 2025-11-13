@@ -210,10 +210,10 @@ function WhatsAppHelperComponent({ ordini }) {
   );
 }
 
-// =============================================================
-// COMPONENTE PRINCIPALE - GESTORE ORDINI
-// =============================================================
-export default function GestoreOrdini() {
+ // =============================================================
+ // COMPONENTE PRINCIPALE - GESTORE ORDINI
+ // =============================================================
+ export default function GestoreOrdini() {
 
   // ----------------------------------------------------------------
   // STATE - Ordini & UI
@@ -1300,7 +1300,9 @@ useEffect(() => {
   }, [sincronizzaConMongoDB]); // Rimosso connectWebSocket (disabilitato)
   
   // =============================================================  // RENDER JSX PRINCIPALE
-  // =============================================================  return (
+  // =============================================================  
+
+return (
     <>
       <style jsx global>{`
         @keyframes rotate {
