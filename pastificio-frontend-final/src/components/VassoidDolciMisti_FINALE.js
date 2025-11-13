@@ -780,14 +780,16 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                           >
                             <Plus size={16} />
                           </IconButton>
-                      </Box>
+                        </Box>
+                      )}
 
-                      {/* Unità di Misura */}
-                      <RadioGroup
-                        row
-                        value={item.unita}
-                        onChange={(e) => cambiaUnita(item.id, e.target.value)}
-                      >
+                      {/* Unità di Misura - Solo in modalità LIBERA */}
+                      {modalita !== MODALITA.TOTALE_PRIMA && (
+                        <RadioGroup
+                          row
+                          value={item.unita}
+                          onChange={(e) => cambiaUnita(item.id, e.target.value)}
+                        >
                         {config?.unitaMisuraDisponibili?.map(unita => (
                           <FormControlLabel
                             key={unita}
@@ -797,6 +799,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                           />
                         ))}
                       </RadioGroup>
+                      )}
 
                       {/* Prezzo */}
                       <Typography 
