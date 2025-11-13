@@ -213,23 +213,63 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     const prodottiDaCalcolare = composizione.filter(item => item.autoCalc);
     if (prodottiDaCalcolare.length === 0) return;
 
-    // Calcola quantità equa per ogni prodotto
-    const quantitaPerProdotto = totaleTarget.valore / composizione.length;
+    // ✅ CALCOLO BASATO SU UNITÀ TARGET
+    if (totaleTarget.unita === 'Kg') {
+      // Calcola Kg per prodotto
+      const kgPerProdotto = totaleTarget.valore / composizione.length;
 
-    setComposizione(prev => prev.map(item => {
-      if (!item.autoCalc) return item;
+      setComposizione(prev => prev.map(item => {
+        if (!item.autoCalc) return item;
 
-      const nuovaQuantita = quantitaPerProdotto;
-      const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, nuovaQuantita, 'Kg');
+        const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, kgPerProdotto, 'Kg');
 
-      return {
-        ...item,
-        quantita: nuovaQuantita,
-        unita: 'Kg',
-        prezzo: nuovoPrezzo
-      };
-    }));
-  }, [modalita, composizione.length, totaleTarget.valore]);
+        return {
+          ...item,
+          quantita: kgPerProdotto,
+          unita: 'Kg',
+          prezzo: nuovoPrezzo
+        };
+      }));
+
+    } else if (totaleTarget.unita === 'Pezzi') {
+      // Calcola Pezzi per prodotto
+      const pezziPerProdotto = Math.floor(totaleTarget.valore / composizione.length);
+
+      setComposizione(prev => prev.map(item => {
+        if (!item.autoCalc) return item;
+
+        const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, pezziPerProdotto, 'Pezzi');
+
+        return {
+          ...item,
+          quantita: pezziPerProdotto,
+          unita: 'Pezzi',
+          prezzo: nuovoPrezzo
+        };
+      }));
+
+    } else if (totaleTarget.unita === '€') {
+      // Calcola prezzo target per prodotto
+      const prezzoTargetPerProdotto = totaleTarget.valore / composizione.length;
+
+      setComposizione(prev => prev.map(item => {
+        if (!item.autoCalc) return item;
+
+        const config = getProdottoConfig(item.prodotto);
+        if (!config) return item;
+
+        // Calcola Kg necessari per raggiungere il prezzo target
+        const kgNecessari = prezzoTargetPerProdotto / (config.prezzoKg || 19);
+
+        return {
+          ...item,
+          quantita: kgNecessari,
+          unita: 'Kg',
+          prezzo: prezzoTargetPerProdotto
+        };
+      }));
+    }
+  }, [modalita, composizione.length, totaleTarget.valore, totaleTarget.unita]);
 
   // ========== VALIDAZIONI ==========
   
@@ -749,7 +789,10 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                           borderRadius: 1
                         }}>
                           <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                            {item.quantita.toFixed(2)} Kg
+                            {item.unita === 'Pezzi' 
+                              ? `${Math.floor(item.quantita)} ${item.unita}`
+                              : `${item.quantita.toFixed(2)} ${item.unita}`
+                            }
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             (calcolato automaticamente)
