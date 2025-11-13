@@ -1,5 +1,5 @@
 // config/prodottiConfig.js
-// ✅ Configurazione completa prodotti con VARIANTI - AGGIORNATA
+// ✅ VERSIONE CORRETTA - 13 Novembre 2025
 
 export const MODALITA_VENDITA = {
   SOLO_KG: 'solo_kg',
@@ -59,7 +59,7 @@ export const PRODOTTI_CONFIG = {
         nome: 'piccoli',
         label: 'Ravioli ricotta piccoli',
         prezzoKg: 11.00,
-        pezziPerKg: 40 // ✅ Più pezzi per kg perché sono piccoli
+        pezziPerKg: 40
       }
     ]
   },
@@ -131,7 +131,7 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'nutella',
         label: 'Ciambelle con nutella',
-        prezzoKg: 17.00 // ✅ Prezzo maggiorato per nutella
+        prezzoKg: 18.00
       },
       {
         nome: 'zucchero_velo',
@@ -141,7 +141,7 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'miste_marmellata_nutella',
         label: 'Ciambelle miste: marmellata - nutella',
-        prezzoKg: 17.00 // ✅ Prezzo medio tra marmellata e nutella
+        prezzoKg: 17.50
       },
       {
         nome: 'miste_marmellata_zucchero',
@@ -172,7 +172,8 @@ export const PRODOTTI_CONFIG = {
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
-  'Papassini': {
+  // ✅ FIX: PAPASSINAS (era Papassini)
+  'Papassinas': {
     categoria: 'Dolci',
     prezzoKg: 22.00,
     pezziPerKg: 30,
@@ -210,10 +211,10 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
     composizione: {
-      pardulas: 0.40,    // 40% Pardulas
-      cimbelle: 0.30,    // 30% Ciambelle
-      amaretti: 0.15,    // 15% Amaretti
-      misti: 0.15        // 15% Pabassinas, bianchini, gueffus
+      pardulas: 0.40,
+      ciambelle: 0.30,
+      amaretti: 0.15,
+      misti: 0.15
     }
   },
 
@@ -286,12 +287,10 @@ export const PRODOTTI_CONFIG = {
 
 // ✅ Funzione per ottenere config prodotto (gestisce varianti)
 export const getProdottoConfig = (nomeProdotto) => {
-  // Cerca prodotto esatto
   if (PRODOTTI_CONFIG[nomeProdotto]) {
     return PRODOTTI_CONFIG[nomeProdotto];
   }
 
-  // Cerca nelle varianti
   for (const [key, config] of Object.entries(PRODOTTI_CONFIG)) {
     if (config.hasVarianti && config.varianti) {
       const variante = config.varianti.find(v => 
@@ -315,7 +314,6 @@ export const getProdottoConfig = (nomeProdotto) => {
   return null;
 };
 
-// Lista prodotti per dropdown (solo prodotti base, non varianti)
 export const LISTA_PRODOTTI = Object.keys(PRODOTTI_CONFIG).sort();
 
 export default PRODOTTI_CONFIG;
