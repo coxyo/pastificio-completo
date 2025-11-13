@@ -524,8 +524,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
       {/* ========== SEZIONE 2: TOTALE TARGET (se modalità = totale_prima) ========== */}
       {modalita === MODALITA.TOTALE_PRIMA && (
-        <Paper sx={{ p: 3, mb: 3, bgcolor: 'info.light' }}>
-          <Typography variant="h6" gutterBottom>
+        <Paper sx={{ p: 3, mb: 3, bgcolor: '#E3F2FD', borderLeft: '4px solid #2196F3' }}>
+          <Typography variant="h6" gutterBottom sx={{ color: '#1565C0' }}>
             ⚖️ Totale Vassoio Target
           </Typography>
           
@@ -663,8 +663,16 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
         </Typography>
 
         {composizione.length === 0 ? (
-          <Alert severity="info">
-            Nessun prodotto aggiunto. Inizia a comporre il tuo vassoio!
+          <Alert severity="info" icon={<Info />} sx={{ bgcolor: '#E3F2FD' }}>
+            <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold' }}>
+              💡 Come comporre il tuo vassoio:
+            </Typography>
+            <Typography variant="body2" component="div">
+              1. Clicca sui prodotti nella sezione "Prodotti Disponibili" qui sopra<br/>
+              2. Ogni prodotto cliccato verrà aggiunto automaticamente alla composizione<br/>
+              3. Imposta le quantità desiderate per ciascun prodotto<br/>
+              4. Il prezzo totale viene calcolato automaticamente a €19/Kg
+            </Typography>
           </Alert>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -940,8 +948,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
       {/* ========== RIEPILOGO FINALE ========== */}
       {composizione.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.light' }}>
-          <Typography variant="h6" gutterBottom>
+        <Paper sx={{ p: 3, mb: 3, bgcolor: '#E8F5E9', borderLeft: '4px solid #4CAF50' }}>
+          <Typography variant="h6" gutterBottom sx={{ color: '#2E7D32' }}>
             💰 Riepilogo Finale
           </Typography>
           
