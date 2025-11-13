@@ -788,6 +788,22 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       return;
     }
 
+    // ✅ VALIDAZIONE QUANTITÀ PRODOTTI (con eccezione per vassoio)
+    const prodottiInvalidi = formData.prodotti.filter(p => {
+      // Vassoio è sempre valido (unita='vassoio' o nome contiene 'Vassoio')
+      if (p.unita === 'vassoio' || p.nome?.toLowerCase().includes('vassoio')) {
+        return false;
+      }
+      // Altri prodotti devono avere quantita > 0
+      return !p.quantita || p.quantita <= 0;
+    });
+
+    if (prodottiInvalidi.length > 0) {
+      const nomiInvalidi = prodottiInvalidi.map(p => p.nome).join(', ');
+      alert(`Attenzione: i seguenti prodotti hanno quantità non valida:\n${nomiInvalidi}\n\nInserisci una quantità maggiore di 0.`);
+      return;
+    }
+
     const erroriCritici = alertLimiti.filter(a => a.tipo === 'error');
     let forceOverride = false;
     
