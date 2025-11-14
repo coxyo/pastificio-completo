@@ -280,10 +280,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     setErrore('');
     setWarning('');
     
-     else if (pesoTotaleVassoio > (PESO_MAX_PER_VASSOIO * 0.85)) {
-      setWarning(`⚠️ Stai raggiungendo il limite peso (${pesoTotaleVassoio.toFixed(2)} Kg / ${PESO_MAX_PER_VASSOIO} Kg max)`);
-    }
-    
+      
     // Suggerimento dimensione vassoio
     const dimensioneSuggerita = Object.entries(DIMENSIONI_VASSOIO).find(([num, info]) => 
       pesoTotaleVassoio <= info.pesoSuggerito * 1.1
