@@ -285,12 +285,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       pesoTotaleVassoio <= info.pesoSuggerito * 1.1
     );
     
-    if (dimensioneSuggerita && parseInt(dimensioneSuggerita[0]) !== numeroVassoioDimensione) {
-      const [num, info] = dimensioneSuggerita;
-      if (!warning) {
-        setWarning(`💡 Suggerimento: ${info.label} per ${pesoTotaleVassoio.toFixed(2)} Kg`);
-      }
-    }
+   
   }, [pesoTotaleVassoio, numeroVassoioDimensione]);
 
   // ========== HANDLERS ==========
