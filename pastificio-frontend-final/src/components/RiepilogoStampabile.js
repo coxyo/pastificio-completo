@@ -165,7 +165,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       const categorieOrdine = new Set();
       
       ordine.prodotti.forEach(prodotto => {
-        const categoria = getCategoriaProdo tto(prodotto.nome);
+        const categoria = getCategoriaProdotto(prodotto.nome);
         categorieOrdine.add(categoria);
         
         gruppi[categoria].push({
