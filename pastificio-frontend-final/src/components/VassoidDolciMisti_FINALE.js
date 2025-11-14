@@ -67,12 +67,10 @@ const DIMENSIONI_VASSOIO = {
   2: { label: 'Nr 2 - Piccolo', pesoSuggerito: 0.2, range: '~200g' },
   4: { label: 'Nr 4 - Medio', pesoSuggerito: 0.45, range: '~400-500g' },
   6: { label: 'Nr 6 - Grande', pesoSuggerito: 0.85, range: '~700g-1kg' },
-  8: { label: 'Nr 8 - XL', pesoSuggerito: 1.5, range: '~1-2kg' },
-  10: { label: 'Nr 10 - XXL', pesoSuggerito: 2.5, range: '~2-3kg' },
-  12: { label: 'Nr 12 - Famiglia', pesoSuggerito: 4.0, range: '~3-5kg' }
+  8: { label: 'Nr 8 - XL', pesoSuggerito: 1.5, range: '~1-2kg' }
 };
 
-const PESO_MAX_PER_VASSOIO = 5.0; // Kg - Aumentato per vassoi più grandi
+const PESO_MAX_PER_VASSOIO = 2.0; // Kg
 
 // ==========================================
 // 🎯 MODALITÀ COMPOSIZIONE
@@ -282,10 +280,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     setErrore('');
     setWarning('');
     
-    // ✅ CAMBIATO: Warning invece di Errore (non blocca più l'ordine)
-    if (pesoTotaleVassoio > PESO_MAX_PER_VASSOIO) {
-      setWarning(`⚠️ Peso vassoio ${pesoTotaleVassoio.toFixed(2)} Kg supera il massimo consigliato di ${PESO_MAX_PER_VASSOIO} Kg. Considera di dividere in più vassoi.`);
-    } else if (pesoTotaleVassoio > (PESO_MAX_PER_VASSOIO * 0.85)) {
+     else if (pesoTotaleVassoio > (PESO_MAX_PER_VASSOIO * 0.85)) {
       setWarning(`⚠️ Stai raggiungendo il limite peso (${pesoTotaleVassoio.toFixed(2)} Kg / ${PESO_MAX_PER_VASSOIO} Kg max)`);
     }
     
@@ -402,15 +397,17 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       return;
     }
 
-    // ✅ MODALITÀ LIBERA: Aggiungi con quantità VUOTA (0)
+    // ✅ MODALITÀ LIBERA: Aggiungi con quantità default
+    const quantitaDefault = config.modalitaVendita === 'solo_kg' ? 0.5 : 1;
     const unitaDefault = config.unitaMisuraDisponibili?.[0] || 'Kg';
+    const prezzo = calcolaPrezzoProdotto(nomeProdotto, quantitaDefault, unitaDefault);
 
     const nuovoItem = {
       id: Date.now() + Math.random(),
       prodotto: nomeProdotto,
-      quantita: 0, // ✅ CAMBIATO: Campo vuoto pronto per input
+      quantita: quantitaDefault,
       unita: unitaDefault,
-      prezzo: 0
+      prezzo: prezzo
     };
 
     setComposizione(prev => [...prev, nuovoItem]);
@@ -811,9 +808,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
                           <TextField
                             type="number"
-                            value={item.quantita === 0 ? '' : item.quantita}
+                            value={item.quantita}
                             onChange={(e) => aggiornaQuantita(item.id, e.target.value)}
-                            placeholder="0"
                             size="small"
                             sx={{ width: 80 }}
                             inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
@@ -1111,7 +1107,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
           variant="contained"
           size="large"
           onClick={handleAggiungiAlCarrello}
-          disabled={composizione.length === 0}
+          disabled={composizione.length === 0 || !!errore}
           startIcon={<ShoppingCart />}
         >
           Aggiungi al Carrello
