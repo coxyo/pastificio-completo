@@ -70,7 +70,6 @@ const DIMENSIONI_VASSOIO = {
   8: { label: 'Nr 8 - XL', pesoSuggerito: 1.5, range: '~1-2kg' }
 };
 
-const PESO_MAX_PER_VASSOIO = 2.0; // Kg
 
 // ==========================================
 // 🎯 MODALITÀ COMPOSIZIONE
@@ -468,11 +467,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       return;
     }
 
-    if (pesoTotaleVassoio > PESO_MAX_PER_VASSOIO) {
-      setErrore(`⚠️ Peso vassoio supera ${PESO_MAX_PER_VASSOIO} Kg. Dividi in più vassoi!`);
-      return;
-    }
-
+   
     // Prepara dati vassoio
     const dettagliComposizione = composizione.map(item => ({
       nome: item.prodotto,
