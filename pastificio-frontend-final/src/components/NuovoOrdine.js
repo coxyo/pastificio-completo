@@ -741,15 +741,29 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
   };
 
   const aggiungiVassoioAlCarrello = (vassoio) => {
-    console.log('🎂 Vassoio aggiunto al carrello:', vassoio);
-    
-    setFormData({
-      ...formData,
-      prodotti: [...formData.prodotti, vassoio]
-    });
-    
-    setTabValue(0);
-  };
+  console.log('🎂 Vassoio ricevuto:', vassoio);
+  
+  // ✅ GESTISCI SIA OGGETTO CHE ARRAY
+  let vassoiArray;
+  
+  if (Array.isArray(vassoio)) {
+    vassoiArray = vassoio;
+  } else if (vassoio && typeof vassoio === 'object') {
+    vassoiArray = [vassoio];
+    console.log('✅ Convertito oggetto vassoio in array');
+  } else {
+    console.error('❌ Vassoio non valido:', vassoio);
+    return;
+  }
+  
+  setFormData({
+    ...formData,
+    prodotti: [...formData.prodotti, ...vassoiArray]
+  });
+  
+  setTabValue(0);
+  console.log('✅ Vassoio aggiunto al carrello');
+};
 
   // ✅ HANDLER CONFERMA VASSOIO (AGGIUNTO 13/11/2025)
   const handleConfermaVassoio = (vassoi) => {
@@ -785,22 +799,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
   const handleSalva = async () => {
     if (!formData.nomeCliente || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
       alert('Compila tutti i campi obbligatori: cliente, data ritiro, ora ritiro e almeno un prodotto');
-      return;
-    }
-
-    // ✅ VALIDAZIONE QUANTITÀ PRODOTTI (con eccezione per vassoio)
-    const prodottiInvalidi = formData.prodotti.filter(p => {
-      // Vassoio è sempre valido (unita='vassoio' o nome contiene 'Vassoio')
-      if (p.unita === 'vassoio' || p.nome?.toLowerCase().includes('vassoio')) {
-        return false;
-      }
-      // Altri prodotti devono avere quantita > 0
-      return !p.quantita || p.quantita <= 0;
-    });
-
-    if (prodottiInvalidi.length > 0) {
-      const nomiInvalidi = prodottiInvalidi.map(p => p.nome).join(', ');
-      alert(`Attenzione: i seguenti prodotti hanno quantità non valida:\n${nomiInvalidi}\n\nInserisci una quantità maggiore di 0.`);
       return;
     }
 
@@ -1186,14 +1184,14 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           </Box>
         )}
 
-        {/* TAB 1: VASSOIO DOLCI MISTI */}
-        {tabValue === 1 && (
-          <VassoidDolciMisti 
-            prodottiDisponibili={prodottiDB}
-            onConferma={handleConfermaVassoio}
-            onAnnulla={handleAnnullaVassoio}
-          />
-        )}
+       {/* TAB 1: VASSOIO DOLCI MISTI */}
+{tabValue === 1 && (
+  <VassoidDolciMisti 
+    prodottiDisponibili={prodottiDB}
+    onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
+    onClose={() => setTabValue(0)}
+  />
+)}
 
         {/* SEZIONI COMUNI */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
