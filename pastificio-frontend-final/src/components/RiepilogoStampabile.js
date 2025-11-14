@@ -100,7 +100,7 @@ const abbreviaProdotto = (nome) => {
   return ABBREVIAZIONI[nome] || nome;
 };
 
-const getCategoriaProdo tto = (nomeProdotto) => {
+const getCategoriaProdotto = (nomeProdotto) => {
   const nomeLC = nomeProdotto.toLowerCase();
   
   for (const [key, categoria] of Object.entries(CATEGORIE)) {
