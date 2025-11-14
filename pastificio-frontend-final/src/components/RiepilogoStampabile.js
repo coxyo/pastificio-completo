@@ -123,32 +123,24 @@ const getVarianteRavioli = (nomeProdotto) => {
   return null;
 };
 
-const calcolaTotali = (categoria) => {
-  const ordiniCategoria = ordiniPerCategoria[categoria];
-  let totaleKg = 0;
-  const dettagli = {};
-
-  ordiniCategoria.forEach(({ prodotto }) => {
-    const nomeAbbrev = abbreviaProdotto(prodotto.nome);
-    
-    // Converti in Kg
-    let kg = 0;
-    if (prodotto.unita === 'Kg') {
-      kg = prodotto.quantita;
-    } else if (prodotto.unita === 'g') {
-      kg = prodotto.quantita / 1000;
-    }
-    
-    totaleKg += kg;
-    
-    if (!dettagli[nomeAbbrev]) {
-      dettagli[nomeAbbrev] = 0;
-    }
-    dettagli[nomeAbbrev] += kg;
-  });
-
-  return { totaleKg, dettagli };
+const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
+  // ✅ Per vassoi, usa il peso dalla composizione
+  if (unita === 'vassoio' && dettagliCalcolo?.pesoTotale) {
+    return `${dettagliCalcolo.pesoTotale.toFixed(1)} Kg`;
+  }
+  
+  if (unita === 'Kg' || unita === 'g') {
+    const kg = unita === 'g' ? quantita / 1000 : quantita;
+    return `${kg.toFixed(1)} Kg`;
+  }
+  
+  if (unita === 'Pezzi' || unita === 'Unità') {
+    return `${quantita} pz`;
+  }
+  
+  return `${quantita} ${unita}`;
 };
+
 const formattaData = (dataString) => {
   const data = new Date(dataString);
   const giorni = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
@@ -343,7 +335,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>{abbreviaProdotto(item.prodotto.nome)}</td>
-                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita)}</td>
+                        <td className="right">
+  {formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}
+</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                       </tr>
