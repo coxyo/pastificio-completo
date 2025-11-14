@@ -43,8 +43,8 @@ import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
-import GestioneLimiti from './GestioneLimiti';
 import RiepilogoStampabile from './RiepilogoStampabile';
+import GestioneLimiti from './GestioneLimiti';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
@@ -1386,23 +1386,34 @@ return (
               </Button>
               
               <Button
-                variant="contained"
-                size="small"
-                color="primary"
-                startIcon={<ListAltIcon />}
-                onClick={() => setRiepilogoAperto(true)}
-              >
-                Riepilogo
-              </Button>
-              
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<ExportIcon />}
-                onClick={(e) => setMenuExport(e.currentTarget)}
-              >
-                Export
-              </Button>
+  variant="contained"
+  size="small"
+  color="primary"
+  startIcon={<ListAltIcon />}
+  onClick={() => setRiepilogoAperto(true)}
+>
+  Riepilogo
+</Button>
+
+<Button
+  variant="contained"
+  size="small"
+  color="secondary"
+  startIcon={<PrintIcon />}
+  onClick={() => setRiepilogoStampabileAperto(true)}
+  sx={{ ml: 1 }}
+>
+  📄 Stampabile
+</Button>
+
+<Button
+  variant="outlined"
+  size="small"
+  startIcon={<ExportIcon />}
+  onClick={(e) => setMenuExport(e.currentTarget)}
+>
+  Export
+</Button>
               <Menu
                 anchorEl={menuExport}
                 open={Boolean(menuExport)}
@@ -1585,11 +1596,13 @@ return (
           </DialogActions>
         </Dialog>
         
-        <RiepilogoGiornaliero 
-          open={riepilogoStampabileAperto} 
-          onClose={() => setRiepilogoStampabileAperto(false)}
-          ordini={ordini}
-        />
+        {riepilogoStampabileAperto && (
+  <RiepilogoStampabile
+    ordini={ordini}
+    data={dataSelezionata}
+    onClose={() => setRiepilogoStampabileAperto(false)}
+  />
+)}
         
         <Dialog 
           open={whatsappHelperAperto} 
