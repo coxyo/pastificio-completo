@@ -100,7 +100,7 @@ const abbreviaProdotto = (nome) => {
   return ABBREVIAZIONI[nome] || nome;
 };
 
-const getCategoriaProdotto = (nomeProdotto) => {
+const getCategoriaProdo tto = (nomeProdotto) => {
   const nomeLC = nomeProdotto.toLowerCase();
   
   for (const [key, categoria] of Object.entries(CATEGORIE)) {
@@ -123,20 +123,32 @@ const getVarianteRavioli = (nomeProdotto) => {
   return null;
 };
 
-const formattaQuantita = (quantita, unita) => {
-  if (unita === 'Kg' || unita === 'g') {
-    const kg = unita === 'g' ? quantita / 1000 : quantita;
-    return `${kg.toFixed(1)} Kg`;
-  }
-  if (unita === 'Pezzi' || unita === 'Unità') {
-    return `${quantita} pz`;
-  }
-  if (unita === 'vassoio') {
-    return `${quantita} vass`;
-  }
-  return `${quantita} ${unita}`;
-};
+const calcolaTotali = (categoria) => {
+  const ordiniCategoria = ordiniPerCategoria[categoria];
+  let totaleKg = 0;
+  const dettagli = {};
 
+  ordiniCategoria.forEach(({ prodotto }) => {
+    const nomeAbbrev = abbreviaProdotto(prodotto.nome);
+    
+    // Converti in Kg
+    let kg = 0;
+    if (prodotto.unita === 'Kg') {
+      kg = prodotto.quantita;
+    } else if (prodotto.unita === 'g') {
+      kg = prodotto.quantita / 1000;
+    }
+    
+    totaleKg += kg;
+    
+    if (!dettagli[nomeAbbrev]) {
+      dettagli[nomeAbbrev] = 0;
+    }
+    dettagli[nomeAbbrev] += kg;
+  });
+
+  return { totaleKg, dettagli };
+};
 const formattaData = (dataString) => {
   const data = new Date(dataString);
   const giorni = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
@@ -181,31 +193,35 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
   // Calcola totali per categoria
   const calcolaTotali = (categoria) => {
-    const ordiniCategoria = ordiniPerCategoria[categoria];
-    let totaleKg = 0;
-    const dettagli = {};
+  const ordiniCategoria = ordiniPerCategoria[categoria];
+  let totaleKg = 0;
+  const dettagli = {};
 
-    ordiniCategoria.forEach(({ prodotto }) => {
-      const nomeAbbrev = abbreviaProdotto(prodotto.nome);
-      
-      // Converti in Kg
-      let kg = 0;
-      if (prodotto.unita === 'Kg') {
-        kg = prodotto.quantita;
-      } else if (prodotto.unita === 'g') {
-        kg = prodotto.quantita / 1000;
-      }
-      
-      totaleKg += kg;
-      
-      if (!dettagli[nomeAbbrev]) {
-        dettagli[nomeAbbrev] = 0;
-      }
-      dettagli[nomeAbbrev] += kg;
-    });
+  ordiniCategoria.forEach(({ prodotto }) => {
+    const nomeAbbrev = abbreviaProdotto(prodotto.nome);
+    
+    // Converti in Kg
+    let kg = 0;
+    
+    if (prodotto.unita === 'Kg') {
+      kg = prodotto.quantita;
+    } else if (prodotto.unita === 'g') {
+      kg = prodotto.quantita / 1000;
+    } else if (prodotto.unita === 'vassoio' && prodotto.dettagliCalcolo?.pesoTotale) {
+      // ✅ Per vassoi, usa il peso totale dalla composizione
+      kg = prodotto.dettagliCalcolo.pesoTotale;
+    }
+    
+    totaleKg += kg;
+    
+    if (!dettagli[nomeAbbrev]) {
+      dettagli[nomeAbbrev] = 0;
+    }
+    dettagli[nomeAbbrev] += kg;
+  });
 
-    return { totaleKg, dettagli };
-  };
+  return { totaleKg, dettagli };
+};
 
   // Stampa
   const handleStampa = () => {
@@ -268,7 +284,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           <td className="center">{variante === 'ZAFF' ? '✓' : ''}</td>
                           <td className="center">{variante === 'DOLCI' ? '✓' : ''}</td>
                           <td className="center">{variante === 'CULUR' ? '✓' : ''}</td>
-                          <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita)}</td>
+                          <td className="right">
+  {item.prodotto.unita === 'vassoio' && item.prodotto.dettagliCalcolo?.pesoTotale
+    ? `${item.prodotto.dettagliCalcolo.pesoTotale.toFixed(1)} Kg`
+    : formattaQuantita(item.prodotto.quantita, item.prodotto.unita)
+  }
+</td>
                           <td className="center">{item.daViaggio ? '✓' : ''}</td>
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                         </tr>
