@@ -44,6 +44,7 @@ import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
 import GestioneLimiti from './GestioneLimiti';
+import RiepilogoStampabile from './RiepilogoStampabile';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
