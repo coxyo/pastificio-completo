@@ -1184,14 +1184,14 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           </Box>
         )}
 
-        {/* TAB 1: VASSOIO DOLCI MISTI */}
-        {tabValue === 1 && (
-          <VassoidDolciMisti 
-            prodottiDisponibili={prodottiDB}
-            onConferma={handleConfermaVassoio}
-            onAnnulla={handleAnnullaVassoio}
-          />
-        )}
+       {/* TAB 1: VASSOIO DOLCI MISTI */}
+{tabValue === 1 && (
+  <VassoidDolciMisti 
+    prodottiDisponibili={prodottiDB}
+    onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
+    onClose={() => setTabValue(0)}
+  />
+)}
 
         {/* SEZIONI COMUNI */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
