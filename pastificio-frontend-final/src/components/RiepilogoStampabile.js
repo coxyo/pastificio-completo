@@ -390,7 +390,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>{abbreviaProdotto(item.prodotto.nome)}</td>
-                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita)}</td>
+                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                       </tr>
@@ -443,7 +443,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>{abbreviaProdotto(item.prodotto.nome)}</td>
-                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita)}</td>
+                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                       </tr>
