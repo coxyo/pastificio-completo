@@ -153,25 +153,26 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
   
   // Raggruppa ordini per categoria
   const ordiniPerCategoria = useMemo(() => {
-    const gruppi = {
-      RAVIOLI: [],
-      PARDULAS: [],
-      DOLCI: [],
-      ALTRI: []
-    };
+  const gruppi = {
+    RAVIOLI: [],
+    PARDULAS: [],
+    DOLCI: [],
+    ALTRI: []
+  };
 
-// ✅ FILTRA per data selezionata
+  // ✅ FILTRA per data selezionata
   const ordiniFiltrati = ordini.filter(ordine => {
     const dataOrdine = (ordine.dataRitiro || '').split('T')[0];
+    console.log('🔍 Filtro:', { cliente: ordine.nomeCliente, dataOrdine, dataSelezionata: data, match: dataOrdine === data });
     return dataOrdine === data;
   });
 
-    // Ordina per orario
-    const ordiniOrdinati = [...ordini].sort((a, b) => {
-      return a.oraRitiro.localeCompare(b.oraRitiro);
-    });
+  // Ordina per orario
+  const ordiniOrdinati = [...ordiniFiltrati].sort((a, b) => {
+    return a.oraRitiro.localeCompare(b.oraRitiro);
+  });
 
-    ordiniOrdinati.forEach(ordine => {
+  ordiniOrdinati.forEach(ordine => {
       const categorieOrdine = new Set();
       
       ordine.prodotti.forEach(prodotto => {
@@ -187,7 +188,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     });
 
     return gruppi;
-  }, [ordini]);
+  }, [ordini, data]);
 
   // Calcola totali per categoria
   const calcolaTotali = (categoria) => {
@@ -420,7 +421,14 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
-                        <td>{abbreviaProdotto(item.prodotto.nome)}</td>
+                        <td>
+  {abbreviaProdotto(item.prodotto.nome)}
+  {item.prodotto.dettagliCalcolo?.dettagli && (
+    <div style={{ fontSize: '10px', color: '#555', marginTop: '4px', fontStyle: 'italic' }}>
+      📦 {item.prodotto.dettagliCalcolo.dettagli}
+    </div>
+  )}
+</td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
@@ -473,7 +481,14 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
-                        <td>{abbreviaProdotto(item.prodotto.nome)}</td>
+                        <td>
+  {abbreviaProdotto(item.prodotto.nome)}
+  {item.prodotto.dettagliCalcolo?.dettagli && (
+    <div style={{ fontSize: '10px', color: '#555', marginTop: '4px', fontStyle: 'italic' }}>
+      📦 {item.prodotto.dettagliCalcolo.dettagli}
+    </div>
+  )}
+</td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
