@@ -19,46 +19,48 @@ import { Print as PrintIcon, Close as CloseIcon } from '@mui/icons-material';
 // Abbreviazioni prodotti
 const ABBREVIAZIONI = {
   // Ravioli
-  'Ravioli ricotta e spinaci': 'R. Spinaci',
-  'Ravioli ricotta e zafferano': 'R. Zafferano',
-  'Ravioli ricotta dolci': 'R. Dolci',
-  'Ravioli ricotta poco dolci': 'R. Poco Dolci',
-  'Ravioli ricotta molto dolci': 'R. Molto Dolci',
-  'Ravioli ricotta piccoli': 'R. Piccoli',
-  'Culurgiones': 'Culurgiones',
+  'Ravioli ricotta e spinaci': 'R.Spin',
+  'Ravioli ricotta e zafferano': 'R.Zaff',
+  'Ravioli ricotta dolci': 'R.Dolci',
+  'Ravioli ricotta poco dolci': 'R.PocoDolci',
+  'Ravioli ricotta molto dolci': 'R.MoltoDolci',
+  'Ravioli ricotta piccoli': 'R.Piccoli',
+  'Culurgiones': 'Culurg',
   
   // Pardulas
-  'Pardulas': 'Pardulas',
-  'Pardulas con glassa': 'Pard. Glassa',
-  'Pardulas con zucchero a velo': 'Pard. Zucchero',
+  'Pardulas': 'P',
+  'Pardulas con glassa': 'P.Glass',
+  'Pardulas con zucchero a velo': 'P.Zucch',
   
   // Dolci
-  'Amaretti': 'Amaretti',
-  'Bianchini': 'Bianchini',
-  'Papassinas': 'Papassinas',
-  'Gueffus': 'Gueffus',
-  'Ciambelle': 'Ciambelle',
-  'Ciambelle con marmellata di albicocca': 'Ciamb. Albicocca',
-  'Ciambelle con marmellata di ciliegia': 'Ciamb. Ciliegia',
-  'Ciambelle con nutella': 'Ciamb. Nutella',
-  'Ciambelle con zucchero a velo': 'Ciamb. Zucchero',
-  'Sebadas': 'Sebadas',
-  'Torta di saba': 'T. Saba',
-  'Vassoio Dolci Misti': 'Vassoio Mix',
+  'Amaretti': 'A',
+  'Bianchini': 'B',
+  'Papassinas': 'Papas',
+  'Gueffus': 'G',
+  'Pabassine': 'Pab',
+  'Ciambelle': 'C',
+  'Ciambelle con marmellata di albicocca': 'C.Albic',
+  'Ciambelle con marmellata di ciliegia': 'C.Cileg',
+  'Ciambelle con nutella': 'C.Nut',
+  'Ciambelle con zucchero a velo': 'C.Nude',
+  'Ciambelle semplici': 'C.Nude',
+  'Sebadas': 'Sebad',
+  'Torta di saba': 'T.Saba',
+  'Vassoio Dolci Misti': 'Vass.Mix',
   'Dolci misti': 'Dolci Mix',
   
   // Panadas
-  'Panada di Agnello': 'Pan. Agnello',
-  'Panada di Maiale': 'Pan. Maiale',
-  'Panada di Vitella': 'Pan. Vitella',
-  'Panada di verdure': 'Pan. Verdure',
-  'Panadine': 'Panadine',
+  'Panada di Agnello': 'Pan.Agn',
+  'Panada di Maiale': 'Pan.Maia',
+  'Panada di Vitella': 'Pan.Vite',
+  'Panada di verdure': 'Pan.Verd',
+  'Panadine': 'Pndn',
   
   // Pasta
-  'Fregula': 'Fregula',
-  'Pizzette sfoglia': 'Pizzette',
-  'Pasta per panada e pizza': 'Pasta Base',
-  'Sfoglia per lasagne': 'Sfoglia Las.'
+  'Fregula': 'Freg',
+  'Pizzette sfoglia': 'Pizz',
+  'Pasta per panada e pizza': 'Pasta',
+  'Sfoglia per lasagne': 'Sfog'
 };
 
 // Categorie prodotti
@@ -360,11 +362,14 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>
+  <td>
   {abbreviaProdotto(item.prodotto.nome)}
-  {item.prodotto.dettagliCalcolo?.dettagli && (
-    <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '10px', mt: 0.5 }}>
-      {item.prodotto.dettagliCalcolo.dettagli}
-    </Typography>
+  {item.prodotto.dettagliCalcolo?.composizione && (
+    <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
+      ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
+        `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+      ).join(', ')})
+    </span>
   )}
 </td>
                         <td className="right">
@@ -422,11 +427,14 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>
+ <td>
   {abbreviaProdotto(item.prodotto.nome)}
-  {item.prodotto.dettagliCalcolo?.dettagli && (
-    <div style={{ fontSize: '10px', color: '#555', marginTop: '4px', fontStyle: 'italic' }}>
-      📦 {item.prodotto.dettagliCalcolo.dettagli}
-    </div>
+  {item.prodotto.dettagliCalcolo?.composizione && (
+    <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
+      ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
+        `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+      ).join(', ')})
+    </span>
   )}
 </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
@@ -482,11 +490,14 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>
+ <td>
   {abbreviaProdotto(item.prodotto.nome)}
-  {item.prodotto.dettagliCalcolo?.dettagli && (
-    <div style={{ fontSize: '10px', color: '#555', marginTop: '4px', fontStyle: 'italic' }}>
-      📦 {item.prodotto.dettagliCalcolo.dettagli}
-    </div>
+  {item.prodotto.dettagliCalcolo?.composizione && (
+    <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
+      ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
+        `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+      ).join(', ')})
+    </span>
   )}
 </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
