@@ -160,6 +160,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       ALTRI: []
     };
 
+// ✅ FILTRA per data selezionata
+  const ordiniFiltrati = ordini.filter(ordine => {
+    const dataOrdine = (ordine.dataRitiro || '').split('T')[0];
+    return dataOrdine === data;
+  });
+
     // Ordina per orario
     const ordiniOrdinati = [...ordini].sort((a, b) => {
       return a.oraRitiro.localeCompare(b.oraRitiro);
@@ -190,26 +196,44 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
   const dettagli = {};
 
   ordiniCategoria.forEach(({ prodotto }) => {
-    const nomeAbbrev = abbreviaProdotto(prodotto.nome);
-    
-    // Converti in Kg
-    let kg = 0;
-    
-    if (prodotto.unita === 'Kg') {
-      kg = prodotto.quantita;
-    } else if (prodotto.unita === 'g') {
-      kg = prodotto.quantita / 1000;
-    } else if (prodotto.unita === 'vassoio' && prodotto.dettagliCalcolo?.pesoTotale) {
-      // ✅ Per vassoi, usa il peso totale dalla composizione
-      kg = prodotto.dettagliCalcolo.pesoTotale;
+    // ✅ Per vassoi, espandi la composizione
+    if (prodotto.unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+      // Aggiungi ogni prodotto del vassoio separatamente
+      prodotto.dettagliCalcolo.composizione.forEach(item => {
+        const nomeAbbrev = abbreviaProdotto(item.nome);
+        let kg = 0;
+        
+        if (item.unita === 'Kg') {
+          kg = item.quantita;
+        } else if (item.unita === 'g') {
+          kg = item.quantita / 1000;
+        }
+        
+        totaleKg += kg;
+        
+        if (!dettagli[nomeAbbrev]) {
+          dettagli[nomeAbbrev] = 0;
+        }
+        dettagli[nomeAbbrev] += kg;
+      });
+    } else {
+      // Prodotto normale
+      const nomeAbbrev = abbreviaProdotto(prodotto.nome);
+      let kg = 0;
+      
+      if (prodotto.unita === 'Kg') {
+        kg = prodotto.quantita;
+      } else if (prodotto.unita === 'g') {
+        kg = prodotto.quantita / 1000;
+      }
+      
+      totaleKg += kg;
+      
+      if (!dettagli[nomeAbbrev]) {
+        dettagli[nomeAbbrev] = 0;
+      }
+      dettagli[nomeAbbrev] += kg;
     }
-    
-    totaleKg += kg;
-    
-    if (!dettagli[nomeAbbrev]) {
-      dettagli[nomeAbbrev] = 0;
-    }
-    dettagli[nomeAbbrev] += kg;
   });
 
   return { totaleKg, dettagli };
@@ -334,7 +358,14 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
-                        <td>{abbreviaProdotto(item.prodotto.nome)}</td>
+                        <td>
+  {abbreviaProdotto(item.prodotto.nome)}
+  {item.prodotto.dettagliCalcolo?.dettagli && (
+    <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '10px', mt: 0.5 }}>
+      {item.prodotto.dettagliCalcolo.dettagli}
+    </Typography>
+  )}
+</td>
                         <td className="right">
   {formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}
 </td>
