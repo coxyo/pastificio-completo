@@ -16,7 +16,7 @@ import { Print as PrintIcon, Close as CloseIcon } from '@mui/icons-material';
 
 // ========== CONFIGURAZIONE ==========
 
-// Abbreviazioni prodotti
+// Abbreviazioni prodotti (ULTRA-COMPATTE)
 const ABBREVIAZIONI = {
   // Ravioli
   'Ravioli ricotta e spinaci': 'R.Spin',
@@ -78,7 +78,7 @@ const CATEGORIE = {
   DOLCI: {
     nome: 'DOLCI',
     prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Gueffus', 'Ciambelle', 
-               'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti'],
+               'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti', 'Pabassine'],
     colore: '#FFE66D'
   },
   ALTRI: {
@@ -155,26 +155,26 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
   
   // Raggruppa ordini per categoria
   const ordiniPerCategoria = useMemo(() => {
-  const gruppi = {
-    RAVIOLI: [],
-    PARDULAS: [],
-    DOLCI: [],
-    ALTRI: []
-  };
+    const gruppi = {
+      RAVIOLI: [],
+      PARDULAS: [],
+      DOLCI: [],
+      ALTRI: []
+    };
 
-  // ✅ FILTRA per data selezionata
-  const ordiniFiltrati = ordini.filter(ordine => {
-    const dataOrdine = (ordine.dataRitiro || '').split('T')[0];
-    console.log('🔍 Filtro:', { cliente: ordine.nomeCliente, dataOrdine, dataSelezionata: data, match: dataOrdine === data });
-    return dataOrdine === data;
-  });
+    // ✅ FILTRA per data selezionata
+    const ordiniFiltrati = ordini.filter(ordine => {
+      const dataOrdine = (ordine.dataRitiro || '').split('T')[0];
+      console.log('🔍 Filtro:', { cliente: ordine.nomeCliente, dataOrdine, dataSelezionata: data, match: dataOrdine === data });
+      return dataOrdine === data;
+    });
 
-  // Ordina per orario
-  const ordiniOrdinati = [...ordiniFiltrati].sort((a, b) => {
-    return a.oraRitiro.localeCompare(b.oraRitiro);
-  });
+    // Ordina per orario
+    const ordiniOrdinati = [...ordiniFiltrati].sort((a, b) => {
+      return a.oraRitiro.localeCompare(b.oraRitiro);
+    });
 
-  ordiniOrdinati.forEach(ordine => {
+    ordiniOrdinati.forEach(ordine => {
       const categorieOrdine = new Set();
       
       ordine.prodotti.forEach(prodotto => {
@@ -194,22 +194,40 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
   // Calcola totali per categoria
   const calcolaTotali = (categoria) => {
-  const ordiniCategoria = ordiniPerCategoria[categoria];
-  let totaleKg = 0;
-  const dettagli = {};
+    const ordiniCategoria = ordiniPerCategoria[categoria];
+    let totaleKg = 0;
+    const dettagli = {};
 
-  ordiniCategoria.forEach(({ prodotto }) => {
-    // ✅ Per vassoi, espandi la composizione
-    if (prodotto.unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
-      // Aggiungi ogni prodotto del vassoio separatamente
-      prodotto.dettagliCalcolo.composizione.forEach(item => {
-        const nomeAbbrev = abbreviaProdotto(item.nome);
+    ordiniCategoria.forEach(({ prodotto }) => {
+      // ✅ Per vassoi, espandi la composizione
+      if (prodotto.unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+        // Aggiungi ogni prodotto del vassoio separatamente
+        prodotto.dettagliCalcolo.composizione.forEach(item => {
+          const nomeAbbrev = abbreviaProdotto(item.nome);
+          let kg = 0;
+          
+          if (item.unita === 'Kg') {
+            kg = item.quantita;
+          } else if (item.unita === 'g') {
+            kg = item.quantita / 1000;
+          }
+          
+          totaleKg += kg;
+          
+          if (!dettagli[nomeAbbrev]) {
+            dettagli[nomeAbbrev] = 0;
+          }
+          dettagli[nomeAbbrev] += kg;
+        });
+      } else {
+        // Prodotto normale
+        const nomeAbbrev = abbreviaProdotto(prodotto.nome);
         let kg = 0;
         
-        if (item.unita === 'Kg') {
-          kg = item.quantita;
-        } else if (item.unita === 'g') {
-          kg = item.quantita / 1000;
+        if (prodotto.unita === 'Kg') {
+          kg = prodotto.quantita;
+        } else if (prodotto.unita === 'g') {
+          kg = prodotto.quantita / 1000;
         }
         
         totaleKg += kg;
@@ -218,29 +236,11 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           dettagli[nomeAbbrev] = 0;
         }
         dettagli[nomeAbbrev] += kg;
-      });
-    } else {
-      // Prodotto normale
-      const nomeAbbrev = abbreviaProdotto(prodotto.nome);
-      let kg = 0;
-      
-      if (prodotto.unita === 'Kg') {
-        kg = prodotto.quantita;
-      } else if (prodotto.unita === 'g') {
-        kg = prodotto.quantita / 1000;
       }
-      
-      totaleKg += kg;
-      
-      if (!dettagli[nomeAbbrev]) {
-        dettagli[nomeAbbrev] = 0;
-      }
-      dettagli[nomeAbbrev] += kg;
-    }
-  });
+    });
 
-  return { totaleKg, dettagli };
-};
+    return { totaleKg, dettagli };
+  };
 
   // Stampa
   const handleStampa = () => {
@@ -303,12 +303,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           <td className="center">{variante === 'ZAFF' ? '✓' : ''}</td>
                           <td className="center">{variante === 'DOLCI' ? '✓' : ''}</td>
                           <td className="center">{variante === 'CULUR' ? '✓' : ''}</td>
-                          <td className="right">
-  {item.prodotto.unita === 'vassoio' && item.prodotto.dettagliCalcolo?.pesoTotale
-    ? `${item.prodotto.dettagliCalcolo.pesoTotale.toFixed(1)} Kg`
-    : formattaQuantita(item.prodotto.quantita, item.prodotto.unita)
-  }
-</td>
+                          <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                           <td className="center">{item.daViaggio ? '✓' : ''}</td>
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                         </tr>
@@ -362,19 +357,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>
-  <td>
-  {abbreviaProdotto(item.prodotto.nome)}
-  {item.prodotto.dettagliCalcolo?.composizione && (
-    <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
-      ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
-        `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
-      ).join(', ')})
-    </span>
-  )}
-</td>
-                        <td className="right">
-  {formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}
-</td>
+                          {abbreviaProdotto(item.prodotto.nome)}
+                          {item.prodotto.dettagliCalcolo?.composizione && (
+                            <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
+                              ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
+                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+                              ).join(', ')})
+                            </span>
+                          )}
+                        </td>
+                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                       </tr>
@@ -427,17 +419,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>
- <td>
-  {abbreviaProdotto(item.prodotto.nome)}
-  {item.prodotto.dettagliCalcolo?.composizione && (
-    <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
-      ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
-        `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
-      ).join(', ')})
-    </span>
-  )}
-</td>
-                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
+                          {abbreviaProdotto(item.prodotto.nome)}
+                          {item.prodotto.dettagliCalcolo?.composizione && (
+                            <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
+                              ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
+                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+                              ).join(', ')})
+                            </span>
+                          )}
+                        </td>
+                        <td className="right">
+                          {formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}
+                        </td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                       </tr>
@@ -490,16 +483,15 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="center">{item.oraRitiro}</td>
                         <td>{item.nomeCliente}</td>
                         <td>
- <td>
-  {abbreviaProdotto(item.prodotto.nome)}
-  {item.prodotto.dettagliCalcolo?.composizione && (
-    <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
-      ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
-        `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
-      ).join(', ')})
-    </span>
-  )}
-</td>
+                          {abbreviaProdotto(item.prodotto.nome)}
+                          {item.prodotto.dettagliCalcolo?.composizione && (
+                            <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
+                              ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
+                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+                              ).join(', ')})
+                            </span>
+                          )}
+                        </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
