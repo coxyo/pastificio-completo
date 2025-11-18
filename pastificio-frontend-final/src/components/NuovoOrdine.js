@@ -117,6 +117,16 @@ clienteIdPreselezionato,
   const [composizioneVassoio, setComposizioneVassoio] = useState([]);
   const [totaleVassoio, setTotaleVassoio] = useState(0);
 
+ // ✅ NUOVO: States per panade e panadine
+  const [opzioniPanada, setOpzioniPanada] = useState({
+    aglio: 'con_aglio',
+    contorno: 'con_patate'
+  });
+  const [numeroVassoi, setNumeroVassoi] = useState(1);
+  const [gustiPanadine, setGustiPanadine] = useState([]);
+  const [modalitaPanadine, setModalitaPanadine] = useState('rapida'); // 'rapida' o 'componi'
+  const [panadineRapide, setPanadineRapide] = useState({ carne: 0, verdura: 0 });
+
   // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
   useEffect(() => {
     if (isConnected) {
@@ -638,15 +648,24 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       setComposizioneVassoio(prev => [...prev, nuovoItem]);
       console.log('✅ Prodotto aggiunto alla composizione vassoio');
       
-      setProdottoCorrente({
-        nome: '',
-        variante: '',
-        quantita: '',
-        unita: 'Kg',
-        prezzo: 0,
-        varianti: [],
-        noteCottura: ''
-      });
+    setProdottoCorrente({
+      nome: '',
+      variante: '',
+      quantita: '',
+      unita: 'Kg',
+      prezzo: 0,
+      varianti: [],
+      noteCottura: ''
+    });
+    // ✅ NUOVO: Reset panade/panadine
+    setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+    setNumeroVassoi(1);
+    setGustiPanadine([]);
+    setModalitaPanadine('rapida');
+    setPanadineRapide({ carne: 0, verdura: 0 });
+    
+    console.log('✅ Prodotto aggiunto al carrello:', nuovoProdotto);
+  };
       return;
     }
 
@@ -1092,7 +1111,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                       />
                     </Grid>
 
-                    <Grid item xs={4} sm={hasVarianti ? 4 : 2}>
+              <Grid item xs={4} sm={hasVarianti ? 4 : 2}>
                       <Button
                         fullWidth
                         variant="contained"
@@ -1104,6 +1123,232 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                         Aggiungi
                       </Button>
                     </Grid>
+
+                    {/* ✅ NUOVO: Opzioni Panade (Aglio + Contorno) */}
+                    {getProdottoConfig(prodottoCorrente.nome)?.opzioniAggiuntive && (
+                      <Grid item xs={12}>
+                        <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            🥘 Opzioni Panada
+                          </Typography>
+                          
+                          <Grid container spacing={2}>
+                            {/* Aglio */}
+                            <Grid item xs={6}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Aglio</InputLabel>
+                                <Select
+                                  value={opzioniPanada.aglio}
+                                  onChange={(e) => setOpzioniPanada(prev => ({ ...prev, aglio: e.target.value }))}
+                                  label="Aglio"
+                                >
+                                  <MenuItem value="con_aglio">Con aglio</MenuItem>
+                                  <MenuItem value="senza_aglio">Senza aglio</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+                            
+                            {/* Contorno */}
+                            <Grid item xs={6}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Contorno</InputLabel>
+                                <Select
+                                  value={opzioniPanada.contorno}
+                                  onChange={(e) => setOpzioniPanada(prev => ({ ...prev, contorno: e.target.value }))}
+                                  label="Contorno"
+                                >
+                                  <MenuItem value="con_patate">Con patate</MenuItem>
+                                  <MenuItem value="con_piselli">Con piselli</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+                            
+                            {/* Numero Vassoi */}
+                            <Grid item xs={12}>
+                              <TextField
+                                label="Numero Vassoi/Panade"
+                                type="number"
+                                value={numeroVassoi}
+                                onChange={(e) => setNumeroVassoi(Math.max(1, parseInt(e.target.value) || 1))}
+                                size="small"
+                                fullWidth
+                                inputProps={{ min: 1 }}
+                                helperText="Es: 2 panade da 1kg = inserisci 2"
+                              />
+                            </Grid>
+                          </Grid>
+                        </Box>
+                      </Grid>
+                    )}
+
+                    {/* ✅ NUOVO: Gusti Panadine */}
+                    {getProdottoConfig(prodottoCorrente.nome)?.gustiPanadine && (
+                      <Grid item xs={12}>
+                        <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3e0', borderRadius: 1 }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            🥟 Gusti Panadine
+                          </Typography>
+                          
+                          {/* Toggle modalità */}
+                          <Box sx={{ mb: 2 }}>
+                            <Button
+                              variant={modalitaPanadine === 'rapida' ? 'contained' : 'outlined'}
+                              size="small"
+                              onClick={() => setModalitaPanadine('rapida')}
+                              sx={{ mr: 1 }}
+                            >
+                              Scelta Rapida
+                            </Button>
+                            <Button
+                              variant={modalitaPanadine === 'componi' ? 'contained' : 'outlined'}
+                              size="small"
+                              onClick={() => setModalitaPanadine('componi')}
+                            >
+                              Componi
+                            </Button>
+                          </Box>
+                          
+                          {/* Modalità Rapida */}
+                          {modalitaPanadine === 'rapida' && (
+                            <Grid container spacing={2}>
+                              <Grid item xs={6}>
+                                <TextField
+                                  label="Carne"
+                                  type="number"
+                                  value={panadineRapide.carne}
+                                  onChange={(e) => setPanadineRapide(prev => ({ 
+                                    ...prev, 
+                                    carne: Math.max(0, parseInt(e.target.value) || 0) 
+                                  }))}
+                                  size="small"
+                                  fullWidth
+                                  inputProps={{ min: 0 }}
+                                />
+                              </Grid>
+                              <Grid item xs={6}>
+                                <TextField
+                                  label="Verdura"
+                                  type="number"
+                                  value={panadineRapide.verdura}
+                                  onChange={(e) => setPanadineRapide(prev => ({ 
+                                    ...prev, 
+                                    verdura: Math.max(0, parseInt(e.target.value) || 0) 
+                                  }))}
+                                  size="small"
+                                  fullWidth
+                                  inputProps={{ min: 0 }}
+                                />
+                              </Grid>
+                              <Grid item xs={12}>
+                                <Typography variant="body2" color="primary" fontWeight="bold">
+                                  Totale: {panadineRapide.carne + panadineRapide.verdura} panadine = €{((panadineRapide.carne + panadineRapide.verdura) * 0.80).toFixed(2)}
+                                </Typography>
+                              </Grid>
+                            </Grid>
+                          )}
+                          
+                          {/* Modalità Componi */}
+                          {modalitaPanadine === 'componi' && (
+                            <Box>
+                              {gustiPanadine.map((gusto, index) => (
+                                <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                                    <Select
+                                      value={gusto.ingrediente1}
+                                      onChange={(e) => {
+                                        const newGusti = [...gustiPanadine];
+                                        newGusti[index].ingrediente1 = e.target.value;
+                                        setGustiPanadine(newGusti);
+                                      }}
+                                      displayEmpty
+                                    >
+                                      <MenuItem value="">Ingr. 1</MenuItem>
+                                      <MenuItem value="carne">Carne</MenuItem>
+                                      <MenuItem value="piselli">Piselli</MenuItem>
+                                      <MenuItem value="patate">Patate</MenuItem>
+                                      <MenuItem value="melanzane">Melanzane</MenuItem>
+                                      <MenuItem value="peperoni">Peperoni</MenuItem>
+                                      <MenuItem value="zucchine">Zucchine</MenuItem>
+                                      <MenuItem value="pomodoro">Pomodoro</MenuItem>
+                                      <MenuItem value="salsiccia">Salsiccia</MenuItem>
+                                      <MenuItem value="funghi">Funghi</MenuItem>
+                                    </Select>
+                                  </FormControl>
+                                  
+                                  <Typography>+</Typography>
+                                  
+                                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                                    <Select
+                                      value={gusto.ingrediente2}
+                                      onChange={(e) => {
+                                        const newGusti = [...gustiPanadine];
+                                        newGusti[index].ingrediente2 = e.target.value;
+                                        setGustiPanadine(newGusti);
+                                      }}
+                                      displayEmpty
+                                    >
+                                      <MenuItem value="">Ingr. 2</MenuItem>
+                                      <MenuItem value="carne">Carne</MenuItem>
+                                      <MenuItem value="piselli">Piselli</MenuItem>
+                                      <MenuItem value="patate">Patate</MenuItem>
+                                      <MenuItem value="melanzane">Melanzane</MenuItem>
+                                      <MenuItem value="peperoni">Peperoni</MenuItem>
+                                      <MenuItem value="zucchine">Zucchine</MenuItem>
+                                      <MenuItem value="pomodoro">Pomodoro</MenuItem>
+                                      <MenuItem value="salsiccia">Salsiccia</MenuItem>
+                                      <MenuItem value="funghi">Funghi</MenuItem>
+                                    </Select>
+                                  </FormControl>
+                                  
+                                  <TextField
+                                    type="number"
+                                    value={gusto.quantita}
+                                    onChange={(e) => {
+                                      const newGusti = [...gustiPanadine];
+                                      newGusti[index].quantita = Math.max(0, parseInt(e.target.value) || 0);
+                                      setGustiPanadine(newGusti);
+                                    }}
+                                    size="small"
+                                    sx={{ width: 60 }}
+                                    inputProps={{ min: 0 }}
+                                  />
+                                  
+                                  <IconButton 
+                                    size="small" 
+                                    color="error"
+                                    onClick={() => {
+                                      setGustiPanadine(gustiPanadine.filter((_, i) => i !== index));
+                                    }}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+                              ))}
+                              
+                              <Button
+                                size="small"
+                                startIcon={<AddIcon />}
+                                onClick={() => {
+                                  setGustiPanadine([...gustiPanadine, { 
+                                    ingrediente1: '', 
+                                    ingrediente2: '', 
+                                    quantita: 0 
+                                  }]);
+                                }}
+                                sx={{ mt: 1 }}
+                              >
+                                Aggiungi Combinazione
+                              </Button>
+                              
+                              <Typography variant="body2" color="primary" fontWeight="bold" sx={{ mt: 1 }}>
+                                Totale: {gustiPanadine.reduce((sum, g) => sum + g.quantita, 0)} panadine = €{(gustiPanadine.reduce((sum, g) => sum + g.quantita, 0) * 0.80).toFixed(2)}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      </Grid>
+                    )}
+
                   </Grid>
                 </Box>
               )}
