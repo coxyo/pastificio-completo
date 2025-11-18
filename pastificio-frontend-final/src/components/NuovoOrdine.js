@@ -664,9 +664,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     setModalitaPanadine('rapida');
     setPanadineRapide({ carne: 0, verdura: 0 });
     
-    console.log('✅ Prodotto aggiunto al carrello:', nuovoProdotto);
-  };
-      return;
+       return;
     }
 
     // ✅ SE SIAMO IN MODALITÀ DOLCI MISTI COMPLETO
