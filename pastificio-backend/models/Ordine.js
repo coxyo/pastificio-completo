@@ -18,7 +18,7 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     enum: [
       'kg', 'Kg', 'KG', 
-      'pezzi', 'Pezzi', 'PEZZI', 
+    'pezzi', 'Pezzi', 'PEZZI', 'pz', 'Pz',  // ✅ AGGIUNTO pz
       'unità', 'Unità', 
       '€', 'EUR', 
       'g', 'G', 
@@ -31,7 +31,7 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     enum: [
       'kg', 'Kg', 'KG', 
-      'pezzi', 'Pezzi', 'PEZZI', 
+    'pezzi', 'Pezzi', 'PEZZI', 'pz', 'Pz',  // ✅ AGGIUNTO pz
       'unità', 'Unità', 
       '€', 'EUR', 
       'g', 'G', 
