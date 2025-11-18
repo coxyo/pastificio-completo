@@ -1,6 +1,6 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
-// Fogli separati: Ravioli, Pardulas, Dolci, Altri
+// Layout compatto con header una riga e totali in basso
 
 import React, { useMemo } from 'react';
 import {
@@ -9,8 +9,7 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Box,
-  Typography
+  Box
 } from '@mui/material';
 import { Print as PrintIcon, Close as CloseIcon } from '@mui/icons-material';
 
@@ -82,7 +81,7 @@ const CATEGORIE = {
     colore: '#FFE66D'
   },
   ALTRI: {
-    nome: 'ALTRI PRODOTTI',
+    nome: 'ALTRI',
     prodotti: ['Panada', 'Panadine', 'Fregula', 'Pizzette', 'Pasta', 'Sfoglia'],
     colore: '#95E1D3'
   }
@@ -126,17 +125,16 @@ const getVarianteRavioli = (nomeProdotto) => {
 };
 
 const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
-  // ✅ Per vassoi, usa il peso dalla composizione
   if (unita === 'vassoio' && dettagliCalcolo?.pesoTotale) {
     return `${dettagliCalcolo.pesoTotale.toFixed(1)} Kg`;
   }
   
-  if (unita === 'Kg' || unita === 'g') {
+  if (unita === 'Kg' || unita === 'kg' || unita === 'g') {
     const kg = unita === 'g' ? quantita / 1000 : quantita;
     return `${kg.toFixed(1)} Kg`;
   }
   
-  if (unita === 'Pezzi' || unita === 'Unità') {
+  if (unita === 'Pezzi' || unita === 'pezzi' || unita === 'pz' || unita === 'Unità') {
     return `${quantita} pz`;
   }
   
@@ -162,24 +160,20 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       ALTRI: []
     };
 
-    // ✅ FILTRA per data selezionata
+    // Filtra per data selezionata
     const ordiniFiltrati = ordini.filter(ordine => {
       const dataOrdine = (ordine.dataRitiro || '').split('T')[0];
-      console.log('🔍 Filtro:', { cliente: ordine.nomeCliente, dataOrdine, dataSelezionata: data, match: dataOrdine === data });
       return dataOrdine === data;
     });
 
     // Ordina per orario
     const ordiniOrdinati = [...ordiniFiltrati].sort((a, b) => {
-      return a.oraRitiro.localeCompare(b.oraRitiro);
+      return (a.oraRitiro || '').localeCompare(b.oraRitiro || '');
     });
 
     ordiniOrdinati.forEach(ordine => {
-      const categorieOrdine = new Set();
-      
       ordine.prodotti.forEach(prodotto => {
         const categoria = getCategoriaProdotto(prodotto.nome);
-        categorieOrdine.add(categoria);
         
         gruppi[categoria].push({
           ...ordine,
@@ -199,14 +193,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     const dettagli = {};
 
     ordiniCategoria.forEach(({ prodotto }) => {
-      // ✅ Per vassoi, espandi la composizione
       if (prodotto.unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
-        // Aggiungi ogni prodotto del vassoio separatamente
         prodotto.dettagliCalcolo.composizione.forEach(item => {
           const nomeAbbrev = abbreviaProdotto(item.nome);
           let kg = 0;
           
-          if (item.unita === 'Kg') {
+          if (item.unita === 'Kg' || item.unita === 'kg') {
             kg = item.quantita;
           } else if (item.unita === 'g') {
             kg = item.quantita / 1000;
@@ -220,11 +212,10 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           dettagli[nomeAbbrev] += kg;
         });
       } else {
-        // Prodotto normale
         const nomeAbbrev = abbreviaProdotto(prodotto.nome);
         let kg = 0;
         
-        if (prodotto.unita === 'Kg') {
+        if (prodotto.unita === 'Kg' || prodotto.unita === 'kg') {
           kg = prodotto.quantita;
         } else if (prodotto.unita === 'g') {
           kg = prodotto.quantita / 1000;
@@ -249,7 +240,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
   return (
     <>
-      {/* Dialog per preview (non stampato) */}
       <Dialog 
         open={true} 
         onClose={onClose} 
@@ -271,24 +261,24 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           <Box className="print-container">
             {/* ========== FOGLIO 1: RAVIOLI ========== */}
             {ordiniPerCategoria.RAVIOLI.length > 0 && (
-              <div className="page ravioli-page">
-                <div className="page-header" style={{ background: CATEGORIE.RAVIOLI.colore }}>
-                  <h2>RIEPILOGO PRODUZIONE - RAVIOLI</h2>
-                  <h3>{formattaData(data)}</h3>
+              <div className="page">
+                <div className="page-header-compact" style={{ background: CATEGORIE.RAVIOLI.colore }}>
+                  <span className="header-title">RAVIOLI</span>
+                  <span className="header-date">{formattaData(data)}</span>
                 </div>
 
-                <table className="ordini-table ravioli-table">
+                <table className="ordini-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '60px' }}>ORA</th>
-                      <th style={{ width: '150px' }}>CLIENTE</th>
-                      <th style={{ width: '50px' }}>SPIN</th>
-                      <th style={{ width: '50px' }}>ZAFF</th>
-                      <th style={{ width: '60px' }}>DOLCI</th>
-                      <th style={{ width: '60px' }}>CULUR</th>
-                      <th style={{ width: '80px' }}>Q.TÀ</th>
-                      <th style={{ width: '40px' }}>🧳</th>
-                      <th style={{ width: '60px' }}>ALTRI</th>
+                      <th style={{ width: '50px' }}>ORA</th>
+                      <th style={{ width: '40px' }}>SPIN</th>
+                      <th style={{ width: '40px' }}>ZAFF</th>
+                      <th style={{ width: '50px' }}>DOLCI</th>
+                      <th style={{ width: '50px' }}>CULUR</th>
+                      <th style={{ width: '70px' }}>Q.TÀ</th>
+                      <th style={{ width: '30px' }}>🧳</th>
+                      <th style={{ width: '130px' }}>CLIENTE</th>
+                      <th style={{ width: '40px' }}>+</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -298,13 +288,13 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       return (
                         <tr key={index}>
                           <td className="center">{item.oraRitiro}</td>
-                          <td>{item.nomeCliente}</td>
                           <td className="center">{variante === 'SPIN' ? '✓' : ''}</td>
                           <td className="center">{variante === 'ZAFF' ? '✓' : ''}</td>
                           <td className="center">{variante === 'DOLCI' ? '✓' : ''}</td>
                           <td className="center">{variante === 'CULUR' ? '✓' : ''}</td>
                           <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                           <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                          <td>{item.nomeCliente}</td>
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                         </tr>
                       );
@@ -312,19 +302,17 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </tbody>
                 </table>
 
-                <div className="totali">
+                <div className="totali-compact">
                   {(() => {
                     const { totaleKg, dettagli } = calcolaTotali('RAVIOLI');
                     return (
                       <>
-                        <div className="totale-principale">
-                          <strong>TOTALE RAVIOLI:</strong> {totaleKg.toFixed(1)} Kg
-                        </div>
-                        <div className="dettagli-totali">
-                          {Object.entries(dettagli).map(([nome, kg]) => (
-                            <span key={nome}>• {nome}: {kg.toFixed(1)} Kg</span>
-                          ))}
-                        </div>
+                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
+                        <span className="dettagli-inline">
+                          {Object.entries(dettagli).map(([nome, kg]) => 
+                            `${nome}:${kg.toFixed(1)}`
+                          ).join(' • ')}
+                        </span>
                       </>
                     );
                   })()}
@@ -335,58 +323,56 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             {/* ========== FOGLIO 2: PARDULAS ========== */}
             {ordiniPerCategoria.PARDULAS.length > 0 && (
               <div className="page">
-                <div className="page-header" style={{ background: CATEGORIE.PARDULAS.colore }}>
-                  <h2>RIEPILOGO PRODUZIONE - PARDULAS</h2>
-                  <h3>{formattaData(data)}</h3>
+                <div className="page-header-compact" style={{ background: CATEGORIE.PARDULAS.colore }}>
+                  <span className="header-title">PARDULAS</span>
+                  <span className="header-date">{formattaData(data)}</span>
                 </div>
 
                 <table className="ordini-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '60px' }}>ORA</th>
-                      <th style={{ width: '180px' }}>CLIENTE</th>
-                      <th style={{ width: '200px' }}>PRODOTTO</th>
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
-                      <th style={{ width: '40px' }}>🧳</th>
-                      <th style={{ width: '60px' }}>ALTRI</th>
+                      <th style={{ width: '50px' }}>ORA</th>
+                      <th style={{ width: '150px' }}>PRODOTTO</th>
+                      <th style={{ width: '80px' }}>Q.TÀ</th>
+                      <th style={{ width: '30px' }}>🧳</th>
+                      <th style={{ width: '150px' }}>CLIENTE</th>
+                      <th style={{ width: '40px' }}>+</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.PARDULAS.map((item, index) => (
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>{item.nomeCliente}</td>
                         <td>
                           {abbreviaProdotto(item.prodotto.nome)}
                           {item.prodotto.dettagliCalcolo?.composizione && (
                             <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
                               ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
-                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' || comp.unita === 'kg' ? 'kg' : comp.unita === 'Pezzi' || comp.unita === 'pz' ? 'pz' : comp.unita}`
                               ).join(', ')})
                             </span>
                           )}
                         </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                        <td>{item.nomeCliente}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
 
-                <div className="totali">
+                <div className="totali-compact">
                   {(() => {
                     const { totaleKg, dettagli } = calcolaTotali('PARDULAS');
                     return (
                       <>
-                        <div className="totale-principale">
-                          <strong>TOTALE PARDULAS:</strong> {totaleKg.toFixed(1)} Kg
-                        </div>
-                        <div className="dettagli-totali">
-                          {Object.entries(dettagli).map(([nome, kg]) => (
-                            <span key={nome}>• {nome}: {kg.toFixed(1)} Kg</span>
-                          ))}
-                        </div>
+                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
+                        <span className="dettagli-inline">
+                          {Object.entries(dettagli).map(([nome, kg]) => 
+                            `${nome}:${kg.toFixed(1)}`
+                          ).join(' • ')}
+                        </span>
                       </>
                     );
                   })()}
@@ -397,60 +383,56 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             {/* ========== FOGLIO 3: DOLCI ========== */}
             {ordiniPerCategoria.DOLCI.length > 0 && (
               <div className="page">
-                <div className="page-header" style={{ background: CATEGORIE.DOLCI.colore }}>
-                  <h2>RIEPILOGO PRODUZIONE - DOLCI</h2>
-                  <h3>{formattaData(data)}</h3>
+                <div className="page-header-compact" style={{ background: CATEGORIE.DOLCI.colore }}>
+                  <span className="header-title">DOLCI</span>
+                  <span className="header-date">{formattaData(data)}</span>
                 </div>
 
                 <table className="ordini-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '60px' }}>ORA</th>
-                      <th style={{ width: '180px' }}>CLIENTE</th>
+                      <th style={{ width: '50px' }}>ORA</th>
                       <th style={{ width: '200px' }}>PRODOTTO</th>
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
-                      <th style={{ width: '40px' }}>🧳</th>
-                      <th style={{ width: '60px' }}>ALTRI</th>
+                      <th style={{ width: '80px' }}>Q.TÀ</th>
+                      <th style={{ width: '30px' }}>🧳</th>
+                      <th style={{ width: '150px' }}>CLIENTE</th>
+                      <th style={{ width: '40px' }}>+</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.DOLCI.map((item, index) => (
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>{item.nomeCliente}</td>
                         <td>
                           {abbreviaProdotto(item.prodotto.nome)}
                           {item.prodotto.dettagliCalcolo?.composizione && (
                             <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
                               ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
-                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' || comp.unita === 'kg' ? 'kg' : comp.unita === 'Pezzi' || comp.unita === 'pz' ? 'pz' : comp.unita}`
                               ).join(', ')})
                             </span>
                           )}
                         </td>
-                        <td className="right">
-                          {formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}
-                        </td>
+                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                        <td>{item.nomeCliente}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
 
-                <div className="totali">
+                <div className="totali-compact">
                   {(() => {
                     const { totaleKg, dettagli } = calcolaTotali('DOLCI');
                     return (
                       <>
-                        <div className="totale-principale">
-                          <strong>TOTALE DOLCI:</strong> {totaleKg.toFixed(1)} Kg
-                        </div>
-                        <div className="dettagli-totali">
-                          {Object.entries(dettagli).map(([nome, kg]) => (
-                            <span key={nome}>• {nome}: {kg.toFixed(1)} Kg</span>
-                          ))}
-                        </div>
+                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
+                        <span className="dettagli-inline">
+                          {Object.entries(dettagli).map(([nome, kg]) => 
+                            `${nome}:${kg.toFixed(1)}`
+                          ).join(' • ')}
+                        </span>
                       </>
                     );
                   })()}
@@ -458,61 +440,59 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
               </div>
             )}
 
-            {/* ========== FOGLIO 4: ALTRI PRODOTTI ========== */}
+            {/* ========== FOGLIO 4: ALTRI ========== */}
             {ordiniPerCategoria.ALTRI.length > 0 && (
               <div className="page">
-                <div className="page-header" style={{ background: CATEGORIE.ALTRI.colore }}>
-                  <h2>RIEPILOGO PRODUZIONE - ALTRI PRODOTTI</h2>
-                  <h3>{formattaData(data)}</h3>
+                <div className="page-header-compact" style={{ background: CATEGORIE.ALTRI.colore }}>
+                  <span className="header-title">ALTRI</span>
+                  <span className="header-date">{formattaData(data)}</span>
                 </div>
 
                 <table className="ordini-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '60px' }}>ORA</th>
-                      <th style={{ width: '180px' }}>CLIENTE</th>
+                      <th style={{ width: '50px' }}>ORA</th>
                       <th style={{ width: '200px' }}>PRODOTTO</th>
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
-                      <th style={{ width: '40px' }}>🧳</th>
-                      <th style={{ width: '60px' }}>ALTRI</th>
+                      <th style={{ width: '80px' }}>Q.TÀ</th>
+                      <th style={{ width: '30px' }}>🧳</th>
+                      <th style={{ width: '150px' }}>CLIENTE</th>
+                      <th style={{ width: '40px' }}>+</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.ALTRI.map((item, index) => (
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>{item.nomeCliente}</td>
                         <td>
                           {abbreviaProdotto(item.prodotto.nome)}
                           {item.prodotto.dettagliCalcolo?.composizione && (
                             <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
                               ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
-                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' || comp.unita === 'kg' ? 'kg' : comp.unita === 'Pezzi' || comp.unita === 'pz' ? 'pz' : comp.unita}`
                               ).join(', ')})
                             </span>
                           )}
                         </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                        <td>{item.nomeCliente}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
 
-                <div className="totali">
+                <div className="totali-compact">
                   {(() => {
                     const { totaleKg, dettagli } = calcolaTotali('ALTRI');
                     return (
                       <>
-                        <div className="totale-principale">
-                          <strong>TOTALE ALTRI PRODOTTI:</strong> {totaleKg.toFixed(1)} Kg
-                        </div>
-                        <div className="dettagli-totali">
-                          {Object.entries(dettagli).map(([nome, kg]) => (
-                            <span key={nome}>• {nome}: {kg.toFixed(1)} Kg</span>
-                          ))}
-                        </div>
+                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
+                        <span className="dettagli-inline">
+                          {Object.entries(dettagli).map(([nome, kg]) => 
+                            `${nome}:${kg.toFixed(1)}`
+                          ).join(' • ')}
+                        </span>
                       </>
                     );
                   })()}
@@ -536,9 +516,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         </DialogActions>
       </Dialog>
 
-      {/* ========== CSS STAMPA ========== */}
+      {/* ========== CSS ========== */}
       <style jsx global>{`
-        /* Stili schermo */
         .print-container {
           padding: 20px;
           background: #f5f5f5;
@@ -546,60 +525,54 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         .page {
           background: white;
-          padding: 30px;
-          margin-bottom: 30px;
+          padding: 20px;
+          margin-bottom: 20px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           border-radius: 8px;
         }
 
-        .page-header {
-          text-align: center;
-          padding: 20px;
-          margin: -30px -30px 20px -30px;
-          border-radius: 8px 8px 0 0;
+        .page-header-compact {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 15px;
+          margin: -20px -20px 15px -20px;
           color: white;
-        }
-
-        .page-header h2 {
-          margin: 0;
-          font-size: 24px;
           font-weight: bold;
         }
 
-        .page-header h3 {
-          margin: 5px 0 0 0;
+        .header-title {
           font-size: 16px;
-          font-weight: normal;
+          font-weight: bold;
+        }
+
+        .header-date {
+          font-size: 11px;
         }
 
         .ordini-table {
           width: 100%;
           border-collapse: collapse;
-          margin-top: 20px;
         }
 
         .ordini-table th {
           background: #2c3e50;
           color: white;
-          padding: 12px 8px;
+          padding: 8px 6px;
           text-align: center;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: bold;
           border: 1px solid #34495e;
         }
 
         .ordini-table td {
-          padding: 10px 8px;
+          padding: 6px 4px;
           border: 1px solid #ddd;
-          font-size: 13px;
+          font-size: 11px;
         }
 
         .ordini-table tbody tr:nth-child(even) {
           background: #f9f9f9;
-        }
-
-        .ordini-table tbody tr:hover {
-          background: #e3f2fd;
         }
 
         .center {
@@ -611,30 +584,23 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           font-weight: bold;
         }
 
-        .totali {
-          margin-top: 20px;
-          padding: 15px;
-          background: #ecf0f1;
-          border-radius: 8px;
-          border: 2px solid #bdc3c7;
-        }
-
-        .totale-principale {
-          font-size: 18px;
-          font-weight: bold;
-          margin-bottom: 10px;
-          color: #2c3e50;
-        }
-
-        .dettagli-totali {
+        .totali-compact {
           display: flex;
-          flex-wrap: wrap;
+          align-items: center;
           gap: 15px;
-          font-size: 14px;
-          color: #34495e;
+          padding: 8px 12px;
+          background: #f5f5f5;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          margin-top: 10px;
+          font-size: 11px;
         }
 
-        /* Stili stampa */
+        .dettagli-inline {
+          font-size: 10px;
+          color: #666;
+        }
+
         @media print {
           body * {
             visibility: hidden;
@@ -656,52 +622,46 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .page {
             page-break-after: always;
-            padding: 15mm;
+            padding: 10mm;
             margin: 0;
             box-shadow: none;
-            border-radius: 0;
           }
 
           @page {
             size: A4 landscape;
-            margin: 10mm;
+            margin: 5mm;
           }
 
-          .page-header {
-            margin: -15mm -15mm 10mm -15mm;
-            padding: 10mm;
-            border-radius: 0;
+          .page-header-compact {
+            margin: -10mm -10mm 8mm -10mm;
+            padding: 4mm 8mm;
           }
 
-          .page-header h2 {
-            font-size: 20px;
-          }
-
-          .page-header h3 {
+          .header-title {
             font-size: 14px;
           }
 
+          .header-date {
+            font-size: 10px;
+          }
+
           .ordini-table th {
-            font-size: 11px;
-            padding: 8px 6px;
+            font-size: 9px;
+            padding: 4px 3px;
           }
 
           .ordini-table td {
-            font-size: 11px;
-            padding: 6px 4px;
+            font-size: 9px;
+            padding: 3px 2px;
           }
 
-          .totali {
-            margin-top: 15mm;
-            page-break-inside: avoid;
+          .totali-compact {
+            margin-top: 8mm;
+            font-size: 9px;
           }
 
-          .totale-principale {
-            font-size: 16px;
-          }
-
-          .dettagli-totali {
-            font-size: 12px;
+          .dettagli-inline {
+            font-size: 8px;
           }
         }
       `}</style>
