@@ -24,6 +24,7 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.MISTA,
     pezziPerKg: 30,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    supportaVassoiMultipli: true,  // ✅ AGGIUNTO
     varianti: [
       {
         nome: 'spinaci',
@@ -71,6 +72,7 @@ export const PRODOTTI_CONFIG = {
     pezziPerKg: 32,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+    supportaVassoiMultipli: true  // ✅ AGGIUNTO
   },
 
   // ========== PARDULAS CON VARIANTI ==========
@@ -218,40 +220,101 @@ export const PRODOTTI_CONFIG = {
     }
   },
 
-  // ========== PANADAS ==========
+ // ========== PANADAS CON VARIANTI ==========
   'Panada di Agnello': {
     prezzoKg: 30.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' }
+      ]
+    },
+    supportaVassoiMultipli: true
   },
 
   'Panada di Maiale': {
     prezzoKg: 21.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' }
+      ]
+    },
+    supportaVassoiMultipli: true
   },
 
   'Panada di Vitella': {
     prezzoKg: 23.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' }
+      ]
+    },
+    supportaVassoiMultipli: true
   },
 
   'Panada di verdure': {
     prezzoKg: 17.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' }
+      ]
+    },
+    supportaVassoiMultipli: true
   },
 
   'Panadine': {
     prezzoPezzo: 0.80,
     modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    gustiPanadine: {
+      rapidi: [
+        { nome: 'carne', label: 'Carne' },
+        { nome: 'verdura', label: 'Verdura' }
+      ],
+      ingredienti: [
+        { nome: 'carne', label: 'Carne' },
+        { nome: 'piselli', label: 'Piselli' },
+        { nome: 'patate', label: 'Patate' },
+        { nome: 'melanzane', label: 'Melanzane' },
+        { nome: 'peperoni', label: 'Peperoni' },
+        { nome: 'zucchine', label: 'Zucchine' },
+        { nome: 'pomodoro_fresco', label: 'Pomodoro fresco' },
+        { nome: 'salsiccia', label: 'Salsiccia' },
+        { nome: 'funghi', label: 'Funghi' }
+      ]
+    }
   },
 
   // ========== PASTA ==========
