@@ -71,7 +71,7 @@ export const PRODOTTI_CONFIG = {
     prezzoKg: 16.00,
     pezziPerKg: 32,
     modalitaVendita: MODALITA_VENDITA.MISTA,
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
     supportaVassoiMultipli: true  // ✅ AGGIUNTO
   },
 
