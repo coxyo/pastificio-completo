@@ -275,8 +275,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             {ordiniPerCategoria.RAVIOLI.length > 0 && (
               <div className="page ravioli-page">
                 <div className="page-header" style={{ background: CATEGORIE.RAVIOLI.colore }}>
-                  <h2>RIEPILOGO PRODUZIONE - RAVIOLI</h2>
-                  <h3>{formattaData(data)}</h3>
+                  <h2>RAVIOLI - {formattaData(data)}</h2>
                 </div>
 
                 <table className="ordini-table ravioli-table">
@@ -316,20 +315,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </tbody>
                 </table>
 
-                <div className="totali">
+                <div className="totali-riga">
                   {(() => {
                     const { totaleKg, dettagli } = calcolaTotali('RAVIOLI');
                     return (
-                      <>
-                        <div className="totale-principale">
-                          <strong>TOTALE RAVIOLI:</strong> {totaleKg.toFixed(1)} Kg
-                        </div>
-                        <div className="dettagli-totali">
-                          {Object.entries(dettagli).map(([nome, kg]) => (
-                            <span key={nome}>• {nome}: {kg.toFixed(1)} Kg</span>
-                          ))}
-                        </div>
-                      </>
+                      <span>
+                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
+                        {Object.entries(dettagli).map(([nome, kg]) => (
+                          <span key={nome} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        ))}
+                      </span>
                     );
                   })()}
                 </div>
@@ -340,8 +335,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             {ordiniPerCategoria.PARDULAS.length > 0 && (
               <div className="page">
                 <div className="page-header" style={{ background: CATEGORIE.PARDULAS.colore }}>
-                  <h2>RIEPILOGO PRODUZIONE - PARDULAS</h2>
-                  <h3>{formattaData(data)}</h3>
+                  <h2>PARDULAS - {formattaData(data)}</h2>
                 </div>
 
                 <table className="ordini-table">
@@ -378,20 +372,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </tbody>
                 </table>
 
-                <div className="totali">
+                <div className="totali-riga">
                   {(() => {
                     const { totaleKg, dettagli } = calcolaTotali('PARDULAS');
                     return (
-                      <>
-                        <div className="totale-principale">
-                          <strong>TOTALE PARDULAS:</strong> {totaleKg.toFixed(1)} Kg
-                        </div>
-                        <div className="dettagli-totali">
-                          {Object.entries(dettagli).map(([nome, kg]) => (
-                            <span key={nome}>• {nome}: {kg.toFixed(1)} Kg</span>
-                          ))}
-                        </div>
-                      </>
+                      <span>
+                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
+                        {Object.entries(dettagli).map(([nome, kg]) => (
+                          <span key={nome} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        ))}
+                      </span>
                     );
                   })()}
                 </div>
@@ -402,8 +392,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             {ordiniPerCategoria.DOLCI.length > 0 && (
               <div className="page">
                 <div className="page-header" style={{ background: CATEGORIE.DOLCI.colore }}>
-                  <h2>RIEPILOGO PRODUZIONE - DOLCI</h2>
-                  <h3>{formattaData(data)}</h3>
+                  <h2>DOLCI - {formattaData(data)}</h2>
                 </div>
 
                 <table className="ordini-table">
@@ -442,20 +431,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </tbody>
                 </table>
 
-                <div className="totali">
+                <div className="totali-riga">
                   {(() => {
                     const { totaleKg, dettagli } = calcolaTotali('DOLCI');
                     return (
-                      <>
-                        <div className="totale-principale">
-                          <strong>TOTALE DOLCI:</strong> {totaleKg.toFixed(1)} Kg
-                        </div>
-                        <div className="dettagli-totali">
-                          {Object.entries(dettagli).map(([nome, kg]) => (
-                            <span key={nome}>• {nome}: {kg.toFixed(1)} Kg</span>
-                          ))}
-                        </div>
-                      </>
+                      <span>
+                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
+                        {Object.entries(dettagli).map(([nome, kg]) => (
+                          <span key={nome} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        ))}
+                      </span>
                     );
                   })()}
                 </div>
@@ -466,8 +451,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             {ordiniPerCategoria.ALTRI.length > 0 && (
               <div className="page">
                 <div className="page-header" style={{ background: CATEGORIE.ALTRI.colore }}>
-                  <h2>RIEPILOGO PRODUZIONE - ALTRI PRODOTTI</h2>
-                  <h3>{formattaData(data)}</h3>
+                  <h2>ALTRI - {formattaData(data)}</h2>
                 </div>
 
                 <table className="ordini-table">
@@ -621,6 +605,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           background: #ecf0f1;
           border-radius: 8px;
           border: 2px solid #bdc3c7;
+        }
+
+        .totali-riga {
+          margin-top: 10px;
+          padding: 8px 15px;
+          background: #ecf0f1;
+          border-radius: 4px;
+          border: 1px solid #bdc3c7;
+          font-size: 13px;
+          color: #2c3e50;
         }
 
         .totale-principale {
