@@ -1,5 +1,5 @@
 // components/VariantiProdotto.js
-// ✅ VERSIONE COMPLETA - Supporto varianti per tutti i prodotti
+// ✅ VERSIONE AGGIORNATA - Supporto checkbox multiple per Ravioli
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -20,8 +20,8 @@ import { Info } from 'lucide-react';
  * Supporta: checkbox multiple, radio single-choice, note cottura
  */
 const VARIANTI_PRODOTTI = {
-  // ========== RAVIOLI ==========
-  'Ravioli ricotta': {
+  // ========== RAVIOLI - CHECKBOX MULTIPLE ==========
+  'Ravioli': {
     tipo: 'checkbox', // Selezione multipla
     varianti: ['spinaci', 'zafferano', 'dolci'],
     labels: {
@@ -29,7 +29,8 @@ const VARIANTI_PRODOTTI = {
       zafferano: 'con Zafferano',
       dolci: 'Dolci'
     },
-    descrizione: 'Seleziona le varianti desiderate'
+    descrizione: 'Seleziona le varianti desiderate (anche multiple)',
+    info: 'Puoi selezionare più varianti per un mix'
   },
 
   // ========== CIAMBELLE ==========
@@ -148,6 +149,7 @@ const VARIANTI_PRODOTTI = {
 
 /**
  * ✅ Genera nome prodotto con varianti selezionate
+ * Per Ravioli: "Ravioli ricotta e spinaci e zafferano"
  */
 export function generaNomeProdottoConVarianti(prodottoBase, variantiSelezionate) {
   if (!variantiSelezionate || variantiSelezionate.length === 0) {
@@ -173,8 +175,23 @@ export function generaNomeProdottoConVarianti(prodottoBase, variantiSelezionate)
     return `${prodottoBase} ${label}`;
   }
 
-  // CASO 2: Checkbox (selezione multipla)
+  // CASO 2: Checkbox (selezione multipla) - RAVIOLI
   if (config.tipo === 'checkbox') {
+    // ✅ SPECIALE PER RAVIOLI: formato "Ravioli ricotta e spinaci e zafferano"
+    if (prodottoBase === 'Ravioli') {
+      const nomiVarianti = variantiSelezionate
+        .map(v => config.labels[v])
+        .filter(Boolean);
+
+      if (nomiVarianti.length === 0) {
+        return 'Ravioli ricotta'; // Default
+      }
+
+      // Costruisce: "Ravioli ricotta e spinaci" o "Ravioli ricotta e spinaci e zafferano"
+      return 'Ravioli ricotta ' + nomiVarianti.join(' e ');
+    }
+
+    // Altri prodotti con checkbox (es. Dolci misti)
     const nomiVarianti = variantiSelezionate
       .map(v => config.labels[v])
       .filter(Boolean)
@@ -317,7 +334,7 @@ export default function VariantiProdotto({ prodotto, onChange, value }) {
       )}
 
       {/* ========== PREVIEW PRODOTTO FINALE ========== */}
-      {variantiSelezionate.length > 0 && nomeProdottoFinale !== prodotto && (
+      {variantiSelezionate.length > 0 && (
         <>
           <Divider sx={{ my: 1.5 }} />
           <Box sx={{ p: 1.5, bgcolor: 'success.light', borderRadius: 1 }}>
@@ -362,7 +379,7 @@ export function useVariantiProdotto(prodottoBase) {
 }
 
 /**
- * ✅ Verifica se un prodotto ha varianti
+ * ✅ Verifica se un prodotto ha varianti nel NUOVO sistema
  */
 export function prodottoHaVarianti(nomeProdotto) {
   const config = VARIANTI_PRODOTTI[nomeProdotto];
