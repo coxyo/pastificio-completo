@@ -1,6 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Altri
+// ✅ AGGIORNATO: Totali con Kg, Pezzi e Euro
 
 import React, { useMemo } from 'react';
 import {
@@ -94,7 +95,7 @@ const VARIANTI_RAVIOLI = {
   zafferano: ['zafferano', 'zaff'],
   dolci: ['dolci', 'molto dolci', 'poco dolci'],
   culurgiones: ['culurgiones', 'culurgio'],
-  piccoli: ['piccoli', 'piccol']  // ✅ AGGIUNTO
+  piccoli: ['piccoli', 'piccol']
 };
 
 // ========== FUNZIONI HELPER ==========
@@ -126,7 +127,7 @@ const getVarianteRavioli = (nomeProdotto) => {
   if (VARIANTI_RAVIOLI.zafferano.some(v => nomeLC.includes(v))) return 'ZAFF';
   if (VARIANTI_RAVIOLI.dolci.some(v => nomeLC.includes(v))) return 'DOLCI';
   if (VARIANTI_RAVIOLI.culurgiones.some(v => nomeLC.includes(v))) return 'CULUR';
-  if (VARIANTI_RAVIOLI.piccoli.some(v => nomeLC.includes(v))) return 'PICC';  // ✅ AGGIUNTO
+  if (VARIANTI_RAVIOLI.piccoli.some(v => nomeLC.includes(v))) return 'PICC';
   
   return null;
 };
@@ -144,6 +145,10 @@ const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
   
   if (unita === 'Pezzi' || unita === 'Unità') {
     return `${quantita} pz`;
+  }
+  
+  if (unita === '€' || unita === 'Euro') {
+    return `€${quantita.toFixed(2)}`;
   }
   
   return `${quantita} ${unita}`;
@@ -198,11 +203,15 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     return gruppi;
   }, [ordini, data]);
 
-  // Calcola totali per categoria
+  // ✅ AGGIORNATO: Calcola totali per categoria (Kg, Pezzi, Euro)
   const calcolaTotali = (categoria) => {
     const ordiniCategoria = ordiniPerCategoria[categoria];
     let totaleKg = 0;
-    const dettagli = {};
+    let totalePezzi = 0;
+    let totaleEuro = 0;
+    const dettagliKg = {};
+    const dettagliPezzi = {};
+    const dettagliEuro = {};
 
     ordiniCategoria.forEach(({ prodotto }) => {
       // ✅ Per vassoi, espandi la composizione
@@ -210,42 +219,60 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         // Aggiungi ogni prodotto del vassoio separatamente
         prodotto.dettagliCalcolo.composizione.forEach(item => {
           const nomeAbbrev = abbreviaProdotto(item.nome);
-          let kg = 0;
           
           if (item.unita === 'Kg') {
-            kg = item.quantita;
+            totaleKg += item.quantita;
+            dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + item.quantita;
           } else if (item.unita === 'g') {
-            kg = item.quantita / 1000;
+            const kg = item.quantita / 1000;
+            totaleKg += kg;
+            dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
+          } else if (item.unita === 'Pezzi' || item.unita === 'Unità') {
+            totalePezzi += item.quantita;
+            dettagliPezzi[nomeAbbrev] = (dettagliPezzi[nomeAbbrev] || 0) + item.quantita;
+          } else if (item.unita === '€' || item.unita === 'Euro') {
+            totaleEuro += item.quantita;
+            dettagliEuro[nomeAbbrev] = (dettagliEuro[nomeAbbrev] || 0) + item.quantita;
           }
-          
-          totaleKg += kg;
-          
-          if (!dettagli[nomeAbbrev]) {
-            dettagli[nomeAbbrev] = 0;
-          }
-          dettagli[nomeAbbrev] += kg;
         });
       } else {
         // Prodotto normale
         const nomeAbbrev = abbreviaProdotto(prodotto.nome);
-        let kg = 0;
         
         if (prodotto.unita === 'Kg') {
-          kg = prodotto.quantita;
+          totaleKg += prodotto.quantita;
+          dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + prodotto.quantita;
         } else if (prodotto.unita === 'g') {
-          kg = prodotto.quantita / 1000;
+          const kg = prodotto.quantita / 1000;
+          totaleKg += kg;
+          dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
+        } else if (prodotto.unita === 'Pezzi' || prodotto.unita === 'Unità') {
+          totalePezzi += prodotto.quantita;
+          dettagliPezzi[nomeAbbrev] = (dettagliPezzi[nomeAbbrev] || 0) + prodotto.quantita;
+        } else if (prodotto.unita === '€' || prodotto.unita === 'Euro') {
+          totaleEuro += prodotto.quantita;
+          dettagliEuro[nomeAbbrev] = (dettagliEuro[nomeAbbrev] || 0) + prodotto.quantita;
         }
-        
-        totaleKg += kg;
-        
-        if (!dettagli[nomeAbbrev]) {
-          dettagli[nomeAbbrev] = 0;
-        }
-        dettagli[nomeAbbrev] += kg;
       }
     });
 
-    return { totaleKg, dettagli };
+    return { 
+      totaleKg, 
+      totalePezzi, 
+      totaleEuro, 
+      dettagliKg, 
+      dettagliPezzi, 
+      dettagliEuro 
+    };
+  };
+
+  // ✅ Helper per formattare la stringa totali
+  const formattaTotaliStringa = (totaleKg, totalePezzi, totaleEuro) => {
+    const parti = [];
+    if (totaleKg > 0) parti.push(`${totaleKg.toFixed(1)} Kg`);
+    if (totalePezzi > 0) parti.push(`${totalePezzi} pz`);
+    if (totaleEuro > 0) parti.push(`€${totaleEuro.toFixed(2)}`);
+    return parti.join(' | ') || '0';
   };
 
   // Stampa
@@ -321,12 +348,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                 <div className="totali-riga">
                   {(() => {
-                    const { totaleKg, dettagli } = calcolaTotali('RAVIOLI');
+                    const { totaleKg, totalePezzi, totaleEuro, dettagliKg, dettagliPezzi, dettagliEuro } = calcolaTotali('RAVIOLI');
                     return (
                       <span>
-                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
-                        {Object.entries(dettagli).map(([nome, kg]) => (
-                          <span key={nome} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        <strong>TOT: {formattaTotaliStringa(totaleKg, totalePezzi, totaleEuro)}</strong>
+                        {Object.entries(dettagliKg).map(([nome, kg]) => (
+                          <span key={`kg-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        ))}
+                        {Object.entries(dettagliPezzi).map(([nome, pz]) => (
+                          <span key={`pz-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {pz} pz</span>
+                        ))}
+                        {Object.entries(dettagliEuro).map(([nome, euro]) => (
+                          <span key={`euro-${nome}`} style={{ marginLeft: '15px' }}>{nome}: €{euro.toFixed(2)}</span>
                         ))}
                       </span>
                     );
@@ -380,12 +413,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                 <div className="totali-riga">
                   {(() => {
-                    const { totaleKg, dettagli } = calcolaTotali('PARDULAS');
+                    const { totaleKg, totalePezzi, totaleEuro, dettagliKg, dettagliPezzi, dettagliEuro } = calcolaTotali('PARDULAS');
                     return (
                       <span>
-                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
-                        {Object.entries(dettagli).map(([nome, kg]) => (
-                          <span key={nome} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        <strong>TOT: {formattaTotaliStringa(totaleKg, totalePezzi, totaleEuro)}</strong>
+                        {Object.entries(dettagliKg).map(([nome, kg]) => (
+                          <span key={`kg-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        ))}
+                        {Object.entries(dettagliPezzi).map(([nome, pz]) => (
+                          <span key={`pz-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {pz} pz</span>
+                        ))}
+                        {Object.entries(dettagliEuro).map(([nome, euro]) => (
+                          <span key={`euro-${nome}`} style={{ marginLeft: '15px' }}>{nome}: €{euro.toFixed(2)}</span>
                         ))}
                       </span>
                     );
@@ -441,12 +480,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                 <div className="totali-riga">
                   {(() => {
-                    const { totaleKg, dettagli } = calcolaTotali('DOLCI');
+                    const { totaleKg, totalePezzi, totaleEuro, dettagliKg, dettagliPezzi, dettagliEuro } = calcolaTotali('DOLCI');
                     return (
                       <span>
-                        <strong>TOT: {totaleKg.toFixed(1)}Kg</strong>
-                        {Object.entries(dettagli).map(([nome, kg]) => (
-                          <span key={nome} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        <strong>TOT: {formattaTotaliStringa(totaleKg, totalePezzi, totaleEuro)}</strong>
+                        {Object.entries(dettagliKg).map(([nome, kg]) => (
+                          <span key={`kg-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} Kg</span>
+                        ))}
+                        {Object.entries(dettagliPezzi).map(([nome, pz]) => (
+                          <span key={`pz-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {pz} pz</span>
+                        ))}
+                        {Object.entries(dettagliEuro).map(([nome, euro]) => (
+                          <span key={`euro-${nome}`} style={{ marginLeft: '15px' }}>{nome}: €{euro.toFixed(2)}</span>
                         ))}
                       </span>
                     );
@@ -500,15 +545,21 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                 <div className="totali">
                   {(() => {
-                    const { totaleKg, dettagli } = calcolaTotali('ALTRI');
+                    const { totaleKg, totalePezzi, totaleEuro, dettagliKg, dettagliPezzi, dettagliEuro } = calcolaTotali('ALTRI');
                     return (
                       <>
                         <div className="totale-principale">
-                          <strong>TOTALE ALTRI PRODOTTI:</strong> {totaleKg.toFixed(1)} Kg
+                          <strong>TOTALE ALTRI PRODOTTI:</strong> {formattaTotaliStringa(totaleKg, totalePezzi, totaleEuro)}
                         </div>
                         <div className="dettagli-totali">
-                          {Object.entries(dettagli).map(([nome, kg]) => (
-                            <span key={nome}>• {nome}: {kg.toFixed(1)} Kg</span>
+                          {Object.entries(dettagliKg).map(([nome, kg]) => (
+                            <span key={`kg-${nome}`}>• {nome}: {kg.toFixed(1)} Kg</span>
+                          ))}
+                          {Object.entries(dettagliPezzi).map(([nome, pz]) => (
+                            <span key={`pz-${nome}`}>• {nome}: {pz} pz</span>
+                          ))}
+                          {Object.entries(dettagliEuro).map(([nome, euro]) => (
+                            <span key={`euro-${nome}`}>• {nome}: €{euro.toFixed(2)}</span>
                           ))}
                         </div>
                       </>
