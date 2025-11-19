@@ -100,6 +100,10 @@ const VARIANTI_RAVIOLI = {
 // ========== FUNZIONI HELPER ==========
 
 const abbreviaProdotto = (nome) => {
+  // ✅ NON abbreviare Panade e Panadine
+  if (nome.toLowerCase().includes('panada') || nome.toLowerCase().includes('panadine')) {
+    return nome;
+  }
   return ABBREVIAZIONI[nome] || nome;
 };
 
@@ -342,18 +346,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   <thead>
                     <tr>
                       <th style={{ width: '60px' }}>ORA</th>
-                      <th style={{ width: '180px' }}>CLIENTE</th>
                       <th style={{ width: '200px' }}>PRODOTTO</th>
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
+                      <th style={{ width: '80px' }}>Q.TÀ</th>
+                      <th style={{ width: '150px' }}>CLIENTE</th>
                       <th style={{ width: '40px' }}>🧳</th>
-                      <th style={{ width: '60px' }}>ALTRI</th>
+                      <th style={{ width: '40px' }}>+</th>
+                      <th style={{ width: '150px' }}>NOTE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.PARDULAS.map((item, index) => (
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>{item.nomeCliente}</td>
                         <td>
                           {abbreviaProdotto(item.prodotto.nome)}
                           {item.prodotto.dettagliCalcolo?.composizione && (
@@ -365,8 +369,10 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           )}
                         </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
+                        <td>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+                        <td style={{ fontSize: '10px' }}>{item.prodotto.note || ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -399,18 +405,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   <thead>
                     <tr>
                       <th style={{ width: '60px' }}>ORA</th>
-                      <th style={{ width: '180px' }}>CLIENTE</th>
                       <th style={{ width: '200px' }}>PRODOTTO</th>
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
+                      <th style={{ width: '80px' }}>Q.TÀ</th>
+                      <th style={{ width: '150px' }}>CLIENTE</th>
                       <th style={{ width: '40px' }}>🧳</th>
-                      <th style={{ width: '60px' }}>ALTRI</th>
+                      <th style={{ width: '40px' }}>+</th>
+                      <th style={{ width: '150px' }}>NOTE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.DOLCI.map((item, index) => (
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>{item.nomeCliente}</td>
                         <td>
                           {abbreviaProdotto(item.prodotto.nome)}
                           {item.prodotto.dettagliCalcolo?.composizione && (
@@ -424,8 +430,10 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td className="right">
                           {formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}
                         </td>
+                        <td>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+                        <td style={{ fontSize: '10px' }}>{item.prodotto.note || ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -458,18 +466,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   <thead>
                     <tr>
                       <th style={{ width: '60px' }}>ORA</th>
-                      <th style={{ width: '180px' }}>CLIENTE</th>
                       <th style={{ width: '200px' }}>PRODOTTO</th>
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
+                      <th style={{ width: '80px' }}>Q.TÀ</th>
+                      <th style={{ width: '150px' }}>CLIENTE</th>
                       <th style={{ width: '40px' }}>🧳</th>
-                      <th style={{ width: '60px' }}>ALTRI</th>
+                      <th style={{ width: '40px' }}>+</th>
+                      <th style={{ width: '200px' }}>NOTE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.ALTRI.map((item, index) => (
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>{item.nomeCliente}</td>
                         <td>
                           {abbreviaProdotto(item.prodotto.nome)}
                           {item.prodotto.dettagliCalcolo?.composizione && (
@@ -481,8 +489,10 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           )}
                         </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
+                        <td>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+                        <td style={{ fontSize: '10px' }}>{item.prodotto.note || ''}</td>
                       </tr>
                     ))}
                   </tbody>
