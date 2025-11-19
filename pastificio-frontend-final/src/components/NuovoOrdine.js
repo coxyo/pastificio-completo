@@ -49,6 +49,7 @@ import {
   CheckCircle as CheckIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
+import { PRODOTTI_CONFIG } from '../config/prodottiConfig';
 import VassoidDolciMisti from './VassoidDolciMisti_FINALE';
 import VariantiProdotto, { 
   generaNomeProdottoConVarianti,
@@ -1123,7 +1124,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                     </Grid>
 
                     {/* ✅ NUOVO: Opzioni Panade (Aglio + Contorno) */}
-                    {getProdottoConfigDB(prodottoCorrente.nome)?.opzioniAggiuntive && (
+                    {PRODOTTI_CONFIG[prodottoCorrente.nome]?.opzioniAggiuntive && (
                       <Grid item xs={12}>
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                           <Typography variant="subtitle2" gutterBottom>
@@ -1180,7 +1181,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                     )}
 
                     {/* ✅ NUOVO: Gusti Panadine */}
-                    {getProdottoConfigDB(prodottoCorrente.nome)?.gustiPanadine && (
+                    {PRODOTTI_CONFIG[prodottoCorrente.nome]?.gustiPanadine && (
                       <Grid item xs={12}>
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3e0', borderRadius: 1 }}>
                           <Typography variant="subtitle2" gutterBottom>
