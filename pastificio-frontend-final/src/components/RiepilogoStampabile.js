@@ -301,14 +301,14 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       return (
                         <tr key={index}>
                           <td className="center">{item.oraRitiro}</td>
-                          <td>{item.nomeCliente}</td>
                           <td className="center">{variante === 'SPIN' ? '✓' : ''}</td>
                           <td className="center">{variante === 'ZAFF' ? '✓' : ''}</td>
                           <td className="center">{variante === 'DOLCI' ? '✓' : ''}</td>
                           <td className="center">{variante === 'CULUR' ? '✓' : ''}</td>
-<td className="center">{variante === 'PICC' ? '✓' : ''}</td>
-<td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
+                          <td className="center">{variante === 'PICC' ? '✓' : ''}</td>
+                          <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                           <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                          <td>{item.nomeCliente}</td>
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                         </tr>
                       );
