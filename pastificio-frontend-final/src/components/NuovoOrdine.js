@@ -694,6 +694,128 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       return;
     }
 
+    // ✅ GESTIONE SPECIALE PANADINE CON GUSTI
+    const configProdotto = PRODOTTI_CONFIG[prodottoCorrente.nome];
+    
+    if (configProdotto?.gustiPanadine) {
+      // Calcola totale da gusti
+      let totaleQuantita = 0;
+      let dettagliGusti = [];
+      
+      if (modalitaPanadine === 'rapida') {
+        totaleQuantita = panadineRapide.carne + panadineRapide.verdura;
+        if (panadineRapide.carne > 0) dettagliGusti.push(`Carne: ${panadineRapide.carne}`);
+        if (panadineRapide.verdura > 0) dettagliGusti.push(`Verdura: ${panadineRapide.verdura}`);
+      } else {
+        totaleQuantita = gustiPanadine.reduce((sum, g) => sum + g.quantita, 0);
+        gustiPanadine.forEach(g => {
+          if (g.quantita > 0) {
+            dettagliGusti.push(`${g.ingrediente1}+${g.ingrediente2}: ${g.quantita}`);
+          }
+        });
+      }
+      
+      if (totaleQuantita <= 0) {
+        alert('Inserisci almeno una panadina');
+        return;
+      }
+      
+      const prezzoPezzo = configProdotto.prezzoPezzo || 0.80;
+      const prezzoTotale = totaleQuantita * prezzoPezzo;
+      
+      const nuovoProdotto = {
+        nome: 'Panadine',
+        quantita: totaleQuantita,
+        unita: 'Pezzi',
+        unitaMisura: 'Pezzi',
+        prezzo: Math.round(prezzoTotale * 100) / 100,
+        categoria: 'Panadas',
+        note: dettagliGusti.join(', '),
+        dettagliCalcolo: {
+          gusti: modalitaPanadine === 'rapida' ? panadineRapide : gustiPanadine,
+          modalita: modalitaPanadine
+        }
+      };
+      
+      console.log('🥟 Panadine aggiunte:', nuovoProdotto);
+      
+      setFormData({
+        ...formData,
+        prodotti: [...formData.prodotti, nuovoProdotto]
+      });
+      
+      // Reset
+      setProdottoCorrente({
+        nome: '',
+        variante: '',
+        quantita: '',
+        unita: 'Kg',
+        prezzo: 0,
+        varianti: [],
+        noteCottura: ''
+      });
+      setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+      setNumeroVassoi(1);
+      setGustiPanadine([]);
+      setModalitaPanadine('rapida');
+      setPanadineRapide({ carne: 0, verdura: 0 });
+      return;
+    }
+    
+    // ✅ GESTIONE SPECIALE PANADE CON OPZIONI
+    if (configProdotto?.opzioniAggiuntive) {
+      if (!prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
+        alert('Inserisci una quantità');
+        return;
+      }
+      
+      // Costruisci nome con opzioni
+      const aglioLabel = opzioniPanada.aglio === 'con_aglio' ? 'con aglio' : 'senza aglio';
+      const contornoLabel = opzioniPanada.contorno === 'con_patate' ? 'con patate' : 
+                           opzioniPanada.contorno === 'con_piselli' ? 'con piselli' : 'con patate e piselli';
+      
+      const nomeCompleto = `${prodottoCorrente.nome} (${aglioLabel}, ${contornoLabel})`;
+      
+      const nuovoProdotto = {
+        nome: nomeCompleto,
+        quantita: prodottoCorrente.quantita * numeroVassoi,
+        unita: prodottoCorrente.unita,
+        unitaMisura: prodottoCorrente.unita,
+        prezzo: prodottoCorrente.prezzo * numeroVassoi,
+        categoria: 'Panadas',
+        note: numeroVassoi > 1 ? `${numeroVassoi} vassoi da ${prodottoCorrente.quantita} ${prodottoCorrente.unita}` : '',
+        dettagliCalcolo: {
+          opzioni: opzioniPanada,
+          numeroVassoi: numeroVassoi,
+          quantitaSingola: prodottoCorrente.quantita
+        }
+      };
+      
+      console.log('🥘 Panada aggiunta:', nuovoProdotto);
+      
+      setFormData({
+        ...formData,
+        prodotti: [...formData.prodotti, nuovoProdotto]
+      });
+      
+      // Reset
+      setProdottoCorrente({
+        nome: '',
+        variante: '',
+        quantita: '',
+        unita: 'Kg',
+        prezzo: 0,
+        varianti: [],
+        noteCottura: ''
+      });
+      setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+      setNumeroVassoi(1);
+      setGustiPanadine([]);
+      setModalitaPanadine('rapida');
+      setPanadineRapide({ carne: 0, verdura: 0 });
+      return;
+    }
+
     // ✅ MODALITÀ NORMALE: codice originale
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       alert('Seleziona un prodotto e inserisci una quantità valida');
@@ -1158,6 +1280,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                                 >
                                   <MenuItem value="con_patate">Con patate</MenuItem>
                                   <MenuItem value="con_piselli">Con piselli</MenuItem>
+                                  <MenuItem value="patate_piselli">Con patate e piselli</MenuItem>
                                 </Select>
                               </FormControl>
                             </Grid>
