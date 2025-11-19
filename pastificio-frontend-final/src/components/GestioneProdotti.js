@@ -29,8 +29,8 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
-const CATEGORIE = ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Altro'];
-const UNITA_MISURA = ['Kg', 'g', 'pz', 'dozzina', 'mezzo kg'];
+const CATEGORIE = ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Pasta', 'Altro'];
+const UNITA_MISURA = ['Kg', 'g', 'pz', 'dozzina', 'mezzo kg', '€'];
 
 export default function GestioneProdotti() {
   const [prodotti, setProdotti] = useState([]);
