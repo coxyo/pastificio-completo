@@ -769,12 +769,16 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         return;
       }
       
-      // Costruisci nome con opzioni
-      const aglioLabel = opzioniPanada.aglio === 'con_aglio' ? 'con aglio' : 'senza aglio';
+      // Costruisci nome con opzioni - solo "senza aglio" se selezionato
+      const aglioNote = opzioniPanada.aglio === 'senza_aglio' ? 'senza aglio' : '';
       const contornoLabel = opzioniPanada.contorno === 'con_patate' ? 'con patate' : 
                            opzioniPanada.contorno === 'con_piselli' ? 'con piselli' : 'con patate e piselli';
       
-      const nomeCompleto = `${prodottoCorrente.nome} (${aglioLabel}, ${contornoLabel})`;
+      // Costruisci nome completo
+      let nomeCompleto = `${prodottoCorrente.nome} (${contornoLabel})`;
+      if (aglioNote) {
+        nomeCompleto = `${prodottoCorrente.nome} (${aglioNote}, ${contornoLabel})`;
+      }
       
       const nuovoProdotto = {
         nome: nomeCompleto,
@@ -1106,7 +1110,10 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                   </Typography>
 
                   {/* ✅ NUOVO: Componente VariantiProdotto (sistema configurato) */}
-                  {prodottoHaVarianti(prodottoCorrente.nome) && (
+                  {/* NON mostrare per prodotti con opzioniAggiuntive (Panade) o gustiPanadine */}
+                  {prodottoHaVarianti(prodottoCorrente.nome) && 
+                   !PRODOTTI_CONFIG[prodottoCorrente.nome]?.opzioniAggiuntive && 
+                   !PRODOTTI_CONFIG[prodottoCorrente.nome]?.gustiPanadine && (
                     <Box sx={{ my: 2 }}>
                       <VariantiProdotto
                         prodotto={prodottoCorrente.nome}
