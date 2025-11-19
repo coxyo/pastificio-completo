@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Altri
-// ✅ AGGIORNATO: Conversione pezzi in Kg per totali produzione
+// ✅ AGGIORNATO: Colonna FORMAGGIO + NOTE per piccoli/molto dolci/poco dolci
 
 import React, { useMemo } from 'react';
 import {
@@ -26,6 +26,7 @@ const ABBREVIAZIONI = {
   'Ravioli ricotta poco dolci': 'R.PocoDolci',
   'Ravioli ricotta molto dolci': 'R.MoltoDolci',
   'Ravioli ricotta piccoli': 'R.Piccoli',
+  'Ravioli di formaggio': 'R.Form',
   'Culurgiones': 'Culurg',
   
   // Pardulas
@@ -74,6 +75,7 @@ const PEZZI_PER_KG = {
   'Ravioli ricotta poco dolci': 30,
   'Ravioli ricotta molto dolci': 30,
   'Ravioli ricotta piccoli': 40,
+  'Ravioli di formaggio': 30,
   'Culurgiones': 32,
   
   // Pardulas
@@ -126,13 +128,20 @@ const CATEGORIE = {
   }
 };
 
-// Tipi varianti ravioli
+// ✅ AGGIORNATO: Tipi varianti ravioli (colonne principali)
 const VARIANTI_RAVIOLI = {
   spinaci: ['spinaci', 'spinac'],
   zafferano: ['zafferano', 'zaff'],
-  dolci: ['dolci', 'molto dolci', 'poco dolci'],
+  dolci: ['dolci'],  // Solo "dolci" base, non molto/poco
   culurgiones: ['culurgiones', 'culurgio'],
-  piccoli: ['piccoli', 'piccol']
+  formaggio: ['formaggio', 'form']  // ✅ NUOVO
+};
+
+// ✅ NUOVO: Varianti speciali che vanno nelle NOTE
+const VARIANTI_NOTE = {
+  piccoli: ['piccoli', 'piccol'],
+  molto_dolci: ['molto dolci'],
+  poco_dolci: ['poco dolci']
 };
 
 // ========== FUNZIONI HELPER ==========
@@ -157,16 +166,43 @@ const getCategoriaProdotto = (nomeProdotto) => {
   return 'ALTRI';
 };
 
+// ✅ AGGIORNATO: Determina la variante principale per le colonne
 const getVarianteRavioli = (nomeProdotto) => {
   const nomeLC = nomeProdotto.toLowerCase();
   
   if (VARIANTI_RAVIOLI.spinaci.some(v => nomeLC.includes(v))) return 'SPIN';
   if (VARIANTI_RAVIOLI.zafferano.some(v => nomeLC.includes(v))) return 'ZAFF';
-  if (VARIANTI_RAVIOLI.dolci.some(v => nomeLC.includes(v))) return 'DOLCI';
+  if (VARIANTI_RAVIOLI.formaggio.some(v => nomeLC.includes(v))) return 'FORM';
   if (VARIANTI_RAVIOLI.culurgiones.some(v => nomeLC.includes(v))) return 'CULUR';
-  if (VARIANTI_RAVIOLI.piccoli.some(v => nomeLC.includes(v))) return 'PICC';
+  
+  // Dolci: verifica che non sia molto/poco dolci
+  if (nomeLC.includes('dolci') && !nomeLC.includes('molto') && !nomeLC.includes('poco')) {
+    return 'DOLCI';
+  }
+  // Se è molto dolci o poco dolci, conta come DOLCI ma andrà nelle note
+  if (nomeLC.includes('molto dolci') || nomeLC.includes('poco dolci')) {
+    return 'DOLCI';
+  }
   
   return null;
+};
+
+// ✅ NUOVO: Estrai note speciali dal nome prodotto
+const getNoteRavioli = (nomeProdotto) => {
+  const nomeLC = nomeProdotto.toLowerCase();
+  const note = [];
+  
+  if (VARIANTI_NOTE.piccoli.some(v => nomeLC.includes(v))) {
+    note.push('piccoli');
+  }
+  if (VARIANTI_NOTE.molto_dolci.some(v => nomeLC.includes(v))) {
+    note.push('molto dolci');
+  }
+  if (VARIANTI_NOTE.poco_dolci.some(v => nomeLC.includes(v))) {
+    note.push('poco dolci');
+  }
+  
+  return note.join(', ');
 };
 
 // ✅ Funzione per ottenere pezzi/Kg di un prodotto
@@ -263,17 +299,17 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     return gruppi;
   }, [ordini, data]);
 
-  // ✅ AGGIORNATO: Calcola totali convertendo PEZZI in KG
+  // ✅ Calcola totali convertendo PEZZI in KG
   const calcolaTotali = (categoria) => {
     const ordiniCategoria = ordiniPerCategoria[categoria];
     let totaleKg = 0;
-    let totalePezziNonConvertibili = 0; // Per Sebadas, Panadine
+    let totalePezziNonConvertibili = 0;
     let totaleEuro = 0;
     const dettagliKg = {};
-    const dettagliPezzi = {}; // Solo per prodotti non convertibili
+    const dettagliPezzi = {};
 
     ordiniCategoria.forEach(({ prodotto }) => {
-      // ✅ Per vassoi, espandi la composizione
+      // Per vassoi, espandi la composizione
       if (prodotto.unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
         prodotto.dettagliCalcolo.composizione.forEach(item => {
           const nomeAbbrev = abbreviaProdotto(item.nome);
@@ -286,14 +322,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             totaleKg += kg;
             dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
           } else if (item.unita === 'Pezzi' || item.unita === 'Unità' || item.unita === 'pz') {
-            // Converti pezzi in Kg
             const pezziKg = getPezziPerKg(item.nome);
             if (pezziKg && !isSoloPezzo(item.nome)) {
               const kg = item.quantita / pezziKg;
               totaleKg += kg;
               dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
             } else {
-              // Prodotto solo pezzo
               totalePezziNonConvertibili += item.quantita;
               dettagliPezzi[nomeAbbrev] = (dettagliPezzi[nomeAbbrev] || 0) + item.quantita;
             }
@@ -314,7 +348,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           totaleKg += kg;
           dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
         } else if (unitaNorm === 'pezzi' || unitaNorm === 'unità' || unitaNorm === 'pz') {
-          // ✅ CONVERTI PEZZI IN KG
           const pezziKg = getPezziPerKg(prodotto.nome);
           
           if (pezziKg && !isSoloPezzo(prodotto.nome)) {
@@ -323,7 +356,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
             console.log(`✅ Conversione ${prodotto.nome}: ${prodotto.quantita} pz ÷ ${pezziKg} = ${kg.toFixed(2)} Kg`);
           } else {
-            // Prodotto venduto solo a pezzo (Sebadas, Panadine)
             totalePezziNonConvertibili += prodotto.quantita;
             dettagliPezzi[nomeAbbrev] = (dettagliPezzi[nomeAbbrev] || 0) + prodotto.quantita;
             console.log(`⚠️ ${prodotto.nome}: ${prodotto.quantita} pz (non convertibile)`);
@@ -343,7 +375,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     };
   };
 
-  // ✅ Helper per formattare la stringa totali
+  // Helper per formattare la stringa totali
   const formattaTotaliStringa = (totaleKg, totalePezzi, totaleEuro) => {
     const parti = [];
     if (totaleKg > 0) parti.push(`${totaleKg.toFixed(1)} Kg`);
@@ -394,16 +426,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       <th style={{ width: '35px' }}>ZAFF</th>
                       <th style={{ width: '40px' }}>DOLCI</th>
                       <th style={{ width: '40px' }}>CULUR</th>
-                      <th style={{ width: '40px' }}>PICC</th>
+                      <th style={{ width: '40px' }}>FORM</th>
                       <th style={{ width: '60px' }}>Q.TÀ</th>
                       <th style={{ width: '25px' }}>🧳</th>
-                      <th style={{ width: '120px' }}>CLIENTE</th>
+                      <th style={{ width: '100px' }}>CLIENTE</th>
                       <th style={{ width: '30px' }}>+</th>
+                      <th style={{ width: '100px' }}>NOTE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.RAVIOLI.map((item, index) => {
                       const variante = getVarianteRavioli(item.prodotto.nome);
+                      const noteRavioli = getNoteRavioli(item.prodotto.nome);
                       
                       return (
                         <tr key={index}>
@@ -412,11 +446,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           <td className="center">{variante === 'ZAFF' ? '✓' : ''}</td>
                           <td className="center">{variante === 'DOLCI' ? '✓' : ''}</td>
                           <td className="center">{variante === 'CULUR' ? '✓' : ''}</td>
-                          <td className="center">{variante === 'PICC' ? '✓' : ''}</td>
+                          <td className="center">{variante === 'FORM' ? '✓' : ''}</td>
                           <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                           <td className="center">{item.daViaggio ? '✓' : ''}</td>
                           <td>{item.nomeCliente}</td>
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+                          <td style={{ fontSize: '10px' }}>{noteRavioli}</td>
                         </tr>
                       );
                     })}
