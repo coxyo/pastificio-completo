@@ -222,7 +222,7 @@ export const PRODOTTI_CONFIG = {
 
  // ========== PANADAS CON VARIANTI ==========
   'Panada di Agnello': {
-    prezzoKg: 30.00,
+    prezzoKg: 25.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
