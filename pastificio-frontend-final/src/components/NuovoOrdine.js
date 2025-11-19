@@ -792,9 +792,11 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           categoria: 'Panadas',
           note: '',
           dettagliCalcolo: {
+            nomeBase: prodottoCorrente.nome,  // ✅ AGGIUNTO per calcolo prezzo
             opzioni: opzioniPanada,
             numeroVassoi: 1,
-            quantitaSingola: prodottoCorrente.quantita
+            quantitaSingola: prodottoCorrente.quantita,
+            prezzoCalcolato: true  // ✅ Flag per non ricalcolare
           }
         });
       }
