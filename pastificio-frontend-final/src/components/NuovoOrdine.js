@@ -1,4 +1,4 @@
-// components/NuovoOrdine.js - ✅ CON CACHE OTTIMIZZATA E FIX PREZZO VARIANTI
+// components/NuovoOrdine.js - ✅ CON CHECKBOX MULTIPLE PER RAVIOLI
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -109,23 +109,23 @@ clienteIdPreselezionato,
   quantita: '',
   unita: 'Kg',
   prezzo: 0,
-  varianti: [], // ✅ NUOVO: Array varianti per nuovo sistema
-  noteCottura: '' // ✅ NUOVO: Note cottura
+  varianti: [], // ✅ Array varianti per nuovo sistema checkbox
+  noteCottura: ''
 });
 
-  // ✅ STATI PER GESTIONE VASSOIO (AGGIUNTO 13/11/2025)
+  // ✅ STATI PER GESTIONE VASSOIO
   const [modalitaVassoio, setModalitaVassoio] = useState(null);
   const [composizioneVassoio, setComposizioneVassoio] = useState([]);
   const [totaleVassoio, setTotaleVassoio] = useState(0);
 
- // ✅ NUOVO: States per panade e panadine
+ // ✅ States per panade e panadine
   const [opzioniPanada, setOpzioniPanada] = useState({
     aglio: 'con_aglio',
     contorno: 'con_patate'
   });
   const [numeroVassoi, setNumeroVassoi] = useState(1);
   const [gustiPanadine, setGustiPanadine] = useState([]);
-  const [modalitaPanadine, setModalitaPanadine] = useState('rapida'); // 'rapida' o 'componi'
+  const [modalitaPanadine, setModalitaPanadine] = useState('rapida');
   const [panadineRapide, setPanadineRapide] = useState({ carne: 0, verdura: 0 });
 
   // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
@@ -136,7 +136,6 @@ clienteIdPreselezionato,
   }, [isConnected]);
 
   const caricaProdotti = async () => {
-    // ✅ PROVA PRIMA DALLA CACHE LOCALSTORAGE
     const cacheTime = localStorage.getItem('prodotti_cache_time');
     const now = Date.now();
     
@@ -156,7 +155,6 @@ clienteIdPreselezionato,
       }
     }
 
-    // Se cache mancante/scaduta, carica da API
     try {
       setLoadingProdotti(true);
       console.log('🔄 Caricamento prodotti da API...');
@@ -167,7 +165,6 @@ clienteIdPreselezionato,
         const data = await response.json();
         const prodottiData = data.data || data || [];
         
-        // Salva in cache
         prodottiCache = prodottiData;
         prodottiCacheTime = Date.now();
         localStorage.setItem('prodotti_cache', JSON.stringify(prodottiData));
@@ -318,7 +315,7 @@ clienteIdPreselezionato,
     setAlertLimiti(alerts);
   };
 
-  // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA (INCLUDI PARDULAS NEI DOLCI)
+  // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA
   const prodottiPerCategoria = useMemo(() => {
     const categorie = {
       Ravioli: [],
@@ -374,7 +371,6 @@ clienteIdPreselezionato,
   }, [isConnected]);
 
   const caricaClienti = async () => {
-    // ✅ PROVA PRIMA DALLA CACHE LOCALSTORAGE
     const cacheTime = localStorage.getItem('clienti_cache_time');
     const now = Date.now();
     
@@ -394,26 +390,23 @@ clienteIdPreselezionato,
       }
     }
 
-    // Se cache mancante/scaduta, carica da API
     try {
       setLoadingClienti(true);
       console.log('🔄 Caricamento clienti da API...');
       
-     // ✅ Ottieni token JWT
-const token = localStorage.getItem('token') || 'dev-token-123';
+      const token = localStorage.getItem('token') || 'dev-token-123';
 
-const response = await fetch(`${API_URL}/clienti?attivo=true`, {
-  headers: { 
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` })
-  }
-});
+      const response = await fetch(`${API_URL}/clienti?attivo=true`, {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
 
       if (response.ok) {
         const data = await response.json();
         const clientiData = data.data || data.clienti || data || [];
         
-        // Salva in cache
         clientiCache = clientiData;
         clientiCacheTime = Date.now();
         localStorage.setItem('clienti_cache', JSON.stringify(clientiData));
@@ -433,7 +426,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     }
   };
 
-  // ✅ NUOVO: Leggi dati chiamata da localStorage (PRIMA DI TUTTO!)
+  // ✅ Leggi dati chiamata da localStorage
   useEffect(() => {
     console.log('🔍 [NuovoOrdine] Controllo chiamata da localStorage...');
     
@@ -444,7 +437,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         const dati = JSON.parse(chiamataData);
         console.log('📞 [NuovoOrdine] Dati chiamata trovati:', dati);
         
-        // ✅ PRECOMPILA SEMPRE IL TELEFONO
         if (dati.telefono) {
           setFormData(prev => ({
             ...prev,
@@ -453,8 +445,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           console.log('✅ Telefono precompilato:', dati.telefono);
         }
         
-        // ✅ PRECOMPILA NOME SOLO SE CLIENTE TROVATO
-        // I dati arrivano già con nome/cognome al primo livello
         if (dati.nome) {
           const nomeCompleto = `${dati.nome || ''} ${dati.cognome || ''}`.trim();
           setFormData(prev => ({
@@ -466,7 +456,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           console.log('ℹ️ Cliente sconosciuto, solo telefono precompilato');
         }
         
-        // ✅ PULISCI SOLO DOPO AVER LETTO
         localStorage.removeItem('chiamataCliente');
         console.log('🧹 localStorage pulito');
         
@@ -477,9 +466,9 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     } else {
       console.log('ℹ️ Nessuna chiamata in localStorage');
     }
-  }, []); // ⚠️ Array vuoto = esegue solo al mount!
+  }, []);
 
-// ✅ NUOVO: Preseleziona cliente da chiamata
+  // ✅ Preseleziona cliente da chiamata
   useEffect(() => {
     if (clienteIdPreselezionato && clienti.length > 0) {
       const clienteTrovato = clienti.find(c => c._id === clienteIdPreselezionato);
@@ -525,22 +514,24 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     return getProdottoConfigDB(prodottoCorrente.nome);
   }, [prodottoCorrente.nome, prodottiDB]);
 
-  const hasVarianti = prodottoConfig?.hasVarianti || false;
+  // ✅ MODIFICATO: hasVarianti solo per dropdown legacy (NON per checkbox)
+  const usaNuovoSistemaVarianti = prodottoHaVarianti(prodottoCorrente.nome);
+  const hasVarianti = prodottoConfig?.hasVarianti && !usaNuovoSistemaVarianti;
   const varianti = prodottoConfig?.varianti || [];
 
   const handleProdottoSelect = (prodotto) => {
-  console.log('🎯 Prodotto selezionato:', prodotto.nome);
-  
-  setProdottoCorrente({
-    nome: prodotto.nome,
-    variante: '',
-    quantita: '',
-    unita: prodotto.unitaMisuraDisponibili?.[0] || 'Kg',
-    prezzo: 0,
-    varianti: [], // ✅ Reset varianti nuovo sistema
-    noteCottura: '' // ✅ Reset note cottura
-  });
-};
+    console.log('🎯 Prodotto selezionato:', prodotto.nome);
+    
+    setProdottoCorrente({
+      nome: prodotto.nome,
+      variante: '',
+      quantita: '',
+      unita: prodotto.unitaMisuraDisponibili?.[0] || 'Kg',
+      prezzo: 0,
+      varianti: [],
+      noteCottura: ''
+    });
+  };
 
   const handleVarianteChange = (event) => {
     setProdottoCorrente({
@@ -549,9 +540,9 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     });
   };
 
-  // ✅ NUOVO: Handler per nuovo sistema varianti
+  // ✅ Handler per nuovo sistema varianti (checkbox)
   const handleVariantiChange = (nuoveVarianti) => {
-    console.log('🎨 Varianti aggiornate (nuovo sistema):', nuoveVarianti);
+    console.log('🎨 Varianti aggiornate (checkbox):', nuoveVarianti);
     setProdottoCorrente({
       ...prodottoCorrente,
       varianti: nuoveVarianti
@@ -565,7 +556,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     });
   };
 
-  // ✅ FIX CALCOLO PREZZO VARIANTI
+  // ✅ CALCOLO PREZZO - AGGIORNATO PER CHECKBOX MULTIPLE
   useEffect(() => {
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
@@ -578,16 +569,36 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
 
       let prezzo = 0;
       
-      // ✅ FIX: Gestione varianti CORRETTA
-      if (prodotto.hasVarianti) {
-        // Se il prodotto ha varianti MA non è stata selezionata ancora
+      // ✅ NUOVO SISTEMA: Checkbox multiple (es. Ravioli)
+      // Prezzo fisso €11/Kg indipendentemente dalle varianti selezionate
+      if (usaNuovoSistemaVarianti) {
+        console.log('📦 Usando nuovo sistema checkbox per:', prodottoCorrente.nome);
+        
+        // Per Ravioli: prezzo base €11/Kg
+        const prezzoBase = prodotto.varianti?.[0]?.prezzoKg || prodotto.prezzoKg || 11;
+        
+        if (prodottoCorrente.unita === 'Kg' || prodottoCorrente.unita === 'g') {
+          const quantitaKg = prodottoCorrente.unita === 'g' 
+            ? prodottoCorrente.quantita / 1000 
+            : prodottoCorrente.quantita;
+          prezzo = prezzoBase * quantitaKg;
+        } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
+          const prezzoPezzo = prodotto.varianti?.[0]?.prezzoPezzo || prodotto.prezzoPezzo || 0.37;
+          prezzo = prezzoPezzo * prodottoCorrente.quantita;
+        } else if (prodottoCorrente.unita === '€') {
+          prezzo = prodottoCorrente.quantita;
+        }
+        
+        console.log(`💰 Prezzo checkbox: ${prodottoCorrente.quantita} ${prodottoCorrente.unita} x €${prezzoBase} = €${prezzo.toFixed(2)}`);
+        
+      // ✅ SISTEMA LEGACY: Dropdown singolo
+      } else if (prodotto.hasVarianti) {
         if (!prodottoCorrente.variante) {
           console.log('⚠️ Variante non selezionata per', prodotto.nome);
           setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
           return;
         }
         
-        // Trova la variante selezionata
         const varianteSelezionata = prodotto.varianti.find(v => v.nome === prodottoCorrente.variante);
         
         if (!varianteSelezionata) {
@@ -596,7 +607,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           return;
         }
         
-        // ✅ USA IL PREZZO DELLA VARIANTE SELEZIONATA
         console.log('✅ Variante selezionata:', varianteSelezionata.nome, varianteSelezionata);
         
         if (prodottoCorrente.unita === 'Kg' || prodottoCorrente.unita === 'g') {
@@ -619,6 +629,8 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           prezzo = prodotto.prezzoKg * quantitaKg;
         } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
           prezzo = prodotto.prezzoPezzo * prodottoCorrente.quantita;
+        } else if (prodottoCorrente.unita === '€') {
+          prezzo = prodottoCorrente.quantita;
         }
       }
 
@@ -630,7 +642,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       console.error('Errore calcolo prezzo:', error);
       setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
     }
-  }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.quantita, prodottoCorrente.unita, prodottiDB]);
+  }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.varianti, prodottoCorrente.quantita, prodottoCorrente.unita, prodottiDB, usaNuovoSistemaVarianti]);
 
 
   const handleAggiungiProdotto = () => {
@@ -658,7 +670,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       varianti: [],
       noteCottura: ''
     });
-    // ✅ NUOVO: Reset panade/panadine
     setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
     setNumeroVassoi(1);
     setGustiPanadine([]);
@@ -698,7 +709,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     const configProdotto = PRODOTTI_CONFIG[prodottoCorrente.nome];
     
     if (configProdotto?.gustiPanadine) {
-      // Calcola totale da gusti
       let totaleQuantita = 0;
       let dettagliGusti = [];
       
@@ -769,18 +779,15 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         return;
       }
       
-      // Costruisci nome con opzioni - solo "senza aglio" se selezionato
       const aglioNote = opzioniPanada.aglio === 'senza_aglio' ? 'senza aglio' : '';
       const contornoLabel = opzioniPanada.contorno === 'con_patate' ? 'con patate' : 
                            opzioniPanada.contorno === 'con_piselli' ? 'con piselli' : 'con patate e piselli';
       
-      // Costruisci nome completo
       let nomeCompleto = `${prodottoCorrente.nome} (${contornoLabel})`;
       if (aglioNote) {
         nomeCompleto = `${prodottoCorrente.nome} (${aglioNote}, ${contornoLabel})`;
       }
       
-      // ✅ CREA RIGHE SEPARATE per ogni vassoio
       const nuoviProdotti = [];
       for (let i = 0; i < numeroVassoi; i++) {
         nuoviProdotti.push({
@@ -792,11 +799,11 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           categoria: 'Panadas',
           note: '',
           dettagliCalcolo: {
-            nomeBase: prodottoCorrente.nome,  // ✅ AGGIUNTO per calcolo prezzo
+            nomeBase: prodottoCorrente.nome,
             opzioni: opzioniPanada,
             numeroVassoi: 1,
             quantitaSingola: prodottoCorrente.quantita,
-            prezzoCalcolato: true  // ✅ Flag per non ricalcolare
+            prezzoCalcolato: true
           }
         });
       }
@@ -826,31 +833,34 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       return;
     }
 
-    // ✅ MODALITÀ NORMALE: codice originale
+    // ✅ MODALITÀ NORMALE
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       alert('Seleziona un prodotto e inserisci una quantità valida');
       return;
     }
 
-    // ✅ SISTEMA VECCHIO: Verifica varianti legacy (DB)
+    // ✅ SISTEMA LEGACY: Verifica varianti dropdown
     if (hasVarianti && !prodottoCorrente.variante) {
       alert('Seleziona una variante');
       return;
     }
 
-    // ✅ SISTEMA NUOVO: Genera nome con varianti configurate
+    // ✅ GENERA NOME CON VARIANTI
     let nomeProdottoCompleto = prodottoCorrente.nome;
     
+    // Nuovo sistema checkbox
     if (prodottoCorrente.varianti && prodottoCorrente.varianti.length > 0) {
       nomeProdottoCompleto = generaNomeProdottoConVarianti(
         prodottoCorrente.nome,
         prodottoCorrente.varianti
       );
-      console.log('✅ Nome con varianti (nuovo sistema):', nomeProdottoCompleto);
-    } else if (prodottoCorrente.variante) {
+      console.log('✅ Nome con varianti (checkbox):', nomeProdottoCompleto);
+    } 
+    // Sistema legacy dropdown
+    else if (prodottoCorrente.variante) {
       const variante = varianti.find(v => v.nome === prodottoCorrente.variante);
       nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
-      console.log('✅ Nome con variante legacy:', nomeProdottoCompleto);
+      console.log('✅ Nome con variante (dropdown):', nomeProdottoCompleto);
     }
 
     const nuovoProdotto = {
@@ -893,7 +903,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
   const aggiungiVassoioAlCarrello = (vassoio) => {
   console.log('🎂 Vassoio ricevuto:', vassoio);
   
-  // ✅ GESTISCI SIA OGGETTO CHE ARRAY
   let vassoiArray;
   
   if (Array.isArray(vassoio)) {
@@ -915,7 +924,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
   console.log('✅ Vassoio aggiunto al carrello');
 };
 
-  // ✅ HANDLER CONFERMA VASSOIO (AGGIUNTO 13/11/2025)
   const handleConfermaVassoio = (vassoi) => {
     console.log('🎂 Conferma vassoio ricevuto:', vassoi);
     
@@ -932,7 +940,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     console.log('✅ Vassoio aggiunto all\'ordine');
   };
 
-  // ✅ HANDLER ANNULLA VASSOIO (AGGIUNTO 13/11/2025)
   const handleAnnullaVassoio = () => {
     setModalitaVassoio(null);
     setComposizioneVassoio([]);
@@ -945,7 +952,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     return formData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
   };
 
-  // ✅ Verifica limiti PRIMA di salvare CON FORCE OVERRIDE
   const handleSalva = async () => {
     if (!formData.nomeCliente || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
       alert('Compila tutti i campi obbligatori: cliente, data ritiro, ora ritiro e almeno un prodotto');
@@ -1115,9 +1121,8 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                     Configura: <strong>{prodottoCorrente.nome}</strong>
                   </Typography>
 
-                  {/* ✅ NUOVO: Componente VariantiProdotto (sistema configurato) */}
-                  {/* NON mostrare per prodotti con opzioniAggiuntive (Panade) o gustiPanadine */}
-                  {prodottoHaVarianti(prodottoCorrente.nome) && 
+                  {/* ✅ NUOVO SISTEMA: Checkbox multiple (Ravioli, ecc.) */}
+                  {usaNuovoSistemaVarianti && 
                    !PRODOTTI_CONFIG[prodottoCorrente.nome]?.opzioniAggiuntive && 
                    !PRODOTTI_CONFIG[prodottoCorrente.nome]?.gustiPanadine && (
                     <Box sx={{ my: 2 }}>
@@ -1130,6 +1135,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                   )}
 
                   <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {/* ✅ SISTEMA LEGACY: Dropdown singolo (solo se NON usa nuovo sistema) */}
                     {hasVarianti && (
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
@@ -1201,7 +1207,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                       </FormControl>
                     </Grid>
 
-                    {/* ✅ NUOVO: Campo Note Cottura */}
+                    {/* Campo Note Cottura */}
                     <Grid item xs={12} sm={6}>
                       <TextField
                         fullWidth
@@ -1258,7 +1264,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                       </Button>
                     </Grid>
 
-                    {/* ✅ NUOVO: Opzioni Panade (Aglio + Contorno) */}
+                    {/* Opzioni Panade (Aglio + Contorno) */}
                     {PRODOTTI_CONFIG[prodottoCorrente.nome]?.opzioniAggiuntive && (
                       <Grid item xs={12}>
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
@@ -1267,7 +1273,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                           </Typography>
                           
                           <Grid container spacing={2}>
-                            {/* Aglio */}
                             <Grid item xs={6}>
                               <FormControl fullWidth size="small">
                                 <InputLabel>Aglio</InputLabel>
@@ -1282,7 +1287,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                               </FormControl>
                             </Grid>
                             
-                            {/* Contorno */}
                             <Grid item xs={6}>
                               <FormControl fullWidth size="small">
                                 <InputLabel>Contorno</InputLabel>
@@ -1298,7 +1302,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                               </FormControl>
                             </Grid>
                             
-                            {/* Numero Vassoi */}
                             <Grid item xs={12}>
                               <TextField
                                 label="Numero Vassoi/Panade"
@@ -1316,7 +1319,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                       </Grid>
                     )}
 
-                    {/* ✅ NUOVO: Gusti Panadine */}
+                    {/* Gusti Panadine */}
                     {PRODOTTI_CONFIG[prodottoCorrente.nome]?.gustiPanadine && (
                       <Grid item xs={12}>
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3e0', borderRadius: 1 }}>
@@ -1324,7 +1327,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                             🥟 Gusti Panadine
                           </Typography>
                           
-                          {/* Toggle modalità */}
                           <Box sx={{ mb: 2 }}>
                             <Button
                               variant={modalitaPanadine === 'rapida' ? 'contained' : 'outlined'}
@@ -1343,7 +1345,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                             </Button>
                           </Box>
                           
-                          {/* Modalità Rapida */}
                           {modalitaPanadine === 'rapida' && (
                             <Grid container spacing={2}>
                               <Grid item xs={6}>
@@ -1382,7 +1383,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                             </Grid>
                           )}
                           
-                          {/* Modalità Componi */}
                           {modalitaPanadine === 'componi' && (
                             <Box>
                               {gustiPanadine.map((gusto, index) => (
