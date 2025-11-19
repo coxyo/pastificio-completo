@@ -1123,7 +1123,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                     </Grid>
 
                     {/* ✅ NUOVO: Opzioni Panade (Aglio + Contorno) */}
-                    {getProdottoConfig(prodottoCorrente.nome)?.opzioniAggiuntive && (
+                    {getProdottoConfigDB(prodottoCorrente.nome)?.opzioniAggiuntive && (
                       <Grid item xs={12}>
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                           <Typography variant="subtitle2" gutterBottom>
@@ -1180,7 +1180,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                     )}
 
                     {/* ✅ NUOVO: Gusti Panadine */}
-                    {getProdottoConfig(prodottoCorrente.nome)?.gustiPanadine && (
+                    {getProdottoConfigDB(prodottoCorrente.nome)?.gustiPanadine && (
                       <Grid item xs={12}>
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3e0', borderRadius: 1 }}>
                           <Typography variant="subtitle2" gutterBottom>
