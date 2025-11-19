@@ -1,7 +1,8 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Altri
-// ✅ AGGIORNATO: Colonna FORMAGGIO + NOTE per piccoli/molto dolci/poco dolci
+// ✅ AGGIORNATO 19/11/2025: Supporto CHECKMARK MULTIPLI per ravioli misti
+// ✅ AGGIORNATO: Opzioni extra nelle NOTE (più piccoli, più grandi, etc.)
 
 import React, { useMemo } from 'react';
 import {
@@ -132,16 +133,20 @@ const CATEGORIE = {
 const VARIANTI_RAVIOLI = {
   spinaci: ['spinaci', 'spinac'],
   zafferano: ['zafferano', 'zaff'],
-  dolci: ['dolci'],  // Solo "dolci" base, non molto/poco
+  dolci: ['dolci'],  // Solo "dolci" base
   culurgiones: ['culurgiones', 'culurgio'],
-  formaggio: ['formaggio', 'form']  // ✅ NUOVO
+  formaggio: ['formaggio', 'form']
 };
 
-// ✅ NUOVO: Varianti speciali che vanno nelle NOTE
+// ✅ AGGIORNATO: Varianti speciali che vanno nelle NOTE
 const VARIANTI_NOTE = {
-  piccoli: ['piccoli', 'piccol'],
+  piccoli: ['più piccoli', 'piccoli'],
+  grandi: ['più grandi', 'grandi'],
   molto_dolci: ['molto dolci'],
-  poco_dolci: ['poco dolci']
+  poco_dolci: ['poco dolci'],
+  piu_spinaci: ['più spinaci'],
+  piu_zafferano: ['più zafferano'],
+  pasta_grossa: ['pasta più grossa', 'pasta grossa']
 };
 
 // ========== FUNZIONI HELPER ==========
@@ -166,40 +171,73 @@ const getCategoriaProdotto = (nomeProdotto) => {
   return 'ALTRI';
 };
 
-// ✅ AGGIORNATO: Determina la variante principale per le colonne
-const getVarianteRavioli = (nomeProdotto) => {
+// ✅ NUOVO: Funzione che rileva TUTTE le varianti (ritorna array)
+const getVariantiRavioli = (nomeProdotto) => {
   const nomeLC = nomeProdotto.toLowerCase();
+  const varianti = [];
   
-  if (VARIANTI_RAVIOLI.spinaci.some(v => nomeLC.includes(v))) return 'SPIN';
-  if (VARIANTI_RAVIOLI.zafferano.some(v => nomeLC.includes(v))) return 'ZAFF';
-  if (VARIANTI_RAVIOLI.formaggio.some(v => nomeLC.includes(v))) return 'FORM';
-  if (VARIANTI_RAVIOLI.culurgiones.some(v => nomeLC.includes(v))) return 'CULUR';
-  
-  // Dolci: verifica che non sia molto/poco dolci
-  if (nomeLC.includes('dolci') && !nomeLC.includes('molto') && !nomeLC.includes('poco')) {
-    return 'DOLCI';
+  // Controlla ogni variante principale
+  if (VARIANTI_RAVIOLI.spinaci.some(v => nomeLC.includes(v))) {
+    varianti.push('SPIN');
   }
-  // Se è molto dolci o poco dolci, conta come DOLCI ma andrà nelle note
-  if (nomeLC.includes('molto dolci') || nomeLC.includes('poco dolci')) {
-    return 'DOLCI';
+  if (VARIANTI_RAVIOLI.zafferano.some(v => nomeLC.includes(v))) {
+    varianti.push('ZAFF');
+  }
+  if (VARIANTI_RAVIOLI.formaggio.some(v => nomeLC.includes(v))) {
+    varianti.push('FORM');
+  }
+  if (VARIANTI_RAVIOLI.culurgiones.some(v => nomeLC.includes(v))) {
+    varianti.push('CULUR');
   }
   
-  return null;
+  // Dolci: verifica che non sia molto/poco dolci (quelli vanno nelle note)
+  // Ma se è "molto dolci" o "poco dolci", conta comunque come DOLCI nella colonna
+  if (nomeLC.includes('dolci')) {
+    varianti.push('DOLCI');
+  }
+  
+  return varianti;
 };
 
-// ✅ NUOVO: Estrai note speciali dal nome prodotto
-const getNoteRavioli = (nomeProdotto) => {
+// ✅ MANTENUTA per retrocompatibilità (non usata nel render)
+const getVarianteRavioli = (nomeProdotto) => {
+  const varianti = getVariantiRavioli(nomeProdotto);
+  return varianti.length > 0 ? varianti[0] : null;
+};
+
+// ✅ AGGIORNATO: Estrai note speciali dal nome prodotto E dalle noteCottura
+const getNoteRavioli = (nomeProdotto, noteCottura = '') => {
   const nomeLC = nomeProdotto.toLowerCase();
+  const noteLC = (noteCottura || '').toLowerCase();
+  const combinato = `${nomeLC} ${noteLC}`;
   const note = [];
   
-  if (VARIANTI_NOTE.piccoli.some(v => nomeLC.includes(v))) {
+  // Controlla nel nome e nelle note
+  if (VARIANTI_NOTE.piccoli.some(v => combinato.includes(v))) {
     note.push('piccoli');
   }
-  if (VARIANTI_NOTE.molto_dolci.some(v => nomeLC.includes(v))) {
+  if (VARIANTI_NOTE.grandi.some(v => combinato.includes(v))) {
+    note.push('grandi');
+  }
+  if (VARIANTI_NOTE.molto_dolci.some(v => combinato.includes(v))) {
     note.push('molto dolci');
   }
-  if (VARIANTI_NOTE.poco_dolci.some(v => nomeLC.includes(v))) {
+  if (VARIANTI_NOTE.poco_dolci.some(v => combinato.includes(v))) {
     note.push('poco dolci');
+  }
+  if (VARIANTI_NOTE.piu_spinaci.some(v => combinato.includes(v))) {
+    note.push('+ spinaci');
+  }
+  if (VARIANTI_NOTE.piu_zafferano.some(v => combinato.includes(v))) {
+    note.push('+ zafferano');
+  }
+  if (VARIANTI_NOTE.pasta_grossa.some(v => combinato.includes(v))) {
+    note.push('pasta grossa');
+  }
+  
+  // Aggiungi anche note cottura originali se non già incluse
+  if (noteCottura && !note.length) {
+    return noteCottura;
   }
   
   return note.join(', ');
@@ -436,17 +474,19 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.RAVIOLI.map((item, index) => {
-                      const variante = getVarianteRavioli(item.prodotto.nome);
-                      const noteRavioli = getNoteRavioli(item.prodotto.nome);
+                      // ✅ AGGIORNATO: Usa la nuova funzione che ritorna array
+                      const varianti = getVariantiRavioli(item.prodotto.nome);
+                      const noteRavioli = getNoteRavioli(item.prodotto.nome, item.prodotto.noteCottura || item.prodotto.note);
                       
                       return (
                         <tr key={index}>
                           <td className="center">{item.oraRitiro}</td>
-                          <td className="center">{variante === 'SPIN' ? '✓' : ''}</td>
-                          <td className="center">{variante === 'ZAFF' ? '✓' : ''}</td>
-                          <td className="center">{variante === 'DOLCI' ? '✓' : ''}</td>
-                          <td className="center">{variante === 'CULUR' ? '✓' : ''}</td>
-                          <td className="center">{variante === 'FORM' ? '✓' : ''}</td>
+                          {/* ✅ AGGIORNATO: Controlla se array include la variante */}
+                          <td className="center">{varianti.includes('SPIN') ? '✓' : ''}</td>
+                          <td className="center">{varianti.includes('ZAFF') ? '✓' : ''}</td>
+                          <td className="center">{varianti.includes('DOLCI') ? '✓' : ''}</td>
+                          <td className="center">{varianti.includes('CULUR') ? '✓' : ''}</td>
+                          <td className="center">{varianti.includes('FORM') ? '✓' : ''}</td>
                           <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                           <td className="center">{item.daViaggio ? '✓' : ''}</td>
                           <td>{item.nomeCliente}</td>
@@ -500,16 +540,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {ordiniPerCategoria.PARDULAS.map((item, index) => (
                       <tr key={index}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>
-                          {abbreviaProdotto(item.prodotto.nome)}
-                          {item.prodotto.dettagliCalcolo?.composizione && (
-                            <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
-                              ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
-                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
-                              ).join(', ')})
-                            </span>
-                          )}
-                        </td>
+                        <td>{abbreviaProdotto(item.prodotto.nome)}</td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
@@ -520,7 +551,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </tbody>
                 </table>
 
-                <div className="totali-riga">
+                <div className="totali">
                   {(() => {
                     const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg, dettagliPezzi } = calcolaTotali('PARDULAS');
                     return (
@@ -555,7 +586,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       <th style={{ width: '150px' }}>CLIENTE</th>
                       <th style={{ width: '40px' }}>🧳</th>
                       <th style={{ width: '40px' }}>+</th>
-                      <th style={{ width: '150px' }}>NOTE</th>
+                      <th style={{ width: '200px' }}>NOTE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -567,14 +598,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           {item.prodotto.dettagliCalcolo?.composizione && (
                             <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
                               ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
-                                `${abbreviaProdotto(comp.nome)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
+                                `${abbreviaProdotto(comp.nome).charAt(0)}:${comp.quantita.toFixed(1)}${comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita}`
                               ).join(', ')})
                             </span>
                           )}
                         </td>
-                        <td className="right">
-                          {formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}
-                        </td>
+                        <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                         <td>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
@@ -584,7 +613,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </tbody>
                 </table>
 
-                <div className="totali-riga">
+                <div className="totali">
                   {(() => {
                     const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg, dettagliPezzi } = calcolaTotali('DOLCI');
                     return (
