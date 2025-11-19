@@ -1,5 +1,6 @@
 // config/prodottiConfig.js
-// ✅ VERSIONE CORRETTA - 13 Novembre 2025
+// ✅ VERSIONE AGGIORNATA - 19 Novembre 2025
+// Aggiunto: Ravioli di formaggio, pulizia doppioni
 
 export const MODALITA_VENDITA = {
   SOLO_KG: 'solo_kg',
@@ -24,7 +25,7 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.MISTA,
     pezziPerKg: 30,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
-    supportaVassoiMultipli: true,  // ✅ AGGIUNTO
+    supportaVassoiMultipli: true,
     varianti: [
       {
         nome: 'spinaci',
@@ -61,6 +62,13 @@ export const PRODOTTI_CONFIG = {
         label: 'Ravioli ricotta piccoli',
         prezzoKg: 11.00,
         pezziPerKg: 40
+      },
+      // ✅ NUOVO: Ravioli di formaggio
+      {
+        nome: 'formaggio',
+        label: 'Ravioli di formaggio',
+        prezzoKg: 11.00,
+        pezziPerKg: 30
       }
     ]
   },
@@ -72,7 +80,7 @@ export const PRODOTTI_CONFIG = {
     pezziPerKg: 32,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
-    supportaVassoiMultipli: true  // ✅ AGGIUNTO
+    supportaVassoiMultipli: true
   },
 
   // ========== PARDULAS CON VARIANTI ==========
@@ -84,6 +92,12 @@ export const PRODOTTI_CONFIG = {
     pezziPerKg: 25,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    // ✅ Aggiunta opzione livello cottura
+    opzioniCottura: [
+      { nome: 'normale', label: 'Cottura Normale' },
+      { nome: 'ben_cotte', label: 'Ben Cotte' },
+      { nome: 'poco_cotte', label: 'Poco Cotte' }
+    ],
     varianti: [
       {
         nome: 'base',
@@ -115,11 +129,7 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
     varianti: [
-      {
-        nome: 'base',
-        label: 'Ciambelle solo base',
-        prezzoKg: 17.00
-      },
+      // ✅ RIMOSSO "Ciambelle solo base" - duplicato inutile
       {
         nome: 'albicocca',
         label: 'Ciambelle con marmellata di albicocca',
@@ -141,6 +151,11 @@ export const PRODOTTI_CONFIG = {
         prezzoKg: 17.00
       },
       {
+        nome: 'semplici',
+        label: 'Ciambelle semplici (senza farcitura)',
+        prezzoKg: 17.00
+      },
+      {
         nome: 'miste_marmellata_nutella',
         label: 'Ciambelle miste: marmellata - nutella',
         prezzoKg: 17.50
@@ -148,11 +163,6 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'miste_marmellata_zucchero',
         label: 'Ciambelle miste: marmellata - zucchero a velo',
-        prezzoKg: 17.00
-      },
-      {
-        nome: 'miste_marmellata_base',
-        label: 'Ciambelle miste: marmellata - solo base',
         prezzoKg: 17.00
       }
     ]
@@ -163,7 +173,21 @@ export const PRODOTTI_CONFIG = {
     categoria: 'Dolci',
     prezzoPezzo: 2.50,
     modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
-    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO],
+    // ✅ Aggiunta variante al mirto
+    hasVarianti: true,
+    varianti: [
+      {
+        nome: 'classica',
+        label: 'Sebadas',
+        prezzoPezzo: 2.50
+      },
+      {
+        nome: 'mirto',
+        label: 'Sebadas al mirto',
+        prezzoPezzo: 2.50
+      }
+    ]
   },
 
   'Amaretti': {
@@ -174,7 +198,6 @@ export const PRODOTTI_CONFIG = {
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
-  // ✅ FIX: PAPASSINAS (era Papassini)
   'Papassinas': {
     categoria: 'Dolci',
     prezzoKg: 22.00,
@@ -220,7 +243,7 @@ export const PRODOTTI_CONFIG = {
     }
   },
 
- // ========== PANADAS CON VARIANTI ==========
+  // ========== PANADAS CON VARIANTI ==========
   'Panada di Agnello': {
     prezzoKg: 25.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
@@ -232,7 +255,6 @@ export const PRODOTTI_CONFIG = {
         { nome: 'senza_aglio', label: 'Senza aglio' }
       ],
       contorno: [
-        { nome: 'con_patate', label: 'Con patate' },
         { nome: 'con_patate', label: 'Con patate' },
         { nome: 'con_piselli', label: 'Con piselli' },
         { nome: 'patate_piselli', label: 'Con patate e piselli' }
@@ -253,7 +275,6 @@ export const PRODOTTI_CONFIG = {
       ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
-        { nome: 'con_patate', label: 'Con patate' },
         { nome: 'con_piselli', label: 'Con piselli' },
         { nome: 'patate_piselli', label: 'Con patate e piselli' }
       ]
@@ -273,7 +294,6 @@ export const PRODOTTI_CONFIG = {
       ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
-        { nome: 'con_patate', label: 'Con patate' },
         { nome: 'con_piselli', label: 'Con piselli' },
         { nome: 'patate_piselli', label: 'Con patate e piselli' }
       ]
@@ -292,7 +312,6 @@ export const PRODOTTI_CONFIG = {
         { nome: 'senza_aglio', label: 'Senza aglio' }
       ],
       contorno: [
-        { nome: 'con_patate', label: 'Con patate' },
         { nome: 'con_patate', label: 'Con patate' },
         { nome: 'con_piselli', label: 'Con piselli' },
         { nome: 'patate_piselli', label: 'Con patate e piselli' }
@@ -363,7 +382,7 @@ export const getProdottoConfig = (nomeProdotto) => {
     return PRODOTTI_CONFIG[nomeProdotto];
   }
 
-  // ✅ NUOVO: Cerca il nome base (senza opzioni tra parentesi)
+  // Cerca il nome base (senza opzioni tra parentesi)
   const nomeBase = nomeProdotto.split(' (')[0];
   if (PRODOTTI_CONFIG[nomeBase]) {
     return PRODOTTI_CONFIG[nomeBase];
@@ -373,9 +392,9 @@ export const getProdottoConfig = (nomeProdotto) => {
   for (const [key, config] of Object.entries(PRODOTTI_CONFIG)) {
     if (config.hasVarianti && config.varianti) {
       const variante = config.varianti.find(v => 
-        nomeProdotto.includes(v.nome) || 
+        nomeProdotto.toLowerCase().includes(v.nome.toLowerCase()) || 
         nomeProdotto === v.label ||
-        v.label.includes(nomeProdotto)
+        v.label.toLowerCase().includes(nomeProdotto.toLowerCase())
       );
       
       if (variante) {
