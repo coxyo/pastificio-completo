@@ -780,26 +780,30 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         nomeCompleto = `${prodottoCorrente.nome} (${aglioNote}, ${contornoLabel})`;
       }
       
-      const nuovoProdotto = {
-        nome: nomeCompleto,
-        quantita: prodottoCorrente.quantita * numeroVassoi,
-        unita: prodottoCorrente.unita,
-        unitaMisura: prodottoCorrente.unita,
-        prezzo: prodottoCorrente.prezzo * numeroVassoi,
-        categoria: 'Panadas',
-        note: numeroVassoi > 1 ? `${numeroVassoi} vassoi da ${prodottoCorrente.quantita} ${prodottoCorrente.unita}` : '',
-        dettagliCalcolo: {
-          opzioni: opzioniPanada,
-          numeroVassoi: numeroVassoi,
-          quantitaSingola: prodottoCorrente.quantita
-        }
-      };
+      // ✅ CREA RIGHE SEPARATE per ogni vassoio
+      const nuoviProdotti = [];
+      for (let i = 0; i < numeroVassoi; i++) {
+        nuoviProdotti.push({
+          nome: nomeCompleto,
+          quantita: prodottoCorrente.quantita,
+          unita: prodottoCorrente.unita,
+          unitaMisura: prodottoCorrente.unita,
+          prezzo: prodottoCorrente.prezzo,
+          categoria: 'Panadas',
+          note: '',
+          dettagliCalcolo: {
+            opzioni: opzioniPanada,
+            numeroVassoi: 1,
+            quantitaSingola: prodottoCorrente.quantita
+          }
+        });
+      }
       
-      console.log('🥘 Panada aggiunta:', nuovoProdotto);
+      console.log('🥘 Panade aggiunte:', nuoviProdotti);
       
       setFormData({
         ...formData,
-        prodotti: [...formData.prodotti, nuovoProdotto]
+        prodotti: [...formData.prodotti, ...nuoviProdotti]
       });
       
       // Reset
