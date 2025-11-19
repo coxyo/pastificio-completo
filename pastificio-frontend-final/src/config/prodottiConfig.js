@@ -233,7 +233,9 @@ export const PRODOTTI_CONFIG = {
       ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
-        { nome: 'con_piselli', label: 'Con piselli' }
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
       ]
     },
     supportaVassoiMultipli: true
@@ -251,7 +253,9 @@ export const PRODOTTI_CONFIG = {
       ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
-        { nome: 'con_piselli', label: 'Con piselli' }
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
       ]
     },
     supportaVassoiMultipli: true
@@ -269,7 +273,9 @@ export const PRODOTTI_CONFIG = {
       ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
-        { nome: 'con_piselli', label: 'Con piselli' }
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
       ]
     },
     supportaVassoiMultipli: true
@@ -287,7 +293,9 @@ export const PRODOTTI_CONFIG = {
       ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
-        { nome: 'con_piselli', label: 'Con piselli' }
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
       ]
     },
     supportaVassoiMultipli: true
