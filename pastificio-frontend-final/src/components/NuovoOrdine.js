@@ -1,4 +1,5 @@
-// components/NuovoOrdine.js - ✅ CON CHECKBOX MULTIPLE PER RAVIOLI
+// components/NuovoOrdine.js - ✅ CON CHECKBOX MULTIPLE PER RAVIOLI + OPZIONI EXTRA
+// ✅ AGGIORNATO 19/11/2025: Opzioni extra (più piccoli, più grandi, etc.) vanno automaticamente in noteCottura
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -53,7 +54,8 @@ import { PRODOTTI_CONFIG } from '../config/prodottiConfig';
 import VassoidDolciMisti from './VassoidDolciMisti_FINALE';
 import VariantiProdotto, { 
   generaNomeProdottoConVarianti,
-  prodottoHaVarianti 
+  prodottoHaVarianti,
+  CONFIGURAZIONE_VARIANTI  // ✅ NUOVO: Per opzioni extra
 } from './VariantiProdotto';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
@@ -110,6 +112,7 @@ clienteIdPreselezionato,
   unita: 'Kg',
   prezzo: 0,
   varianti: [], // ✅ Array varianti per nuovo sistema checkbox
+  opzioniExtra: [], // ✅ NUOVO: Array opzioni extra (più piccoli, più grandi, etc.)
   noteCottura: ''
 });
 
@@ -529,6 +532,7 @@ clienteIdPreselezionato,
       unita: prodotto.unitaMisuraDisponibili?.[0] || 'Kg',
       prezzo: 0,
       varianti: [],
+      opzioniExtra: [], // ✅ NUOVO: Reset opzioni extra
       noteCottura: ''
     });
   };
@@ -540,12 +544,15 @@ clienteIdPreselezionato,
     });
   };
 
-  // ✅ Handler per nuovo sistema varianti (checkbox)
-  const handleVariantiChange = (nuoveVarianti) => {
-    console.log('🎨 Varianti aggiornate (checkbox):', nuoveVarianti);
+  // ✅ AGGIORNATO: Handler per nuovo sistema varianti (checkbox) + opzioni extra
+  const handleVariantiChange = (nomeCompleto, variantiIds, opzioniExtraValori) => {
+    console.log('🎨 Varianti aggiornate (checkbox):', variantiIds);
+    console.log('📝 Opzioni extra:', opzioniExtraValori);
+    
     setProdottoCorrente({
       ...prodottoCorrente,
-      varianti: nuoveVarianti
+      varianti: variantiIds,
+      opzioniExtra: opzioniExtraValori || []
     });
   };
 
@@ -668,6 +675,7 @@ clienteIdPreselezionato,
       unita: 'Kg',
       prezzo: 0,
       varianti: [],
+      opzioniExtra: [],
       noteCottura: ''
     });
     setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
@@ -700,6 +708,7 @@ clienteIdPreselezionato,
         unita: 'Kg',
         prezzo: 0,
         varianti: [],
+        opzioniExtra: [],
         noteCottura: ''
       });
       return;
@@ -762,6 +771,7 @@ clienteIdPreselezionato,
         unita: 'Kg',
         prezzo: 0,
         varianti: [],
+        opzioniExtra: [],
         noteCottura: ''
       });
       setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
@@ -823,6 +833,7 @@ clienteIdPreselezionato,
         unita: 'Kg',
         prezzo: 0,
         varianti: [],
+        opzioniExtra: [],
         noteCottura: ''
       });
       setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
@@ -863,6 +874,20 @@ clienteIdPreselezionato,
       console.log('✅ Nome con variante (dropdown):', nomeProdottoCompleto);
     }
 
+    // ✅ NUOVO: Combina noteCottura esistenti con opzioni extra
+    let noteCotturaCombinate = prodottoCorrente.noteCottura || '';
+    
+    if (prodottoCorrente.opzioniExtra && prodottoCorrente.opzioniExtra.length > 0) {
+      const opzioniExtraStr = prodottoCorrente.opzioniExtra.join(', ');
+      console.log('📝 Opzioni extra da aggiungere alle note:', opzioniExtraStr);
+      
+      if (noteCotturaCombinate) {
+        noteCotturaCombinate = `${noteCotturaCombinate}, ${opzioniExtraStr}`;
+      } else {
+        noteCotturaCombinate = opzioniExtraStr;
+      }
+    }
+
     const nuovoProdotto = {
       nome: nomeProdottoCompleto,
       quantita: prodottoCorrente.quantita,
@@ -872,7 +897,7 @@ clienteIdPreselezionato,
       categoria: prodottoConfig?.categoria || 'Altro',
       variante: prodottoCorrente.variante,
       varianti: prodottoCorrente.varianti,
-      noteCottura: prodottoCorrente.noteCottura
+      noteCottura: noteCotturaCombinate  // ✅ AGGIORNATO: usa note combinate
     };
 
     console.log('➕ Prodotto aggiunto al carrello:', nuovoProdotto);
@@ -889,6 +914,7 @@ clienteIdPreselezionato,
       unita: 'Kg',
       prezzo: 0,
       varianti: [],
+      opzioniExtra: [],
       noteCottura: ''
     });
   };
@@ -1127,9 +1153,10 @@ clienteIdPreselezionato,
                    !PRODOTTI_CONFIG[prodottoCorrente.nome]?.gustiPanadine && (
                     <Box sx={{ my: 2 }}>
                       <VariantiProdotto
-                        prodotto={prodottoCorrente.nome}
-                        value={prodottoCorrente.varianti}
-                        onChange={handleVariantiChange}
+                        prodottoBase={prodottoCorrente.nome}
+                        onVarianteChange={handleVariantiChange}
+                        variantiSelezionate={prodottoCorrente.varianti}
+                        opzioniExtraSelezionate={prodottoCorrente.opzioniExtra}
                       />
                     </Box>
                   )}
