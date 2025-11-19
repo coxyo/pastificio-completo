@@ -356,12 +356,20 @@ export const PRODOTTI_CONFIG = {
   }
 };
 
-// ✅ Funzione per ottenere config prodotto (gestisce varianti)
+// ✅ Funzione per ottenere config prodotto (gestisce varianti e opzioni)
 export const getProdottoConfig = (nomeProdotto) => {
+  // Cerca prima il prodotto esatto
   if (PRODOTTI_CONFIG[nomeProdotto]) {
     return PRODOTTI_CONFIG[nomeProdotto];
   }
 
+  // ✅ NUOVO: Cerca il nome base (senza opzioni tra parentesi)
+  const nomeBase = nomeProdotto.split(' (')[0];
+  if (PRODOTTI_CONFIG[nomeBase]) {
+    return PRODOTTI_CONFIG[nomeBase];
+  }
+
+  // Cerca nelle varianti
   for (const [key, config] of Object.entries(PRODOTTI_CONFIG)) {
     if (config.hasVarianti && config.varianti) {
       const variante = config.varianti.find(v => 
