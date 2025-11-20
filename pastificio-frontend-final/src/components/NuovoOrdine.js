@@ -1288,12 +1288,11 @@ clienteIdPreselezionato,
                       <TextField
                         fullWidth
                         type="number"
-                        label="Nr Vassoi"
+                        label="Nr vassoi uguali"
                         value={numeroVassoiProdotto}
                         onChange={(e) => setNumeroVassoiProdotto(Math.max(1, parseInt(e.target.value) || 1))}
                         size="small"
                         inputProps={{ min: 1 }}
-                        helperText="Vassoi uguali"
                       />
                     </Grid>
 
