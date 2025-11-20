@@ -644,7 +644,7 @@ Pastificio Nonna Claudia`;
                             ) : ''}
                           </TableCell>
                           
-                          <TableCell sx={{ p: 0.5, minWidth: '120px' }}>
+                          <TableCell sx={{ p: 0.5, minWidth: '180px' }}>
                             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
                               {daViaggio && (
                                 <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px', flexShrink: 0 }} />
@@ -653,7 +653,8 @@ Pastificio Nonna Claudia`;
                                 variant="caption" 
                                 sx={{ 
                                   fontSize: '0.65rem',
-                                  lineHeight: 1.3
+                                  lineHeight: 1.3,
+                                  wordBreak: 'break-word'
                                 }}
                               >
                                 {prodotto.note || ordine.note || '-'}
