@@ -406,11 +406,19 @@ Pastificio Nonna Claudia`;
                         <TableCell sx={{ p: 0.5 }}>
                           {/* ✅ TUTTI I PRODOTTI VISIBILI */}
                           {prodottiDaMostrare && prodottiDaMostrare.map((p, index) => {
-                            if (p.nome === 'Vassoio Dolci Misti') {
+                            // ✅ VASSOIO: Mostra composizione completa
+                            if (p.nome === 'Vassoio Dolci Misti' && p.dettagliCalcolo?.composizione) {
                               return (
-                                <Typography key={index} variant="body2" sx={{ fontSize: '0.75rem' }}>
-                                  🎂 Vassoio €{p.prezzo.toFixed(0)}
-                                </Typography>
+                                <Box key={index}>
+                                  <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                    🎂 Vassoio €{p.prezzo.toFixed(0)}:
+                                  </Typography>
+                                  {p.dettagliCalcolo.composizione.map((item, idx) => (
+                                    <Typography key={idx} variant="body2" sx={{ fontSize: '0.7rem', pl: 1, color: 'text.secondary' }}>
+                                      • {item.nome} ({item.quantita} {item.unita})
+                                    </Typography>
+                                  ))}
+                                </Box>
                               );
                             }
                             // Abbrevia: "Pardulas con glassa (2.5 Kg)"
