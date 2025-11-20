@@ -368,8 +368,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       ALTRI: []
     };
 
+    // ✅ FILTRO PER DATA - Mostra solo ordini della data selezionata
+    const ordiniFiltrati = ordini.filter(ordine => {
+      const dataOrdine = ordine.dataRitiro || ordine.createdAt || '';
+      return dataOrdine.startsWith(data);
+    });
+
+    console.log(`📋 RiepilogoStampabile: ${ordiniFiltrati.length} ordini per ${data} (su ${ordini.length} totali)`);
+
     // Espandi ordini: un record per ogni prodotto
-    ordini.forEach(ordine => {
+    ordiniFiltrati.forEach(ordine => {
       if (!ordine.prodotti || ordine.prodotti.length === 0) return;
 
       // Determina se l'ordine ha prodotti in categorie diverse
@@ -401,7 +409,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     });
 
     return result;
-  }, [ordini]);
+  }, [ordini, data]);
 
   // Calcola totali per categoria
   const calcolaTotali = (categoria) => {
