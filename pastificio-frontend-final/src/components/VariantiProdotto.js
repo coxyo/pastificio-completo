@@ -173,44 +173,43 @@ export default function VariantiProdotto({
   
   const config = configKey ? CONFIGURAZIONE_VARIANTI[configKey] : null;
   
-  // Reset quando cambia prodotto
+  // Reset quando cambia prodotto (solo prodottoBase, non le selezioni)
   useEffect(() => {
-    setSelezioneVarianti(variantiSelezionate);
-    setSelezioneExtra(opzioniExtraSelezionate);
-  }, [prodottoBase, variantiSelezionate, opzioniExtraSelezionate]);
+    setSelezioneVarianti(variantiSelezionate || []);
+    setSelezioneExtra(opzioniExtraSelezionate || []);
+  }, [prodottoBase]); // ✅ FIX: Solo quando cambia il prodotto
   
-  // Notifica il parent quando cambiano le selezioni
-  useEffect(() => {
-    if (config && onVarianteChange) {
-      // Costruisci il nome completo
-      let nomeCompleto = config.nomeBase;
-      
-      if (config.tipo === 'checkbox' && selezioneVarianti.length > 0) {
-        // Per checkbox multiple, unisci con " e "
-        const variantiValori = selezioneVarianti.map(id => {
-          const variante = config.varianti.find(v => v.id === id);
-          return variante ? variante.valore : '';
-        }).filter(Boolean);
-        
-        if (variantiValori.length > 0) {
-          nomeCompleto = `${config.nomeBase} ${variantiValori.join(' e ')}`;
-        }
-      } else if (config.tipo === 'select' && selezioneVarianti.length > 0) {
-        const variante = config.varianti.find(v => v.id === selezioneVarianti[0]);
-        if (variante) {
-          nomeCompleto = `${config.nomeBase} ${variante.valore}`;
-        }
-      }
-      
-      // ✅ NUOVO: Aggiungi opzioni extra
-      const extraValori = selezioneExtra.map(id => {
-        const opzione = config.opzioniExtra?.find(o => o.id === id);
-        return opzione ? opzione.valore : '';
+  // ✅ FIX: Funzione helper per notificare il parent
+  const notificaParent = (nuoveVarianti, nuoveExtra) => {
+    if (!config || !onVarianteChange) return;
+    
+    // Costruisci il nome completo
+    let nomeCompleto = config.nomeBase;
+    
+    if (config.tipo === 'checkbox' && nuoveVarianti.length > 0) {
+      const variantiValori = nuoveVarianti.map(id => {
+        const variante = config.varianti.find(v => v.id === id);
+        return variante ? variante.valore : '';
       }).filter(Boolean);
       
-      onVarianteChange(nomeCompleto, selezioneVarianti, extraValori);
+      if (variantiValori.length > 0) {
+        nomeCompleto = `${config.nomeBase} ${variantiValori.join(' e ')}`;
+      }
+    } else if (config.tipo === 'select' && nuoveVarianti.length > 0) {
+      const variante = config.varianti.find(v => v.id === nuoveVarianti[0]);
+      if (variante) {
+        nomeCompleto = `${config.nomeBase} ${variante.valore}`;
+      }
     }
-  }, [selezioneVarianti, selezioneExtra, config, onVarianteChange]);
+    
+    // Aggiungi opzioni extra
+    const extraValori = nuoveExtra.map(id => {
+      const opzione = config.opzioniExtra?.find(o => o.id === id);
+      return opzione ? opzione.valore : '';
+    }).filter(Boolean);
+    
+    onVarianteChange(nomeCompleto, nuoveVarianti, extraValori);
+  };
   
   // Se non c'è configurazione, non mostrare nulla
   if (!config) {
@@ -219,29 +218,29 @@ export default function VariantiProdotto({
   
   // Handler per checkbox varianti principali
   const handleCheckboxChange = (varianteId) => {
-    setSelezioneVarianti(prev => {
-      if (prev.includes(varianteId)) {
-        return prev.filter(id => id !== varianteId);
-      } else {
-        return [...prev, varianteId];
-      }
-    });
+    const nuoveVarianti = selezioneVarianti.includes(varianteId)
+      ? selezioneVarianti.filter(id => id !== varianteId)
+      : [...selezioneVarianti, varianteId];
+    
+    setSelezioneVarianti(nuoveVarianti);
+    notificaParent(nuoveVarianti, selezioneExtra);
   };
   
   // Handler per select (singola selezione)
   const handleSelectChange = (varianteId) => {
-    setSelezioneVarianti([varianteId]);
+    const nuoveVarianti = [varianteId];
+    setSelezioneVarianti(nuoveVarianti);
+    notificaParent(nuoveVarianti, selezioneExtra);
   };
   
   // ✅ NUOVO: Handler per opzioni extra
   const handleExtraChange = (opzioneId) => {
-    setSelezioneExtra(prev => {
-      if (prev.includes(opzioneId)) {
-        return prev.filter(id => id !== opzioneId);
-      } else {
-        return [...prev, opzioneId];
-      }
-    });
+    const nuoveExtra = selezioneExtra.includes(opzioneId)
+      ? selezioneExtra.filter(id => id !== opzioneId)
+      : [...selezioneExtra, opzioneId];
+    
+    setSelezioneExtra(nuoveExtra);
+    notificaParent(selezioneVarianti, nuoveExtra);
   };
   
   return (
