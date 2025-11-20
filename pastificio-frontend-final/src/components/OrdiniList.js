@@ -1,4 +1,4 @@
-// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Divisione per categorie + Quantità incolonnate
+// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Raggruppamento per cliente+prodotto+quantità
 import React, { useState, useMemo } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
@@ -286,7 +286,7 @@ Pastificio Nonna Claudia`;
     handleMenuClose();
   };
 
-  // ========== ORGANIZZAZIONE ORDINI PER CATEGORIA ==========
+  // ========== RAGGRUPPAMENTO PER CLIENTE + PRODOTTO + QUANTITÀ ==========
   const ordiniPerCategoria = useMemo(() => {
     const result = {
       RAVIOLI: [],
@@ -301,7 +301,9 @@ Pastificio Nonna Claudia`;
       return dataOrdine.startsWith(dataFiltro);
     });
 
-    // Espandi: un record per ogni prodotto di ogni ordine
+    // Mappa per raggruppamento: cliente + prodotto + quantità + unità
+    const mappaRaggruppamento = new Map();
+
     ordiniFiltrati.forEach(ordine => {
       if (!ordine.prodotti || ordine.prodotti.length === 0) return;
 
@@ -314,16 +316,52 @@ Pastificio Nonna Claudia`;
       ordine.prodotti.forEach(prodotto => {
         const nomeProdotto = prodotto.nome || prodotto.prodotto || 'N/D';
         const categoria = getCategoriaProdotto(nomeProdotto);
+        const quantita = prodotto.quantita || 0;
+        const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
+        const nomeCliente = ordine.nomeCliente || 'N/D';
         
-        result[categoria].push({
-          ordine,
-          prodotto,
-          haAltriProdotti
-        });
+        // ✅ Chiave: CLIENTE + PRODOTTO + QUANTITÀ + UNITÀ
+        // Vassoi sono unici (non raggruppabili per prezzo diverso)
+        let chiave;
+        if (nomeProdotto === 'Vassoio Dolci Misti' || unita === 'vassoio') {
+          // Vassoio: raggruppa per cliente + prezzo (ogni prezzo è un vassoio diverso)
+          chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${prodotto.prezzo}`;
+        } else {
+          chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}`;
+        }
+
+        if (mappaRaggruppamento.has(chiave)) {
+          // Aggiungi a gruppo esistente
+          const gruppo = mappaRaggruppamento.get(chiave);
+          gruppo.count += 1;
+          gruppo.ordiniIds.push(ordine._id);
+          gruppo.prezzoTotale += (prodotto.prezzo || 0);
+          // Mantieni info viaggio e altri prodotti
+          if (ordine.daViaggio) gruppo.daViaggio = true;
+          if (haAltriProdotti) gruppo.haAltriProdotti = true;
+        } else {
+          // Crea nuovo gruppo
+          mappaRaggruppamento.set(chiave, {
+            categoria,
+            nomeCliente,
+            prodotto,
+            ordine, // Primo ordine per riferimento
+            count: 1,
+            ordiniIds: [ordine._id],
+            prezzoTotale: prodotto.prezzo || 0,
+            daViaggio: ordine.daViaggio || false,
+            haAltriProdotti
+          });
+        }
       });
     });
 
-    // Ordina ogni categoria per ora
+    // Converti mappa in array per categoria
+    mappaRaggruppamento.forEach((gruppo) => {
+      result[gruppo.categoria].push(gruppo);
+    });
+
+    // Ordina ogni categoria per ora del primo ordine
     Object.keys(result).forEach(cat => {
       result[cat].sort((a, b) => {
         const oraA = a.ordine.oraRitiro || '';
@@ -335,8 +373,8 @@ Pastificio Nonna Claudia`;
     return result;
   }, [ordini, dataFiltro]);
 
-  // Conta totale prodotti per oggi
-  const totaleProdottiOggi = useMemo(() => {
+  // Conta totale righe per oggi
+  const totaleRigheOggi = useMemo(() => {
     return Object.values(ordiniPerCategoria).reduce((acc, cat) => acc + cat.length, 0);
   }, [ordiniPerCategoria]);
 
@@ -352,7 +390,7 @@ Pastificio Nonna Claudia`;
             sx={{ width: 150 }}
           />
           <Typography variant="subtitle2" color="text.secondary">
-            {totaleProdottiOggi} prodotti
+            {totaleRigheOggi} prodotti
           </Typography>
         </Box>
         <Button
@@ -404,7 +442,7 @@ Pastificio Nonna Claudia`;
                       <TableCell sx={{ p: 0.5, width: '50px', fontWeight: 'bold', fontSize: '0.7rem' }}>ORA</TableCell>
                       <TableCell sx={{ p: 0.5, width: '100px', fontWeight: 'bold', fontSize: '0.7rem' }}>CLIENTE</TableCell>
                       <TableCell sx={{ p: 0.5, fontWeight: 'bold', fontSize: '0.7rem' }}>PRODOTTO</TableCell>
-                      <TableCell align="right" sx={{ p: 0.5, width: '70px', fontWeight: 'bold', fontSize: '0.7rem' }}>Q.TÀ</TableCell>
+                      <TableCell align="right" sx={{ p: 0.5, width: '80px', fontWeight: 'bold', fontSize: '0.7rem' }}>Q.TÀ</TableCell>
                       <TableCell align="right" sx={{ p: 0.5, width: '60px', fontWeight: 'bold', fontSize: '0.7rem' }}>€</TableCell>
                       <TableCell align="center" sx={{ p: 0.5, width: '60px', fontWeight: 'bold', fontSize: '0.7rem' }}>L/F</TableCell>
                       <TableCell align="center" sx={{ p: 0.5, width: '30px', fontWeight: 'bold', fontSize: '0.7rem' }}>+</TableCell>
@@ -413,41 +451,44 @@ Pastificio Nonna Claudia`;
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {itemsCategoria.map((item, idx) => {
-                      const { ordine, prodotto, haAltriProdotti } = item;
+                    {itemsCategoria.map((gruppo, idx) => {
+                      const { ordine, prodotto, nomeCliente, count, prezzoTotale, daViaggio, haAltriProdotti } = gruppo;
                       const isInLavorazione = ordine.stato === 'in_lavorazione';
                       const isFatto = ordine.stato === 'completato';
 
-                      // Formatta nome prodotto (senza quantità)
+                      // Formatta nome prodotto
                       let nomeProdottoDisplay;
                       if (prodotto.nome === 'Vassoio Dolci Misti') {
-                        nomeProdottoDisplay = '🎂 Vassoio';
+                        // ✅ Mostra prezzo del vassoio
+                        nomeProdottoDisplay = `🎂 Vassoio €${(prodotto.prezzo || 0).toFixed(0)}`;
                       } else {
                         nomeProdottoDisplay = prodotto.nome || prodotto.prodotto;
                       }
 
-                      // Formatta quantità
+                      // ✅ Formatta quantità con moltiplicatore
                       const qta = prodotto.quantita || 0;
                       const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
                       let qtaDisplay;
+                      
                       if (prodotto.nome === 'Vassoio Dolci Misti' || unita === 'vassoio') {
-                        qtaDisplay = '1 vass';
+                        qtaDisplay = count > 1 ? `${count} x 1 vass` : '1 vass';
                       } else if (unita.toLowerCase() === 'pezzi' || unita.toLowerCase() === 'pz') {
-                        qtaDisplay = `${Math.round(qta)} pz`;
+                        qtaDisplay = count > 1 ? `${count} x ${Math.round(qta)} pz` : `${Math.round(qta)} pz`;
                       } else if (unita === '€' || unita.toLowerCase() === 'euro') {
-                        qtaDisplay = `€${qta}`;
+                        qtaDisplay = count > 1 ? `${count} x €${qta}` : `€${qta}`;
                       } else {
-                        qtaDisplay = `${qta} ${unita}`;
+                        // ✅ Formato: "3 x 1 Kg" oppure "0.5 Kg"
+                        qtaDisplay = count > 1 ? `${count} x ${qta} ${unita}` : `${qta} ${unita}`;
                       }
 
                       return (
                         <TableRow 
-                          key={`${ordine._id}-${idx}`}
+                          key={idx}
                           hover
                           sx={{
                             backgroundColor: isFatto ? 'rgba(76, 175, 80, 0.1)' : 
                                             isInLavorazione ? 'rgba(255, 152, 0, 0.1)' : 
-                                            'inherit'
+                                            count > 1 ? 'rgba(33, 150, 243, 0.08)' : 'inherit'
                           }}
                         >
                           <TableCell sx={{ p: 0.5 }}>
@@ -457,7 +498,7 @@ Pastificio Nonna Claudia`;
                           </TableCell>
                           <TableCell sx={{ p: 0.5 }}>
                             <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                              {ordine.nomeCliente}
+                              {nomeCliente}
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ p: 0.5 }}>
@@ -465,15 +506,23 @@ Pastificio Nonna Claudia`;
                               {nomeProdottoDisplay}
                             </Typography>
                           </TableCell>
-                          {/* ✅ COLONNA QUANTITÀ SEPARATA E ALLINEATA */}
+                          {/* ✅ COLONNA QUANTITÀ CON MOLTIPLICATORE */}
                           <TableCell align="right" sx={{ p: 0.5 }}>
-                            <Typography variant="body2" sx={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontSize: '0.75rem', 
+                                fontFamily: 'monospace',
+                                fontWeight: count > 1 ? 'bold' : 'normal',
+                                color: count > 1 ? 'primary.main' : 'inherit'
+                              }}
+                            >
                               {qtaDisplay}
                             </Typography>
                           </TableCell>
                           <TableCell align="right" sx={{ p: 0.5 }}>
                             <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
-                              €{(prodotto.prezzo || 0).toFixed(2)}
+                              €{prezzoTotale.toFixed(2)}
                             </Typography>
                           </TableCell>
                           
@@ -533,7 +582,7 @@ Pastificio Nonna Claudia`;
                           </TableCell>
                           
                           <TableCell sx={{ p: 0.5 }}>
-                            {ordine.daViaggio && (
+                            {daViaggio && (
                               <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px', mr: 0.5 }} />
                             )}
                             <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
@@ -570,7 +619,7 @@ Pastificio Nonna Claudia`;
       })}
 
       {/* Messaggio se nessun ordine */}
-      {totaleProdottiOggi === 0 && (
+      {totaleRigheOggi === 0 && (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography color="text.secondary">
             Nessun ordine per questa data
