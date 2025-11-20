@@ -644,30 +644,20 @@ Pastificio Nonna Claudia`;
                             ) : ''}
                           </TableCell>
                           
-                          <TableCell sx={{ p: 0.5 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <TableCell sx={{ p: 0.5, minWidth: '120px' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
                               {daViaggio && (
-                                <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px' }} />
+                                <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px', flexShrink: 0 }} />
                               )}
-                              {(prodotto.note || ordine.note) ? (
-                                <Tooltip title={prodotto.note || ordine.note} arrow>
-                                  <Typography 
-                                    variant="caption" 
-                                    sx={{ 
-                                      fontSize: '0.65rem',
-                                      whiteSpace: 'nowrap',
-                                      maxWidth: '150px',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      cursor: 'help'
-                                    }}
-                                  >
-                                    {prodotto.note || ordine.note}
-                                  </Typography>
-                                </Tooltip>
-                              ) : (
-                                <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>-</Typography>
-                              )}
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  fontSize: '0.65rem',
+                                  lineHeight: 1.3
+                                }}
+                              >
+                                {prodotto.note || ordine.note || '-'}
+                              </Typography>
                             </Box>
                           </TableCell>
                           
