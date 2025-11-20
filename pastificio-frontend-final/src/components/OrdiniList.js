@@ -380,15 +380,14 @@ Pastificio Nonna Claudia`;
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell width="40px"></TableCell>
-                <TableCell width="60px">Ora</TableCell>
-                <TableCell width="120px">Cliente</TableCell>
+                <TableCell width="30px"></TableCell>
+                <TableCell width="50px">Ora</TableCell>
+                <TableCell width="100px">Cliente</TableCell>
                 <TableCell>Prodotti</TableCell>
-                <TableCell align="right" width="70px">Totale</TableCell>
-                <TableCell align="center" width="140px">Lavorazione</TableCell>
-                <TableCell align="center" width="80px">Fattura</TableCell>
-                <TableCell width="120px">Note</TableCell>
-                <TableCell align="center" width="100px">Azioni</TableCell>
+                <TableCell align="right" width="60px">Totale</TableCell>
+                <TableCell align="center" width="90px">Stato</TableCell>
+                <TableCell width="80px">Note</TableCell>
+                <TableCell align="center" width="80px">Azioni</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -396,7 +395,7 @@ Pastificio Nonna Claudia`;
                 ordiniDelGiorno.map((ordine) => {
                   const isExpanded = expandedRows.has(ordine._id);
                   const numeroProdotti = ordine.prodotti?.length || 0;
-                  const prodottiDaMostrare = isExpanded ? ordine.prodotti : ordine.prodotti?.slice(0, 3);
+                  const prodottiDaMostrare = isExpanded ? ordine.prodotti : ordine.prodotti?.slice(0, 2);
                   
                   // ✅ NUOVO: Stato checkbox
                   const isInLavorazione = ordine.stato === 'in_lavorazione';
@@ -411,153 +410,122 @@ Pastificio Nonna Claudia`;
                                           isInLavorazione ? 'rgba(255, 152, 0, 0.1)' : 'inherit'
                         }}
                       >
-                        <TableCell>
-                          {numeroProdotti > 3 && (
+                        <TableCell sx={{ p: 0.5 }}>
+                          {numeroProdotti > 2 && (
                             <IconButton 
                               size="small" 
                               onClick={() => toggleRowExpand(ordine._id)}
+                              sx={{ p: 0.25 }}
                             >
-                              {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                              {isExpanded ? <ExpandLessIcon sx={{ fontSize: '1rem' }} /> : <ExpandMoreIcon sx={{ fontSize: '1rem' }} />}
                             </IconButton>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="medium">
+                        <TableCell sx={{ p: 0.5 }}>
+                          <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem' }}>
                             {ordine.oraRitiro || '-'}
                           </Typography>
                         </TableCell>
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body2" fontWeight="medium">{ordine.nomeCliente}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {ordine.telefono}
-                            </Typography>
-                          </Box>
+                        <TableCell sx={{ p: 0.5 }}>
+                          <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                            {ordine.nomeCliente}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                            {ordine.telefono}
+                          </Typography>
                         </TableCell>
-                        <TableCell>
-                          <Box>
-                            {/* ✅ FIX: GESTIONE VASSOI E PRODOTTI NORMALI */}
-                            {prodottiDaMostrare && prodottiDaMostrare.map((p, index) => {
-                              // Se è un vassoio dolci misti
-                              if (p.nome === 'Vassoio Dolci Misti' && p.dettagliCalcolo?.composizione) {
-                                return (
-                                  <Box key={index} sx={{ mb: 0.5 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
-                                      🎂 Vassoio (€{p.prezzo.toFixed(2)})
-                                    </Typography>
-                                    {isExpanded && p.dettagliCalcolo.composizione.map((item, idx) => (
-                                      <Typography 
-                                        key={idx} 
-                                        variant="caption" 
-                                        sx={{ display: 'block', pl: 1, color: 'text.secondary', fontSize: '0.7rem' }}
-                                      >
-                                        • {item.nome}: {item.quantita.toFixed(1)} {item.unita}
-                                      </Typography>
-                                    ))}
-                                  </Box>
-                                );
-                              }
-                              
-                              // Prodotti normali
-                              const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
+                        <TableCell sx={{ p: 0.5 }}>
+                          {/* ✅ PRODOTTI ABBREVIATI SU UNA RIGA */}
+                          {prodottiDaMostrare && prodottiDaMostrare.map((p, index) => {
+                            if (p.nome === 'Vassoio Dolci Misti') {
                               return (
-                                <Typography key={index} variant="body2" sx={{ fontSize: '0.8rem' }}>
-                                  {p.nome || p.prodotto} ({dettagli})
+                                <Typography key={index} variant="body2" sx={{ fontSize: '0.75rem' }}>
+                                  🎂 Vassoio €{p.prezzo.toFixed(0)}
                                 </Typography>
                               );
-                            })}
-                            {!isExpanded && numeroProdotti > 3 && (
-                              <Typography 
-                                variant="caption" 
-                                color="primary" 
-                                sx={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '0.7rem' }}
-                                onClick={() => toggleRowExpand(ordine._id)}
-                              >
-                                +{numeroProdotti - 3} altri...
+                            }
+                            // Abbrevia: "Pardulas con glassa (2.5 kg)" invece di "Pardulas con glassa (2.5 kg (circa 63 pezzi))"
+                            const qta = p.quantita || 0;
+                            const unita = p.unitaMisura || p.unita || 'Kg';
+                            return (
+                              <Typography key={index} variant="body2" sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                {p.nome || p.prodotto} ({qta} {unita})
                               </Typography>
-                            )}
-                          </Box>
+                            );
+                          })}
+                          {!isExpanded && numeroProdotti > 2 && (
+                            <Typography 
+                              variant="caption" 
+                              color="primary" 
+                              sx={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '0.65rem' }}
+                              onClick={() => toggleRowExpand(ordine._id)}
+                            >
+                              +{numeroProdotti - 2}...
+                            </Typography>
+                          )}
                         </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" fontWeight="bold">
+                        <TableCell align="right" sx={{ p: 0.5 }}>
+                          <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
                             €{calcolaTotale(ordine)}
                           </Typography>
                         </TableCell>
                         
-                        {/* ✅ NUOVO: Colonna Lavorazione con Checkbox */}
-                        <TableCell align="center">
-                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                        {/* ✅ COLONNA STATO: Chip in orizzontale */}
+                        <TableCell align="center" sx={{ p: 0.5 }}>
+                          <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
                             <Tooltip title="In Lavorazione">
                               <Chip
-                                icon={<BuildIcon sx={{ fontSize: '0.9rem' }} />}
-                                label="Lav"
+                                label="L"
                                 size="small"
                                 color={isInLavorazione ? 'warning' : 'default'}
                                 variant={isInLavorazione ? 'filled' : 'outlined'}
                                 onClick={() => handleInLavorazione(ordine._id, !isInLavorazione)}
                                 sx={{ 
                                   cursor: 'pointer', 
-                                  minWidth: '60px',
-                                  fontSize: '0.7rem',
-                                  height: '24px'
+                                  minWidth: '28px',
+                                  fontSize: '0.65rem',
+                                  height: '20px',
+                                  '& .MuiChip-label': { px: 0.5 }
                                 }}
                               />
                             </Tooltip>
-                            <Tooltip title="Fatto / Completato">
+                            <Tooltip title="Fatto">
                               <Chip
-                                icon={<DoneAllIcon sx={{ fontSize: '0.9rem' }} />}
-                                label="Fatto"
+                                label="F"
                                 size="small"
                                 color={isFatto ? 'success' : 'default'}
                                 variant={isFatto ? 'filled' : 'outlined'}
                                 onClick={() => handleFatto(ordine._id, !isFatto)}
                                 sx={{ 
                                   cursor: 'pointer', 
-                                  minWidth: '60px',
-                                  fontSize: '0.7rem',
-                                  height: '24px'
+                                  minWidth: '28px',
+                                  fontSize: '0.65rem',
+                                  height: '20px',
+                                  '& .MuiChip-label': { px: 0.5 }
                                 }}
                               />
                             </Tooltip>
                           </Box>
                         </TableCell>
                         
-                        <TableCell align="center">
-                          {ordine.statoFatturazione === 'fatturato' ? (
-                            <Chip 
-                              icon={<CheckCircleIcon />}
-                              label="Fatt" 
-                              size="small"
-                              color="success"
-                              variant="outlined"
-                              sx={{ fontSize: '0.7rem', height: '24px' }}
-                            />
-                          ) : (
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                              No
-                            </Typography>
+                        <TableCell sx={{ p: 0.5 }}>
+                          {ordine.daViaggio && (
+                            <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px', mr: 0.5 }} />
                           )}
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                            {ordine.note ? (ordine.note.length > 15 ? ordine.note.substring(0, 15) + '...' : ordine.note) : '-'}
+                          </Typography>
                         </TableCell>
-                        <TableCell>
-                          <Box>
-                            {ordine.daViaggio && (
-                              <Chip label="VIAGGIO" size="small" color="warning" sx={{ mb: 0.5, fontSize: '0.6rem', height: '20px' }} />
-                            )}
-                            <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                              {ordine.note || '-'}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell align="center">
+                        <TableCell align="center" sx={{ p: 0.5 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                            <IconButton onClick={() => onEdit(ordine)} size="small" color="primary" title="Modifica">
-                              <EditIcon sx={{ fontSize: '1rem' }} />
+                            <IconButton onClick={() => onEdit(ordine)} size="small" color="primary" title="Modifica" sx={{ p: 0.25 }}>
+                              <EditIcon sx={{ fontSize: '0.9rem' }} />
                             </IconButton>
-                            <IconButton onClick={() => onDelete(ordine._id)} size="small" color="error" title="Elimina">
-                              <DeleteIcon sx={{ fontSize: '1rem' }} />
+                            <IconButton onClick={() => onDelete(ordine._id)} size="small" color="error" title="Elimina" sx={{ p: 0.25 }}>
+                              <DeleteIcon sx={{ fontSize: '0.9rem' }} />
                             </IconButton>
-                            <IconButton onClick={(e) => handleMenuOpen(e, ordine)} size="small" title="Altre azioni">
-                              <MoreVertIcon sx={{ fontSize: '1rem' }} />
+                            <IconButton onClick={(e) => handleMenuOpen(e, ordine)} size="small" title="Menu" sx={{ p: 0.25 }}>
+                              <MoreVertIcon sx={{ fontSize: '0.9rem' }} />
                             </IconButton>
                           </Box>
                         </TableCell>
@@ -567,7 +535,7 @@ Pastificio Nonna Claudia`;
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
                       Nessun ordine per questa data
                     </Typography>
