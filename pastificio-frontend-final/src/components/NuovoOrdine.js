@@ -74,6 +74,9 @@ const VALORI_RAPIDI = {
   '€': [5, 10, 15, 20, 25, 30]
 };
 
+// ✅ NUOVO: Dimensioni vassoi disponibili
+const DIMENSIONI_VASSOIO = ['2', '3', '4', '4.5', '5', '6', '7', '8'];
+
 export default function NuovoOrdine({ 
   open, 
   onClose, 
@@ -134,9 +137,6 @@ clienteIdPreselezionato,
   // ✅ NUOVO: States per vassoi multipli e dimensione vassoio
   const [numeroVassoiProdotto, setNumeroVassoiProdotto] = useState(1);
   const [dimensioneVassoio, setDimensioneVassoio] = useState('');
-  
-  // Dimensioni vassoi disponibili
-  const DIMENSIONI_VASSOIO = ['', '2', '3', '4', '4.5', '5', '6', '7', '8'];
 
   // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
   useEffect(() => {
@@ -900,6 +900,7 @@ clienteIdPreselezionato,
     }
     
     // ✅ NUOVO: Aggiungi dimensione vassoio alle note se selezionata
+    console.log('🔍 DEBUG dimensioneVassoio:', dimensioneVassoio, 'tipo:', typeof dimensioneVassoio);
     if (dimensioneVassoio) {
       const dimensioneNote = `Vassoio nr ${dimensioneVassoio}`;
       if (noteCotturaCombinate) {
@@ -1302,11 +1303,14 @@ clienteIdPreselezionato,
                         <InputLabel>Dim. Vassoio</InputLabel>
                         <Select
                           value={dimensioneVassoio}
-                          onChange={(e) => setDimensioneVassoio(e.target.value)}
+                          onChange={(e) => {
+                            console.log('🎯 Dimensione vassoio selezionata:', e.target.value);
+                            setDimensioneVassoio(e.target.value);
+                          }}
                           label="Dim. Vassoio"
                         >
                           <MenuItem value="">-</MenuItem>
-                          {DIMENSIONI_VASSOIO.filter(d => d !== '').map((dim) => (
+                          {DIMENSIONI_VASSOIO.map((dim) => (
                             <MenuItem key={dim} value={dim}>Nr {dim}</MenuItem>
                           ))}
                         </Select>
