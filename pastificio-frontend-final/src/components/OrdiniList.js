@@ -439,15 +439,15 @@ Pastificio Nonna Claudia`;
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                      <TableCell sx={{ p: 0.5, width: '50px', fontWeight: 'bold', fontSize: '0.7rem' }}>ORA</TableCell>
-                      <TableCell sx={{ p: 0.5, width: '100px', fontWeight: 'bold', fontSize: '0.7rem' }}>CLIENTE</TableCell>
+                      <TableCell sx={{ p: 0.5, width: '45px', fontWeight: 'bold', fontSize: '0.7rem' }}>ORA</TableCell>
+                      <TableCell sx={{ p: 0.5, width: '90px', fontWeight: 'bold', fontSize: '0.7rem' }}>CLIENTE</TableCell>
                       <TableCell sx={{ p: 0.5, fontWeight: 'bold', fontSize: '0.7rem' }}>PRODOTTO</TableCell>
-                      <TableCell align="right" sx={{ p: 0.5, width: '80px', fontWeight: 'bold', fontSize: '0.7rem' }}>Q.TÀ</TableCell>
-                      <TableCell align="right" sx={{ p: 0.5, width: '60px', fontWeight: 'bold', fontSize: '0.7rem' }}>€</TableCell>
-                      <TableCell align="center" sx={{ p: 0.5, width: '60px', fontWeight: 'bold', fontSize: '0.7rem' }}>L/F</TableCell>
-                      <TableCell align="center" sx={{ p: 0.5, width: '30px', fontWeight: 'bold', fontSize: '0.7rem' }}>+</TableCell>
-                      <TableCell sx={{ p: 0.5, width: '100px', fontWeight: 'bold', fontSize: '0.7rem' }}>NOTE</TableCell>
-                      <TableCell align="center" sx={{ p: 0.5, width: '70px', fontWeight: 'bold', fontSize: '0.7rem' }}>AZIONI</TableCell>
+                      <TableCell align="right" sx={{ p: 0.5, width: '70px', fontWeight: 'bold', fontSize: '0.7rem' }}>Q.TÀ</TableCell>
+                      <TableCell align="right" sx={{ p: 0.5, width: '55px', fontWeight: 'bold', fontSize: '0.7rem' }}>€</TableCell>
+                      <TableCell align="center" sx={{ p: 0.5, width: '50px', fontWeight: 'bold', fontSize: '0.7rem' }}>L/F</TableCell>
+                      <TableCell align="center" sx={{ p: 0.5, width: '25px', fontWeight: 'bold', fontSize: '0.7rem' }}>+</TableCell>
+                      <TableCell sx={{ p: 0.5, minWidth: '120px', fontWeight: 'bold', fontSize: '0.7rem' }}>NOTE</TableCell>
+                      <TableCell align="center" sx={{ p: 0.5, width: '65px', fontWeight: 'bold', fontSize: '0.7rem' }}>AZIONI</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -458,9 +458,20 @@ Pastificio Nonna Claudia`;
 
                       // Formatta nome prodotto
                       let nomeProdottoDisplay;
+                      let composizioneDisplay = null;
+                      
                       if (prodotto.nome === 'Vassoio Dolci Misti') {
                         // ✅ Mostra prezzo del vassoio
                         nomeProdottoDisplay = `🎂 Vassoio €${(prodotto.prezzo || 0).toFixed(0)}`;
+                        // ✅ NUOVO: Mostra composizione
+                        if (prodotto.dettagliCalcolo?.composizione) {
+                          composizioneDisplay = prodotto.dettagliCalcolo.composizione.map(comp => {
+                            const abbr = comp.nome.charAt(0);
+                            const qta = comp.quantita;
+                            const u = comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita;
+                            return `${abbr}:${qta}${u}`;
+                          }).join(', ');
+                        }
                       } else {
                         nomeProdottoDisplay = prodotto.nome || prodotto.prodotto;
                       }
@@ -505,6 +516,12 @@ Pastificio Nonna Claudia`;
                             <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
                               {nomeProdottoDisplay}
                             </Typography>
+                            {/* ✅ NUOVO: Mostra composizione vassoio */}
+                            {composizioneDisplay && (
+                              <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block' }}>
+                                ({composizioneDisplay})
+                              </Typography>
+                            )}
                           </TableCell>
                           {/* ✅ COLONNA QUANTITÀ CON MOLTIPLICATORE */}
                           <TableCell align="right" sx={{ p: 0.5 }}>
@@ -587,8 +604,8 @@ Pastificio Nonna Claudia`;
                             )}
                             <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
                               {prodotto.note || ordine.note 
-                                ? ((prodotto.note || ordine.note).length > 15 
-                                    ? (prodotto.note || ordine.note).substring(0, 15) + '...' 
+                                ? ((prodotto.note || ordine.note).length > 25 
+                                    ? (prodotto.note || ordine.note).substring(0, 25) + '...' 
                                     : (prodotto.note || ordine.note)) 
                                 : '-'}
                             </Typography>
