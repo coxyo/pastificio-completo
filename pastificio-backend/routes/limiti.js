@@ -1,18 +1,130 @@
-// routes/limiti.js - ✅ VERSIONE SENZA PROTEZIONE PER TEST
+// routes/limiti.js - ✅ AGGIORNATO 20/11/2025: Calcolo dinamico ordinato
 
 import express from 'express';
-// import { protect } from '../middleware/auth.js'; // ❌ COMMENTATO TEMPORANEAMENTE
+// import { protect } from '../middleware/auth.js'; // COMMENTATO TEMPORANEAMENTE
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
+import Ordine from '../models/Ordine.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// ❌ COMMENTATO TEMPORANEAMENTE PER TEST
+// COMMENTATO TEMPORANEAMENTE PER TEST
 // router.use(protect);
 
 /**
+ * ✅ NUOVA FUNZIONE: Calcola quantità ordinata per un limite
+ */
+const calcolaOrdinatoPerLimite = async (limite) => {
+  try {
+    // Crea range data per il giorno del limite
+    const inizioGiorno = new Date(limite.data);
+    inizioGiorno.setHours(0, 0, 0, 0);
+    
+    const fineGiorno = new Date(limite.data);
+    fineGiorno.setHours(23, 59, 59, 999);
+    
+    // Trova tutti gli ordini per quella data
+    const ordini = await Ordine.find({
+      dataRitiro: { $gte: inizioGiorno, $lte: fineGiorno },
+      stato: { $ne: 'annullato' } // Escludi annullati
+    });
+    
+    let totaleOrdinato = 0;
+    
+    ordini.forEach(ordine => {
+      if (!ordine.prodotti) return;
+      
+      ordine.prodotti.forEach(prodotto => {
+        const nomeProdotto = prodotto.nome || prodotto.prodotto || '';
+        const quantita = parseFloat(prodotto.quantita) || 0;
+        const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
+        
+        // Skip vassoi
+        if (unita === 'vassoio' || nomeProdotto === 'Vassoio Dolci Misti') {
+          return;
+        }
+        
+        // Converti in Kg se necessario
+        let quantitaKg = quantita;
+        if (unita === 'g') {
+          quantitaKg = quantita / 1000;
+        } else if (unita === 'Pezzi' || unita === 'pz') {
+          // Per pezzi, usa la quantità diretta se il limite è in pezzi
+          if (limite.unitaMisura === 'Pezzi') {
+            quantitaKg = quantita;
+          } else {
+            // Altrimenti ignora o converti (es. 30 pezzi = 1 Kg per ravioli)
+            quantitaKg = quantita / 30; // Conversione approssimativa
+          }
+        } else if (unita === '€') {
+          // Per ordini in euro, stima Kg dal prezzo (es. 20€/Kg)
+          const prezzoAlKg = 20; // Prezzo medio
+          quantitaKg = quantita / prezzoAlKg;
+        }
+        
+        // Verifica match con limite
+        let match = false;
+        
+        // Match per prodotto specifico
+        if (limite.prodotto) {
+          // Match esatto o parziale
+          if (nomeProdotto.toLowerCase().includes(limite.prodotto.toLowerCase()) ||
+              limite.prodotto.toLowerCase().includes(nomeProdotto.toLowerCase())) {
+            match = true;
+          }
+        }
+        
+        // Match per categoria
+        if (limite.categoria) {
+          const categoriaProdotto = determinaCategoria(nomeProdotto);
+          if (categoriaProdotto.toLowerCase() === limite.categoria.toLowerCase()) {
+            match = true;
+          }
+        }
+        
+        if (match) {
+          totaleOrdinato += quantitaKg;
+        }
+      });
+    });
+    
+    return totaleOrdinato;
+    
+  } catch (error) {
+    console.error('Errore calcolo ordinato:', error);
+    return 0;
+  }
+};
+
+/**
+ * ✅ HELPER: Determina categoria di un prodotto
+ */
+const determinaCategoria = (nomeProdotto) => {
+  if (!nomeProdotto) return 'Altro';
+  const nome = nomeProdotto.toLowerCase();
+  
+  if (nome.includes('ravioli') || nome.includes('culurgion')) {
+    return 'Ravioli';
+  }
+  if (nome.includes('pardula')) {
+    return 'Pardulas';
+  }
+  if (nome.includes('panada') || nome.includes('panadin')) {
+    return 'Panadas';
+  }
+  if (nome.includes('amarett') || nome.includes('bianchin') || 
+      nome.includes('ciambelle') || nome.includes('sebada') ||
+      nome.includes('gueffus') || nome.includes('pabassina') ||
+      nome.includes('torta')) {
+    return 'Dolci';
+  }
+  
+  return 'Altro';
+};
+
+/**
  * @route   GET /api/limiti
- * @desc    Ottieni tutti i limiti
+ * @desc    Ottieni tutti i limiti CON calcolo dinamico ordinato
  * @access  Pubblico (temporaneamente per test)
  */
 router.get('/', async (req, res) => {
@@ -37,10 +149,19 @@ router.get('/', async (req, res) => {
     
     const limiti = await LimiteGiornaliero.find(query).sort({ data: 1, prodotto: 1 });
     
+    // ✅ NUOVO: Calcola ordinato dinamicamente per ogni limite
+    const limitiConOrdinato = await Promise.all(
+      limiti.map(async (limite) => {
+        const limiteObj = limite.toObject();
+        limiteObj.quantitaOrdinata = await calcolaOrdinatoPerLimite(limite);
+        return limiteObj;
+      })
+    );
+    
     res.json({
       success: true,
-      count: limiti.length,
-      data: limiti
+      count: limitiConOrdinato.length,
+      data: limitiConOrdinato
     });
     
   } catch (error) {
