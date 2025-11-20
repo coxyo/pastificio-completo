@@ -131,6 +131,13 @@ clienteIdPreselezionato,
   const [modalitaPanadine, setModalitaPanadine] = useState('rapida');
   const [panadineRapide, setPanadineRapide] = useState({ carne: 0, verdura: 0 });
 
+  // ✅ NUOVO: States per vassoi multipli e dimensione vassoio
+  const [numeroVassoiProdotto, setNumeroVassoiProdotto] = useState(1);
+  const [dimensioneVassoio, setDimensioneVassoio] = useState('');
+  
+  // Dimensioni vassoi disponibili
+  const DIMENSIONI_VASSOIO = ['', '2', '3', '4', '4.5', '5', '6', '7', '8'];
+
   // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
   useEffect(() => {
     if (isConnected) {
@@ -535,6 +542,10 @@ clienteIdPreselezionato,
       opzioniExtra: [], // ✅ NUOVO: Reset opzioni extra
       noteCottura: ''
     });
+    
+    // ✅ NUOVO: Reset numero vassoi e dimensione
+    setNumeroVassoiProdotto(1);
+    setDimensioneVassoio('');
   };
 
   const handleVarianteChange = (event) => {
@@ -887,24 +898,39 @@ clienteIdPreselezionato,
         noteCotturaCombinate = opzioniExtraStr;
       }
     }
+    
+    // ✅ NUOVO: Aggiungi dimensione vassoio alle note se selezionata
+    if (dimensioneVassoio) {
+      const dimensioneNote = `Vassoio nr ${dimensioneVassoio}`;
+      if (noteCotturaCombinate) {
+        noteCotturaCombinate = `${noteCotturaCombinate}, ${dimensioneNote}`;
+      } else {
+        noteCotturaCombinate = dimensioneNote;
+      }
+      console.log('📦 Dimensione vassoio aggiunta alle note:', dimensioneNote);
+    }
 
-    const nuovoProdotto = {
-      nome: nomeProdottoCompleto,
-      quantita: prodottoCorrente.quantita,
-      unita: prodottoCorrente.unita,
-      unitaMisura: prodottoCorrente.unita,
-      prezzo: prodottoCorrente.prezzo,
-      categoria: prodottoConfig?.categoria || 'Altro',
-      variante: prodottoCorrente.variante,
-      varianti: prodottoCorrente.varianti,
-      noteCottura: noteCotturaCombinate  // ✅ AGGIORNATO: usa note combinate
-    };
+    // ✅ NUOVO: Crea più prodotti se numeroVassoiProdotto > 1
+    const nuoviProdotti = [];
+    for (let i = 0; i < numeroVassoiProdotto; i++) {
+      nuoviProdotti.push({
+        nome: nomeProdottoCompleto,
+        quantita: prodottoCorrente.quantita,
+        unita: prodottoCorrente.unita,
+        unitaMisura: prodottoCorrente.unita,
+        prezzo: prodottoCorrente.prezzo,
+        categoria: prodottoConfig?.categoria || 'Altro',
+        variante: prodottoCorrente.variante,
+        varianti: prodottoCorrente.varianti,
+        noteCottura: noteCotturaCombinate
+      });
+    }
 
-    console.log('➕ Prodotto aggiunto al carrello:', nuovoProdotto);
+    console.log(`➕ ${numeroVassoiProdotto} prodotto/i aggiunto/i al carrello:`, nuoviProdotti);
 
     setFormData({
       ...formData,
-      prodotti: [...formData.prodotti, nuovoProdotto]
+      prodotti: [...formData.prodotti, ...nuoviProdotti]
     });
 
     setProdottoCorrente({
@@ -917,6 +943,10 @@ clienteIdPreselezionato,
       opzioniExtra: [],
       noteCottura: ''
     });
+    
+    // ✅ NUOVO: Reset numero vassoi e dimensione
+    setNumeroVassoiProdotto(1);
+    setDimensioneVassoio('');
   };
 
   const handleRimuoviProdotto = (index) => {
@@ -1227,9 +1257,13 @@ clienteIdPreselezionato,
                           })}
                           label="Unità"
                         >
-                          {(prodottoConfig?.unitaMisuraDisponibili || ['Kg']).map((u) => (
-                            <MenuItem key={u} value={u}>{u}</MenuItem>
-                          ))}
+                          {/* ✅ AGGIORNATO: Aggiungi sempre € come opzione */}
+                          {[...(prodottoConfig?.unitaMisuraDisponibili || ['Kg']), '€']
+                            .filter((u, i, arr) => arr.indexOf(u) === i) // rimuovi duplicati
+                            .map((u) => (
+                              <MenuItem key={u} value={u}>{u}</MenuItem>
+                            ))
+                          }
                         </Select>
                       </FormControl>
                     </Grid>
@@ -1247,6 +1281,37 @@ clienteIdPreselezionato,
                         })}
                         size="small"
                       />
+                    </Grid>
+
+                    {/* ✅ NUOVO: Numero Vassoi Uguali */}
+                    <Grid item xs={6} sm={3}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Nr Vassoi"
+                        value={numeroVassoiProdotto}
+                        onChange={(e) => setNumeroVassoiProdotto(Math.max(1, parseInt(e.target.value) || 1))}
+                        size="small"
+                        inputProps={{ min: 1 }}
+                        helperText="Vassoi uguali"
+                      />
+                    </Grid>
+
+                    {/* ✅ NUOVO: Dimensione Vassoio */}
+                    <Grid item xs={6} sm={3}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Dim. Vassoio</InputLabel>
+                        <Select
+                          value={dimensioneVassoio}
+                          onChange={(e) => setDimensioneVassoio(e.target.value)}
+                          label="Dim. Vassoio"
+                        >
+                          <MenuItem value="">-</MenuItem>
+                          {DIMENSIONI_VASSOIO.filter(d => d !== '').map((dim) => (
+                            <MenuItem key={dim} value={dim}>Nr {dim}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
                     </Grid>
 
                     {/* Griglia Valori Rapidi */}
