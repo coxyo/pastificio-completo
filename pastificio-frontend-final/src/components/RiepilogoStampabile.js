@@ -1,8 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Altri
-// ✅ AGGIORNATO 20/11/2025: Note complete per TUTTI i fogli (note + noteCottura)
-// ✅ AGGIORNATO: Ravioli mostra note multiple combinate
+// ✅ AGGIORNATO 20/11/2025: Raggruppamento prodotti uguali (2 x Pardulas 0.5 Kg)
 
 import React, { useMemo } from 'react';
 import {
@@ -133,7 +132,7 @@ const CATEGORIE = {
 const VARIANTI_RAVIOLI = {
   spinaci: ['spinaci', 'spinac'],
   zafferano: ['zafferano', 'zaff'],
-  dolci: ['dolci'],  // Solo "dolci" base
+  dolci: ['dolci'],
   culurgiones: ['culurgiones', 'culurgio'],
   formaggio: ['formaggio', 'form']
 };
@@ -152,7 +151,6 @@ const VARIANTI_NOTE = {
 // ========== FUNZIONI HELPER ==========
 
 const abbreviaProdotto = (nome) => {
-  // ✅ NON abbreviare Panade e Panadine
   if (nome.toLowerCase().includes('panada') || nome.toLowerCase().includes('panadine')) {
     return nome;
   }
@@ -176,7 +174,6 @@ const getVariantiRavioli = (nomeProdotto) => {
   const nomeLC = nomeProdotto.toLowerCase();
   const varianti = [];
   
-  // Controlla ogni variante principale
   if (VARIANTI_RAVIOLI.spinaci.some(v => nomeLC.includes(v))) {
     varianti.push('SPIN');
   }
@@ -190,19 +187,11 @@ const getVariantiRavioli = (nomeProdotto) => {
     varianti.push('CULUR');
   }
   
-  // Dolci: verifica che non sia molto/poco dolci (quelli vanno nelle note)
-  // Ma se è "molto dolci" o "poco dolci", conta comunque come DOLCI nella colonna
   if (nomeLC.includes('dolci')) {
     varianti.push('DOLCI');
   }
   
   return varianti;
-};
-
-// ✅ MANTENUTA per retrocompatibilità (non usata nel render)
-const getVarianteRavioli = (nomeProdotto) => {
-  const varianti = getVariantiRavioli(nomeProdotto);
-  return varianti.length > 0 ? varianti[0] : null;
 };
 
 // ✅ AGGIORNATO 20/11/2025: Combina TUTTE le note (speciali + noteCottura)
@@ -212,7 +201,6 @@ const getNoteRavioli = (nomeProdotto, noteCottura = '') => {
   const combinato = `${nomeLC} ${noteLC}`;
   const note = [];
   
-  // Controlla nel nome e nelle note
   if (VARIANTI_NOTE.piccoli.some(v => combinato.includes(v))) {
     note.push('piccoli');
   }
@@ -235,14 +223,11 @@ const getNoteRavioli = (nomeProdotto, noteCottura = '') => {
     note.push('pasta grossa');
   }
   
-  // ✅ NUOVO: Estrai parti di noteCottura che non sono già nelle note speciali
   if (noteCottura) {
-    // Controlla se contiene info extra (es. "Vassoio nr X")
     const partiNoteCottura = noteCottura.split(',').map(p => p.trim());
     
     partiNoteCottura.forEach(parte => {
       const parteLC = parte.toLowerCase();
-      // Se non è già inclusa come nota speciale, aggiungila
       const giaInclusa = note.some(n => parteLC.includes(n.toLowerCase())) ||
                         Object.values(VARIANTI_NOTE).some(variants => 
                           variants.some(v => parteLC.includes(v))
@@ -262,16 +247,13 @@ const getNoteCombinate = (prodotto) => {
   const note = prodotto.note || '';
   const noteCottura = prodotto.noteCottura || '';
   
-  // Se sono uguali, ritorna solo una
   if (note === noteCottura) {
     return note;
   }
   
-  // Se una è vuota, ritorna l'altra
   if (!note) return noteCottura;
   if (!noteCottura) return note;
   
-  // Combina entrambe, evitando duplicati
   const partiNote = note.split(',').map(p => p.trim().toLowerCase());
   const partiNoteCottura = noteCottura.split(',').map(p => p.trim());
   
@@ -288,12 +270,10 @@ const getNoteCombinate = (prodotto) => {
 
 // ✅ Funzione per ottenere pezzi/Kg di un prodotto
 const getPezziPerKg = (nomeProdotto) => {
-  // Cerca prima il nome esatto
   if (PEZZI_PER_KG[nomeProdotto]) {
     return PEZZI_PER_KG[nomeProdotto];
   }
   
-  // Cerca per nome parziale
   for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG)) {
     if (nomeProdotto.toLowerCase().includes(nome.toLowerCase()) ||
         nome.toLowerCase().includes(nomeProdotto.toLowerCase())) {
@@ -310,13 +290,11 @@ const isSoloPezzo = (nomeProdotto) => {
 };
 
 const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
-  // ✅ Per vassoi, usa il peso dalla composizione
   if (dettagliCalcolo?.composizione && unita === 'vassoio') {
     const pesoTotale = dettagliCalcolo.composizione.reduce((acc, comp) => {
       if (comp.unita === 'Kg') {
         return acc + comp.quantita;
       } else if (comp.unita === 'Pezzi') {
-        // Converti pezzi in kg se possibile
         const pezziPerKg = getPezziPerKg(comp.nome);
         if (pezziPerKg) {
           return acc + (comp.quantita / pezziPerKg);
@@ -330,7 +308,6 @@ const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
     }
   }
   
-  // Normalizza l'unità
   const unitaNorm = unita?.toLowerCase()?.trim() || 'kg';
   
   if (unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
@@ -359,7 +336,7 @@ const formattaData = (data) => {
 
 // ========== COMPONENTE PRINCIPALE ==========
 export default function RiepilogoStampabile({ ordini, data, onClose }) {
-  // Raggruppa ordini per categoria
+  // ✅ AGGIORNATO 20/11/2025: Raggruppa ordini per categoria CON raggruppamento prodotti uguali
   const ordiniPerCategoria = useMemo(() => {
     const result = {
       RAVIOLI: [],
@@ -368,19 +345,20 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       ALTRI: []
     };
 
-    // ✅ FILTRO PER DATA - Mostra solo ordini della data selezionata
+    // Filtra per data
     const ordiniFiltrati = ordini.filter(ordine => {
       const dataOrdine = ordine.dataRitiro || ordine.createdAt || '';
       return dataOrdine.startsWith(data);
     });
 
-    console.log(`📋 RiepilogoStampabile: ${ordiniFiltrati.length} ordini per ${data} (su ${ordini.length} totali)`);
+    console.log(`📋 RiepilogoStampabile: ${ordiniFiltrati.length} ordini per ${data}`);
 
-    // Espandi ordini: un record per ogni prodotto
+    // Prima espandi tutti i prodotti
+    const prodottiEspansi = [];
+    
     ordiniFiltrati.forEach(ordine => {
       if (!ordine.prodotti || ordine.prodotti.length === 0) return;
 
-      // Determina se l'ordine ha prodotti in categorie diverse
       const categorieOrdine = new Set(
         ordine.prodotti.map(p => getCategoriaProdotto(p.nome))
       );
@@ -389,17 +367,69 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       ordine.prodotti.forEach(prodotto => {
         const categoria = getCategoriaProdotto(prodotto.nome);
         
-        result[categoria].push({
+        prodottiEspansi.push({
+          categoria,
           oraRitiro: ordine.oraRitiro || '',
           nomeCliente: ordine.nomeCliente || 'N/D',
           daViaggio: ordine.daViaggio || false,
           haAltriProdotti,
-          prodotto
+          prodotto,
+          ordineId: ordine._id
         });
       });
     });
 
-    // Ordina ogni categoria per ora
+    // ✅ NUOVO: Raggruppa prodotti identici per categoria
+    const mappaRaggruppamento = new Map();
+
+    prodottiEspansi.forEach(item => {
+      const { categoria, prodotto } = item;
+      const nomeProdotto = prodotto.nome || 'N/D';
+      const quantita = prodotto.quantita || 0;
+      const unita = prodotto.unita || 'Kg';
+
+      // Vassoi personalizzati non raggruppabili
+      let chiave;
+      if (nomeProdotto === 'Vassoio Dolci Misti' || unita === 'vassoio') {
+        chiave = `${categoria}-${item.ordineId}-${nomeProdotto}`;
+      } else {
+        chiave = `${categoria}-${nomeProdotto}-${quantita}-${unita}`;
+      }
+
+      if (mappaRaggruppamento.has(chiave)) {
+        const gruppo = mappaRaggruppamento.get(chiave);
+        gruppo.count += 1;
+        gruppo.clienti.push(item.nomeCliente);
+        gruppo.orari.push(item.oraRitiro);
+        if (item.daViaggio) gruppo.daViaggio = true;
+        if (item.haAltriProdotti) gruppo.haAltriProdotti = true;
+      } else {
+        mappaRaggruppamento.set(chiave, {
+          categoria,
+          oraRitiro: item.oraRitiro,
+          nomeCliente: item.nomeCliente,
+          daViaggio: item.daViaggio,
+          haAltriProdotti: item.haAltriProdotti,
+          prodotto: item.prodotto,
+          count: 1,
+          clienti: [item.nomeCliente],
+          orari: [item.oraRitiro]
+        });
+      }
+    });
+
+    // Converti mappa in array per categoria
+    mappaRaggruppamento.forEach((gruppo) => {
+      // Per gruppi multipli, combina info
+      if (gruppo.count > 1) {
+        gruppo.nomeCliente = gruppo.clienti.join(', ');
+        // Prendi prima ora
+        gruppo.oraRitiro = gruppo.orari.sort()[0];
+      }
+      result[gruppo.categoria].push(gruppo);
+    });
+
+    // Ordina per ora
     Object.keys(result).forEach(cat => {
       result[cat].sort((a, b) => {
         if (!a.oraRitiro) return 1;
@@ -422,41 +452,42 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     ordiniPerCategoria[categoria].forEach(item => {
       const prodotto = item.prodotto;
       const unitaNorm = prodotto.unita?.toLowerCase()?.trim() || 'kg';
+      // ✅ Moltiplica per count per raggruppamenti
+      const moltiplicatore = item.count || 1;
       
-      // ✅ Gestione vassoi
       if (unitaNorm === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
         prodotto.dettagliCalcolo.composizione.forEach(comp => {
           if (comp.unita === 'Kg') {
-            totaleKg += comp.quantita;
-            dettagliKg[comp.nome] = (dettagliKg[comp.nome] || 0) + comp.quantita;
+            totaleKg += comp.quantita * moltiplicatore;
+            dettagliKg[comp.nome] = (dettagliKg[comp.nome] || 0) + comp.quantita * moltiplicatore;
           } else if (comp.unita === 'Pezzi') {
             const pezziPerKg = getPezziPerKg(comp.nome);
             if (pezziPerKg && !isSoloPezzo(comp.nome)) {
-              const kgEquivalenti = comp.quantita / pezziPerKg;
+              const kgEquivalenti = comp.quantita / pezziPerKg * moltiplicatore;
               totaleKg += kgEquivalenti;
               dettagliKg[comp.nome] = (dettagliKg[comp.nome] || 0) + kgEquivalenti;
             } else {
-              totalePezziNonConvertibili += comp.quantita;
-              dettagliPezzi[comp.nome] = (dettagliPezzi[comp.nome] || 0) + comp.quantita;
+              totalePezziNonConvertibili += comp.quantita * moltiplicatore;
+              dettagliPezzi[comp.nome] = (dettagliPezzi[comp.nome] || 0) + comp.quantita * moltiplicatore;
             }
           }
         });
       } else if (unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
-        totaleKg += prodotto.quantita;
-        dettagliKg[prodotto.nome] = (dettagliKg[prodotto.nome] || 0) + prodotto.quantita;
+        totaleKg += prodotto.quantita * moltiplicatore;
+        dettagliKg[prodotto.nome] = (dettagliKg[prodotto.nome] || 0) + prodotto.quantita * moltiplicatore;
       } else if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
         const pezziPerKg = getPezziPerKg(prodotto.nome);
         
         if (pezziPerKg && !isSoloPezzo(prodotto.nome)) {
-          const kgEquivalenti = prodotto.quantita / pezziPerKg;
+          const kgEquivalenti = prodotto.quantita / pezziPerKg * moltiplicatore;
           totaleKg += kgEquivalenti;
           dettagliKg[prodotto.nome] = (dettagliKg[prodotto.nome] || 0) + kgEquivalenti;
         } else {
-          totalePezziNonConvertibili += prodotto.quantita;
-          dettagliPezzi[prodotto.nome] = (dettagliPezzi[prodotto.nome] || 0) + prodotto.quantita;
+          totalePezziNonConvertibili += prodotto.quantita * moltiplicatore;
+          dettagliPezzi[prodotto.nome] = (dettagliPezzi[prodotto.nome] || 0) + prodotto.quantita * moltiplicatore;
         }
       } else if (unitaNorm === '€' || unitaNorm === 'euro') {
-        totaleEuro += prodotto.quantita;
+        totaleEuro += prodotto.quantita * moltiplicatore;
       }
     });
 
@@ -478,6 +509,15 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     return parti.join(' | ') || '0 Kg';
   };
 
+  // ✅ NUOVO: Formatta prodotto con count
+  const formattaProdottoConCount = (item) => {
+    const nome = abbreviaProdotto(item.prodotto.nome);
+    if (item.count > 1) {
+      return `${item.count} x ${nome}`;
+    }
+    return nome;
+  };
+
   // Stampa
   const handleStampa = () => {
     window.print();
@@ -485,7 +525,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
   return (
     <>
-      {/* Dialog per preview (non stampato) */}
       <Dialog 
         open={true} 
         onClose={onClose} 
@@ -516,6 +555,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   <thead>
                     <tr>
                       <th style={{ width: '50px' }}>ORA</th>
+                      <th style={{ width: '35px' }}>QTY</th>
                       <th style={{ width: '35px' }}>SPIN</th>
                       <th style={{ width: '35px' }}>ZAFF</th>
                       <th style={{ width: '40px' }}>DOLCI</th>
@@ -530,18 +570,19 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.RAVIOLI.map((item, index) => {
-                      // ✅ AGGIORNATO: Usa la nuova funzione che ritorna array
                       const varianti = getVariantiRavioli(item.prodotto.nome);
-                      // ✅ AGGIORNATO 20/11/2025: Combina note + noteCottura
                       const noteRavioli = getNoteRavioli(
                         item.prodotto.nome, 
                         item.prodotto.noteCottura || item.prodotto.note
                       );
                       
                       return (
-                        <tr key={index}>
+                        <tr key={index} style={item.count > 1 ? { backgroundColor: '#fff3e0', fontWeight: 'bold' } : {}}>
                           <td className="center">{item.oraRitiro}</td>
-                          {/* ✅ AGGIORNATO: Controlla se array include la variante */}
+                          {/* ✅ NUOVO: Colonna quantità raggruppamento */}
+                          <td className="center" style={{ fontWeight: 'bold', color: item.count > 1 ? '#e65100' : 'inherit' }}>
+                            {item.count > 1 ? `${item.count}x` : ''}
+                          </td>
                           <td className="center">{varianti.includes('SPIN') ? '✓' : ''}</td>
                           <td className="center">{varianti.includes('ZAFF') ? '✓' : ''}</td>
                           <td className="center">{varianti.includes('DOLCI') ? '✓' : ''}</td>
@@ -549,7 +590,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           <td className="center">{varianti.includes('FORM') ? '✓' : ''}</td>
                           <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
                           <td className="center">{item.daViaggio ? '✓' : ''}</td>
-                          <td>{item.nomeCliente}</td>
+                          <td style={{ fontSize: item.count > 1 ? '9px' : '11px' }}>{item.nomeCliente}</td>
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
                           <td style={{ fontSize: '10px' }}>{noteRavioli}</td>
                         </tr>
@@ -598,14 +639,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.PARDULAS.map((item, index) => (
-                      <tr key={index}>
+                      <tr key={index} style={item.count > 1 ? { backgroundColor: '#e0f7fa', fontWeight: 'bold' } : {}}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>{abbreviaProdotto(item.prodotto.nome)}</td>
+                        {/* ✅ AGGIORNATO: Mostra "2 x Pardulas" */}
+                        <td style={{ color: item.count > 1 ? '#00695c' : 'inherit' }}>
+                          {formattaProdottoConCount(item)}
+                        </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
-                        <td>{item.nomeCliente}</td>
+                        <td style={{ fontSize: item.count > 1 ? '9px' : '11px' }}>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
                         <td style={{ fontSize: '10px' }}>{getNoteCombinate(item.prodotto)}</td>
                       </tr>
                     ))}
@@ -652,10 +695,11 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.DOLCI.map((item, index) => (
-                      <tr key={index}>
+                      <tr key={index} style={item.count > 1 ? { backgroundColor: '#fffde7', fontWeight: 'bold' } : {}}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>
-                          {abbreviaProdotto(item.prodotto.nome)}
+                        <td style={{ color: item.count > 1 ? '#f57f17' : 'inherit' }}>
+                          {/* ✅ AGGIORNATO: Mostra "2 x Ciambelle" */}
+                          {formattaProdottoConCount(item)}
                           {item.prodotto.dettagliCalcolo?.composizione && (
                             <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
                               ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
@@ -665,10 +709,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           )}
                         </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
-                        <td>{item.nomeCliente}</td>
+                        <td style={{ fontSize: item.count > 1 ? '9px' : '11px' }}>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
                         <td style={{ fontSize: '10px' }}>{getNoteCombinate(item.prodotto)}</td>
                       </tr>
                     ))}
@@ -715,10 +758,11 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </thead>
                   <tbody>
                     {ordiniPerCategoria.ALTRI.map((item, index) => (
-                      <tr key={index}>
+                      <tr key={index} style={item.count > 1 ? { backgroundColor: '#e8f5e9', fontWeight: 'bold' } : {}}>
                         <td className="center">{item.oraRitiro}</td>
-                        <td>
-                          {abbreviaProdotto(item.prodotto.nome)}
+                        <td style={{ color: item.count > 1 ? '#2e7d32' : 'inherit' }}>
+                          {/* ✅ AGGIORNATO: Mostra "2 x Panada" */}
+                          {formattaProdottoConCount(item)}
                           {item.prodotto.dettagliCalcolo?.composizione && (
                             <span style={{ fontSize: '9px', color: '#666', marginLeft: '8px' }}>
                               ({item.prodotto.dettagliCalcolo.composizione.map(comp => 
@@ -728,10 +772,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           )}
                         </td>
                         <td className="right">{formattaQuantita(item.prodotto.quantita, item.prodotto.unita, item.prodotto.dettagliCalcolo)}</td>
-                        <td>{item.nomeCliente}</td>
+                        <td style={{ fontSize: item.count > 1 ? '9px' : '11px' }}>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
                         <td style={{ fontSize: '10px' }}>{getNoteCombinate(item.prodotto)}</td>
                       </tr>
                     ))}
