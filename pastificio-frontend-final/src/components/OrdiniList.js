@@ -1,9 +1,9 @@
-// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Checkbox Fatto e In Lavorazione
+// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Tutti i prodotti visibili + Checkbox L/F
 import React, { useState } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, IconButton, Button, TextField, Chip, Menu, MenuItem, Divider,
-  Collapse, Checkbox, FormControlLabel, Tooltip
+  Tooltip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -14,10 +14,6 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import BuildIcon from '@mui/icons-material/Build';
-import DoneAllIcon from '@mui/icons-material/DoneAll';
 
 const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -31,7 +27,6 @@ const OrdiniList = ({
   const [dataFiltro, setDataFiltro] = useState(new Date().toISOString().split('T')[0]);
   const [anchorEl, setAnchorEl] = useState(null);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
-  const [expandedRows, setExpandedRows] = useState(new Set());
 
   const handleDateChange = (e) => {
     const newDate = e.target.value;
@@ -47,18 +42,6 @@ const OrdiniList = ({
   const handleMenuClose = () => {
     setAnchorEl(null);
     setOrdineSelezionato(null);
-  };
-
-  const toggleRowExpand = (ordineId) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(ordineId)) {
-        newSet.delete(ordineId);
-      } else {
-        newSet.add(ordineId);
-      }
-      return newSet;
-    });
   };
 
   // ✅ NUOVO: Aggiorna stato lavorazione sul backend
@@ -380,7 +363,6 @@ Pastificio Nonna Claudia`;
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell width="30px"></TableCell>
                 <TableCell width="50px">Ora</TableCell>
                 <TableCell width="100px">Cliente</TableCell>
                 <TableCell>Prodotti</TableCell>
@@ -393,9 +375,7 @@ Pastificio Nonna Claudia`;
             <TableBody>
               {ordiniDelGiorno.length > 0 ? (
                 ordiniDelGiorno.map((ordine) => {
-                  const isExpanded = expandedRows.has(ordine._id);
-                  const numeroProdotti = ordine.prodotti?.length || 0;
-                  const prodottiDaMostrare = isExpanded ? ordine.prodotti : ordine.prodotti?.slice(0, 2);
+                  const prodottiDaMostrare = ordine.prodotti; // ✅ Mostra TUTTI i prodotti
                   
                   // ✅ NUOVO: Stato checkbox
                   const isInLavorazione = ordine.stato === 'in_lavorazione';
@@ -411,17 +391,6 @@ Pastificio Nonna Claudia`;
                         }}
                       >
                         <TableCell sx={{ p: 0.5 }}>
-                          {numeroProdotti > 2 && (
-                            <IconButton 
-                              size="small" 
-                              onClick={() => toggleRowExpand(ordine._id)}
-                              sx={{ p: 0.25 }}
-                            >
-                              {isExpanded ? <ExpandLessIcon sx={{ fontSize: '1rem' }} /> : <ExpandMoreIcon sx={{ fontSize: '1rem' }} />}
-                            </IconButton>
-                          )}
-                        </TableCell>
-                        <TableCell sx={{ p: 0.5 }}>
                           <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem' }}>
                             {ordine.oraRitiro || '-'}
                           </Typography>
@@ -435,7 +404,7 @@ Pastificio Nonna Claudia`;
                           </Typography>
                         </TableCell>
                         <TableCell sx={{ p: 0.5 }}>
-                          {/* ✅ PRODOTTI ABBREVIATI SU UNA RIGA */}
+                          {/* ✅ TUTTI I PRODOTTI VISIBILI */}
                           {prodottiDaMostrare && prodottiDaMostrare.map((p, index) => {
                             if (p.nome === 'Vassoio Dolci Misti') {
                               return (
@@ -444,7 +413,7 @@ Pastificio Nonna Claudia`;
                                 </Typography>
                               );
                             }
-                            // Abbrevia: "Pardulas con glassa (2.5 kg)" invece di "Pardulas con glassa (2.5 kg (circa 63 pezzi))"
+                            // Abbrevia: "Pardulas con glassa (2.5 Kg)"
                             const qta = p.quantita || 0;
                             const unita = p.unitaMisura || p.unita || 'Kg';
                             return (
@@ -453,16 +422,6 @@ Pastificio Nonna Claudia`;
                               </Typography>
                             );
                           })}
-                          {!isExpanded && numeroProdotti > 2 && (
-                            <Typography 
-                              variant="caption" 
-                              color="primary" 
-                              sx={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '0.65rem' }}
-                              onClick={() => toggleRowExpand(ordine._id)}
-                            >
-                              +{numeroProdotti - 2}...
-                            </Typography>
-                          )}
                         </TableCell>
                         <TableCell align="right" sx={{ p: 0.5 }}>
                           <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
@@ -535,7 +494,7 @@ Pastificio Nonna Claudia`;
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <Typography color="text.secondary">
                       Nessun ordine per questa data
                     </Typography>
