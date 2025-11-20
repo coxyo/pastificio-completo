@@ -1,4 +1,4 @@
-// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Raggruppamento per cliente+prodotto+quantità
+// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Navigazione date + whiteSpace nowrap
 import React, { useState, useMemo } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
@@ -16,6 +16,8 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -62,6 +64,9 @@ const getCategoriaProdotto = (nomeProdotto) => {
   return 'ALTRI';
 };
 
+// ✅ NUOVO: Nomi giorni in italiano
+const GIORNI_SETTIMANA = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+
 const OrdiniList = ({ 
   ordini, 
   onDelete, 
@@ -83,6 +88,30 @@ const OrdiniList = ({
     const newDate = e.target.value;
     setDataFiltro(newDate);
     onDateChange(newDate);
+  };
+
+  // ✅ NUOVO: Naviga al giorno precedente
+  const handleGiornoPrecedente = () => {
+    const data = new Date(dataFiltro);
+    data.setDate(data.getDate() - 1);
+    const nuovaData = data.toISOString().split('T')[0];
+    setDataFiltro(nuovaData);
+    onDateChange(nuovaData);
+  };
+
+  // ✅ NUOVO: Naviga al giorno successivo
+  const handleGiornoSuccessivo = () => {
+    const data = new Date(dataFiltro);
+    data.setDate(data.getDate() + 1);
+    const nuovaData = data.toISOString().split('T')[0];
+    setDataFiltro(nuovaData);
+    onDateChange(nuovaData);
+  };
+
+  // ✅ NUOVO: Ottieni nome giorno dalla data
+  const getNomeGiorno = (dataString) => {
+    const data = new Date(dataString + 'T00:00:00');
+    return GIORNI_SETTIMANA[data.getDay()];
   };
 
   const handleMenuOpen = (event, ordine) => {
@@ -209,48 +238,34 @@ ${prodottiDettaglio}
 
 📅 *RITIRO:* ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
 ⏰ *ORA:* ${ordine.oraRitiro}
-📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
 
-${ordine.note ? `📝 *Note:* ${ordine.note}\n\n` : ''}📞 *INFO:* 389 887 9833
+📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
+📞 *Per info:* 389 887 9833
 💬 *WhatsApp:* 389 887 9833
 
-Grazie e a presto!
+Grazie per averci scelto!
 Pastificio Nonna Claudia`;
       }
 
-      const numeroCliente = ordine.telefono || ordine.cliente?.telefono || '3898879833';
-      const numeroClean = numeroCliente.replace(/\D/g, '');
-      const numeroWhatsApp = numeroClean.startsWith('39') ? numeroClean : '39' + numeroClean;
+      const telefonoCliente = ordine.telefono || ordine.cliente?.telefono || '';
+      const telefonoPulito = telefonoCliente.replace(/\D/g, '');
+      const numeroWhatsApp = telefonoPulito.startsWith('39') ? telefonoPulito : `39${telefonoPulito}`;
       
       const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(messaggio)}`;
       window.open(url, '_blank');
       
     } catch (error) {
-      console.error('Errore WhatsApp:', error);
-      alert('Errore nell\'invio del messaggio WhatsApp');
+      console.error('Errore invio WhatsApp:', error);
     }
   };
 
   const segnaComePronto = async (ordineId) => {
-    try {
-      const ordiniAggiornati = ordini.map(o => 
-        o._id === ordineId 
-          ? { ...o, stato: 'completato' }
-          : o
-      );
-      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-      
-      const ordine = ordini.find(o => o._id === ordineId);
-      if (ordine) {
-        inviaWhatsApp(ordine, 'pronto');
-      }
-      
-      handleMenuClose();
-      window.location.reload();
-    } catch (error) {
-      console.error('Errore:', error);
-      alert(`Errore: ${error.message}`);
+    const ordine = ordini.find(o => o._id === ordineId);
+    if (ordine) {
+      await aggiornaStatoLavorazione(ordineId, 'completato');
+      inviaWhatsApp(ordine, 'pronto');
     }
+    handleMenuClose();
   };
 
   const inviaPromemoria = (ordineId) => {
@@ -263,14 +278,14 @@ Pastificio Nonna Claudia`;
 
   const handleCreaFattura = () => {
     if (ordineSelezionato) {
-      console.log('Crea fattura per:', ordineSelezionato);
+      console.log('Crea fattura per ordine:', ordineSelezionato._id);
     }
     handleMenuClose();
   };
 
   const handleStampaOrdine = () => {
     if (ordineSelezionato) {
-      console.log('Stampa ordine:', ordineSelezionato);
+      console.log('Stampa ordine:', ordineSelezionato._id);
     }
     handleMenuClose();
   };
@@ -381,15 +396,60 @@ Pastificio Nonna Claudia`;
   return (
     <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent' }}>
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <TextField
-            type="date"
+        {/* ✅ NUOVO: Navigazione date con frecce e nome giorno */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton 
+            onClick={handleGiornoPrecedente} 
             size="small"
-            value={dataFiltro}
-            onChange={handleDateChange}
-            sx={{ width: 150 }}
-          />
-          <Typography variant="subtitle2" color="text.secondary">
+            sx={{ 
+              bgcolor: 'primary.main', 
+              color: 'white',
+              '&:hover': { bgcolor: 'primary.dark' }
+            }}
+          >
+            <ChevronLeftIcon />
+          </IconButton>
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                fontWeight: 'bold', 
+                color: 'primary.main',
+                fontSize: '0.75rem',
+                lineHeight: 1
+              }}
+            >
+              {getNomeGiorno(dataFiltro)}
+            </Typography>
+            <TextField
+              type="date"
+              size="small"
+              value={dataFiltro}
+              onChange={handleDateChange}
+              sx={{ 
+                width: 150,
+                '& .MuiInputBase-input': {
+                  py: 0.5,
+                  fontSize: '0.9rem'
+                }
+              }}
+            />
+          </Box>
+          
+          <IconButton 
+            onClick={handleGiornoSuccessivo} 
+            size="small"
+            sx={{ 
+              bgcolor: 'primary.main', 
+              color: 'white',
+              '&:hover': { bgcolor: 'primary.dark' }
+            }}
+          >
+            <ChevronRightIcon />
+          </IconButton>
+          
+          <Typography variant="subtitle2" color="text.secondary" sx={{ ml: 1 }}>
             {totaleRigheOggi} prodotti
           </Typography>
         </Box>
@@ -398,123 +458,108 @@ Pastificio Nonna Claudia`;
           color="primary"
           startIcon={<AddIcon />}
           onClick={onNuovoOrdine}
-          size="small"
         >
-          Nuovo
+          NUOVO
         </Button>
       </Box>
 
-      {/* ========== SEZIONI PER CATEGORIA ========== */}
-      {Object.entries(CATEGORIE).map(([catKey, catConfig]) => {
-        const itemsCategoria = ordiniPerCategoria[catKey];
-        if (!itemsCategoria || itemsCategoria.length === 0) return null;
+      {/* Tabelle per categoria */}
+      {Object.entries(CATEGORIE).map(([chiaveCategoria, configCategoria]) => {
+        const prodottiCategoria = ordiniPerCategoria[chiaveCategoria] || [];
+        if (prodottiCategoria.length === 0) return null;
 
         return (
-          <Box key={catKey} sx={{ mb: 2 }}>
-            {/* Header categoria cliccabile */}
-            <Box 
-              onClick={() => toggleCategoria(catKey)}
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+          <Box key={chiaveCategoria} sx={{ mb: 2 }}>
+            {/* Header categoria con expand/collapse */}
+            <Box
+              onClick={() => toggleCategoria(chiaveCategoria)}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'space-between',
-                backgroundColor: catConfig.colore, 
-                color: catKey === 'DOLCI' ? '#333' : 'white',
-                px: 2, 
-                py: 1, 
+                backgroundColor: configCategoria.colore,
+                color: 'white',
+                px: 2,
+                py: 1,
                 borderRadius: '8px 8px 0 0',
                 cursor: 'pointer',
                 '&:hover': { opacity: 0.9 }
               }}
             >
               <Typography variant="subtitle1" fontWeight="bold">
-                {catConfig.nome} ({itemsCategoria.length})
+                {configCategoria.nome} ({prodottiCategoria.length})
               </Typography>
-              {categorieEspanse[catKey] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              {categorieEspanse[chiaveCategoria] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </Box>
 
-            {/* Tabella categoria */}
-            <Collapse in={categorieEspanse[catKey]}>
+            <Collapse in={categorieEspanse[chiaveCategoria]}>
               <TableContainer component={Paper} elevation={1} sx={{ borderRadius: '0 0 8px 8px' }}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                      <TableCell sx={{ p: 0.5, width: '45px', fontWeight: 'bold', fontSize: '0.7rem' }}>ORA</TableCell>
-                      <TableCell sx={{ p: 0.5, width: '90px', fontWeight: 'bold', fontSize: '0.7rem' }}>CLIENTE</TableCell>
-                      <TableCell sx={{ p: 0.5, fontWeight: 'bold', fontSize: '0.7rem' }}>PRODOTTO</TableCell>
-                      <TableCell align="right" sx={{ p: 0.5, width: '70px', fontWeight: 'bold', fontSize: '0.7rem' }}>Q.TÀ</TableCell>
-                      <TableCell align="right" sx={{ p: 0.5, width: '55px', fontWeight: 'bold', fontSize: '0.7rem' }}>€</TableCell>
-                      <TableCell align="center" sx={{ p: 0.5, width: '50px', fontWeight: 'bold', fontSize: '0.7rem' }}>L/F</TableCell>
-                      <TableCell align="center" sx={{ p: 0.5, width: '25px', fontWeight: 'bold', fontSize: '0.7rem' }}>+</TableCell>
-                      <TableCell sx={{ p: 0.5, minWidth: '120px', fontWeight: 'bold', fontSize: '0.7rem' }}>NOTE</TableCell>
-                      <TableCell align="center" sx={{ p: 0.5, width: '65px', fontWeight: 'bold', fontSize: '0.7rem' }}>AZIONI</TableCell>
+                    <TableRow sx={{ backgroundColor: configCategoria.coloreBg }}>
+                      <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '50px' }}>ORA</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>CLIENTE</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>PRODOTTO</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '70px' }}>Q.TÀ</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '60px' }}>€</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '70px' }}>L/F</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '30px' }}>+</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>NOTE</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '90px' }}>AZIONI</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {itemsCategoria.map((gruppo, idx) => {
-                      const { ordine, prodotto, nomeCliente, count, prezzoTotale, daViaggio, haAltriProdotti } = gruppo;
+                    {prodottiCategoria.map((gruppo, idx) => {
+                      const { ordine, prodotto, count, prezzoTotale, daViaggio, haAltriProdotti, nomeCliente } = gruppo;
+                      
                       const isInLavorazione = ordine.stato === 'in_lavorazione';
                       const isFatto = ordine.stato === 'completato';
-
-                      // Formatta nome prodotto
-                      let nomeProdottoDisplay;
-                      let composizioneDisplay = null;
                       
-                      if (prodotto.nome === 'Vassoio Dolci Misti') {
-                        // ✅ Mostra prezzo del vassoio
-                        nomeProdottoDisplay = `🎂 Vassoio €${(prodotto.prezzo || 0).toFixed(0)}`;
-                        // ✅ NUOVO: Mostra composizione
-                        if (prodotto.dettagliCalcolo?.composizione) {
-                          composizioneDisplay = prodotto.dettagliCalcolo.composizione.map(comp => {
-                            const abbr = comp.nome.charAt(0);
-                            const qta = comp.quantita;
-                            const u = comp.unita === 'Kg' ? 'kg' : comp.unita === 'Pezzi' ? 'pz' : comp.unita;
-                            return `${abbr}:${qta}${u}`;
-                          }).join(', ');
-                        }
+                      // Formatta quantità
+                      const quantita = prodotto.quantita || 0;
+                      const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
+                      
+                      // ✅ Mostra moltiplicatore se count > 1
+                      let qtaDisplay;
+                      if (count > 1) {
+                        qtaDisplay = `${count} x ${quantita} ${unita}`;
                       } else {
-                        nomeProdottoDisplay = prodotto.nome || prodotto.prodotto;
+                        qtaDisplay = `${quantita} ${unita}`;
                       }
 
-                      // ✅ Formatta quantità con moltiplicatore
-                      const qta = prodotto.quantita || 0;
-                      const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
-                      let qtaDisplay;
-                      
-                      if (prodotto.nome === 'Vassoio Dolci Misti' || unita === 'vassoio') {
-                        qtaDisplay = count > 1 ? `${count} x 1 vass` : '1 vass';
-                      } else if (unita.toLowerCase() === 'pezzi' || unita.toLowerCase() === 'pz') {
-                        qtaDisplay = count > 1 ? `${count} x ${Math.round(qta)} pz` : `${Math.round(qta)} pz`;
-                      } else if (unita === '€' || unita.toLowerCase() === 'euro') {
-                        qtaDisplay = count > 1 ? `${count} x €${qta}` : `€${qta}`;
-                      } else {
-                        // ✅ Formato: "3 x 1 Kg" oppure "0.5 Kg"
-                        qtaDisplay = count > 1 ? `${count} x ${qta} ${unita}` : `${qta} ${unita}`;
+                      // Estrai composizione vassoio se presente
+                      let composizioneDisplay = '';
+                      if (prodotto.dettagliCalcolo?.composizione) {
+                        composizioneDisplay = prodotto.dettagliCalcolo.composizione
+                          .map(item => `${item.nome}: ${item.quantita}`)
+                          .join(', ');
+                      } else if (prodotto.dettagliCalcolo?.dettagli && 
+                                 (prodotto.nome === 'Vassoio Dolci Misti' || unita === 'vassoio')) {
+                        composizioneDisplay = prodotto.dettagliCalcolo.dettagli;
                       }
 
                       return (
                         <TableRow 
-                          key={idx}
-                          hover
+                          key={`${ordine._id}-${idx}`}
                           sx={{
-                            backgroundColor: isFatto ? 'rgba(76, 175, 80, 0.1)' : 
-                                            isInLavorazione ? 'rgba(255, 152, 0, 0.1)' : 
-                                            count > 1 ? 'rgba(33, 150, 243, 0.08)' : 'inherit'
+                            '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' },
+                            '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' }
                           }}
                         >
                           <TableCell sx={{ p: 0.5 }}>
-                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem' }}>
+                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
                               {ordine.oraRitiro || '-'}
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ p: 0.5 }}>
-                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem' }}>
                               {nomeCliente}
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ p: 0.5 }}>
                             <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                              {nomeProdottoDisplay}
+                              {prodotto.nome || prodotto.prodotto}
+                              {prodotto.variante && ` (${prodotto.variante})`}
                             </Typography>
                             {/* ✅ NUOVO: Mostra composizione vassoio */}
                             {composizioneDisplay && (
@@ -523,7 +568,7 @@ Pastificio Nonna Claudia`;
                               </Typography>
                             )}
                           </TableCell>
-                          {/* ✅ COLONNA QUANTITÀ CON MOLTIPLICATORE */}
+                          {/* ✅ COLONNA QUANTITÀ CON MOLTIPLICATORE + NOWRAP */}
                           <TableCell align="right" sx={{ p: 0.5 }}>
                             <Typography 
                               variant="body2" 
@@ -531,7 +576,8 @@ Pastificio Nonna Claudia`;
                                 fontSize: '0.75rem', 
                                 fontFamily: 'monospace',
                                 fontWeight: count > 1 ? 'bold' : 'normal',
-                                color: count > 1 ? 'primary.main' : 'inherit'
+                                color: count > 1 ? 'primary.main' : 'inherit',
+                                whiteSpace: 'nowrap'
                               }}
                             >
                               {qtaDisplay}
