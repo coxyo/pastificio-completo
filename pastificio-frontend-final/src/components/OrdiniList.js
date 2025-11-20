@@ -1,9 +1,9 @@
-// components/OrdiniList.js - ✅ FIX VISUALIZZAZIONE COMPLETA
+// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Checkbox Fatto e In Lavorazione
 import React, { useState } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, IconButton, Button, TextField, Chip, Menu, MenuItem, Divider,
-  Collapse
+  Collapse, Checkbox, FormControlLabel, Tooltip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -16,6 +16,8 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import BuildIcon from '@mui/icons-material/Build';
+import DoneAllIcon from '@mui/icons-material/DoneAll';
 
 const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -57,6 +59,66 @@ const OrdiniList = ({
       }
       return newSet;
     });
+  };
+
+  // ✅ NUOVO: Aggiorna stato lavorazione sul backend
+  const aggiornaStatoLavorazione = async (ordineId, nuovoStato) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Aggiorna sul backend
+      const response = await fetch(`${API_URL}/ordini/${ordineId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ stato: nuovoStato })
+      });
+
+      if (!response.ok) {
+        throw new Error('Errore aggiornamento stato');
+      }
+
+      // Aggiorna localStorage
+      const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
+      const ordiniAggiornati = ordiniLocal.map(o => 
+        o._id === ordineId ? { ...o, stato: nuovoStato } : o
+      );
+      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+
+      // Refresh per vedere le modifiche
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Errore aggiornamento stato:', error);
+      
+      // Fallback: aggiorna solo localStorage
+      const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
+      const ordiniAggiornati = ordiniLocal.map(o => 
+        o._id === ordineId ? { ...o, stato: nuovoStato } : o
+      );
+      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+      window.location.reload();
+    }
+  };
+
+  // ✅ NUOVO: Handler per checkbox In Lavorazione
+  const handleInLavorazione = (ordineId, isChecked) => {
+    if (isChecked) {
+      aggiornaStatoLavorazione(ordineId, 'in_lavorazione');
+    } else {
+      aggiornaStatoLavorazione(ordineId, 'nuovo');
+    }
+  };
+
+  // ✅ NUOVO: Handler per checkbox Fatto
+  const handleFatto = (ordineId, isChecked) => {
+    if (isChecked) {
+      aggiornaStatoLavorazione(ordineId, 'completato');
+    } else {
+      aggiornaStatoLavorazione(ordineId, 'in_lavorazione');
+    }
   };
 
   const inviaWhatsApp = (ordine, tipo = 'conferma') => {
@@ -270,6 +332,7 @@ Pastificio Nonna Claudia`;
   ).toFixed(2);
 
   const ordiniCompletati = ordiniDelGiorno.filter(o => o.stato === 'completato').length;
+  const ordiniInLavorazione = ordiniDelGiorno.filter(o => o.stato === 'in_lavorazione').length;
   const ordiniFatturati = ordiniDelGiorno.filter(o => o.statoFatturazione === 'fatturato').length;
 
   const getStatoColor = (stato) => {
@@ -289,7 +352,7 @@ Pastificio Nonna Claudia`;
             <Typography variant="h6">Ordini del giorno</Typography>
             <Typography variant="body2" color="text.secondary">
               {ordiniDelGiorno.length} ordini • €{totaleGiorno} totale • 
-              {ordiniCompletati} completati • {ordiniFatturati} fatturati
+              {ordiniCompletati} completati • {ordiniInLavorazione} in lavorazione • {ordiniFatturati} fatturati
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -314,18 +377,18 @@ Pastificio Nonna Claudia`;
         <Divider sx={{ mb: 2 }} />
 
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell width="50px"></TableCell>
-                <TableCell>Ora</TableCell>
-                <TableCell>Cliente</TableCell>
+                <TableCell width="40px"></TableCell>
+                <TableCell width="60px">Ora</TableCell>
+                <TableCell width="120px">Cliente</TableCell>
                 <TableCell>Prodotti</TableCell>
-                <TableCell align="right">Totale</TableCell>
-                <TableCell align="center">Stato</TableCell>
-                <TableCell align="center">Fattura</TableCell>
-                <TableCell>Note</TableCell>
-                <TableCell align="center">Azioni</TableCell>
+                <TableCell align="right" width="70px">Totale</TableCell>
+                <TableCell align="center" width="140px">Lavorazione</TableCell>
+                <TableCell align="center" width="80px">Fattura</TableCell>
+                <TableCell width="120px">Note</TableCell>
+                <TableCell align="center" width="100px">Azioni</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -335,9 +398,19 @@ Pastificio Nonna Claudia`;
                   const numeroProdotti = ordine.prodotti?.length || 0;
                   const prodottiDaMostrare = isExpanded ? ordine.prodotti : ordine.prodotti?.slice(0, 3);
                   
+                  // ✅ NUOVO: Stato checkbox
+                  const isInLavorazione = ordine.stato === 'in_lavorazione';
+                  const isFatto = ordine.stato === 'completato';
+                  
                   return (
                     <React.Fragment key={ordine._id}>
-                      <TableRow hover>
+                      <TableRow 
+                        hover
+                        sx={{
+                          backgroundColor: isFatto ? 'rgba(76, 175, 80, 0.1)' : 
+                                          isInLavorazione ? 'rgba(255, 152, 0, 0.1)' : 'inherit'
+                        }}
+                      >
                         <TableCell>
                           {numeroProdotti > 3 && (
                             <IconButton 
@@ -348,12 +421,16 @@ Pastificio Nonna Claudia`;
                             </IconButton>
                           )}
                         </TableCell>
-                        <TableCell>{ordine.oraRitiro || '-'}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight="medium">
+                            {ordine.oraRitiro || '-'}
+                          </Typography>
+                        </TableCell>
                         <TableCell>
                           <Box>
-                            <Typography variant="body2">{ordine.nomeCliente}</Typography>
+                            <Typography variant="body2" fontWeight="medium">{ordine.nomeCliente}</Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Tel: {ordine.telefono}
+                              {ordine.telefono}
                             </Typography>
                           </Box>
                         </TableCell>
@@ -364,24 +441,19 @@ Pastificio Nonna Claudia`;
                               // Se è un vassoio dolci misti
                               if (p.nome === 'Vassoio Dolci Misti' && p.dettagliCalcolo?.composizione) {
                                 return (
-                                  <Box key={index} sx={{ mb: 1 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                      🎂 Vassoio Dolci Misti (€{p.prezzo.toFixed(2)})
+                                  <Box key={index} sx={{ mb: 0.5 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                                      🎂 Vassoio (€{p.prezzo.toFixed(2)})
                                     </Typography>
-                                    {p.dettagliCalcolo.composizione.map((item, idx) => (
+                                    {isExpanded && p.dettagliCalcolo.composizione.map((item, idx) => (
                                       <Typography 
                                         key={idx} 
                                         variant="caption" 
-                                        sx={{ display: 'block', pl: 2, color: 'text.secondary' }}
+                                        sx={{ display: 'block', pl: 1, color: 'text.secondary', fontSize: '0.7rem' }}
                                       >
-                                        • <strong>{item.nome}</strong>: {item.quantita.toFixed(2)} {item.unita} (€{item.prezzo.toFixed(2)})
+                                        • {item.nome}: {item.quantita.toFixed(1)} {item.unita}
                                       </Typography>
                                     ))}
-                                    {p.note && (
-                                      <Typography variant="caption" sx={{ display: 'block', pl: 2, fontStyle: 'italic', color: 'info.main' }}>
-                                        📝 {p.note}
-                                      </Typography>
-                                    )}
                                   </Box>
                                 );
                               }
@@ -389,7 +461,7 @@ Pastificio Nonna Claudia`;
                               // Prodotti normali
                               const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
                               return (
-                                <Typography key={index} variant="body2">
+                                <Typography key={index} variant="body2" sx={{ fontSize: '0.8rem' }}>
                                   {p.nome || p.prodotto} ({dettagli})
                                 </Typography>
                               );
@@ -398,47 +470,80 @@ Pastificio Nonna Claudia`;
                               <Typography 
                                 variant="caption" 
                                 color="primary" 
-                                sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                                sx={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '0.7rem' }}
                                 onClick={() => toggleRowExpand(ordine._id)}
                               >
-                                +{numeroProdotti - 3} altri prodotti (clicca per espandere)
+                                +{numeroProdotti - 3} altri...
                               </Typography>
                             )}
                           </Box>
                         </TableCell>
                         <TableCell align="right">
-                          <Typography variant="body2" fontWeight="medium">
+                          <Typography variant="body2" fontWeight="bold">
                             €{calcolaTotale(ordine)}
                           </Typography>
                         </TableCell>
+                        
+                        {/* ✅ NUOVO: Colonna Lavorazione con Checkbox */}
                         <TableCell align="center">
-                          <Chip 
-                            label={ordine.stato || 'nuovo'} 
-                            size="small"
-                            color={getStatoColor(ordine.stato)}
-                          />
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                            <Tooltip title="In Lavorazione">
+                              <Chip
+                                icon={<BuildIcon sx={{ fontSize: '0.9rem' }} />}
+                                label="Lav"
+                                size="small"
+                                color={isInLavorazione ? 'warning' : 'default'}
+                                variant={isInLavorazione ? 'filled' : 'outlined'}
+                                onClick={() => handleInLavorazione(ordine._id, !isInLavorazione)}
+                                sx={{ 
+                                  cursor: 'pointer', 
+                                  minWidth: '60px',
+                                  fontSize: '0.7rem',
+                                  height: '24px'
+                                }}
+                              />
+                            </Tooltip>
+                            <Tooltip title="Fatto / Completato">
+                              <Chip
+                                icon={<DoneAllIcon sx={{ fontSize: '0.9rem' }} />}
+                                label="Fatto"
+                                size="small"
+                                color={isFatto ? 'success' : 'default'}
+                                variant={isFatto ? 'filled' : 'outlined'}
+                                onClick={() => handleFatto(ordine._id, !isFatto)}
+                                sx={{ 
+                                  cursor: 'pointer', 
+                                  minWidth: '60px',
+                                  fontSize: '0.7rem',
+                                  height: '24px'
+                                }}
+                              />
+                            </Tooltip>
+                          </Box>
                         </TableCell>
+                        
                         <TableCell align="center">
                           {ordine.statoFatturazione === 'fatturato' ? (
                             <Chip 
                               icon={<CheckCircleIcon />}
-                              label="Fatturato" 
+                              label="Fatt" 
                               size="small"
                               color="success"
                               variant="outlined"
+                              sx={{ fontSize: '0.7rem', height: '24px' }}
                             />
                           ) : (
-                            <Typography variant="caption" color="text.secondary">
-                              Non fatturato
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                              No
                             </Typography>
                           )}
                         </TableCell>
                         <TableCell>
                           <Box>
                             {ordine.daViaggio && (
-                              <Chip label="DA VIAGGIO" size="small" color="warning" sx={{ mb: 0.5 }} />
+                              <Chip label="VIAGGIO" size="small" color="warning" sx={{ mb: 0.5, fontSize: '0.6rem', height: '20px' }} />
                             )}
-                            <Typography variant="caption" sx={{ display: 'block' }}>
+                            <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem' }}>
                               {ordine.note || '-'}
                             </Typography>
                           </Box>
@@ -446,13 +551,13 @@ Pastificio Nonna Claudia`;
                         <TableCell align="center">
                           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                             <IconButton onClick={() => onEdit(ordine)} size="small" color="primary" title="Modifica">
-                              <EditIcon fontSize="small" />
+                              <EditIcon sx={{ fontSize: '1rem' }} />
                             </IconButton>
                             <IconButton onClick={() => onDelete(ordine._id)} size="small" color="error" title="Elimina">
-                              <DeleteIcon fontSize="small" />
+                              <DeleteIcon sx={{ fontSize: '1rem' }} />
                             </IconButton>
                             <IconButton onClick={(e) => handleMenuOpen(e, ordine)} size="small" title="Altre azioni">
-                              <MoreVertIcon fontSize="small" />
+                              <MoreVertIcon sx={{ fontSize: '1rem' }} />
                             </IconButton>
                           </Box>
                         </TableCell>
