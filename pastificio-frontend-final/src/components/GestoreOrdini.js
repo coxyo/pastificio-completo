@@ -1347,16 +1347,6 @@ return (
               <Button
                 variant="contained"
                 size="small"
-                color="secondary"
-                startIcon={<AssessmentIcon />}
-                onClick={() => setRiepilogoStampabileAperto(true)}
-              >
-                Riepilogo Stampabile
-              </Button>
-              
-              <Button
-                variant="contained"
-                size="small"
                 color="success"
                 startIcon={<WhatsAppIcon />}
                 onClick={() => setWhatsappHelperAperto(true)}
@@ -1398,7 +1388,7 @@ return (
 <Button
   variant="contained"
   size="small"
-  color="secondary"
+  color="warning"
   startIcon={<PrintIcon />}
   onClick={() => setRiepilogoStampabileAperto(true)}
   sx={{ ml: 1 }}
