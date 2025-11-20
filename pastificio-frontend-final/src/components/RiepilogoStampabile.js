@@ -1,8 +1,8 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Altri
-// ✅ AGGIORNATO 19/11/2025: Supporto CHECKMARK MULTIPLI per ravioli misti
-// ✅ AGGIORNATO: Opzioni extra nelle NOTE (più piccoli, più grandi, etc.)
+// ✅ AGGIORNATO 20/11/2025: Note complete per TUTTI i fogli (note + noteCottura)
+// ✅ AGGIORNATO: Ravioli mostra note multiple combinate
 
 import React, { useMemo } from 'react';
 import {
@@ -205,7 +205,7 @@ const getVarianteRavioli = (nomeProdotto) => {
   return varianti.length > 0 ? varianti[0] : null;
 };
 
-// ✅ AGGIORNATO: Estrai note speciali dal nome prodotto E dalle noteCottura
+// ✅ AGGIORNATO 20/11/2025: Combina TUTTE le note (speciali + noteCottura)
 const getNoteRavioli = (nomeProdotto, noteCottura = '') => {
   const nomeLC = nomeProdotto.toLowerCase();
   const noteLC = (noteCottura || '').toLowerCase();
@@ -235,12 +235,55 @@ const getNoteRavioli = (nomeProdotto, noteCottura = '') => {
     note.push('pasta grossa');
   }
   
-  // Aggiungi anche note cottura originali se non già incluse
-  if (noteCottura && !note.length) {
-    return noteCottura;
+  // ✅ NUOVO: Estrai parti di noteCottura che non sono già nelle note speciali
+  if (noteCottura) {
+    // Controlla se contiene info extra (es. "Vassoio nr X")
+    const partiNoteCottura = noteCottura.split(',').map(p => p.trim());
+    
+    partiNoteCottura.forEach(parte => {
+      const parteLC = parte.toLowerCase();
+      // Se non è già inclusa come nota speciale, aggiungila
+      const giaInclusa = note.some(n => parteLC.includes(n.toLowerCase())) ||
+                        Object.values(VARIANTI_NOTE).some(variants => 
+                          variants.some(v => parteLC.includes(v))
+                        );
+      
+      if (!giaInclusa && parte.length > 0) {
+        note.push(parte);
+      }
+    });
   }
   
   return note.join(', ');
+};
+
+// ✅ NUOVO 20/11/2025: Helper per combinare note + noteCottura per prodotti generici
+const getNoteCombinate = (prodotto) => {
+  const note = prodotto.note || '';
+  const noteCottura = prodotto.noteCottura || '';
+  
+  // Se sono uguali, ritorna solo una
+  if (note === noteCottura) {
+    return note;
+  }
+  
+  // Se una è vuota, ritorna l'altra
+  if (!note) return noteCottura;
+  if (!noteCottura) return note;
+  
+  // Combina entrambe, evitando duplicati
+  const partiNote = note.split(',').map(p => p.trim().toLowerCase());
+  const partiNoteCottura = noteCottura.split(',').map(p => p.trim());
+  
+  const risultato = [note];
+  
+  partiNoteCottura.forEach(parte => {
+    if (!partiNote.includes(parte.toLowerCase())) {
+      risultato.push(parte);
+    }
+  });
+  
+  return risultato.join(', ');
 };
 
 // ✅ Funzione per ottenere pezzi/Kg di un prodotto
@@ -268,139 +311,144 @@ const isSoloPezzo = (nomeProdotto) => {
 
 const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
   // ✅ Per vassoi, usa il peso dalla composizione
-  if (unita === 'vassoio' && dettagliCalcolo?.pesoTotale) {
-    return `${dettagliCalcolo.pesoTotale.toFixed(1)} Kg`;
+  if (dettagliCalcolo?.composizione && unita === 'vassoio') {
+    const pesoTotale = dettagliCalcolo.composizione.reduce((acc, comp) => {
+      if (comp.unita === 'Kg') {
+        return acc + comp.quantita;
+      } else if (comp.unita === 'Pezzi') {
+        // Converti pezzi in kg se possibile
+        const pezziPerKg = getPezziPerKg(comp.nome);
+        if (pezziPerKg) {
+          return acc + (comp.quantita / pezziPerKg);
+        }
+      }
+      return acc;
+    }, 0);
+    
+    if (pesoTotale > 0) {
+      return `${pesoTotale.toFixed(1)} Kg`;
+    }
   }
   
-  if (unita === 'Kg' || unita === 'g') {
-    const kg = unita === 'g' ? quantita / 1000 : quantita;
-    return `${kg.toFixed(1)} Kg`;
-  }
+  // Normalizza l'unità
+  const unitaNorm = unita?.toLowerCase()?.trim() || 'kg';
   
-  if (unita === 'Pezzi' || unita === 'Unità' || unita === 'pz') {
-    return `${quantita} pz`;
-  }
-  
-  if (unita === '€' || unita === 'Euro') {
-    return `€${quantita.toFixed(2)}`;
+  if (unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
+    return `${parseFloat(quantita).toFixed(1)} Kg`;
+  } else if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
+    return `${Math.round(quantita)} pz`;
+  } else if (unitaNorm === '€' || unitaNorm === 'euro') {
+    return `€${parseFloat(quantita).toFixed(2)}`;
+  } else if (unitaNorm === 'vassoio') {
+    return `1 vassoio`;
   }
   
   return `${quantita} ${unita}`;
 };
 
-const formattaData = (dataString) => {
-  const data = new Date(dataString);
-  const giorni = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-  return `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()} ${giorni[data.getDay()]}`;
+const formattaData = (data) => {
+  if (!data) return '';
+  const d = new Date(data);
+  return d.toLocaleDateString('it-IT', { 
+    weekday: 'long', 
+    day: '2-digit', 
+    month: 'long', 
+    year: 'numeric' 
+  });
 };
 
 // ========== COMPONENTE PRINCIPALE ==========
-
 export default function RiepilogoStampabile({ ordini, data, onClose }) {
-  
   // Raggruppa ordini per categoria
   const ordiniPerCategoria = useMemo(() => {
-    const gruppi = {
+    const result = {
       RAVIOLI: [],
       PARDULAS: [],
       DOLCI: [],
       ALTRI: []
     };
 
-    // ✅ FILTRA per data selezionata
-    const ordiniFiltrati = ordini.filter(ordine => {
-      const dataOrdine = (ordine.dataRitiro || '').split('T')[0];
-      console.log('🔍 Filtro:', { cliente: ordine.nomeCliente, dataOrdine, dataSelezionata: data, match: dataOrdine === data });
-      return dataOrdine === data;
-    });
+    // Espandi ordini: un record per ogni prodotto
+    ordini.forEach(ordine => {
+      if (!ordine.prodotti || ordine.prodotti.length === 0) return;
 
-    // Ordina per orario
-    const ordiniOrdinati = [...ordiniFiltrati].sort((a, b) => {
-      return a.oraRitiro.localeCompare(b.oraRitiro);
-    });
+      // Determina se l'ordine ha prodotti in categorie diverse
+      const categorieOrdine = new Set(
+        ordine.prodotti.map(p => getCategoriaProdotto(p.nome))
+      );
+      const haAltriProdotti = categorieOrdine.size > 1;
 
-    ordiniOrdinati.forEach(ordine => {
-      const categorieOrdine = new Set();
-      
       ordine.prodotti.forEach(prodotto => {
         const categoria = getCategoriaProdotto(prodotto.nome);
-        categorieOrdine.add(categoria);
         
-        gruppi[categoria].push({
-          ...ordine,
-          prodotto: prodotto,
-          haAltriProdotti: ordine.prodotti.length > 1
+        result[categoria].push({
+          oraRitiro: ordine.oraRitiro || '',
+          nomeCliente: ordine.nomeCliente || 'N/D',
+          daViaggio: ordine.daViaggio || false,
+          haAltriProdotti,
+          prodotto
         });
       });
     });
 
-    return gruppi;
-  }, [ordini, data]);
+    // Ordina ogni categoria per ora
+    Object.keys(result).forEach(cat => {
+      result[cat].sort((a, b) => {
+        if (!a.oraRitiro) return 1;
+        if (!b.oraRitiro) return -1;
+        return a.oraRitiro.localeCompare(b.oraRitiro);
+      });
+    });
 
-  // ✅ Calcola totali convertendo PEZZI in KG
+    return result;
+  }, [ordini]);
+
+  // Calcola totali per categoria
   const calcolaTotali = (categoria) => {
-    const ordiniCategoria = ordiniPerCategoria[categoria];
     let totaleKg = 0;
     let totalePezziNonConvertibili = 0;
     let totaleEuro = 0;
     const dettagliKg = {};
     const dettagliPezzi = {};
 
-    ordiniCategoria.forEach(({ prodotto }) => {
-      // Per vassoi, espandi la composizione
-      if (prodotto.unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
-        prodotto.dettagliCalcolo.composizione.forEach(item => {
-          const nomeAbbrev = abbreviaProdotto(item.nome);
-          
-          if (item.unita === 'Kg') {
-            totaleKg += item.quantita;
-            dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + item.quantita;
-          } else if (item.unita === 'g') {
-            const kg = item.quantita / 1000;
-            totaleKg += kg;
-            dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
-          } else if (item.unita === 'Pezzi' || item.unita === 'Unità' || item.unita === 'pz') {
-            const pezziKg = getPezziPerKg(item.nome);
-            if (pezziKg && !isSoloPezzo(item.nome)) {
-              const kg = item.quantita / pezziKg;
-              totaleKg += kg;
-              dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
+    ordiniPerCategoria[categoria].forEach(item => {
+      const prodotto = item.prodotto;
+      const unitaNorm = prodotto.unita?.toLowerCase()?.trim() || 'kg';
+      
+      // ✅ Gestione vassoi
+      if (unitaNorm === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+        prodotto.dettagliCalcolo.composizione.forEach(comp => {
+          if (comp.unita === 'Kg') {
+            totaleKg += comp.quantita;
+            dettagliKg[comp.nome] = (dettagliKg[comp.nome] || 0) + comp.quantita;
+          } else if (comp.unita === 'Pezzi') {
+            const pezziPerKg = getPezziPerKg(comp.nome);
+            if (pezziPerKg && !isSoloPezzo(comp.nome)) {
+              const kgEquivalenti = comp.quantita / pezziPerKg;
+              totaleKg += kgEquivalenti;
+              dettagliKg[comp.nome] = (dettagliKg[comp.nome] || 0) + kgEquivalenti;
             } else {
-              totalePezziNonConvertibili += item.quantita;
-              dettagliPezzi[nomeAbbrev] = (dettagliPezzi[nomeAbbrev] || 0) + item.quantita;
+              totalePezziNonConvertibili += comp.quantita;
+              dettagliPezzi[comp.nome] = (dettagliPezzi[comp.nome] || 0) + comp.quantita;
             }
-          } else if (item.unita === '€' || item.unita === 'Euro') {
-            totaleEuro += item.quantita;
           }
         });
-      } else {
-        // Prodotto normale
-        const nomeAbbrev = abbreviaProdotto(prodotto.nome);
-        const unitaNorm = (prodotto.unita || '').toLowerCase();
+      } else if (unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
+        totaleKg += prodotto.quantita;
+        dettagliKg[prodotto.nome] = (dettagliKg[prodotto.nome] || 0) + prodotto.quantita;
+      } else if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
+        const pezziPerKg = getPezziPerKg(prodotto.nome);
         
-        if (prodotto.unita === 'Kg') {
-          totaleKg += prodotto.quantita;
-          dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + prodotto.quantita;
-        } else if (prodotto.unita === 'g') {
-          const kg = prodotto.quantita / 1000;
-          totaleKg += kg;
-          dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
-        } else if (unitaNorm === 'pezzi' || unitaNorm === 'unità' || unitaNorm === 'pz') {
-          const pezziKg = getPezziPerKg(prodotto.nome);
-          
-          if (pezziKg && !isSoloPezzo(prodotto.nome)) {
-            const kg = prodotto.quantita / pezziKg;
-            totaleKg += kg;
-            dettagliKg[nomeAbbrev] = (dettagliKg[nomeAbbrev] || 0) + kg;
-            console.log(`✅ Conversione ${prodotto.nome}: ${prodotto.quantita} pz ÷ ${pezziKg} = ${kg.toFixed(2)} Kg`);
-          } else {
-            totalePezziNonConvertibili += prodotto.quantita;
-            dettagliPezzi[nomeAbbrev] = (dettagliPezzi[nomeAbbrev] || 0) + prodotto.quantita;
-            console.log(`⚠️ ${prodotto.nome}: ${prodotto.quantita} pz (non convertibile)`);
-          }
-        } else if (unitaNorm === '€' || unitaNorm === 'euro') {
-          totaleEuro += prodotto.quantita;
+        if (pezziPerKg && !isSoloPezzo(prodotto.nome)) {
+          const kgEquivalenti = prodotto.quantita / pezziPerKg;
+          totaleKg += kgEquivalenti;
+          dettagliKg[prodotto.nome] = (dettagliKg[prodotto.nome] || 0) + kgEquivalenti;
+        } else {
+          totalePezziNonConvertibili += prodotto.quantita;
+          dettagliPezzi[prodotto.nome] = (dettagliPezzi[prodotto.nome] || 0) + prodotto.quantita;
         }
+      } else if (unitaNorm === '€' || unitaNorm === 'euro') {
+        totaleEuro += prodotto.quantita;
       }
     });
 
@@ -476,7 +524,11 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {ordiniPerCategoria.RAVIOLI.map((item, index) => {
                       // ✅ AGGIORNATO: Usa la nuova funzione che ritorna array
                       const varianti = getVariantiRavioli(item.prodotto.nome);
-                      const noteRavioli = getNoteRavioli(item.prodotto.nome, item.prodotto.noteCottura || item.prodotto.note);
+                      // ✅ AGGIORNATO 20/11/2025: Combina note + noteCottura
+                      const noteRavioli = getNoteRavioli(
+                        item.prodotto.nome, 
+                        item.prodotto.noteCottura || item.prodotto.note
+                      );
                       
                       return (
                         <tr key={index}>
@@ -545,7 +597,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '10px' }}>{item.prodotto.note || ''}</td>
+                        {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
+                        <td style={{ fontSize: '10px' }}>{getNoteCombinate(item.prodotto)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -607,7 +660,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '10px' }}>{item.prodotto.note || ''}</td>
+                        {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
+                        <td style={{ fontSize: '10px' }}>{getNoteCombinate(item.prodotto)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -669,7 +723,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente}</td>
                         <td className="center">{item.daViaggio ? '✓' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '10px' }}>{item.prodotto.note || ''}</td>
+                        {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
+                        <td style={{ fontSize: '10px' }}>{getNoteCombinate(item.prodotto)}</td>
                       </tr>
                     ))}
                   </tbody>
