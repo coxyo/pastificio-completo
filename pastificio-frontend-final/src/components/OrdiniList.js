@@ -645,16 +645,30 @@ Pastificio Nonna Claudia`;
                           </TableCell>
                           
                           <TableCell sx={{ p: 0.5 }}>
-                            {daViaggio && (
-                              <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px', mr: 0.5 }} />
-                            )}
-                            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                              {prodotto.note || ordine.note 
-                                ? ((prodotto.note || ordine.note).length > 25 
-                                    ? (prodotto.note || ordine.note).substring(0, 25) + '...' 
-                                    : (prodotto.note || ordine.note)) 
-                                : '-'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              {daViaggio && (
+                                <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px' }} />
+                              )}
+                              {(prodotto.note || ordine.note) ? (
+                                <Tooltip title={prodotto.note || ordine.note} arrow>
+                                  <Typography 
+                                    variant="caption" 
+                                    sx={{ 
+                                      fontSize: '0.65rem',
+                                      whiteSpace: 'nowrap',
+                                      maxWidth: '150px',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      cursor: 'help'
+                                    }}
+                                  >
+                                    {prodotto.note || ordine.note}
+                                  </Typography>
+                                </Tooltip>
+                              ) : (
+                                <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>-</Typography>
+                              )}
+                            </Box>
                           </TableCell>
                           
                           <TableCell align="center" sx={{ p: 0.5 }}>
