@@ -118,6 +118,43 @@ export const rimuoviOpzioniExtraDaNome = (nomeProdotto, configKey) => {
   return nomeClean.trim();
 };
 
+// ✅ Funzione per verificare se un prodotto ha varianti configurate
+export const prodottoHaVarianti = (nomeProdotto) => {
+  if (!nomeProdotto) return false;
+  
+  return Object.keys(CONFIGURAZIONE_VARIANTI).some(key => 
+    nomeProdotto.toLowerCase().includes(key.toLowerCase())
+  );
+};
+
+// ✅ Funzione per generare il nome completo del prodotto con varianti
+export const generaNomeProdottoConVarianti = (nomeBase, variantiIds) => {
+  // Trova la configurazione
+  const configKey = Object.keys(CONFIGURAZIONE_VARIANTI).find(key => 
+    nomeBase.toLowerCase().includes(key.toLowerCase())
+  );
+  
+  if (!configKey) return nomeBase;
+  
+  const config = CONFIGURAZIONE_VARIANTI[configKey];
+  
+  if (!variantiIds || variantiIds.length === 0) {
+    return config.nomeBase;
+  }
+  
+  // Genera il nome con le varianti selezionate
+  const variantiValori = variantiIds.map(id => {
+    const variante = config.varianti.find(v => v.id === id);
+    return variante ? variante.valore : '';
+  }).filter(Boolean);
+  
+  if (variantiValori.length === 0) {
+    return config.nomeBase;
+  }
+  
+  return `${config.nomeBase} ${variantiValori.join(' e ')}`;
+};
+
 // ========== COMPONENTE PRINCIPALE ==========
 
 export default function VariantiProdotto({ 
