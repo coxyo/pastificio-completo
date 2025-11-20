@@ -1,9 +1,9 @@
-// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Tutti i prodotti visibili + Checkbox L/F
-import React, { useState } from 'react';
+// components/OrdiniList.js - ✅ AGGIORNATO 20/11/2025: Divisione per categorie + Raggruppamento prodotti uguali
+import React, { useState, useMemo } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, IconButton, Button, TextField, Chip, Menu, MenuItem, Divider,
-  Tooltip
+  Tooltip, Collapse
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -14,8 +14,53 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PrintIcon from '@mui/icons-material/Print';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
+
+// ========== CONFIGURAZIONE CATEGORIE ==========
+const CATEGORIE = {
+  RAVIOLI: {
+    nome: 'RAVIOLI',
+    prodotti: ['Ravioli', 'Culurgiones'],
+    colore: '#FF6B6B',
+    coloreBg: 'rgba(255, 107, 107, 0.1)'
+  },
+  PARDULAS: {
+    nome: 'PARDULAS',
+    prodotti: ['Pardulas'],
+    colore: '#4ECDC4',
+    coloreBg: 'rgba(78, 205, 196, 0.1)'
+  },
+  DOLCI: {
+    nome: 'DOLCI',
+    prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Gueffus', 'Ciambelle', 
+               'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti', 'Pabassine'],
+    colore: '#FFE66D',
+    coloreBg: 'rgba(255, 230, 109, 0.1)'
+  },
+  ALTRI: {
+    nome: 'ALTRI',
+    prodotti: ['Panada', 'Panadine', 'Fregula', 'Pizzette', 'Pasta', 'Sfoglia'],
+    colore: '#95E1D3',
+    coloreBg: 'rgba(149, 225, 211, 0.1)'
+  }
+};
+
+// Determina categoria di un prodotto
+const getCategoriaProdotto = (nomeProdotto) => {
+  if (!nomeProdotto) return 'ALTRI';
+  const nomeLC = nomeProdotto.toLowerCase();
+  
+  for (const [key, categoria] of Object.entries(CATEGORIE)) {
+    if (categoria.prodotti.some(p => nomeLC.includes(p.toLowerCase()))) {
+      return key;
+    }
+  }
+  
+  return 'ALTRI';
+};
 
 const OrdiniList = ({ 
   ordini, 
@@ -27,6 +72,12 @@ const OrdiniList = ({
   const [dataFiltro, setDataFiltro] = useState(new Date().toISOString().split('T')[0]);
   const [anchorEl, setAnchorEl] = useState(null);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
+  const [categorieEspanse, setCategorieEspanse] = useState({
+    RAVIOLI: true,
+    PARDULAS: true,
+    DOLCI: true,
+    ALTRI: true
+  });
 
   const handleDateChange = (e) => {
     const newDate = e.target.value;
@@ -44,12 +95,18 @@ const OrdiniList = ({
     setOrdineSelezionato(null);
   };
 
-  // ✅ NUOVO: Aggiorna stato lavorazione sul backend
+  const toggleCategoria = (categoria) => {
+    setCategorieEspanse(prev => ({
+      ...prev,
+      [categoria]: !prev[categoria]
+    }));
+  };
+
+  // ✅ Aggiorna stato lavorazione sul backend
   const aggiornaStatoLavorazione = async (ordineId, nuovoStato) => {
     try {
       const token = localStorage.getItem('token');
       
-      // Aggiorna sul backend
       const response = await fetch(`${API_URL}/ordini/${ordineId}`, {
         method: 'PUT',
         headers: {
@@ -63,20 +120,16 @@ const OrdiniList = ({
         throw new Error('Errore aggiornamento stato');
       }
 
-      // Aggiorna localStorage
       const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
       const ordiniAggiornati = ordiniLocal.map(o => 
         o._id === ordineId ? { ...o, stato: nuovoStato } : o
       );
       localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-
-      // Refresh per vedere le modifiche
       window.location.reload();
       
     } catch (error) {
       console.error('Errore aggiornamento stato:', error);
       
-      // Fallback: aggiorna solo localStorage
       const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
       const ordiniAggiornati = ordiniLocal.map(o => 
         o._id === ordineId ? { ...o, stato: nuovoStato } : o
@@ -86,7 +139,6 @@ const OrdiniList = ({
     }
   };
 
-  // ✅ NUOVO: Handler per checkbox In Lavorazione
   const handleInLavorazione = (ordineId, isChecked) => {
     if (isChecked) {
       aggiornaStatoLavorazione(ordineId, 'in_lavorazione');
@@ -95,7 +147,6 @@ const OrdiniList = ({
     }
   };
 
-  // ✅ NUOVO: Handler per checkbox Fatto
   const handleFatto = (ordineId, isChecked) => {
     if (isChecked) {
       aggiornaStatoLavorazione(ordineId, 'completato');
@@ -139,7 +190,6 @@ Grazie e a presto!
 Pastificio Nonna Claudia`;
 
       } else {
-        // ✅ FIX: USA prodotto.prezzo DIRETTAMENTE
         const prodottiDettaglio = ordine.prodotti.map(p => {
           const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || 'Kg'}`;
           return `• ${p.nome || p.prodotto}: ${dettagli} - €${(p.prezzo || 0).toFixed(2)}`;
@@ -175,8 +225,6 @@ Pastificio Nonna Claudia`;
       const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(messaggio)}`;
       window.open(url, '_blank');
       
-      console.log('WhatsApp aperto con successo');
-      
     } catch (error) {
       console.error('Errore WhatsApp:', error);
       alert('Errore nell\'invio del messaggio WhatsApp');
@@ -205,314 +253,408 @@ Pastificio Nonna Claudia`;
     }
   };
 
-  const inviaPromemoria = async (ordineId) => {
-    try {
-      const ordine = ordini.find(o => o._id === ordineId);
-      if (ordine) {
-        inviaWhatsApp(ordine, 'promemoria');
-      }
-      handleMenuClose();
-    } catch (error) {
-      console.error('Errore:', error);
-      alert(`Errore: ${error.message}`);
+  const inviaPromemoria = (ordineId) => {
+    const ordine = ordini.find(o => o._id === ordineId);
+    if (ordine) {
+      inviaWhatsApp(ordine, 'promemoria');
     }
+    handleMenuClose();
   };
 
-  const handleCreaFattura = async () => {
-    if (!ordineSelezionato) return;
-    alert('Funzione fatturazione in sviluppo');
+  const handleCreaFattura = () => {
+    if (ordineSelezionato) {
+      console.log('Crea fattura per:', ordineSelezionato);
+    }
+    handleMenuClose();
+  };
+
+  const handleStampaOrdine = () => {
+    if (ordineSelezionato) {
+      console.log('Stampa ordine:', ordineSelezionato);
+    }
     handleMenuClose();
   };
 
   const handleCambiaStato = (nuovoStato) => {
-    if (!ordineSelezionato) return;
-    
-    if (nuovoStato === 'completato') {
-      segnaComePronto(ordineSelezionato._id);
-      return;
+    if (ordineSelezionato) {
+      if (nuovoStato === 'completato') {
+        segnaComePronto(ordineSelezionato._id);
+      } else {
+        aggiornaStatoLavorazione(ordineSelezionato._id, nuovoStato);
+      }
     }
-    
-    const ordiniAggiornati = ordini.map(o => 
-      o._id === ordineSelezionato._id 
-        ? { ...o, stato: nuovoStato }
-        : o
-    );
-    
-    localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-    handleMenuClose();
-    window.location.reload();
-  };
-
-  const handleStampaOrdine = () => {
-    if (!ordineSelezionato) return;
-    
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Ordine ${ordineSelezionato.nomeCliente}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #2c3e50; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-            th { background-color: #3498db; color: white; }
-            .info { margin: 10px 0; }
-            .totale { font-size: 1.2em; font-weight: bold; margin-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <h1>PASTIFICIO NONNA CLAUDIA</h1>
-          <div class="info">Via Carmine 20/B, Assemini (CA) - Tel: 389 887 9833</div>
-          <hr>
-          <h2>Ordine - ${ordineSelezionato.nomeCliente}</h2>
-          <div class="info">
-            <p><strong>Data ritiro:</strong> ${new Date(ordineSelezionato.dataRitiro).toLocaleDateString('it-IT')}</p>
-            <p><strong>Ora:</strong> ${ordineSelezionato.oraRitiro}</p>
-            <p><strong>Telefono:</strong> ${ordineSelezionato.telefono}</p>
-            ${ordineSelezionato.note ? `<p><strong>Note:</strong> ${ordineSelezionato.note}</p>` : ''}
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Prodotto</th>
-                <th>Quantità</th>
-                <th>Prezzo Unitario</th>
-                <th>Totale</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${ordineSelezionato.prodotti.map(p => {
-                const dettagli = p.dettagliCalcolo?.dettagli || `${p.quantita} ${p.unitaMisura || p.unita || ''}`;
-                const prezzoUnitario = p.quantita > 0 ? (p.prezzo / p.quantita) : p.prezzo;
-                
-                return `
-                  <tr>
-                    <td>${p.nome || p.prodotto}</td>
-                    <td>${dettagli}</td>
-                    <td>€ ${prezzoUnitario.toFixed(2)}</td>
-                    <td>€ ${p.prezzo.toFixed(2)}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-          <div class="totale">Totale: € ${calcolaTotale(ordineSelezionato)}</div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
     handleMenuClose();
   };
 
-  const ordiniDelGiorno = ordini.filter(ordine => 
-    ordine.dataRitiro && ordine.dataRitiro.includes(dataFiltro)
-  );
+  // ========== RAGGRUPPAMENTO ORDINI PER CATEGORIA ==========
+  const ordiniPerCategoria = useMemo(() => {
+    const result = {
+      RAVIOLI: [],
+      PARDULAS: [],
+      DOLCI: [],
+      ALTRI: []
+    };
 
-  const totaleGiorno = ordiniDelGiorno.reduce((sum, ordine) => 
-    sum + parseFloat(calcolaTotale(ordine)), 0
-  ).toFixed(2);
+    // Filtra ordini per data
+    const ordiniFiltrati = ordini.filter(ordine => {
+      const dataOrdine = ordine.dataRitiro || ordine.createdAt || '';
+      return dataOrdine.startsWith(dataFiltro);
+    });
 
-  const ordiniCompletati = ordiniDelGiorno.filter(o => o.stato === 'completato').length;
-  const ordiniInLavorazione = ordiniDelGiorno.filter(o => o.stato === 'in_lavorazione').length;
-  const ordiniFatturati = ordiniDelGiorno.filter(o => o.statoFatturazione === 'fatturato').length;
+    // Mappa per raggruppare prodotti identici
+    // Chiave: categoria + nome prodotto + quantità + unità
+    const mappaRaggruppamento = new Map();
 
-  const getStatoColor = (stato) => {
-    switch (stato) {
-      case 'completato': return 'success';
-      case 'in_lavorazione': return 'warning';
-      case 'annullato': return 'error';
-      default: return 'default';
-    }
-  };
+    ordiniFiltrati.forEach(ordine => {
+      if (!ordine.prodotti || ordine.prodotti.length === 0) return;
+
+      // Determina se l'ordine ha prodotti in categorie diverse
+      const categorieOrdine = new Set(
+        ordine.prodotti.map(p => getCategoriaProdotto(p.nome || p.prodotto))
+      );
+      const haAltriProdotti = categorieOrdine.size > 1;
+
+      ordine.prodotti.forEach(prodotto => {
+        const nomeProdotto = prodotto.nome || prodotto.prodotto || 'N/D';
+        const categoria = getCategoriaProdotto(nomeProdotto);
+        const quantita = prodotto.quantita || 0;
+        const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
+        
+        // Chiave per raggruppamento: nome + quantità + unità
+        // (escludiamo vassoi personalizzati dal raggruppamento)
+        let chiave;
+        if (nomeProdotto === 'Vassoio Dolci Misti' || unita === 'vassoio') {
+          // Vassoi unici per ordine (non raggruppabili)
+          chiave = `${categoria}-${ordine._id}-${nomeProdotto}`;
+        } else {
+          chiave = `${categoria}-${nomeProdotto}-${quantita}-${unita}`;
+        }
+
+        if (mappaRaggruppamento.has(chiave)) {
+          // Aggiungi a gruppo esistente
+          const gruppo = mappaRaggruppamento.get(chiave);
+          gruppo.count += 1;
+          gruppo.ordini.push({
+            ordine,
+            haAltriProdotti
+          });
+        } else {
+          // Crea nuovo gruppo
+          mappaRaggruppamento.set(chiave, {
+            categoria,
+            prodotto,
+            count: 1,
+            ordini: [{
+              ordine,
+              haAltriProdotti
+            }]
+          });
+        }
+      });
+    });
+
+    // Converti mappa in array per categoria
+    mappaRaggruppamento.forEach((gruppo) => {
+      result[gruppo.categoria].push(gruppo);
+    });
+
+    // Ordina ogni categoria per ora del primo ordine
+    Object.keys(result).forEach(cat => {
+      result[cat].sort((a, b) => {
+        const oraA = a.ordini[0]?.ordine?.oraRitiro || '';
+        const oraB = b.ordini[0]?.ordine?.oraRitiro || '';
+        return oraA.localeCompare(oraB);
+      });
+    });
+
+    return result;
+  }, [ordini, dataFiltro]);
+
+  // Conta totale ordini per oggi
+  const totaleOrdiniOggi = useMemo(() => {
+    return Object.values(ordiniPerCategoria).reduce((acc, cat) => acc + cat.length, 0);
+  }, [ordiniPerCategoria]);
 
   return (
-    <Paper elevation={3}>
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box>
-            <Typography variant="h6">Ordini del giorno</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {ordiniDelGiorno.length} ordini • €{totaleGiorno} totale • 
-              {ordiniCompletati} completati • {ordiniInLavorazione} in lavorazione • {ordiniFatturati} fatturati
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <TextField
-              type="date"
-              value={dataFiltro}
-              onChange={handleDateChange}
-              variant="outlined"
-              size="small"
-            />
-            <Button 
-              variant="contained" 
-              color="primary" 
-              startIcon={<AddIcon />}
-              onClick={onNuovoOrdine}
-            >
-              Nuovo Ordine
-            </Button>
-          </Box>
+    <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent' }}>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <TextField
+            type="date"
+            size="small"
+            value={dataFiltro}
+            onChange={handleDateChange}
+            sx={{ width: 150 }}
+          />
+          <Typography variant="subtitle2" color="text.secondary">
+            {totaleOrdiniOggi} prodotti
+          </Typography>
         </Box>
-
-        <Divider sx={{ mb: 2 }} />
-
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell width="50px">Ora</TableCell>
-                <TableCell width="100px">Cliente</TableCell>
-                <TableCell>Prodotti</TableCell>
-                <TableCell align="right" width="60px">Totale</TableCell>
-                <TableCell align="center" width="90px">Stato</TableCell>
-                <TableCell width="80px">Note</TableCell>
-                <TableCell align="center" width="80px">Azioni</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {ordiniDelGiorno.length > 0 ? (
-                ordiniDelGiorno.map((ordine) => {
-                  const prodottiDaMostrare = ordine.prodotti; // ✅ Mostra TUTTI i prodotti
-                  
-                  // ✅ NUOVO: Stato checkbox
-                  const isInLavorazione = ordine.stato === 'in_lavorazione';
-                  const isFatto = ordine.stato === 'completato';
-                  
-                  return (
-                    <React.Fragment key={ordine._id}>
-                      <TableRow 
-                        hover
-                        sx={{
-                          backgroundColor: isFatto ? 'rgba(76, 175, 80, 0.1)' : 
-                                          isInLavorazione ? 'rgba(255, 152, 0, 0.1)' : 'inherit'
-                        }}
-                      >
-                        <TableCell sx={{ p: 0.5 }}>
-                          <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem' }}>
-                            {ordine.oraRitiro || '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell sx={{ p: 0.5 }}>
-                          <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                            {ordine.nomeCliente}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                            {ordine.telefono}
-                          </Typography>
-                        </TableCell>
-                        <TableCell sx={{ p: 0.5 }}>
-                          {/* ✅ TUTTI I PRODOTTI VISIBILI */}
-                          {prodottiDaMostrare && prodottiDaMostrare.map((p, index) => {
-                            // ✅ VASSOIO: Mostra composizione completa
-                            if (p.nome === 'Vassoio Dolci Misti' && p.dettagliCalcolo?.composizione) {
-                              return (
-                                <Box key={index}>
-                                  <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                    🎂 Vassoio €{p.prezzo.toFixed(0)}:
-                                  </Typography>
-                                  {p.dettagliCalcolo.composizione.map((item, idx) => (
-                                    <Typography key={idx} variant="body2" sx={{ fontSize: '0.7rem', pl: 1, color: 'text.secondary' }}>
-                                      • {item.nome} ({item.quantita} {item.unita})
-                                    </Typography>
-                                  ))}
-                                </Box>
-                              );
-                            }
-                            // Abbrevia: "Pardulas con glassa (2.5 Kg)"
-                            const qta = p.quantita || 0;
-                            const unita = p.unitaMisura || p.unita || 'Kg';
-                            return (
-                              <Typography key={index} variant="body2" sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                                {p.nome || p.prodotto} ({qta} {unita})
-                              </Typography>
-                            );
-                          })}
-                        </TableCell>
-                        <TableCell align="right" sx={{ p: 0.5 }}>
-                          <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
-                            €{calcolaTotale(ordine)}
-                          </Typography>
-                        </TableCell>
-                        
-                        {/* ✅ COLONNA STATO: Chip in orizzontale */}
-                        <TableCell align="center" sx={{ p: 0.5 }}>
-                          <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
-                            <Tooltip title="In Lavorazione">
-                              <Chip
-                                label="L"
-                                size="small"
-                                color={isInLavorazione ? 'warning' : 'default'}
-                                variant={isInLavorazione ? 'filled' : 'outlined'}
-                                onClick={() => handleInLavorazione(ordine._id, !isInLavorazione)}
-                                sx={{ 
-                                  cursor: 'pointer', 
-                                  minWidth: '28px',
-                                  fontSize: '0.65rem',
-                                  height: '20px',
-                                  '& .MuiChip-label': { px: 0.5 }
-                                }}
-                              />
-                            </Tooltip>
-                            <Tooltip title="Fatto">
-                              <Chip
-                                label="F"
-                                size="small"
-                                color={isFatto ? 'success' : 'default'}
-                                variant={isFatto ? 'filled' : 'outlined'}
-                                onClick={() => handleFatto(ordine._id, !isFatto)}
-                                sx={{ 
-                                  cursor: 'pointer', 
-                                  minWidth: '28px',
-                                  fontSize: '0.65rem',
-                                  height: '20px',
-                                  '& .MuiChip-label': { px: 0.5 }
-                                }}
-                              />
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                        
-                        <TableCell sx={{ p: 0.5 }}>
-                          {ordine.daViaggio && (
-                            <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px', mr: 0.5 }} />
-                          )}
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                            {ordine.note ? (ordine.note.length > 15 ? ordine.note.substring(0, 15) + '...' : ordine.note) : '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center" sx={{ p: 0.5 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                            <IconButton onClick={() => onEdit(ordine)} size="small" color="primary" title="Modifica" sx={{ p: 0.25 }}>
-                              <EditIcon sx={{ fontSize: '0.9rem' }} />
-                            </IconButton>
-                            <IconButton onClick={() => onDelete(ordine._id)} size="small" color="error" title="Elimina" sx={{ p: 0.25 }}>
-                              <DeleteIcon sx={{ fontSize: '0.9rem' }} />
-                            </IconButton>
-                            <IconButton onClick={(e) => handleMenuOpen(e, ordine)} size="small" title="Menu" sx={{ p: 0.25 }}>
-                              <MoreVertIcon sx={{ fontSize: '0.9rem' }} />
-                            </IconButton>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    </React.Fragment>
-                  );
-                })
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                    <Typography color="text.secondary">
-                      Nessun ordine per questa data
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={onNuovoOrdine}
+          size="small"
+        >
+          Nuovo
+        </Button>
       </Box>
+
+      {/* ========== SEZIONI PER CATEGORIA ========== */}
+      {Object.entries(CATEGORIE).map(([catKey, catConfig]) => {
+        const gruppiCategoria = ordiniPerCategoria[catKey];
+        if (!gruppiCategoria || gruppiCategoria.length === 0) return null;
+
+        return (
+          <Box key={catKey} sx={{ mb: 2 }}>
+            {/* Header categoria cliccabile */}
+            <Box 
+              onClick={() => toggleCategoria(catKey)}
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                backgroundColor: catConfig.colore, 
+                color: catKey === 'DOLCI' ? '#333' : 'white',
+                px: 2, 
+                py: 1, 
+                borderRadius: '8px 8px 0 0',
+                cursor: 'pointer',
+                '&:hover': { opacity: 0.9 }
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight="bold">
+                {catConfig.nome} ({gruppiCategoria.length})
+              </Typography>
+              {categorieEspanse[catKey] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </Box>
+
+            {/* Tabella categoria */}
+            <Collapse in={categorieEspanse[catKey]}>
+              <TableContainer component={Paper} elevation={1} sx={{ borderRadius: '0 0 8px 8px' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                      <TableCell sx={{ p: 0.5, width: '50px', fontWeight: 'bold', fontSize: '0.7rem' }}>ORA</TableCell>
+                      <TableCell sx={{ p: 0.5, width: '120px', fontWeight: 'bold', fontSize: '0.7rem' }}>CLIENTE</TableCell>
+                      <TableCell sx={{ p: 0.5, fontWeight: 'bold', fontSize: '0.7rem' }}>PRODOTTO</TableCell>
+                      <TableCell align="right" sx={{ p: 0.5, width: '60px', fontWeight: 'bold', fontSize: '0.7rem' }}>€</TableCell>
+                      <TableCell align="center" sx={{ p: 0.5, width: '60px', fontWeight: 'bold', fontSize: '0.7rem' }}>L/F</TableCell>
+                      <TableCell align="center" sx={{ p: 0.5, width: '30px', fontWeight: 'bold', fontSize: '0.7rem' }}>+</TableCell>
+                      <TableCell sx={{ p: 0.5, width: '100px', fontWeight: 'bold', fontSize: '0.7rem' }}>NOTE</TableCell>
+                      <TableCell align="center" sx={{ p: 0.5, width: '70px', fontWeight: 'bold', fontSize: '0.7rem' }}>AZIONI</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {gruppiCategoria.map((gruppo, idx) => {
+                      // Se raggruppato (count > 1), mostra formato "2 x Pardulas (0.5 Kg)"
+                      const isRaggruppato = gruppo.count > 1;
+                      const prodotto = gruppo.prodotto;
+                      const primoOrdine = gruppo.ordini[0].ordine;
+                      
+                      // Per ordini raggruppati, mostriamo info del primo e lista clienti
+                      const isInLavorazione = primoOrdine.stato === 'in_lavorazione';
+                      const isFatto = primoOrdine.stato === 'completato';
+                      const haAltri = gruppo.ordini.some(o => o.haAltriProdotti);
+
+                      // Formato prodotto
+                      let nomeProdottoDisplay;
+                      if (prodotto.nome === 'Vassoio Dolci Misti') {
+                        nomeProdottoDisplay = `🎂 Vassoio €${prodotto.prezzo?.toFixed(0) || 0}`;
+                      } else {
+                        const qta = prodotto.quantita || 0;
+                        const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
+                        if (isRaggruppato) {
+                          nomeProdottoDisplay = `${gruppo.count} x ${prodotto.nome || prodotto.prodotto} (${qta} ${unita})`;
+                        } else {
+                          nomeProdottoDisplay = `${prodotto.nome || prodotto.prodotto} (${qta} ${unita})`;
+                        }
+                      }
+
+                      // Lista clienti per ordini raggruppati
+                      const clientiDisplay = isRaggruppato 
+                        ? gruppo.ordini.map(o => o.ordine.nomeCliente).join(', ')
+                        : primoOrdine.nomeCliente;
+
+                      return (
+                        <TableRow 
+                          key={idx}
+                          hover
+                          sx={{
+                            backgroundColor: isFatto ? 'rgba(76, 175, 80, 0.1)' : 
+                                            isInLavorazione ? 'rgba(255, 152, 0, 0.1)' : 
+                                            catConfig.coloreBg
+                          }}
+                        >
+                          <TableCell sx={{ p: 0.5 }}>
+                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem' }}>
+                              {primoOrdine.oraRitiro || '-'}
+                              {isRaggruppato && gruppo.ordini.length > 1 && (
+                                <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                                  ({gruppo.ordini.map(o => o.ordine.oraRitiro).filter((v, i, a) => a.indexOf(v) === i).join(', ')})
+                                </Typography>
+                              )}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ p: 0.5 }}>
+                            <Typography variant="body2" fontWeight="medium" sx={{ 
+                              fontSize: '0.75rem', 
+                              whiteSpace: isRaggruppato ? 'normal' : 'nowrap',
+                              maxWidth: isRaggruppato ? '120px' : 'none'
+                            }}>
+                              {clientiDisplay}
+                            </Typography>
+                            {!isRaggruppato && (
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                                {primoOrdine.telefono}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ p: 0.5 }}>
+                            <Typography variant="body2" sx={{ 
+                              fontSize: '0.75rem', 
+                              fontWeight: isRaggruppato ? 'bold' : 'normal',
+                              color: isRaggruppato ? 'primary.main' : 'inherit'
+                            }}>
+                              {nomeProdottoDisplay}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ p: 0.5 }}>
+                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
+                              {isRaggruppato 
+                                ? `€${(gruppo.ordini.reduce((acc, o) => {
+                                    const p = o.ordine.prodotti.find(pr => 
+                                      (pr.nome || pr.prodotto) === (prodotto.nome || prodotto.prodotto) &&
+                                      pr.quantita === prodotto.quantita
+                                    );
+                                    return acc + (p?.prezzo || 0);
+                                  }, 0)).toFixed(2)}`
+                                : `€${(prodotto.prezzo || 0).toFixed(2)}`
+                              }
+                            </Typography>
+                          </TableCell>
+                          
+                          <TableCell align="center" sx={{ p: 0.5 }}>
+                            {!isRaggruppato && (
+                              <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
+                                <Tooltip title="In Lavorazione">
+                                  <Chip
+                                    label="L"
+                                    size="small"
+                                    color={isInLavorazione ? 'warning' : 'default'}
+                                    variant={isInLavorazione ? 'filled' : 'outlined'}
+                                    onClick={() => handleInLavorazione(primoOrdine._id, !isInLavorazione)}
+                                    sx={{ 
+                                      cursor: 'pointer', 
+                                      minWidth: '28px',
+                                      fontSize: '0.65rem',
+                                      height: '20px',
+                                      '& .MuiChip-label': { px: 0.5 }
+                                    }}
+                                  />
+                                </Tooltip>
+                                <Tooltip title="Fatto">
+                                  <Chip
+                                    label="F"
+                                    size="small"
+                                    color={isFatto ? 'success' : 'default'}
+                                    variant={isFatto ? 'filled' : 'outlined'}
+                                    onClick={() => handleFatto(primoOrdine._id, !isFatto)}
+                                    sx={{ 
+                                      cursor: 'pointer', 
+                                      minWidth: '28px',
+                                      fontSize: '0.65rem',
+                                      height: '20px',
+                                      '& .MuiChip-label': { px: 0.5 }
+                                    }}
+                                  />
+                                </Tooltip>
+                              </Box>
+                            )}
+                            {isRaggruppato && (
+                              <Typography variant="caption" color="text.secondary">
+                                -
+                              </Typography>
+                            )}
+                          </TableCell>
+                          
+                          <TableCell align="center" sx={{ p: 0.5 }}>
+                            {haAltri ? (
+                              <Tooltip title="Ha altri prodotti">
+                                <Chip 
+                                  label="+" 
+                                  size="small" 
+                                  color="info" 
+                                  sx={{ 
+                                    fontSize: '0.6rem', 
+                                    height: '18px',
+                                    minWidth: '20px',
+                                    '& .MuiChip-label': { px: 0.3 }
+                                  }} 
+                                />
+                              </Tooltip>
+                            ) : ''}
+                          </TableCell>
+                          
+                          <TableCell sx={{ p: 0.5 }}>
+                            {primoOrdine.daViaggio && (
+                              <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px', mr: 0.5 }} />
+                            )}
+                            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                              {prodotto.note || primoOrdine.note 
+                                ? ((prodotto.note || primoOrdine.note).length > 15 
+                                    ? (prodotto.note || primoOrdine.note).substring(0, 15) + '...' 
+                                    : (prodotto.note || primoOrdine.note)) 
+                                : '-'}
+                            </Typography>
+                          </TableCell>
+                          
+                          <TableCell align="center" sx={{ p: 0.5 }}>
+                            {!isRaggruppato && (
+                              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                <IconButton onClick={() => onEdit(primoOrdine)} size="small" color="primary" title="Modifica" sx={{ p: 0.25 }}>
+                                  <EditIcon sx={{ fontSize: '0.9rem' }} />
+                                </IconButton>
+                                <IconButton onClick={() => onDelete(primoOrdine._id)} size="small" color="error" title="Elimina" sx={{ p: 0.25 }}>
+                                  <DeleteIcon sx={{ fontSize: '0.9rem' }} />
+                                </IconButton>
+                                <IconButton onClick={(e) => handleMenuOpen(e, primoOrdine)} size="small" title="Menu" sx={{ p: 0.25 }}>
+                                  <MoreVertIcon sx={{ fontSize: '0.9rem' }} />
+                                </IconButton>
+                              </Box>
+                            )}
+                            {isRaggruppato && (
+                              <Tooltip title={`${gruppo.count} ordini`}>
+                                <Chip 
+                                  label={gruppo.count} 
+                                  size="small" 
+                                  color="primary" 
+                                  variant="outlined"
+                                  sx={{ fontSize: '0.7rem', height: '20px' }}
+                                />
+                              </Tooltip>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Collapse>
+          </Box>
+        );
+      })}
+
+      {/* Messaggio se nessun ordine */}
+      {totaleOrdiniOggi === 0 && (
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography color="text.secondary">
+            Nessun ordine per questa data
+          </Typography>
+        </Paper>
+      )}
 
       <Menu
         anchorEl={anchorEl}
