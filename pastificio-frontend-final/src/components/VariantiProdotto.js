@@ -16,7 +16,7 @@ import {
 // ========== CONFIGURAZIONE VARIANTI ==========
 
 export const CONFIGURAZIONE_VARIANTI = {
-  'Ravioli ricotta': {
+  'Ravioli': {  // ✅ CORRETTO: usa 'Ravioli' come chiave (nome nel database)
     tipo: 'checkbox',
     multiple: true,
     varianti: [
@@ -34,7 +34,7 @@ export const CONFIGURAZIONE_VARIANTI = {
       { id: 'molto_dolci', label: 'Molto dolci', valore: 'molto dolci' },
       { id: 'poco_dolci', label: 'Poco dolci', valore: 'poco dolci' }
     ],
-    nomeBase: 'Ravioli ricotta'
+    nomeBase: 'Ravioli ricotta'  // Il nome finale sarà comunque "Ravioli ricotta con..."
   },
   'Panada di Agnello': {
     tipo: 'select',
