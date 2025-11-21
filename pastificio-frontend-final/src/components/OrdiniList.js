@@ -1,4 +1,4 @@
-// components/OrdiniList.js - ✅ AGGIORNATO 21/11/2025: L/F per singolo prodotto + Dialog zoom dettagliato
+// components/OrdiniList.js - ✅ AGGIORNATO 21/11/2025: 3 FIX - Raggruppamento + Prezzi + stopPropagation
 import React, { useState, useMemo } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
@@ -327,7 +327,7 @@ Pastificio Nonna Claudia`;
     handleMenuClose();
   };
 
-  // ========== RAGGRUPPAMENTO PER CLIENTE + PRODOTTO + QUANTITÀ ==========
+  // ========== ✅ FIX 1: RAGGRUPPAMENTO CORRETTO ==========
   const ordiniPerCategoria = useMemo(() => {
     const result = {
       RAVIOLI: [],
@@ -358,24 +358,35 @@ Pastificio Nonna Claudia`;
         const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
         const nomeCliente = ordine.nomeCliente || 'N/D';
         
+        // ✅ FIX 1: Chiave SENZA ordine._id e indiceProdotto per raggruppare
         let chiave;
         if (nomeProdotto === 'Vassoio Dolci Misti' || unita === 'vassoio') {
+          // Vassoi: sempre separati per preservare unicità
           chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${prodotto.prezzo}-${ordine._id}-${indiceProdotto}`;
         } else {
-          chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}-${ordine._id}-${indiceProdotto}`;
+          // ✅ ALTRI PRODOTTI: Raggruppa per cliente+prodotto+quantità+unità
+          chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}`;
         }
 
-        mappaRaggruppamento.set(chiave, {
-          categoria,
-          oraRitiro: ordine.oraRitiro || '',
-          nomeCliente,
-          daViaggio: ordine.daViaggio || false,
-          haAltriProdotti,
-          prodotto,
-          ordine,
-          indiceProdotto, // ✅ NUOVO: Indice prodotto nell'ordine
-          count: 1
-        });
+        // ✅ FIX 1 + FIX 2: Se chiave esiste, incrementa count e SOMMA il prezzo
+        if (mappaRaggruppamento.has(chiave)) {
+          const gruppo = mappaRaggruppamento.get(chiave);
+          gruppo.count += 1;
+          gruppo.prezzoTotale += (parseFloat(prodotto.prezzo) || 0); // ✅ FIX 2: Somma prezzi
+        } else {
+          mappaRaggruppamento.set(chiave, {
+            categoria,
+            oraRitiro: ordine.oraRitiro || '',
+            nomeCliente,
+            daViaggio: ordine.daViaggio || false,
+            haAltriProdotti,
+            prodotto,
+            ordine,
+            indiceProdotto,
+            count: 1, // ✅ FIX 1: Inizializza contatore
+            prezzoTotale: parseFloat(prodotto.prezzo) || 0 // ✅ FIX 2: Prezzo iniziale
+          });
+        }
       });
     });
 
@@ -518,15 +529,18 @@ Pastificio Nonna Claudia`;
                   </TableHead>
                   <TableBody>
                     {prodottiCategoria.map((gruppo, idx) => {
-                      const { ordine, prodotto, daViaggio, haAltriProdotti, nomeCliente, indiceProdotto } = gruppo;
+                      const { ordine, prodotto, daViaggio, haAltriProdotti, nomeCliente, indiceProdotto, count, prezzoTotale } = gruppo;
                       
-                      // ✅ AGGIORNATO: Leggi stato dal PRODOTTO, non dall'ordine
                       const isInLavorazione = prodotto.statoProduzione === 'in_lavorazione';
                       const isFatto = prodotto.statoProduzione === 'completato';
                       
                       const quantita = prodotto.quantita || 0;
                       const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
-                      const qtaDisplay = `${quantita} ${unita}`;
+                      
+                      // ✅ FIX 1: Mostra count se > 1
+                      const qtaDisplay = count > 1 
+                        ? `${count} x ${quantita} ${unita}` 
+                        : `${quantita} ${unita}`;
 
                       let composizioneDisplay = '';
                       if (prodotto.dettagliCalcolo?.composizione) {
@@ -576,12 +590,12 @@ Pastificio Nonna Claudia`;
                             </Typography>
                           </TableCell>
                           <TableCell align="right" sx={{ p: 0.5 }}>
+                            {/* ✅ FIX 2: Mostra prezzoTotale (somma se count > 1) */}
                             <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
-                              €{(prodotto.prezzo || 0).toFixed(2)}
+                              €{(prezzoTotale || 0).toFixed(2)}
                             </Typography>
                           </TableCell>
                           
-                          {/* ✅ AGGIORNATO: L/F per SINGOLO prodotto */}
                           <TableCell align="center" sx={{ p: 0.5 }}>
                             <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
                               <Tooltip title="In Lavorazione">
@@ -709,7 +723,7 @@ Pastificio Nonna Claudia`;
         </MenuItem>
       </Menu>
 
-    {/* ✅ AGGIORNATO 21/11/2025: Dialog zoom DETTAGLIATO */}
+    {/* ✅ FIX 3: Dialog zoom DETTAGLIATO con stopPropagation */}
     <Dialog
       open={!!categoriaSchermoIntero}
       onClose={chiudiSchermoIntero}
@@ -748,13 +762,18 @@ Pastificio Nonna Claudia`;
             </TableHead>
             <TableBody>
               {ordiniPerCategoria[categoriaSchermoIntero].map((gruppo, idx) => {
-                const { ordine, prodotto, nomeCliente, daViaggio, indiceProdotto } = gruppo;
+                const { ordine, prodotto, nomeCliente, daViaggio, indiceProdotto, count, prezzoTotale } = gruppo;
                 
                 const isInLavorazione = prodotto.statoProduzione === 'in_lavorazione';
                 const isFatto = prodotto.statoProduzione === 'completato';
                 
                 const quantita = prodotto.quantita || 0;
                 const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
+                
+                // ✅ FIX 1: Mostra count nel dialog
+                const qtaDisplay = count > 1 
+                  ? `${count} x ${quantita} ${unita}` 
+                  : `${quantita} ${unita}`;
                 
                 let composizioneDisplay = '';
                 if (prodotto.dettagliCalcolo?.composizione) {
@@ -784,25 +803,34 @@ Pastificio Nonna Claudia`;
                       )}
                     </TableCell>
                     <TableCell align="right" sx={{ fontSize: '1.1rem', fontFamily: 'monospace', fontWeight: 'bold' }}>
-                      {quantita} {unita}
+                      {qtaDisplay}
                     </TableCell>
                     <TableCell align="right" sx={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'primary.main' }}>
-                      €{(prodotto.prezzo || 0).toFixed(2)}
+                      {/* ✅ FIX 2: Mostra prezzoTotale nel dialog */}
+                      €{(prezzoTotale || 0).toFixed(2)}
                     </TableCell>
+                    
+                    {/* ✅ FIX 3: stopPropagation su click L/F nel dialog */}
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                         <Chip
                           label="L"
                           color={isInLavorazione ? 'warning' : 'default'}
                           variant={isInLavorazione ? 'filled' : 'outlined'}
-                          onClick={() => handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // ✅ FIX 3
+                            handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
+                          }}
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
                         />
                         <Chip
                           label="F"
                           color={isFatto ? 'success' : 'default'}
                           variant={isFatto ? 'filled' : 'outlined'}
-                          onClick={() => handleFatto(ordine._id, indiceProdotto, !isFatto)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // ✅ FIX 3
+                            handleFatto(ordine._id, indiceProdotto, !isFatto);
+                          }}
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
                         />
                       </Box>
