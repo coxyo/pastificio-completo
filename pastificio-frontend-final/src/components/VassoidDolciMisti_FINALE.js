@@ -381,7 +381,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
         quantita: 0, // Verrà calcolato automaticamente
         unita: 'Kg',
         prezzo: 0,
-        autoCalc: true // Flag per indicare calcolo automatico
+        autoCalc: true, // Flag per indicare calcolo automatico
+        varianteSelezionata: config.varianti?.[0] || null // ✅ NUOVO: Variante default
       };
 
       setComposizione(prev => [...prev, nuovoItem]);
@@ -398,7 +399,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       prodotto: nomeProdotto,
       quantita: quantitaDefault,
       unita: unitaDefault,
-      prezzo: prezzo
+      prezzo: prezzo,
+      varianteSelezionata: config.varianti?.[0] || null // ✅ NUOVO: Variante default
     };
 
     setComposizione(prev => [...prev, nuovoItem]);
@@ -426,6 +428,18 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       if (item.id === id) {
         const prezzo = calcolaPrezzoProdotto(item.prodotto, item.quantita, nuovaUnita);
         return { ...item, unita: nuovaUnita, prezzo };
+      }
+      return item;
+    }));
+  };
+
+  /**
+   * ✅ NUOVO: Cambia variante prodotto
+   */
+  const cambiaVariante = (id, nuovaVariante) => {
+    setComposizione(prev => prev.map(item => {
+      if (item.id === id) {
+        return { ...item, varianteSelezionata: nuovaVariante };
       }
       return item;
     }));
@@ -760,7 +774,28 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                       {/* Nome Prodotto */}
                       <Typography variant="subtitle1" sx={{ minWidth: 150, fontWeight: 'bold' }}>
                         {item.prodotto}
+                        {item.varianteSelezionata && (
+                          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                            ({item.varianteSelezionata})
+                          </Typography>
+                        )}
                       </Typography>
+
+                      {/* ✅ NUOVO: Dropdown Varianti */}
+                      {config?.varianti && config.varianti.length > 0 && modalita !== MODALITA.TOTALE_PRIMA && (
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                          <Select
+                            value={item.varianteSelezionata || config.varianti[0]}
+                            onChange={(e) => cambiaVariante(item.id, e.target.value)}
+                          >
+                            {config.varianti.map(variante => (
+                              <MenuItem key={variante} value={variante}>
+                                {variante}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
 
                       {/* ✅ MODALITÀ TOTALE_PRIMA: Mostra solo quantità calcolata */}
                       {modalita === MODALITA.TOTALE_PRIMA && item.autoCalc ? (
@@ -811,22 +846,20 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                         </Box>
                       )}
 
-                      {/* Unità di Misura - Solo in modalità LIBERA */}
+                      {/* ✅ MODIFICA: Dropdown Unità di Misura - Solo in modalità LIBERA */}
                       {modalita !== MODALITA.TOTALE_PRIMA && (
-                        <RadioGroup
-                          row
-                          value={item.unita}
-                          onChange={(e) => cambiaUnita(item.id, e.target.value)}
-                        >
-                        {config?.unitaMisuraDisponibili?.map(unita => (
-                          <FormControlLabel
-                            key={unita}
-                            value={unita}
-                            control={<Radio size="small" />}
-                            label={unita}
-                          />
-                        ))}
-                      </RadioGroup>
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
+                          <Select
+                            value={item.unita}
+                            onChange={(e) => cambiaUnita(item.id, e.target.value)}
+                          >
+                            {config?.unitaMisuraDisponibili?.map(unita => (
+                              <MenuItem key={unita} value={unita}>
+                                {unita}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
                       )}
 
                       {/* Prezzo */}
