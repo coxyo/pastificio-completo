@@ -801,6 +801,7 @@ Pastificio Nonna Claudia`;
           Annulla Ordine
         </MenuItem>
       </Menu>
+
     {/* ✅ NUOVO 21/11/2025: Dialog schermo intero */}
     <Dialog
       open={!!categoriaSchermoIntero}
@@ -845,6 +846,7 @@ Pastificio Nonna Claudia`;
         )}
       </DialogContent>
     </Dialog>
+
     </Paper>
   );
 };
@@ -863,4 +865,5 @@ const calcolaTotale = (ordine) => {
     return totale + (parseFloat(prodotto.prezzo) || 0);
   }, 0).toFixed(2);
 };
+
 export default OrdiniList;
