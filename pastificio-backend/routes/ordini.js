@@ -531,4 +531,68 @@ router.get('/statistiche/giornaliere', async (req, res) => {
   }
 });
 
+
+// ✅ NUOVO 21/11/2025: PUT /api/ordini/:id/prodotto/:index/stato - Aggiorna stato singolo prodotto
+router.put('/:id/prodotto/:index/stato', async (req, res) => {
+  try {
+    const { id, index } = req.params;
+    const { stato } = req.body;
+    
+    if (!stato || !['nuovo', 'in_lavorazione', 'completato'].includes(stato)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Stato non valido'
+      });
+    }
+    
+    const ordine = await Ordine.findById(id);
+    
+    if (!ordine) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ordine non trovato'
+      });
+    }
+    
+    const prodottoIndex = parseInt(index);
+    
+    if (prodottoIndex < 0 || prodottoIndex >= ordine.prodotti.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Indice prodotto non valido'
+      });
+    }
+    
+    // Aggiorna stato prodotto usando il metodo del model
+    ordine.aggiornaStatoProdotto(prodottoIndex, stato);
+    await ordine.save();
+    
+    logger.info(`✅ Stato prodotto aggiornato: Ordine ${ordine.numeroOrdine}, Prodotto ${prodottoIndex}, Stato ${stato}`);
+    
+    // Popola cliente per risposta
+    await ordine.populate('cliente', 'nome cognome telefono email codiceCliente');
+    
+    // Notifica WebSocket
+    if (global.io) {
+      global.io.emit('ordine-aggiornato', {
+        ordine: ordine,
+        timestamp: new Date()
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Stato prodotto aggiornato',
+      data: ordine
+    });
+  } catch (error) {
+    logger.error('❌ Errore aggiornamento stato prodotto:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore aggiornamento stato prodotto',
+      error: error.message
+    });
+  }
+});
+
 export default router;
