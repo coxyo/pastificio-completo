@@ -30,7 +30,7 @@ const creaClienteAutomatico = async (nomeCliente, telefono) => {
     });
     
     if (cliente) {
-      logger.info(\`[INFO] Cliente esistente trovato: \${cliente.codiceCliente} - \${cliente.nomeCompleto}\`);
+      logger.info(`[INFO] Cliente esistente trovato: ${cliente.codiceCliente} - ${cliente.nomeCompleto}`);
       return cliente._id;
     }
     
@@ -52,7 +52,7 @@ const creaClienteAutomatico = async (nomeCliente, telefono) => {
       }
     }
     
-    const codiceCliente = \`CL\${numeroProgressivo.toString().padStart(6, '0')}\`;
+    const codiceCliente = `CL${numeroProgressivo.toString().padStart(6, '0')}`;
     
     // 4️⃣ Crea nuovo cliente
     cliente = new Cliente({
@@ -68,7 +68,7 @@ const creaClienteAutomatico = async (nomeCliente, telefono) => {
     });
     
     await cliente.save();
-    logger.info(\`✅ Cliente creato automaticamente: \${codiceCliente} - \${nomeCliente}\`);
+    logger.info(`✅ Cliente creato automaticamente: ${codiceCliente} - ${nomeCliente}`);
     
     return cliente._id;
     
@@ -111,7 +111,7 @@ router.get('/', async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
     
-    logger.info(\`✅ Recuperati \${ordini.length} ordini\`);
+    logger.info(`✅ Recuperati ${ordini.length} ordini`);
     
     res.json({
       success: true,
@@ -217,7 +217,7 @@ router.post('/', async (req, res, next) => {
       );
       
       if (clienteId) {
-        logger.info(\`🔗 Cliente collegato all'ordine: \${clienteId}\`);
+        logger.info(`🔗 Cliente collegato all'ordine: ${clienteId}`);
       }
     }
     
@@ -232,7 +232,7 @@ router.post('/', async (req, res, next) => {
       if (clienteId) {
         const clienteEsiste = await Cliente.findById(clienteId);
         if (!clienteEsiste) {
-          logger.warn(\`⚠️ Cliente non trovato: \${clienteId}\`);
+          logger.warn(`⚠️ Cliente non trovato: ${clienteId}`);
           clienteId = null;
         }
       }
@@ -244,7 +244,7 @@ router.post('/', async (req, res, next) => {
     const nuovoOrdineData = {
       ...ordineDataPulito,
       cliente: clienteId,
-      numeroOrdine: \`ORD\${Date.now().toString().slice(-8)}\`,
+      numeroOrdine: `ORD${Date.now().toString().slice(-8)}`,
       stato: ordineData.stato || 'nuovo',
       totale: ordineData.totale || 0,
       createdAt: new Date(),
@@ -255,13 +255,13 @@ router.post('/', async (req, res, next) => {
     const nuovoOrdine = new Ordine(nuovoOrdineData);
     await nuovoOrdine.save();
     
-    logger.info(\`✅ Ordine creato: \${nuovoOrdine.numeroOrdine} - €\${nuovoOrdine.totale}\${forceOverride ? ' (FORCE OVERRIDE)' : ''}\`);
+    logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - €${nuovoOrdine.totale}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
     
     // ✅ AGGIORNA CONTATORI LIMITI DOPO SALVATAGGIO
     if (nuovoOrdine.dataRitiro && nuovoOrdine.prodotti && nuovoOrdine.prodotti.length > 0) {
       try {
         await LimiteGiornaliero.aggiornaDopoOrdine(nuovoOrdine.dataRitiro, nuovoOrdine.prodotti);
-        logger.info(\`📊 Limiti aggiornati per ordine \${nuovoOrdine._id}\`);
+        logger.info(`📊 Limiti aggiornati per ordine ${nuovoOrdine._id}`);
       } catch (aggiornaError) {
         logger.error('⚠️ Errore aggiornamento limiti:', aggiornaError.message);
       }
@@ -375,7 +375,7 @@ router.put('/:id', async (req, res) => {
       );
       
       if (clienteId) {
-        logger.info(\`🔗 Cliente collegato all'ordine (update): \${clienteId}\`);
+        logger.info(`🔗 Cliente collegato all'ordine (update): ${clienteId}`);
       }
     }
     
@@ -408,7 +408,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    logger.info(\`✅ Ordine aggiornato: \${ordineAggiornato.numeroOrdine}\${forceOverride ? ' (FORCE OVERRIDE)' : ''}\`);
+    logger.info(`✅ Ordine aggiornato: ${ordineAggiornato.numeroOrdine}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
     
     // Notifica WebSocket
     if (global.io) {
@@ -457,7 +457,7 @@ router.delete('/:id', async (req, res) => {
             categoria: p.categoria
           }))
         );
-        logger.info(\`📊 Limiti ripristinati dopo eliminazione ordine \${ordine._id}\`);
+        logger.info(`📊 Limiti ripristinati dopo eliminazione ordine ${ordine._id}`);
       } catch (limiteError) {
         logger.error('⚠️ Errore ripristino limiti:', limiteError.message);
       }
@@ -465,7 +465,7 @@ router.delete('/:id', async (req, res) => {
     
     await ordine.deleteOne();
     
-    logger.info(\`🗑️ Ordine eliminato: \${ordine.numeroOrdine}\`);
+    logger.info(`🗑️ Ordine eliminato: ${ordine.numeroOrdine}`);
     
     // Notifica WebSocket
     if (global.io) {
