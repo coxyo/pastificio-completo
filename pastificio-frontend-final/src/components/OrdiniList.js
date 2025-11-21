@@ -4,6 +4,7 @@ import {
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, IconButton, Button, TextField, Chip, Menu, MenuItem, Divider,
   Tooltip, Collapse
+, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -18,6 +19,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import CloseIcon from '@mui/icons-material/Close';
+import ZoomInIcon from '@mui/icons-material/ZoomIn';
 
 const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
 
@@ -84,6 +87,9 @@ const OrdiniList = ({
     ALTRI: true
   });
 
+  // ✅ NUOVO 21/11/2025: State per visualizzazione schermo intero
+  const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
+
   const handleDateChange = (e) => {
     const newDate = e.target.value;
     setDataFiltro(newDate);
@@ -129,6 +135,15 @@ const OrdiniList = ({
       ...prev,
       [categoria]: !prev[categoria]
     }));
+  };
+
+  // ✅ NUOVO 21/11/2025: Funzioni per schermo intero
+  const apriSchermoIntero = (nomeCategoria) => {
+    setCategoriaSchermoIntero(nomeCategoria);
+  };
+
+  const chiudiSchermoIntero = () => {
+    setCategoriaSchermoIntero(null);
   };
 
   // ✅ Aggiorna stato lavorazione sul backend
@@ -486,9 +501,39 @@ Pastificio Nonna Claudia`;
                 '&:hover': { opacity: 0.9 }
               }}
             >
-              <Typography variant="subtitle1" fontWeight="bold">
-                {configCategoria.nome} ({prodottiCategoria.length})
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography 
+                  variant="subtitle1" 
+                  fontWeight="bold"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    apriSchermoIntero(chiaveCategoria);
+                  }}
+                  sx={{
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      textDecoration: 'underline'
+                    }
+                  }}
+                >
+                  {configCategoria.nome} ({prodottiCategoria.length}) 🔍
+                </Typography>
+                
+                <Tooltip title="Visualizza a schermo intero">
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      apriSchermoIntero(chiaveCategoria);
+                    }}
+                    sx={{ color: 'white' }}
+                  >
+                    <ZoomInIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
               {categorieEspanse[chiaveCategoria] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </Box>
 
@@ -775,4 +820,49 @@ const calcolaTotale = (ordine) => {
   }, 0).toFixed(2);
 };
 
+
+    {/* ✅ NUOVO 21/11/2025: Dialog schermo intero */}
+    <Dialog
+      open={!!categoriaSchermoIntero}
+      onClose={chiudiSchermoIntero}
+      maxWidth="xl"
+      fullWidth
+    >
+      <DialogTitle>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            {categoriaSchermoIntero} ({ordiniCategoria[categoriaSchermoIntero]?.length || 0})
+          </Typography>
+          <IconButton onClick={chiudiSchermoIntero}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        {categoriaSchermoIntero && ordiniCategoria[categoriaSchermoIntero] && (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>Prodotto</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Cliente</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Azioni</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {ordiniCategoria[categoriaSchermoIntero].map((gruppo, idx) => (
+                <TableRow key={idx}>
+                  <TableCell>{gruppo.prodotto.nome}</TableCell>
+                  <TableCell>{gruppo.nomeCliente}</TableCell>
+                  <TableCell>
+                    <IconButton onClick={() => { chiudiSchermoIntero(); onEdit(gruppo.ordine); }}>
+                      <EditIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </DialogContent>
+    </Dialog>
 export default OrdiniList;
