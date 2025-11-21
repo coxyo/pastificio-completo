@@ -801,6 +801,50 @@ Pastificio Nonna Claudia`;
           Annulla Ordine
         </MenuItem>
       </Menu>
+    {/* ✅ NUOVO 21/11/2025: Dialog schermo intero */}
+    <Dialog
+      open={!!categoriaSchermoIntero}
+      onClose={chiudiSchermoIntero}
+      maxWidth="xl"
+      fullWidth
+    >
+      <DialogTitle>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            {categoriaSchermoIntero} ({ordiniPerCategoria[categoriaSchermoIntero]?.length || 0})
+          </Typography>
+          <IconButton onClick={chiudiSchermoIntero}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        {categoriaSchermoIntero && ordiniPerCategoria[categoriaSchermoIntero] && (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>Prodotto</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Cliente</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Azioni</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {ordiniPerCategoria[categoriaSchermoIntero].map((gruppo, idx) => (
+                <TableRow key={idx}>
+                  <TableCell>{gruppo.prodotto.nome}</TableCell>
+                  <TableCell>{gruppo.nomeCliente}</TableCell>
+                  <TableCell>
+                    <IconButton onClick={() => { chiudiSchermoIntero(); onEdit(gruppo.ordine); }}>
+                      <EditIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </DialogContent>
+    </Dialog>
     </Paper>
   );
 };
@@ -819,50 +863,4 @@ const calcolaTotale = (ordine) => {
     return totale + (parseFloat(prodotto.prezzo) || 0);
   }, 0).toFixed(2);
 };
-
-
-    {/* ✅ NUOVO 21/11/2025: Dialog schermo intero */}
-    <Dialog
-      open={!!categoriaSchermoIntero}
-      onClose={chiudiSchermoIntero}
-      maxWidth="xl"
-      fullWidth
-    >
-      <DialogTitle>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-            {categoriaSchermoIntero} ({ordiniCategoria[categoriaSchermoIntero]?.length || 0})
-          </Typography>
-          <IconButton onClick={chiudiSchermoIntero}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        {categoriaSchermoIntero && ordiniCategoria[categoriaSchermoIntero] && (
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 'bold' }}>Prodotto</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Cliente</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Azioni</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {ordiniCategoria[categoriaSchermoIntero].map((gruppo, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{gruppo.prodotto.nome}</TableCell>
-                  <TableCell>{gruppo.nomeCliente}</TableCell>
-                  <TableCell>
-                    <IconButton onClick={() => { chiudiSchermoIntero(); onEdit(gruppo.ordine); }}>
-                      <EditIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </DialogContent>
-    </Dialog>
 export default OrdiniList;
