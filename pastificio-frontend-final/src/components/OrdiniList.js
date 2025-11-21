@@ -1,4 +1,4 @@
-// components/OrdiniList.js - ✅ AGGIORNATO 21/11/2025: 3 FIX - Raggruppamento + Prezzi + stopPropagation
+// components/OrdiniList.js - ✅ FIX 21/11/2025: Disabilita L/F quando count > 1
 import React, { useState, useMemo } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
@@ -137,7 +137,6 @@ const OrdiniList = ({
     setCategoriaSchermoIntero(null);
   };
 
-  // ✅ AGGIORNATO 21/11/2025: Aggiorna stato SINGOLO prodotto
   const aggiornaStatoProdotto = async (ordineId, indiceProdotto, nuovoStato) => {
     try {
       const token = localStorage.getItem('token');
@@ -155,7 +154,6 @@ const OrdiniList = ({
         throw new Error('Errore aggiornamento stato prodotto');
       }
 
-      // Aggiorna anche localStorage
       const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
       const ordiniAggiornati = ordiniLocal.map(o => {
         if (o._id === ordineId && o.prodotti[indiceProdotto]) {
@@ -175,7 +173,6 @@ const OrdiniList = ({
     } catch (error) {
       console.error('Errore aggiornamento stato prodotto:', error);
       
-      // Fallback: aggiorna solo localStorage
       const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
       const ordiniAggiornati = ordiniLocal.map(o => {
         if (o._id === ordineId && o.prodotti[indiceProdotto]) {
@@ -193,7 +190,6 @@ const OrdiniList = ({
     }
   };
 
-  // ✅ AGGIORNATO: Gestisce L per SINGOLO prodotto
   const handleInLavorazione = (ordineId, indiceProdotto, isChecked) => {
     if (isChecked) {
       aggiornaStatoProdotto(ordineId, indiceProdotto, 'in_lavorazione');
@@ -202,7 +198,6 @@ const OrdiniList = ({
     }
   };
 
-  // ✅ AGGIORNATO: Gestisce F per SINGOLO prodotto
   const handleFatto = (ordineId, indiceProdotto, isChecked) => {
     if (isChecked) {
       aggiornaStatoProdotto(ordineId, indiceProdotto, 'completato');
@@ -287,7 +282,6 @@ Pastificio Nonna Claudia`;
   const segnaComePronto = async (ordineId) => {
     const ordine = ordini.find(o => o._id === ordineId);
     if (ordine) {
-      // Segna tutti i prodotti come completati
       for (let i = 0; i < ordine.prodotti.length; i++) {
         await aggiornaStatoProdotto(ordineId, i, 'completato');
       }
@@ -327,7 +321,7 @@ Pastificio Nonna Claudia`;
     handleMenuClose();
   };
 
-  // ========== ✅ FIX 1: RAGGRUPPAMENTO CORRETTO ==========
+  // ========== RAGGRUPPAMENTO CON FIX ==========
   const ordiniPerCategoria = useMemo(() => {
     const result = {
       RAVIOLI: [],
@@ -358,21 +352,17 @@ Pastificio Nonna Claudia`;
         const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
         const nomeCliente = ordine.nomeCliente || 'N/D';
         
-        // ✅ FIX 1: Chiave SENZA ordine._id e indiceProdotto per raggruppare
         let chiave;
         if (nomeProdotto === 'Vassoio Dolci Misti' || unita === 'vassoio') {
-          // Vassoi: sempre separati per preservare unicità
           chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${prodotto.prezzo}-${ordine._id}-${indiceProdotto}`;
         } else {
-          // ✅ ALTRI PRODOTTI: Raggruppa per cliente+prodotto+quantità+unità
           chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}`;
         }
 
-        // ✅ FIX 1 + FIX 2: Se chiave esiste, incrementa count e SOMMA il prezzo
         if (mappaRaggruppamento.has(chiave)) {
           const gruppo = mappaRaggruppamento.get(chiave);
           gruppo.count += 1;
-          gruppo.prezzoTotale += (parseFloat(prodotto.prezzo) || 0); // ✅ FIX 2: Somma prezzi
+          gruppo.prezzoTotale += (parseFloat(prodotto.prezzo) || 0);
         } else {
           mappaRaggruppamento.set(chiave, {
             categoria,
@@ -383,8 +373,8 @@ Pastificio Nonna Claudia`;
             prodotto,
             ordine,
             indiceProdotto,
-            count: 1, // ✅ FIX 1: Inizializza contatore
-            prezzoTotale: parseFloat(prodotto.prezzo) || 0 // ✅ FIX 2: Prezzo iniziale
+            count: 1,
+            prezzoTotale: parseFloat(prodotto.prezzo) || 0
           });
         }
       });
@@ -536,8 +526,6 @@ Pastificio Nonna Claudia`;
                       
                       const quantita = prodotto.quantita || 0;
                       const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
-                      
-                      // ✅ FIX 1: Mostra count se > 1
                       const qtaDisplay = count > 1 
                         ? `${count} x ${quantita} ${unita}` 
                         : `${quantita} ${unita}`;
@@ -590,47 +578,78 @@ Pastificio Nonna Claudia`;
                             </Typography>
                           </TableCell>
                           <TableCell align="right" sx={{ p: 0.5 }}>
-                            {/* ✅ FIX 2: Mostra prezzoTotale (somma se count > 1) */}
                             <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
                               €{(prezzoTotale || 0).toFixed(2)}
                             </Typography>
                           </TableCell>
                           
+                          {/* ✅ FIX: Disabilita L/F quando count > 1 */}
                           <TableCell align="center" sx={{ p: 0.5 }}>
-                            <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
-                              <Tooltip title="In Lavorazione">
-                                <Chip
-                                  label="L"
-                                  size="small"
-                                  color={isInLavorazione ? 'warning' : 'default'}
-                                  variant={isInLavorazione ? 'filled' : 'outlined'}
-                                  onClick={() => handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione)}
-                                  sx={{ 
-                                    cursor: 'pointer', 
-                                    minWidth: '28px',
-                                    fontSize: '0.65rem',
-                                    height: '20px',
-                                    '& .MuiChip-label': { px: 0.5 }
-                                  }}
-                                />
+                            {count > 1 ? (
+                              <Tooltip title="Ordine raggruppato - modifica singolarmente">
+                                <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
+                                  <Chip
+                                    label="L"
+                                    size="small"
+                                    disabled
+                                    sx={{ 
+                                      minWidth: '28px',
+                                      fontSize: '0.65rem',
+                                      height: '20px',
+                                      '& .MuiChip-label': { px: 0.5 },
+                                      opacity: 0.5
+                                    }}
+                                  />
+                                  <Chip
+                                    label="F"
+                                    size="small"
+                                    disabled
+                                    sx={{ 
+                                      minWidth: '28px',
+                                      fontSize: '0.65rem',
+                                      height: '20px',
+                                      '& .MuiChip-label': { px: 0.5 },
+                                      opacity: 0.5
+                                    }}
+                                  />
+                                </Box>
                               </Tooltip>
-                              <Tooltip title="Fatto">
-                                <Chip
-                                  label="F"
-                                  size="small"
-                                  color={isFatto ? 'success' : 'default'}
-                                  variant={isFatto ? 'filled' : 'outlined'}
-                                  onClick={() => handleFatto(ordine._id, indiceProdotto, !isFatto)}
-                                  sx={{ 
-                                    cursor: 'pointer', 
-                                    minWidth: '28px',
-                                    fontSize: '0.65rem',
-                                    height: '20px',
-                                    '& .MuiChip-label': { px: 0.5 }
-                                  }}
-                                />
-                              </Tooltip>
-                            </Box>
+                            ) : (
+                              <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
+                                <Tooltip title="In Lavorazione">
+                                  <Chip
+                                    label="L"
+                                    size="small"
+                                    color={isInLavorazione ? 'warning' : 'default'}
+                                    variant={isInLavorazione ? 'filled' : 'outlined'}
+                                    onClick={() => handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione)}
+                                    sx={{ 
+                                      cursor: 'pointer', 
+                                      minWidth: '28px',
+                                      fontSize: '0.65rem',
+                                      height: '20px',
+                                      '& .MuiChip-label': { px: 0.5 }
+                                    }}
+                                  />
+                                </Tooltip>
+                                <Tooltip title="Fatto">
+                                  <Chip
+                                    label="F"
+                                    size="small"
+                                    color={isFatto ? 'success' : 'default'}
+                                    variant={isFatto ? 'filled' : 'outlined'}
+                                    onClick={() => handleFatto(ordine._id, indiceProdotto, !isFatto)}
+                                    sx={{ 
+                                      cursor: 'pointer', 
+                                      minWidth: '28px',
+                                      fontSize: '0.65rem',
+                                      height: '20px',
+                                      '& .MuiChip-label': { px: 0.5 }
+                                    }}
+                                  />
+                                </Tooltip>
+                              </Box>
+                            )}
                           </TableCell>
                           
                           <TableCell align="center" sx={{ p: 0.5 }}>
@@ -723,7 +742,7 @@ Pastificio Nonna Claudia`;
         </MenuItem>
       </Menu>
 
-    {/* ✅ FIX 3: Dialog zoom DETTAGLIATO con stopPropagation */}
+    {/* Dialog zoom con L/F disabilitati quando count > 1 */}
     <Dialog
       open={!!categoriaSchermoIntero}
       onClose={chiudiSchermoIntero}
@@ -769,8 +788,6 @@ Pastificio Nonna Claudia`;
                 
                 const quantita = prodotto.quantita || 0;
                 const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
-                
-                // ✅ FIX 1: Mostra count nel dialog
                 const qtaDisplay = count > 1 
                   ? `${count} x ${quantita} ${unita}` 
                   : `${quantita} ${unita}`;
@@ -806,34 +823,50 @@ Pastificio Nonna Claudia`;
                       {qtaDisplay}
                     </TableCell>
                     <TableCell align="right" sx={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'primary.main' }}>
-                      {/* ✅ FIX 2: Mostra prezzoTotale nel dialog */}
                       €{(prezzoTotale || 0).toFixed(2)}
                     </TableCell>
                     
-                    {/* ✅ FIX 3: stopPropagation su click L/F nel dialog */}
+                    {/* ✅ FIX: Disabilita L/F nel dialog quando count > 1 */}
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                        <Chip
-                          label="L"
-                          color={isInLavorazione ? 'warning' : 'default'}
-                          variant={isInLavorazione ? 'filled' : 'outlined'}
-                          onClick={(e) => {
-                            e.stopPropagation(); // ✅ FIX 3
-                            handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
-                          }}
-                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
-                        />
-                        <Chip
-                          label="F"
-                          color={isFatto ? 'success' : 'default'}
-                          variant={isFatto ? 'filled' : 'outlined'}
-                          onClick={(e) => {
-                            e.stopPropagation(); // ✅ FIX 3
-                            handleFatto(ordine._id, indiceProdotto, !isFatto);
-                          }}
-                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
-                        />
-                      </Box>
+                      {count > 1 ? (
+                        <Tooltip title="Ordine raggruppato - modifica singolarmente">
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                            <Chip
+                              label="L"
+                              disabled
+                              sx={{ fontSize: '1rem', minWidth: '40px', height: '32px', opacity: 0.5 }}
+                            />
+                            <Chip
+                              label="F"
+                              disabled
+                              sx={{ fontSize: '1rem', minWidth: '40px', height: '32px', opacity: 0.5 }}
+                            />
+                          </Box>
+                        </Tooltip>
+                      ) : (
+                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                          <Chip
+                            label="L"
+                            color={isInLavorazione ? 'warning' : 'default'}
+                            variant={isInLavorazione ? 'filled' : 'outlined'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
+                            }}
+                            sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
+                          />
+                          <Chip
+                            label="F"
+                            color={isFatto ? 'success' : 'default'}
+                            variant={isFatto ? 'filled' : 'outlined'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleFatto(ordine._id, indiceProdotto, !isFatto);
+                            }}
+                            sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
+                          />
+                        </Box>
+                      )}
                     </TableCell>
                     <TableCell sx={{ fontSize: '0.9rem' }}>
                       {daViaggio && <Chip label="VIAGGIO" size="small" color="warning" sx={{ mr: 0.5 }} />}
