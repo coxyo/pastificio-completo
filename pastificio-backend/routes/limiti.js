@@ -1,4 +1,4 @@
-// routes/limiti.js - ✅ AGGIORNATO 20/11/2025: Calcolo dinamico ordinato
+// routes/limiti.js - ✅ AGGIORNATO 20/11/2025 + DEBUG LOGS
 
 import express from 'express';
 // import { protect } from '../middleware/auth.js'; // COMMENTATO TEMPORANEAMENTE
@@ -12,7 +12,7 @@ const router = express.Router();
 // router.use(protect);
 
 /**
- * ✅ NUOVA FUNZIONE: Calcola quantità ordinata per un limite
+ * ✅ NUOVA FUNZIONE: Calcola quantità ordinata per un limite (CON DEBUG)
  */
 const calcolaOrdinatoPerLimite = async (limite) => {
   try {
@@ -23,24 +23,37 @@ const calcolaOrdinatoPerLimite = async (limite) => {
     const fineGiorno = new Date(limite.data);
     fineGiorno.setHours(23, 59, 59, 999);
     
+    console.log(`\n🔍 ===== CALCOLO ORDINATO =====`);
+    console.log(`📦 Prodotto/Categoria: ${limite.prodotto || limite.categoria}`);
+    console.log(`📅 Data: ${inizioGiorno.toLocaleDateString('it-IT')}`);
+    console.log(`⏰ Range: ${inizioGiorno.toISOString()} → ${fineGiorno.toISOString()}`);
+    
     // Trova tutti gli ordini per quella data
     const ordini = await Ordine.find({
       dataRitiro: { $gte: inizioGiorno, $lte: fineGiorno },
       stato: { $ne: 'annullato' } // Escludi annullati
     });
     
-    let totaleOrdinato = 0;
+    console.log(`📋 Ordini trovati: ${ordini.length}`);
     
-    ordini.forEach(ordine => {
+    let totaleOrdinato = 0;
+    let contatoreMatch = 0;
+    
+    ordini.forEach((ordine, idx) => {
       if (!ordine.prodotti) return;
       
-      ordine.prodotti.forEach(prodotto => {
+      console.log(`\n  📦 Ordine ${idx + 1}/${ordini.length} - ${ordine.numeroOrdine}`);
+      
+      ordine.prodotti.forEach((prodotto, pIdx) => {
         const nomeProdotto = prodotto.nome || prodotto.prodotto || '';
         const quantita = parseFloat(prodotto.quantita) || 0;
         const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
         
+        console.log(`    ${pIdx + 1}. ${nomeProdotto} - ${quantita} ${unita}`);
+        
         // Skip vassoi
         if (unita === 'vassoio' || nomeProdotto === 'Vassoio Dolci Misti') {
+          console.log(`       ⏭️  Skip vassoio`);
           return;
         }
         
@@ -48,18 +61,19 @@ const calcolaOrdinatoPerLimite = async (limite) => {
         let quantitaKg = quantita;
         if (unita === 'g') {
           quantitaKg = quantita / 1000;
+          console.log(`       🔄 Conversione: ${quantita}g → ${quantitaKg}Kg`);
         } else if (unita === 'Pezzi' || unita === 'pz') {
-          // Per pezzi, usa la quantità diretta se il limite è in pezzi
           if (limite.unitaMisura === 'Pezzi') {
             quantitaKg = quantita;
+            console.log(`       ✅ Limite in pezzi, uso diretto: ${quantitaKg}`);
           } else {
-            // Altrimenti ignora o converti (es. 30 pezzi = 1 Kg per ravioli)
-            quantitaKg = quantita / 30; // Conversione approssimativa
+            quantitaKg = quantita / 30;
+            console.log(`       🔄 Conversione: ${quantita}pz → ${quantitaKg}Kg (stima)`);
           }
         } else if (unita === '€') {
-          // Per ordini in euro, stima Kg dal prezzo (es. 20€/Kg)
-          const prezzoAlKg = 20; // Prezzo medio
+          const prezzoAlKg = 20;
           quantitaKg = quantita / prezzoAlKg;
+          console.log(`       🔄 Conversione: ${quantita}€ → ${quantitaKg}Kg (stima @20€/Kg)`);
         }
         
         // Verifica match con limite
@@ -67,10 +81,10 @@ const calcolaOrdinatoPerLimite = async (limite) => {
         
         // Match per prodotto specifico
         if (limite.prodotto) {
-          // Match esatto o parziale
           if (nomeProdotto.toLowerCase().includes(limite.prodotto.toLowerCase()) ||
               limite.prodotto.toLowerCase().includes(nomeProdotto.toLowerCase())) {
             match = true;
+            console.log(`       ✅ MATCH prodotto: "${limite.prodotto}"`);
           }
         }
         
@@ -79,19 +93,31 @@ const calcolaOrdinatoPerLimite = async (limite) => {
           const categoriaProdotto = determinaCategoria(nomeProdotto);
           if (categoriaProdotto.toLowerCase() === limite.categoria.toLowerCase()) {
             match = true;
+            console.log(`       ✅ MATCH categoria: "${limite.categoria}"`);
+          } else {
+            console.log(`       ❌ NO MATCH: categoria prodotto="${categoriaProdotto}" vs limite="${limite.categoria}"`);
           }
         }
         
         if (match) {
           totaleOrdinato += quantitaKg;
+          contatoreMatch++;
+          console.log(`       ➕ Aggiunto: ${quantitaKg}Kg → Totale: ${totaleOrdinato.toFixed(2)}Kg`);
         }
       });
     });
     
+    console.log(`\n✅ RISULTATO FINALE:`);
+    console.log(`   Prodotti matchati: ${contatoreMatch}`);
+    console.log(`   Totale ordinato: ${totaleOrdinato.toFixed(2)} ${limite.unitaMisura}`);
+    console.log(`   Limite: ${limite.limiteQuantita} ${limite.unitaMisura}`);
+    console.log(`   Disponibile: ${(limite.limiteQuantita - totaleOrdinato).toFixed(2)} ${limite.unitaMisura}`);
+    console.log(`================================\n`);
+    
     return totaleOrdinato;
     
   } catch (error) {
-    console.error('Errore calcolo ordinato:', error);
+    console.error('❌ ERRORE calcolo ordinato:', error);
     return 0;
   }
 };
@@ -131,6 +157,8 @@ router.get('/', async (req, res) => {
   try {
     const { data, attivo } = req.query;
     
+    console.log(`\n🌐 GET /api/limiti - Query params:`, { data, attivo });
+    
     let query = {};
     
     if (data) {
@@ -148,6 +176,7 @@ router.get('/', async (req, res) => {
     }
     
     const limiti = await LimiteGiornaliero.find(query).sort({ data: 1, prodotto: 1 });
+    console.log(`📊 Limiti trovati in DB: ${limiti.length}`);
     
     // ✅ NUOVO: Calcola ordinato dinamicamente per ogni limite
     const limitiConOrdinato = await Promise.all(
@@ -165,6 +194,7 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
+    console.error('❌ Errore GET /limiti:', error);
     logger.error('Errore GET /limiti:', error);
     res.status(500).json({
       success: false,
