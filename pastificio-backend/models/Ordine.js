@@ -90,7 +90,15 @@ const prodottoSchema = new mongoose.Schema({
     trim: true,
     comment: 'Es: "ben cotte", "poco dorate", etc.'
   }
-}, { _id: false });
+,
+  
+  // ✅ NUOVO 21/11/2025: Stato produzione per singolo prodotto
+  statoProduzione: {
+    type: String,
+    enum: ['nuovo', 'in_lavorazione', 'completato'],
+    default: 'nuovo',
+    comment: 'Stato di lavorazione del singolo prodotto'
+  }}, { _id: false });
 
 // ========== SCHEMA ORDINE PRINCIPALE ==========
 const ordineSchema = new mongoose.Schema({
@@ -574,6 +582,38 @@ ordineSchema.methods.hasSpecialRequirements = function() {
     hasVassoi: this.hasVassoi(),
     hasEsclusioni: this.esclusioni && this.esclusioni.length > 0
   };
+
+/**
+ * ✅ NUOVO 21/11/2025: Aggiorna stato singolo prodotto
+ * @param {number} indiceProdotto - Indice del prodotto nell'array
+ * @param {string} nuovoStato - nuovo | in_lavorazione | completato
+ */
+ordineSchema.methods.aggiornaStatoProdotto = function(indiceProdotto, nuovoStato) {
+  if (!this.prodotti[indiceProdotto]) {
+    throw new Error(`Prodotto con indice ${indiceProdotto} non trovato`);
+  }
+  
+  if (!['nuovo', 'in_lavorazione', 'completato'].includes(nuovoStato)) {
+    throw new Error(`Stato non valido: ${nuovoStato}`);
+  }
+  
+  this.prodotti[indiceProdotto].statoProduzione = nuovoStato;
+  
+  // Aggiorna stato generale ordine in base ai prodotti
+  const tuttiCompletati = this.prodotti.every(p => p.statoProduzione === 'completato');
+  const almenoUnoInLavorazione = this.prodotti.some(p => p.statoProduzione === 'in_lavorazione');
+  
+  if (tuttiCompletati) {
+    this.stato = 'completato';
+  } else if (almenoUnoInLavorazione) {
+    this.stato = 'in_lavorazione';
+  } else {
+    this.stato = 'nuovo';
+  }
+  
+  console.log(`✅ Prodotto ${indiceProdotto} (${this.prodotti[indiceProdotto].nome}) → ${nuovoStato}`);
+};
+
 };
 
 const Ordine = mongoose.model('Ordine', ordineSchema);
