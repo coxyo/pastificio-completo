@@ -1,4 +1,4 @@
-// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE, LIMITI E FORCE OVERRIDE
+// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE, LIMITI E CREAZIONE AUTOMATICA CLIENTE
 import express from 'express';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
@@ -8,6 +8,76 @@ import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
+
+/**
+ * ✅ NUOVO 21/11/2025: Crea cliente automaticamente se non esiste
+ * @param {string} nomeCliente - Nome completo del cliente
+ * @param {string} telefono - Numero di telefono
+ * @returns {string|null} - ID del cliente creato/trovato
+ */
+const creaClienteAutomatico = async (nomeCliente, telefono) => {
+  try {
+    if (!nomeCliente || !telefono) {
+      return null;
+    }
+    
+    // Normalizza telefono (rimuovi spazi, trattini, ecc.)
+    const telefonoNorm = telefono.replace(/[\s\-\(\)]/g, '');
+    
+    // 1️⃣ Cerca cliente esistente per telefono
+    let cliente = await Cliente.findOne({ 
+      telefono: { $in: [telefono, telefonoNorm] }
+    });
+    
+    if (cliente) {
+      logger.info(\`ℹ️ Cliente esistente trovato: \${cliente.codiceCliente} - \${cliente.nomeCompleto}\`);
+      return cliente._id;
+    }
+    
+    // 2️⃣ Cliente non esiste, crealo
+    
+    // Estrai nome e cognome (se separati da spazio)
+    const partiNome = nomeCliente.trim().split(' ');
+    const nome = partiNome[0] || '';
+    const cognome = partiNome.slice(1).join(' ') || '';
+    
+    // 3️⃣ Genera codice cliente progressivo
+    const ultimoCliente = await Cliente.findOne().sort({ codiceCliente: -1 });
+    let numeroProgressivo = 1;
+    
+    if (ultimoCliente && ultimoCliente.codiceCliente) {
+      const match = ultimoCliente.codiceCliente.match(/CL(\d+)/);
+      if (match) {
+        numeroProgressivo = parseInt(match[1]) + 1;
+      }
+    }
+    
+    const codiceCliente = \`CL\${numeroProgressivo.toString().padStart(6, '0')}\`;
+    
+    // 4️⃣ Crea nuovo cliente
+    cliente = new Cliente({
+      nome,
+      cognome,
+      telefono: telefonoNorm,
+      email: '',
+      codiceCliente,
+      nomeCompleto: nomeCliente,
+      dataRegistrazione: new Date(),
+      attivo: true,
+      note: 'Cliente creato automaticamente da ordine'
+    });
+    
+    await cliente.save();
+    logger.info(\`✅ Cliente creato automaticamente: \${codiceCliente} - \${nomeCliente}\`);
+    
+    return cliente._id;
+    
+  } catch (error) {
+    logger.error('⚠️ Errore creazione cliente automatico:', error);
+    // Non bloccare la creazione dell'ordine se fallisce
+    return null;
+  }
+};
 
 // GET /api/ordini - Ottieni tutti gli ordini
 router.get('/', async (req, res) => {
@@ -41,7 +111,7 @@ router.get('/', async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
     
-    logger.info(`✅ Recuperati ${ordini.length} ordini`);
+    logger.info(\`✅ Recuperati \${ordini.length} ordini\`);
     
     res.json({
       success: true,
@@ -85,7 +155,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/ordini - Crea nuovo ordine (CON VERIFICA LIMITI E FORCE OVERRIDE)
+// POST /api/ordini - Crea nuovo ordine (CON CREAZIONE AUTOMATICA CLIENTE)
 router.post('/', async (req, res, next) => {
   try {
     logger.info('📥 Ricevuta richiesta creazione ordine');
@@ -97,16 +167,13 @@ router.post('/', async (req, res, next) => {
       forceOverride: ordineData.forceOverride,
       dataRitiro: ordineData.dataRitiro,
       prodotti: ordineData.prodotti?.length || 0,
-      cliente: ordineData.nomeCliente
+      nomeCliente: ordineData.nomeCliente,
+      telefono: ordineData.telefono
     }, null, 2));
     
     // ✅ VERIFICA LIMITI SOLO SE NON È UN FORCE OVERRIDE
     if (ordineData.dataRitiro && ordineData.prodotti && ordineData.prodotti.length > 0) {
       
-      // ✅ LOG DEBUG
-      console.log('🎯 forceOverride =', ordineData.forceOverride, 'tipo:', typeof ordineData.forceOverride);
-      
-      // ✅ VERIFICA PIÙ ROBUSTA (gestisce sia boolean che string)
       const skipVerificaLimiti = ordineData.forceOverride === true || ordineData.forceOverride === 'true';
       
       if (!skipVerificaLimiti) {
@@ -134,15 +201,28 @@ router.post('/', async (req, res, next) => {
           logger.warn('⚠️ Errore verifica limiti (continuo comunque):', limiteError.message);
         }
       } else {
-        // ✅ OVERRIDE FORZATO: Logga ma continua
         logger.warn('⚠️ Ordine creato con FORCE OVERRIDE (limiti ignorati)');
         console.log('✅ SKIP VERIFICA LIMITI - forceOverride attivo');
       }
     }
     
-    // Verifica cliente
+    // ✅✅ NUOVO 21/11/2025: Crea cliente automaticamente se non esiste
     let clienteId = null;
-    if (ordineData.cliente) {
+    
+    // Se NON c'è cliente ID ma ci sono nome e telefono, crea cliente
+    if (!ordineData.cliente && ordineData.nomeCliente && ordineData.telefono) {
+      clienteId = await creaClienteAutomatico(
+        ordineData.nomeCliente,
+        ordineData.telefono
+      );
+      
+      if (clienteId) {
+        logger.info(\`🔗 Cliente collegato all'ordine: \${clienteId}\`);
+      }
+    }
+    
+    // Verifica cliente esistente (se già c'era un ID)
+    if (!clienteId && ordineData.cliente) {
       if (typeof ordineData.cliente === 'string') {
         clienteId = ordineData.cliente;
       } else if (ordineData.cliente._id) {
@@ -152,7 +232,7 @@ router.post('/', async (req, res, next) => {
       if (clienteId) {
         const clienteEsiste = await Cliente.findById(clienteId);
         if (!clienteEsiste) {
-          logger.warn(`⚠️ Cliente non trovato: ${clienteId}`);
+          logger.warn(\`⚠️ Cliente non trovato: \${clienteId}\`);
           clienteId = null;
         }
       }
@@ -164,7 +244,7 @@ router.post('/', async (req, res, next) => {
     const nuovoOrdineData = {
       ...ordineDataPulito,
       cliente: clienteId,
-      numeroOrdine: `ORD${Date.now().toString().slice(-8)}`,
+      numeroOrdine: \`ORD\${Date.now().toString().slice(-8)}\`,
       stato: ordineData.stato || 'nuovo',
       totale: ordineData.totale || 0,
       createdAt: new Date(),
@@ -175,13 +255,13 @@ router.post('/', async (req, res, next) => {
     const nuovoOrdine = new Ordine(nuovoOrdineData);
     await nuovoOrdine.save();
     
-    logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - €${nuovoOrdine.totale}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
+    logger.info(\`✅ Ordine creato: \${nuovoOrdine.numeroOrdine} - €\${nuovoOrdine.totale}\${forceOverride ? ' (FORCE OVERRIDE)' : ''}\`);
     
     // ✅ AGGIORNA CONTATORI LIMITI DOPO SALVATAGGIO
     if (nuovoOrdine.dataRitiro && nuovoOrdine.prodotti && nuovoOrdine.prodotti.length > 0) {
       try {
         await LimiteGiornaliero.aggiornaDopoOrdine(nuovoOrdine.dataRitiro, nuovoOrdine.prodotti);
-        logger.info(`📊 Limiti aggiornati per ordine ${nuovoOrdine._id}`);
+        logger.info(\`📊 Limiti aggiornati per ordine \${nuovoOrdine._id}\`);
       } catch (aggiornaError) {
         logger.error('⚠️ Errore aggiornamento limiti:', aggiornaError.message);
       }
@@ -221,7 +301,7 @@ router.post('/', async (req, res, next) => {
   });
 });
 
-// PUT /api/ordini/:id - Aggiorna ordine (CON VERIFICA LIMITI E FORCE OVERRIDE)
+// PUT /api/ordini/:id - Aggiorna ordine (CON CREAZIONE AUTOMATICA CLIENTE)
 router.put('/:id', async (req, res) => {
   try {
     const ordineData = req.body;
@@ -285,9 +365,22 @@ router.put('/:id', async (req, res) => {
       logger.warn('⚠️ Ordine aggiornato con FORCE OVERRIDE (limiti ignorati)');
     }
     
-    // Gestisci cliente
+    // ✅✅ NUOVO 21/11/2025: Crea cliente anche su update
     let clienteId = null;
-    if (ordineData.cliente) {
+    
+    if (!ordineData.cliente && ordineData.nomeCliente && ordineData.telefono) {
+      clienteId = await creaClienteAutomatico(
+        ordineData.nomeCliente,
+        ordineData.telefono
+      );
+      
+      if (clienteId) {
+        logger.info(\`🔗 Cliente collegato all'ordine (update): \${clienteId}\`);
+      }
+    }
+    
+    // Gestisci cliente esistente
+    if (!clienteId && ordineData.cliente) {
       if (typeof ordineData.cliente === 'string') {
         clienteId = ordineData.cliente;
       } else if (ordineData.cliente._id) {
@@ -315,7 +408,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    logger.info(`✅ Ordine aggiornato: ${ordineAggiornato.numeroOrdine}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
+    logger.info(\`✅ Ordine aggiornato: \${ordineAggiornato.numeroOrdine}\${forceOverride ? ' (FORCE OVERRIDE)' : ''}\`);
     
     // Notifica WebSocket
     if (global.io) {
@@ -364,7 +457,7 @@ router.delete('/:id', async (req, res) => {
             categoria: p.categoria
           }))
         );
-        logger.info(`📊 Limiti ripristinati dopo eliminazione ordine ${ordine._id}`);
+        logger.info(\`📊 Limiti ripristinati dopo eliminazione ordine \${ordine._id}\`);
       } catch (limiteError) {
         logger.error('⚠️ Errore ripristino limiti:', limiteError.message);
       }
@@ -372,7 +465,7 @@ router.delete('/:id', async (req, res) => {
     
     await ordine.deleteOne();
     
-    logger.info(`🗑️ Ordine eliminato: ${ordine.numeroOrdine}`);
+    logger.info(\`🗑️ Ordine eliminato: \${ordine.numeroOrdine}\`);
     
     // Notifica WebSocket
     if (global.io) {
