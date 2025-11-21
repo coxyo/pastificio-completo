@@ -847,6 +847,7 @@ Pastificio Nonna Claudia`;
       </DialogContent>
     </Dialog>
 
+
     </Paper>
   );
 };
@@ -865,5 +866,6 @@ const calcolaTotale = (ordine) => {
     return totale + (parseFloat(prodotto.prezzo) || 0);
   }, 0).toFixed(2);
 };
+
 
 export default OrdiniList;
