@@ -154,6 +154,7 @@ const OrdiniList = ({
         throw new Error('Errore aggiornamento stato prodotto');
       }
 
+      // ✅ FIX: Aggiorna localStorage senza reload
       const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
       const ordiniAggiornati = ordiniLocal.map(o => {
         if (o._id === ordineId && o.prodotti[indiceProdotto]) {
@@ -168,11 +169,18 @@ const OrdiniList = ({
       });
       localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
       
-      window.location.reload();
+      // ✅ Trigger refresh tramite onEdit invece di reload
+      if (onEdit) {
+        const ordineAggiornato = ordiniAggiornati.find(o => o._id === ordineId);
+        if (ordineAggiornato) {
+          onEdit(ordineAggiornato);
+        }
+      }
       
     } catch (error) {
       console.error('Errore aggiornamento stato prodotto:', error);
       
+      // ✅ Fallback: aggiorna solo localStorage
       const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
       const ordiniAggiornati = ordiniLocal.map(o => {
         if (o._id === ordineId && o.prodotti[indiceProdotto]) {
@@ -186,7 +194,13 @@ const OrdiniList = ({
         return o;
       });
       localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-      window.location.reload();
+      
+      if (onEdit) {
+        const ordineAggiornato = ordiniAggiornati.find(o => o._id === ordineId);
+        if (ordineAggiornato) {
+          onEdit(ordineAggiornato);
+        }
+      }
     }
   };
 
@@ -203,6 +217,14 @@ const OrdiniList = ({
       aggiornaStatoProdotto(ordineId, indiceProdotto, 'completato');
     } else {
       aggiornaStatoProdotto(ordineId, indiceProdotto, 'in_lavorazione');
+    }
+  };
+
+  const handleConsegnato = (ordineId, indiceProdotto, isChecked) => {
+    if (isChecked) {
+      aggiornaStatoProdotto(ordineId, indiceProdotto, 'consegnato');
+    } else {
+      aggiornaStatoProdotto(ordineId, indiceProdotto, 'completato');
     }
   };
 
@@ -511,7 +533,7 @@ Pastificio Nonna Claudia`;
                       <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>PRODOTTO</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '70px' }}>Q.TÀ</TableCell>
                       <TableCell align="right" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '60px' }}>€</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '70px' }}>L/F</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '90px' }}>L/F/C</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '30px' }}>+</TableCell>
                       <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>NOTE</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '90px' }}>AZIONI</TableCell>
@@ -523,6 +545,7 @@ Pastificio Nonna Claudia`;
                       
                       const isInLavorazione = prodotto.statoProduzione === 'in_lavorazione';
                       const isFatto = prodotto.statoProduzione === 'completato';
+                      const isConsegnato = prodotto.statoProduzione === 'consegnato';
                       
                       const quantita = prodotto.quantita || 0;
                       const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
@@ -544,8 +567,10 @@ Pastificio Nonna Claudia`;
                         <TableRow 
                           key={`${ordine._id}-${idx}`}
                           sx={{
-                            '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' },
-                            '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' }
+                            '&:nth-of-type(odd)': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)' },
+                            '&:hover': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)' },
+                            opacity: isConsegnato ? 0.6 : 1,
+                            textDecoration: isConsegnato ? 'line-through' : 'none'
                           }}
                         >
                           <TableCell sx={{ p: 0.5 }}>
@@ -583,73 +608,58 @@ Pastificio Nonna Claudia`;
                             </Typography>
                           </TableCell>
                           
-                          {/* ✅ FIX: Disabilita L/F quando count > 1 */}
+                          {/* ✅ FIX 22/11/2025: L/F/C sempre attivi + Consegnato */}
                           <TableCell align="center" sx={{ p: 0.5 }}>
-                            {count > 1 ? (
-                              <Tooltip title="Ordine raggruppato - modifica singolarmente">
-                                <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
-                                  <Chip
-                                    label="L"
-                                    size="small"
-                                    disabled
-                                    sx={{ 
-                                      minWidth: '28px',
-                                      fontSize: '0.65rem',
-                                      height: '20px',
-                                      '& .MuiChip-label': { px: 0.5 },
-                                      opacity: 0.5
-                                    }}
-                                  />
-                                  <Chip
-                                    label="F"
-                                    size="small"
-                                    disabled
-                                    sx={{ 
-                                      minWidth: '28px',
-                                      fontSize: '0.65rem',
-                                      height: '20px',
-                                      '& .MuiChip-label': { px: 0.5 },
-                                      opacity: 0.5
-                                    }}
-                                  />
-                                </Box>
+                            <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
+                              <Tooltip title={count > 1 ? "In Lavorazione (gruppo)" : "In Lavorazione"}>
+                                <Chip
+                                  label="L"
+                                  size="small"
+                                  color={isInLavorazione ? 'warning' : 'default'}
+                                  variant={isInLavorazione ? 'filled' : 'outlined'}
+                                  onClick={() => handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione)}
+                                  sx={{ 
+                                    cursor: 'pointer', 
+                                    minWidth: '24px',
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 }
+                                  }}
+                                />
                               </Tooltip>
-                            ) : (
-                              <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
-                                <Tooltip title="In Lavorazione">
-                                  <Chip
-                                    label="L"
-                                    size="small"
-                                    color={isInLavorazione ? 'warning' : 'default'}
-                                    variant={isInLavorazione ? 'filled' : 'outlined'}
-                                    onClick={() => handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione)}
-                                    sx={{ 
-                                      cursor: 'pointer', 
-                                      minWidth: '28px',
-                                      fontSize: '0.65rem',
-                                      height: '20px',
-                                      '& .MuiChip-label': { px: 0.5 }
-                                    }}
-                                  />
-                                </Tooltip>
-                                <Tooltip title="Fatto">
-                                  <Chip
-                                    label="F"
-                                    size="small"
-                                    color={isFatto ? 'success' : 'default'}
-                                    variant={isFatto ? 'filled' : 'outlined'}
-                                    onClick={() => handleFatto(ordine._id, indiceProdotto, !isFatto)}
-                                    sx={{ 
-                                      cursor: 'pointer', 
-                                      minWidth: '28px',
-                                      fontSize: '0.65rem',
-                                      height: '20px',
-                                      '& .MuiChip-label': { px: 0.5 }
-                                    }}
-                                  />
-                                </Tooltip>
-                              </Box>
-                            )}
+                              <Tooltip title={count > 1 ? "Fatto (gruppo)" : "Fatto"}>
+                                <Chip
+                                  label="F"
+                                  size="small"
+                                  color={isFatto ? 'success' : 'default'}
+                                  variant={isFatto ? 'filled' : 'outlined'}
+                                  onClick={() => handleFatto(ordine._id, indiceProdotto, !isFatto)}
+                                  sx={{ 
+                                    cursor: 'pointer', 
+                                    minWidth: '24px',
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 }
+                                  }}
+                                />
+                              </Tooltip>
+                              <Tooltip title={count > 1 ? "Consegnato (gruppo)" : "Consegnato"}>
+                                <Chip
+                                  label="C"
+                                  size="small"
+                                  color={isConsegnato ? 'error' : 'default'}
+                                  variant={isConsegnato ? 'filled' : 'outlined'}
+                                  onClick={() => handleConsegnato(ordine._id, indiceProdotto, !isConsegnato)}
+                                  sx={{ 
+                                    cursor: 'pointer', 
+                                    minWidth: '24px',
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 }
+                                  }}
+                                />
+                              </Tooltip>
+                            </Box>
                           </TableCell>
                           
                           <TableCell align="center" sx={{ p: 0.5 }}>
