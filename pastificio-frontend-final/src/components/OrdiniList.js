@@ -609,15 +609,15 @@ Pastificio Nonna Claudia`;
                           </TableCell>
                           
                           {/* ✅ FIX 22/11/2025: L/F/C sempre attivi + Consegnato */}
-                          <TableCell align="center" sx={{ p: 0.5 }}>
-                            <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
+                          <TableCell align="center" sx={{ p: 0.5, pointerEvents: 'none' }}>
+                            <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center', pointerEvents: 'none' }}>
                               <Tooltip title={count > 1 ? "In Lavorazione (gruppo)" : "In Lavorazione"}>
                                 <Box 
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
                                   }}
-                                  sx={{ display: 'inline-block' }}
+                                  sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
                                   <Chip
                                     label="L"
@@ -634,7 +634,8 @@ Pastificio Nonna Claudia`;
                                       minWidth: '24px',
                                       fontSize: '0.6rem',
                                       height: '18px',
-                                      '& .MuiChip-label': { px: 0.4 }
+                                      '& .MuiChip-label': { px: 0.4 },
+                                      pointerEvents: 'auto'
                                     }}
                                   />
                                 </Box>
@@ -645,7 +646,7 @@ Pastificio Nonna Claudia`;
                                     e.stopPropagation();
                                     e.preventDefault();
                                   }}
-                                  sx={{ display: 'inline-block' }}
+                                  sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
                                   <Chip
                                     label="F"
@@ -662,7 +663,8 @@ Pastificio Nonna Claudia`;
                                       minWidth: '24px',
                                       fontSize: '0.6rem',
                                       height: '18px',
-                                      '& .MuiChip-label': { px: 0.4 }
+                                      '& .MuiChip-label': { px: 0.4 },
+                                      pointerEvents: 'auto'
                                     }}
                                   />
                                 </Box>
@@ -673,7 +675,7 @@ Pastificio Nonna Claudia`;
                                     e.stopPropagation();
                                     e.preventDefault();
                                   }}
-                                  sx={{ display: 'inline-block' }}
+                                  sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
                                   <Chip
                                     label="C"
@@ -690,7 +692,8 @@ Pastificio Nonna Claudia`;
                                       minWidth: '24px',
                                       fontSize: '0.6rem',
                                       height: '18px',
-                                      '& .MuiChip-label': { px: 0.4 }
+                                      '& .MuiChip-label': { px: 0.4 },
+                                      pointerEvents: 'auto'
                                     }}
                                   />
                                 </Box>
@@ -720,15 +723,32 @@ Pastificio Nonna Claudia`;
                             </Box>
                           </TableCell>
                           
-                          <TableCell align="center" sx={{ p: 0.5 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                              <IconButton onClick={(e) => { e.stopPropagation(); onEdit(ordine); }} size="small" color="primary" title="Modifica" sx={{ p: 0.25 }}>
+                          <TableCell align="center" sx={{ p: 0.5, pointerEvents: 'none' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+                              <IconButton 
+                                onClick={(e) => { e.stopPropagation(); onEdit(ordine); }} 
+                                size="small" 
+                                color="primary" 
+                                title="Modifica" 
+                                sx={{ p: 0.25, pointerEvents: 'auto' }}
+                              >
                                 <EditIcon sx={{ fontSize: '0.9rem' }} />
                               </IconButton>
-                              <IconButton onClick={(e) => { e.stopPropagation(); onDelete(ordine._id); }} size="small" color="error" title="Elimina" sx={{ p: 0.25 }}>
+                              <IconButton 
+                                onClick={(e) => { e.stopPropagation(); onDelete(ordine._id); }} 
+                                size="small" 
+                                color="error" 
+                                title="Elimina" 
+                                sx={{ p: 0.25, pointerEvents: 'auto' }}
+                              >
                                 <DeleteIcon sx={{ fontSize: '0.9rem' }} />
                               </IconButton>
-                              <IconButton onClick={(e) => handleMenuOpen(e, ordine)} size="small" title="Menu" sx={{ p: 0.25 }}>
+                              <IconButton 
+                                onClick={(e) => handleMenuOpen(e, ordine)} 
+                                size="small" 
+                                title="Menu" 
+                                sx={{ p: 0.25, pointerEvents: 'auto' }}
+                              >
                                 <MoreVertIcon sx={{ fontSize: '0.9rem' }} />
                               </IconButton>
                             </Box>
@@ -876,8 +896,8 @@ Pastificio Nonna Claudia`;
                     </TableCell>
                     
                     {/* ✅ FIX 22/11/2025: L/F/C sempre attivi anche in schermo intero */}
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                    <TableCell align="center" sx={{ pointerEvents: 'none' }}>
+                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', pointerEvents: 'none' }}>
                         <Chip
                           label="L"
                           color={isInLavorazione ? 'warning' : 'default'}
@@ -887,7 +907,7 @@ Pastificio Nonna Claudia`;
                             e.preventDefault();
                             handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
                           }}
-                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
                         <Chip
                           label="F"
@@ -898,7 +918,7 @@ Pastificio Nonna Claudia`;
                             e.preventDefault();
                             handleFatto(ordine._id, indiceProdotto, !isFatto);
                           }}
-                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
                         <Chip
                           label="C"
@@ -909,7 +929,7 @@ Pastificio Nonna Claudia`;
                             e.preventDefault();
                             handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
                           }}
-                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
                       </Box>
                     </TableCell>
