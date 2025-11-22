@@ -620,12 +620,11 @@ Pastificio Nonna Claudia`;
                                   sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
                                   <Chip
-                                    label="L"
-                                    size="small"
-                                    data-no-edit="true"
-                                    color={isInLavorazione ? 'warning' : 'default'}
-                                    variant={isInLavorazione ? 'filled' : 'outlined'}
-                                    onClick={(e) => {
+  label="L"
+  data-no-edit="true"
+  color={isInLavorazione ? 'warning' : 'default'}
+  variant={isInLavorazione ? 'filled' : 'outlined'}
+  onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
                                       handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
@@ -650,12 +649,11 @@ Pastificio Nonna Claudia`;
                                   sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
                                   <Chip
-                                    label="F"
-                                    size="small"
-                                    data-no-edit="true"
-                                    color={isFatto ? 'success' : 'default'}
-                                    variant={isFatto ? 'filled' : 'outlined'}
-                                    onClick={(e) => {
+  label="F"
+  data-no-edit="true"
+  color={isFatto ? 'success' : 'default'}
+  variant={isFatto ? 'filled' : 'outlined'}
+ onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
                                       handleFatto(ordine._id, indiceProdotto, !isFatto);
@@ -679,12 +677,11 @@ Pastificio Nonna Claudia`;
                                   }}
                                   sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
-                                  <Chip
-                                    label="C"
-                                    size="small"
-                                    data-no-edit="true"
-                                    color={isConsegnato ? 'error' : 'default'}
-                                    variant={isConsegnato ? 'filled' : 'outlined'}
+                                 <Chip
+  label="C"
+  data-no-edit="true"
+  color={isConsegnato ? 'error' : 'default'}
+  variant={isConsegnato ? 'filled' : 'outlined'}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
