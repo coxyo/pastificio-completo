@@ -622,6 +622,7 @@ Pastificio Nonna Claudia`;
                                   <Chip
                                     label="L"
                                     size="small"
+                                    data-no-edit="true"
                                     color={isInLavorazione ? 'warning' : 'default'}
                                     variant={isInLavorazione ? 'filled' : 'outlined'}
                                     onClick={(e) => {
@@ -651,6 +652,7 @@ Pastificio Nonna Claudia`;
                                   <Chip
                                     label="F"
                                     size="small"
+                                    data-no-edit="true"
                                     color={isFatto ? 'success' : 'default'}
                                     variant={isFatto ? 'filled' : 'outlined'}
                                     onClick={(e) => {
@@ -680,6 +682,7 @@ Pastificio Nonna Claudia`;
                                   <Chip
                                     label="C"
                                     size="small"
+                                    data-no-edit="true"
                                     color={isConsegnato ? 'error' : 'default'}
                                     variant={isConsegnato ? 'filled' : 'outlined'}
                                     onClick={(e) => {
@@ -900,6 +903,7 @@ Pastificio Nonna Claudia`;
                       <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', pointerEvents: 'none' }}>
                         <Chip
                           label="L"
+                          data-no-edit="true"
                           color={isInLavorazione ? 'warning' : 'default'}
                           variant={isInLavorazione ? 'filled' : 'outlined'}
                           onClick={(e) => {
@@ -910,8 +914,9 @@ Pastificio Nonna Claudia`;
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
                         <Chip
-                          label="F"
-                          color={isFatto ? 'success' : 'default'}
+                        label="F"
+                        data-no-edit="true"
+                        color={isFatto ? 'success' : 'default'}
                           variant={isFatto ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -921,8 +926,9 @@ Pastificio Nonna Claudia`;
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
                         <Chip
-                          label="C"
-                          color={isConsegnato ? 'error' : 'default'}
+                        label="C"
+                        data-no-edit="true"
+                        color={isConsegnato ? 'error' : 'default'}
                           variant={isConsegnato ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
