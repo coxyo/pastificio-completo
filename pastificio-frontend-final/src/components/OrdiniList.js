@@ -612,61 +612,88 @@ Pastificio Nonna Claudia`;
                           <TableCell align="center" sx={{ p: 0.5 }}>
                             <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
                               <Tooltip title={count > 1 ? "In Lavorazione (gruppo)" : "In Lavorazione"}>
-                                <Chip
-                                  label="L"
-                                  size="small"
-                                  color={isInLavorazione ? 'warning' : 'default'}
-                                  variant={isInLavorazione ? 'filled' : 'outlined'}
+                                <Box 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
+                                    e.preventDefault();
                                   }}
-                                  sx={{ 
-                                    cursor: 'pointer', 
-                                    minWidth: '24px',
-                                    fontSize: '0.6rem',
-                                    height: '18px',
-                                    '& .MuiChip-label': { px: 0.4 }
-                                  }}
-                                />
+                                  sx={{ display: 'inline-block' }}
+                                >
+                                  <Chip
+                                    label="L"
+                                    size="small"
+                                    color={isInLavorazione ? 'warning' : 'default'}
+                                    variant={isInLavorazione ? 'filled' : 'outlined'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
+                                    }}
+                                    sx={{ 
+                                      cursor: 'pointer', 
+                                      minWidth: '24px',
+                                      fontSize: '0.6rem',
+                                      height: '18px',
+                                      '& .MuiChip-label': { px: 0.4 }
+                                    }}
+                                  />
+                                </Box>
                               </Tooltip>
                               <Tooltip title={count > 1 ? "Fatto (gruppo)" : "Fatto"}>
-                                <Chip
-                                  label="F"
-                                  size="small"
-                                  color={isFatto ? 'success' : 'default'}
-                                  variant={isFatto ? 'filled' : 'outlined'}
+                                <Box 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleFatto(ordine._id, indiceProdotto, !isFatto);
+                                    e.preventDefault();
                                   }}
-                                  sx={{ 
-                                    cursor: 'pointer', 
-                                    minWidth: '24px',
-                                    fontSize: '0.6rem',
-                                    height: '18px',
-                                    '& .MuiChip-label': { px: 0.4 }
-                                  }}
-                                />
+                                  sx={{ display: 'inline-block' }}
+                                >
+                                  <Chip
+                                    label="F"
+                                    size="small"
+                                    color={isFatto ? 'success' : 'default'}
+                                    variant={isFatto ? 'filled' : 'outlined'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      handleFatto(ordine._id, indiceProdotto, !isFatto);
+                                    }}
+                                    sx={{ 
+                                      cursor: 'pointer', 
+                                      minWidth: '24px',
+                                      fontSize: '0.6rem',
+                                      height: '18px',
+                                      '& .MuiChip-label': { px: 0.4 }
+                                    }}
+                                  />
+                                </Box>
                               </Tooltip>
                               <Tooltip title={count > 1 ? "Consegnato (gruppo)" : "Consegnato"}>
-                                <Chip
-                                  label="C"
-                                  size="small"
-                                  color={isConsegnato ? 'error' : 'default'}
-                                  variant={isConsegnato ? 'filled' : 'outlined'}
+                                <Box 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
+                                    e.preventDefault();
                                   }}
-                                  sx={{ 
-                                    cursor: 'pointer', 
-                                    minWidth: '24px',
-                                    fontSize: '0.6rem',
-                                    height: '18px',
-                                    '& .MuiChip-label': { px: 0.4 }
-                                  }}
-                                />
+                                  sx={{ display: 'inline-block' }}
+                                >
+                                  <Chip
+                                    label="C"
+                                    size="small"
+                                    color={isConsegnato ? 'error' : 'default'}
+                                    variant={isConsegnato ? 'filled' : 'outlined'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
+                                    }}
+                                    sx={{ 
+                                      cursor: 'pointer', 
+                                      minWidth: '24px',
+                                      fontSize: '0.6rem',
+                                      height: '18px',
+                                      '& .MuiChip-label': { px: 0.4 }
+                                    }}
+                                  />
+                                </Box>
                               </Tooltip>
                             </Box>
                           </TableCell>
@@ -695,10 +722,10 @@ Pastificio Nonna Claudia`;
                           
                           <TableCell align="center" sx={{ p: 0.5 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                              <IconButton onClick={() => onEdit(ordine)} size="small" color="primary" title="Modifica" sx={{ p: 0.25 }}>
+                              <IconButton onClick={(e) => { e.stopPropagation(); onEdit(ordine); }} size="small" color="primary" title="Modifica" sx={{ p: 0.25 }}>
                                 <EditIcon sx={{ fontSize: '0.9rem' }} />
                               </IconButton>
-                              <IconButton onClick={() => onDelete(ordine._id)} size="small" color="error" title="Elimina" sx={{ p: 0.25 }}>
+                              <IconButton onClick={(e) => { e.stopPropagation(); onDelete(ordine._id); }} size="small" color="error" title="Elimina" sx={{ p: 0.25 }}>
                                 <DeleteIcon sx={{ fontSize: '0.9rem' }} />
                               </IconButton>
                               <IconButton onClick={(e) => handleMenuOpen(e, ordine)} size="small" title="Menu" sx={{ p: 0.25 }}>
@@ -857,6 +884,7 @@ Pastificio Nonna Claudia`;
                           variant={isInLavorazione ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
                           }}
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
@@ -867,6 +895,7 @@ Pastificio Nonna Claudia`;
                           variant={isFatto ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             handleFatto(ordine._id, indiceProdotto, !isFatto);
                           }}
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
@@ -877,6 +906,7 @@ Pastificio Nonna Claudia`;
                           variant={isConsegnato ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
                           }}
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
