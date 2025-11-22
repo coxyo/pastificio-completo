@@ -617,7 +617,10 @@ Pastificio Nonna Claudia`;
                                   size="small"
                                   color={isInLavorazione ? 'warning' : 'default'}
                                   variant={isInLavorazione ? 'filled' : 'outlined'}
-                                  onClick={() => handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
+                                  }}
                                   sx={{ 
                                     cursor: 'pointer', 
                                     minWidth: '24px',
@@ -633,7 +636,10 @@ Pastificio Nonna Claudia`;
                                   size="small"
                                   color={isFatto ? 'success' : 'default'}
                                   variant={isFatto ? 'filled' : 'outlined'}
-                                  onClick={() => handleFatto(ordine._id, indiceProdotto, !isFatto)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFatto(ordine._id, indiceProdotto, !isFatto);
+                                  }}
                                   sx={{ 
                                     cursor: 'pointer', 
                                     minWidth: '24px',
@@ -649,7 +655,10 @@ Pastificio Nonna Claudia`;
                                   size="small"
                                   color={isConsegnato ? 'error' : 'default'}
                                   variant={isConsegnato ? 'filled' : 'outlined'}
-                                  onClick={() => handleConsegnato(ordine._id, indiceProdotto, !isConsegnato)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
+                                  }}
                                   sx={{ 
                                     cursor: 'pointer', 
                                     minWidth: '24px',
@@ -795,6 +804,7 @@ Pastificio Nonna Claudia`;
                 
                 const isInLavorazione = prodotto.statoProduzione === 'in_lavorazione';
                 const isFatto = prodotto.statoProduzione === 'completato';
+                const isConsegnato = prodotto.statoProduzione === 'consegnato';
                 
                 const quantita = prodotto.quantita || 0;
                 const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
@@ -813,8 +823,10 @@ Pastificio Nonna Claudia`;
                 
                 return (
                   <TableRow key={idx} sx={{ 
-                    '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' },
-                    height: '60px'
+                    '&:nth-of-type(odd)': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)' },
+                    height: '60px',
+                    opacity: isConsegnato ? 0.6 : 1,
+                    textDecoration: isConsegnato ? 'line-through' : 'none'
                   }}>
                     <TableCell sx={{ fontSize: '1rem' }}>{ordine.oraRitiro || '-'}</TableCell>
                     <TableCell sx={{ fontSize: '1rem', fontWeight: 'medium' }}>{nomeCliente}</TableCell>
@@ -836,47 +848,40 @@ Pastificio Nonna Claudia`;
                       €{(prezzoTotale || 0).toFixed(2)}
                     </TableCell>
                     
-                    {/* ✅ FIX: Disabilita L/F nel dialog quando count > 1 */}
+                    {/* ✅ FIX 22/11/2025: L/F/C sempre attivi anche in schermo intero */}
                     <TableCell align="center">
-                      {count > 1 ? (
-                        <Tooltip title="Ordine raggruppato - modifica singolarmente">
-                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                            <Chip
-                              label="L"
-                              disabled
-                              sx={{ fontSize: '1rem', minWidth: '40px', height: '32px', opacity: 0.5 }}
-                            />
-                            <Chip
-                              label="F"
-                              disabled
-                              sx={{ fontSize: '1rem', minWidth: '40px', height: '32px', opacity: 0.5 }}
-                            />
-                          </Box>
-                        </Tooltip>
-                      ) : (
-                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                          <Chip
-                            label="L"
-                            color={isInLavorazione ? 'warning' : 'default'}
-                            variant={isInLavorazione ? 'filled' : 'outlined'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
-                            }}
-                            sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
-                          />
-                          <Chip
-                            label="F"
-                            color={isFatto ? 'success' : 'default'}
-                            variant={isFatto ? 'filled' : 'outlined'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleFatto(ordine._id, indiceProdotto, !isFatto);
-                            }}
-                            sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
-                          />
-                        </Box>
-                      )}
+                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                        <Chip
+                          label="L"
+                          color={isInLavorazione ? 'warning' : 'default'}
+                          variant={isInLavorazione ? 'filled' : 'outlined'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
+                          }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
+                        />
+                        <Chip
+                          label="F"
+                          color={isFatto ? 'success' : 'default'}
+                          variant={isFatto ? 'filled' : 'outlined'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFatto(ordine._id, indiceProdotto, !isFatto);
+                          }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
+                        />
+                        <Chip
+                          label="C"
+                          color={isConsegnato ? 'error' : 'default'}
+                          variant={isConsegnato ? 'filled' : 'outlined'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
+                          }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
+                        />
+                      </Box>
                     </TableCell>
                     <TableCell sx={{ fontSize: '0.9rem' }}>
                       {daViaggio && <Chip label="VIAGGIO" size="small" color="warning" sx={{ mr: 0.5 }} />}
