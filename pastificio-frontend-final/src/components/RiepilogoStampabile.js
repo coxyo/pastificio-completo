@@ -316,6 +316,30 @@ const abbreviaProdotto = (nome) => {
 
 };
 
+// ✅ NUOVO 22/11/2025: Normalizza nome prodotto per totali
+// Raggruppa varianti dello stesso prodotto (es. tutte le Ciambelle insieme)
+const normalizzaNomeProdotto = (nome) => {
+  const nomeLC = nome.toLowerCase();
+  
+  // Ravioli - tutte le varianti diventano "Ravioli"
+  if (nomeLC.includes('ravioli') && !nomeLC.includes('culurgiones')) {
+    return 'Ravioli';
+  }
+  
+  // Ciambelle - tutte le varianti diventano "Ciambelle"
+  if (nomeLC.includes('ciambelle')) {
+    return 'Ciambelle';
+  }
+  
+  // Pardulas - tutte le varianti diventano "Pardulas"
+  if (nomeLC.includes('pardulas')) {
+    return 'Pardulas';
+  }
+  
+  // Altri prodotti rimangono invariati
+  return nome;
+};
+
 
 
 const getCategoriaProdotto = (nomeProdotto) => {
@@ -954,7 +978,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
             totaleKg += comp.quantita * moltiplicatore;
 
-            dettagliKg[comp.nome] = (dettagliKg[comp.nome] || 0) + comp.quantita * moltiplicatore;
+            const nomeNorm = normalizzaNomeProdotto(comp.nome);
+
+            dettagliKg[nomeNorm] = (dettagliKg[nomeNorm] || 0) + comp.quantita * moltiplicatore;
 
           } else if (comp.unita === 'Pezzi') {
 
@@ -966,13 +992,17 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
               totaleKg += kgEquivalenti;
 
-              dettagliKg[comp.nome] = (dettagliKg[comp.nome] || 0) + kgEquivalenti;
+              const nomeNorm = normalizzaNomeProdotto(comp.nome);
+
+              dettagliKg[nomeNorm] = (dettagliKg[nomeNorm] || 0) + kgEquivalenti;
 
             } else {
 
               totalePezziNonConvertibili += comp.quantita * moltiplicatore;
 
-              dettagliPezzi[comp.nome] = (dettagliPezzi[comp.nome] || 0) + comp.quantita * moltiplicatore;
+              const nomeNorm = normalizzaNomeProdotto(comp.nome);
+
+              dettagliPezzi[nomeNorm] = (dettagliPezzi[nomeNorm] || 0) + comp.quantita * moltiplicatore;
 
             }
 
@@ -984,7 +1014,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         totaleKg += prodotto.quantita * moltiplicatore;
 
-        dettagliKg[prodotto.nome] = (dettagliKg[prodotto.nome] || 0) + prodotto.quantita * moltiplicatore;
+        const nomeNorm = normalizzaNomeProdotto(prodotto.nome);
+
+        dettagliKg[nomeNorm] = (dettagliKg[nomeNorm] || 0) + prodotto.quantita * moltiplicatore;
 
       } else if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
 
@@ -998,13 +1030,17 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           totaleKg += kgEquivalenti;
 
-          dettagliKg[prodotto.nome] = (dettagliKg[prodotto.nome] || 0) + kgEquivalenti;
+          const nomeNorm = normalizzaNomeProdotto(prodotto.nome);
+
+          dettagliKg[nomeNorm] = (dettagliKg[nomeNorm] || 0) + kgEquivalenti;
 
         } else {
 
           totalePezziNonConvertibili += prodotto.quantita * moltiplicatore;
 
-          dettagliPezzi[prodotto.nome] = (dettagliPezzi[prodotto.nome] || 0) + prodotto.quantita * moltiplicatore;
+          const nomeNorm = normalizzaNomeProdotto(prodotto.nome);
+
+          dettagliPezzi[nomeNorm] = (dettagliPezzi[nomeNorm] || 0) + prodotto.quantita * moltiplicatore;
 
         }
 
