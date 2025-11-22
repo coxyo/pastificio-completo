@@ -286,7 +286,7 @@ function WhatsAppHelperComponent({ ordini }) {
   
   // ----------------------------------------------------------------
   // EFFETTO 1: Pusher Listener per Chiamate
-  // ⚠️ DISABILITATO: Ora gestito da useIncomingCall() hook
+  //⚠️ DISABILITATO: Ora gestito da useIncomingCall() hook
   // ----------------------------------------------------------------
   /* 
   useEffect(() => {
@@ -1493,7 +1493,17 @@ return (
               <OrdiniList 
                 ordini={ordini}
                 onDelete={eliminaOrdine}
-                onEdit={(ordine) => {
+                onEdit={(ordine, e) => {
+                  // ✅ FIX 22/11/2025: Blocca apertura modifica se click su L/F/C
+                  if (e && (
+                    e.target.closest('[data-no-edit="true"]') || 
+                    e.target.dataset.noEdit === 'true' ||
+                    e.target.getAttribute('data-no-edit') === 'true'
+                  )) {
+                    console.log('🛑 Click su L/F/C, blocco apertura modifica ordine');
+                    return; // NON aprire il dialog di modifica
+                  }
+                  
                   setOrdineSelezionato(ordine);
                   setDialogoNuovoOrdineAperto(true);
                 }}
