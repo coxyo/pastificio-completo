@@ -1,4 +1,4 @@
-// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE, LIMITI E CREAZIONE AUTOMATICA CLIENTE
+// routes/ordini.js - ✅ FIX 25/11/2025: Aggiunto 'consegnato' alla validazione stato prodotto
 import express from 'express';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
@@ -532,16 +532,18 @@ router.get('/statistiche/giornaliere', async (req, res) => {
 });
 
 
-// ✅ NUOVO 21/11/2025: PUT /api/ordini/:id/prodotto/:index/stato - Aggiorna stato singolo prodotto
+// ✅ FIX 25/11/2025: PUT /api/ordini/:id/prodotto/:index/stato - Aggiorna stato singolo prodotto
+// AGGIUNTO 'consegnato' alla validazione!
 router.put('/:id/prodotto/:index/stato', async (req, res) => {
   try {
     const { id, index } = req.params;
     const { stato } = req.body;
     
-    if (!stato || !['nuovo', 'in_lavorazione', 'completato'].includes(stato)) {
+    // ✅ FIX: Aggiunto 'consegnato' all'array degli stati validi
+    if (!stato || !['nuovo', 'in_lavorazione', 'completato', 'consegnato'].includes(stato)) {
       return res.status(400).json({
         success: false,
-        message: 'Stato non valido'
+        message: `Stato non valido: ${stato}. Stati validi: nuovo, in_lavorazione, completato, consegnato`
       });
     }
     
