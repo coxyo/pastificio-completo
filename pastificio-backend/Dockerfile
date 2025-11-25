@@ -1,39 +1,47 @@
-# Usa Node 20
+# ✅ Dockerfile per Pastificio Backend Railway Deployment
+# Node.js 20 Alpine (leggera e veloce)
 FROM node:20-alpine
 
-# Force rebuild - Cache invalidation 2025-10-16 06:52
-# This comment forces Docker to rebuild without cache
-
-# Installa dipendenze per Puppeteer
+# Installa dipendenze di sistema per Puppeteer e WhatsApp
 RUN apk add --no-cache \
     chromium \
     nss \
     freetype \
+    freetype-dev \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    udev \
+    dumb-init
 
-# Imposta variabili per Puppeteer
+# Configura Puppeteer per usare Chromium di sistema
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Directory di lavoro
+# Imposta working directory
 WORKDIR /app
 
 # Copia package files
 COPY package*.json ./
 
-# Installa dipendenze
-RUN npm ci --omit=dev
+# Installa dipendenze production
+RUN npm ci --omit=dev --ignore-scripts
 
-# Copia tutto il codice (force rebuild)
+# Copia il codice sorgente
 COPY . .
 
-# Crea directory per WhatsApp
-RUN mkdir -p .wwebjs_auth
+# Crea directory necessarie
+RUN mkdir -p .wwebjs_auth backups logs uploads assets/fonts assets/images sounds
 
-# Porta
+# Espone porta 3000
 EXPOSE 3000
 
-# Comando di avvio
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Usa dumb-init per gestire correttamente i segnali
+ENTRYPOINT ["dumb-init", "--"]
+
+# Avvia server
 CMD ["node", "server.js"]

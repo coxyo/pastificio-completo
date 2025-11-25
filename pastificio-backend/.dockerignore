@@ -1,0 +1,72 @@
+# ✅ .dockerignore - Escludi file non necessari dal Docker build
+
+# Node modules (verranno installati nel container)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Git
+.git
+.gitignore
+.github
+
+# Documentazione
+README.md
+docs/
+*.md
+
+# Test
+tests/
+test/
+*.test.js
+*.spec.js
+coverage/
+.nyc_output
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env.local
+.env.development
+.env.test
+*.env.backup
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Backups temporanei
+backups/*.json
+backups/*.zip
+
+# File temporanei
+tmp/
+temp/
+.tmp
+*.tmp
+
+# CI/CD
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+Jenkinsfile
+
+# Railway
+railway.toml
+railway.json
+
+# Frontend (se presente nella stessa repo)
+pastificio-frontend-final/
+
+# Build artifacts
+dist/
+build/
+.next/
+out/
