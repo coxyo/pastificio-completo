@@ -18,7 +18,7 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     enum: [
       'kg', 'Kg', 'KG', 
-      'pezzi', 'Pezzi', 'PEZZI', 
+    'pezzi', 'Pezzi', 'PEZZI', 'pz', 'Pz',  // ✅ AGGIUNTO pz
       'unità', 'Unità', 
       '€', 'EUR', 
       'g', 'G', 
@@ -31,7 +31,7 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     enum: [
       'kg', 'Kg', 'KG', 
-      'pezzi', 'Pezzi', 'PEZZI', 
+    'pezzi', 'Pezzi', 'PEZZI', 'pz', 'Pz',  // ✅ AGGIUNTO pz
       'unità', 'Unità', 
       '€', 'EUR', 
       'g', 'G', 
@@ -90,7 +90,15 @@ const prodottoSchema = new mongoose.Schema({
     trim: true,
     comment: 'Es: "ben cotte", "poco dorate", etc.'
   }
-}, { _id: false });
+,
+  
+  // ✅ NUOVO 21/11/2025: Stato produzione per singolo prodotto
+  statoProduzione: {
+    type: String,
+    enum: ['nuovo', 'in_lavorazione', 'completato', 'consegnato'],
+    default: 'nuovo',
+    comment: 'Stato di lavorazione del singolo prodotto'
+  }}, { _id: false });
 
 // ========== SCHEMA ORDINE PRINCIPALE ==========
 const ordineSchema = new mongoose.Schema({
@@ -574,6 +582,42 @@ ordineSchema.methods.hasSpecialRequirements = function() {
     hasVassoi: this.hasVassoi(),
     hasEsclusioni: this.esclusioni && this.esclusioni.length > 0
   };
+}; // ✅ FIX 25/11/2025: Chiusura corretta metodo
+
+/**
+ * ✅ NUOVO 21/11/2025: Aggiorna stato singolo prodotto
+ * @param {number} indiceProdotto - Indice del prodotto nell'array
+ * @param {string} nuovoStato - nuovo | in_lavorazione | completato | consegnato
+ */
+ordineSchema.methods.aggiornaStatoProdotto = function(indiceProdotto, nuovoStato) {
+  if (!this.prodotti[indiceProdotto]) {
+    throw new Error(`Prodotto con indice ${indiceProdotto} non trovato`);
+  }
+  
+  const statiValidi = ['nuovo', 'in_lavorazione', 'completato', 'consegnato'];
+  if (!statiValidi.includes(nuovoStato)) {
+    throw new Error(`Stato non valido: ${nuovoStato}. Stati validi: ${statiValidi.join(', ')}`);
+  }
+  
+  this.prodotti[indiceProdotto].statoProduzione = nuovoStato;
+  
+  // Aggiorna stato generale ordine in base ai prodotti
+  const tuttiCompletati = this.prodotti.every(p => p.statoProduzione === 'completato');
+  const tuttiConsegnati = this.prodotti.every(p => p.statoProduzione === 'consegnato');
+  const almenoUnoInLavorazione = this.prodotti.some(p => p.statoProduzione === 'in_lavorazione');
+  
+  if (tuttiConsegnati) {
+    this.stato = 'completato'; // Tutto consegnato = ordine completato
+  } else if (tuttiCompletati) {
+    this.stato = 'pronto'; // Tutto fatto = ordine pronto per ritiro
+  } else if (almenoUnoInLavorazione) {
+    this.stato = 'in_lavorazione';
+  } else {
+    this.stato = 'nuovo';
+  }
+  
+  console.log(`✅ Prodotto ${indiceProdotto} (${this.prodotti[indiceProdotto].nome}) → ${nuovoStato}`);
+  console.log(`📦 Stato ordine aggiornato: ${this.stato}`);
 };
 
 const Ordine = mongoose.model('Ordine', ordineSchema);

@@ -1,4 +1,4 @@
-// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE, LIMITI E FORCE OVERRIDE
+// routes/ordini.js - ✅ VERSIONE COMPLETA CON GIACENZE, LIMITI E CREAZIONE AUTOMATICA CLIENTE
 import express from 'express';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
@@ -8,6 +8,76 @@ import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
+
+/**
+ * ✅ NUOVO 21/11/2025: Crea cliente automaticamente se non esiste
+ * @param {string} nomeCliente - Nome completo del cliente
+ * @param {string} telefono - Numero di telefono
+ * @returns {string|null} - ID del cliente creato/trovato
+ */
+const creaClienteAutomatico = async (nomeCliente, telefono) => {
+  try {
+    if (!nomeCliente || !telefono) {
+      return null;
+    }
+    
+    // Normalizza telefono (rimuovi spazi, trattini, ecc.)
+    const telefonoNorm = telefono.replace(/[\s\-\(\)]/g, '');
+    
+    // 1️⃣ Cerca cliente esistente per telefono
+    let cliente = await Cliente.findOne({ 
+      telefono: { $in: [telefono, telefonoNorm] }
+    });
+    
+    if (cliente) {
+      logger.info(`[INFO] Cliente esistente trovato: ${cliente.codiceCliente} - ${cliente.nomeCompleto}`);
+      return cliente._id;
+    }
+    
+    // 2️⃣ Cliente non esiste, crealo
+    
+    // Estrai nome e cognome (se separati da spazio)
+    const partiNome = nomeCliente.trim().split(' ');
+    const nome = partiNome[0] || '';
+    const cognome = partiNome.slice(1).join(' ') || '';
+    
+    // 3️⃣ Genera codice cliente progressivo
+    const ultimoCliente = await Cliente.findOne().sort({ codiceCliente: -1 });
+    let numeroProgressivo = 1;
+    
+    if (ultimoCliente && ultimoCliente.codiceCliente) {
+      const match = ultimoCliente.codiceCliente.match(/CL(\d+)/);
+      if (match) {
+        numeroProgressivo = parseInt(match[1]) + 1;
+      }
+    }
+    
+    const codiceCliente = `CL${numeroProgressivo.toString().padStart(6, '0')}`;
+    
+    // 4️⃣ Crea nuovo cliente
+    cliente = new Cliente({
+      nome,
+      cognome,
+      telefono: telefonoNorm,
+      email: '',
+      codiceCliente,
+      nomeCompleto: nomeCliente,
+      dataRegistrazione: new Date(),
+      attivo: true,
+      note: 'Cliente creato automaticamente da ordine'
+    });
+    
+    await cliente.save();
+    logger.info(`✅ Cliente creato automaticamente: ${codiceCliente} - ${nomeCliente}`);
+    
+    return cliente._id;
+    
+  } catch (error) {
+    logger.error('⚠️ Errore creazione cliente automatico:', error);
+    // Non bloccare la creazione dell'ordine se fallisce
+    return null;
+  }
+};
 
 // GET /api/ordini - Ottieni tutti gli ordini
 router.get('/', async (req, res) => {
@@ -85,7 +155,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/ordini - Crea nuovo ordine (CON VERIFICA LIMITI E FORCE OVERRIDE)
+// POST /api/ordini - Crea nuovo ordine (CON CREAZIONE AUTOMATICA CLIENTE)
 router.post('/', async (req, res, next) => {
   try {
     logger.info('📥 Ricevuta richiesta creazione ordine');
@@ -97,16 +167,13 @@ router.post('/', async (req, res, next) => {
       forceOverride: ordineData.forceOverride,
       dataRitiro: ordineData.dataRitiro,
       prodotti: ordineData.prodotti?.length || 0,
-      cliente: ordineData.nomeCliente
+      nomeCliente: ordineData.nomeCliente,
+      telefono: ordineData.telefono
     }, null, 2));
     
     // ✅ VERIFICA LIMITI SOLO SE NON È UN FORCE OVERRIDE
     if (ordineData.dataRitiro && ordineData.prodotti && ordineData.prodotti.length > 0) {
       
-      // ✅ LOG DEBUG
-      console.log('🎯 forceOverride =', ordineData.forceOverride, 'tipo:', typeof ordineData.forceOverride);
-      
-      // ✅ VERIFICA PIÙ ROBUSTA (gestisce sia boolean che string)
       const skipVerificaLimiti = ordineData.forceOverride === true || ordineData.forceOverride === 'true';
       
       if (!skipVerificaLimiti) {
@@ -134,15 +201,28 @@ router.post('/', async (req, res, next) => {
           logger.warn('⚠️ Errore verifica limiti (continuo comunque):', limiteError.message);
         }
       } else {
-        // ✅ OVERRIDE FORZATO: Logga ma continua
         logger.warn('⚠️ Ordine creato con FORCE OVERRIDE (limiti ignorati)');
         console.log('✅ SKIP VERIFICA LIMITI - forceOverride attivo');
       }
     }
     
-    // Verifica cliente
+    // ✅✅ NUOVO 21/11/2025: Crea cliente automaticamente se non esiste
     let clienteId = null;
-    if (ordineData.cliente) {
+    
+    // Se NON c'è cliente ID ma ci sono nome e telefono, crea cliente
+    if (!ordineData.cliente && ordineData.nomeCliente && ordineData.telefono) {
+      clienteId = await creaClienteAutomatico(
+        ordineData.nomeCliente,
+        ordineData.telefono
+      );
+      
+      if (clienteId) {
+        logger.info(`🔗 Cliente collegato all'ordine: ${clienteId}`);
+      }
+    }
+    
+    // Verifica cliente esistente (se già c'era un ID)
+    if (!clienteId && ordineData.cliente) {
       if (typeof ordineData.cliente === 'string') {
         clienteId = ordineData.cliente;
       } else if (ordineData.cliente._id) {
@@ -221,7 +301,7 @@ router.post('/', async (req, res, next) => {
   });
 });
 
-// PUT /api/ordini/:id - Aggiorna ordine (CON VERIFICA LIMITI E FORCE OVERRIDE)
+// PUT /api/ordini/:id - Aggiorna ordine (CON CREAZIONE AUTOMATICA CLIENTE)
 router.put('/:id', async (req, res) => {
   try {
     const ordineData = req.body;
@@ -285,9 +365,22 @@ router.put('/:id', async (req, res) => {
       logger.warn('⚠️ Ordine aggiornato con FORCE OVERRIDE (limiti ignorati)');
     }
     
-    // Gestisci cliente
+    // ✅✅ NUOVO 21/11/2025: Crea cliente anche su update
     let clienteId = null;
-    if (ordineData.cliente) {
+    
+    if (!ordineData.cliente && ordineData.nomeCliente && ordineData.telefono) {
+      clienteId = await creaClienteAutomatico(
+        ordineData.nomeCliente,
+        ordineData.telefono
+      );
+      
+      if (clienteId) {
+        logger.info(`🔗 Cliente collegato all'ordine (update): ${clienteId}`);
+      }
+    }
+    
+    // Gestisci cliente esistente
+    if (!clienteId && ordineData.cliente) {
       if (typeof ordineData.cliente === 'string') {
         clienteId = ordineData.cliente;
       } else if (ordineData.cliente._id) {
@@ -433,6 +526,70 @@ router.get('/statistiche/giornaliere', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Errore calcolo statistiche',
+      error: error.message
+    });
+  }
+});
+
+
+// ✅ NUOVO 21/11/2025: PUT /api/ordini/:id/prodotto/:index/stato - Aggiorna stato singolo prodotto
+router.put('/:id/prodotto/:index/stato', async (req, res) => {
+  try {
+    const { id, index } = req.params;
+    const { stato } = req.body;
+    
+    if (!stato || !['nuovo', 'in_lavorazione', 'completato'].includes(stato)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Stato non valido'
+      });
+    }
+    
+    const ordine = await Ordine.findById(id);
+    
+    if (!ordine) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ordine non trovato'
+      });
+    }
+    
+    const prodottoIndex = parseInt(index);
+    
+    if (prodottoIndex < 0 || prodottoIndex >= ordine.prodotti.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Indice prodotto non valido'
+      });
+    }
+    
+    // Aggiorna stato prodotto usando il metodo del model
+    ordine.aggiornaStatoProdotto(prodottoIndex, stato);
+    await ordine.save();
+    
+    logger.info(`✅ Stato prodotto aggiornato: Ordine ${ordine.numeroOrdine}, Prodotto ${prodottoIndex}, Stato ${stato}`);
+    
+    // Popola cliente per risposta
+    await ordine.populate('cliente', 'nome cognome telefono email codiceCliente');
+    
+    // Notifica WebSocket
+    if (global.io) {
+      global.io.emit('ordine-aggiornato', {
+        ordine: ordine,
+        timestamp: new Date()
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Stato prodotto aggiornato',
+      data: ordine
+    });
+  } catch (error) {
+    logger.error('❌ Errore aggiornamento stato prodotto:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore aggiornamento stato prodotto',
       error: error.message
     });
   }

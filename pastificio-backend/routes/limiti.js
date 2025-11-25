@@ -1,23 +1,163 @@
-// routes/limiti.js - ✅ VERSIONE SENZA PROTEZIONE PER TEST
+// routes/limiti.js - ✅ AGGIORNATO 20/11/2025 + DEBUG LOGS
 
 import express from 'express';
-// import { protect } from '../middleware/auth.js'; // ❌ COMMENTATO TEMPORANEAMENTE
+// import { protect } from '../middleware/auth.js'; // COMMENTATO TEMPORANEAMENTE
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
+import Ordine from '../models/Ordine.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// ❌ COMMENTATO TEMPORANEAMENTE PER TEST
+// COMMENTATO TEMPORANEAMENTE PER TEST
 // router.use(protect);
 
 /**
+ * ✅ NUOVA FUNZIONE: Calcola quantità ordinata per un limite (CON DEBUG)
+ */
+const calcolaOrdinatoPerLimite = async (limite) => {
+  try {
+    // Crea range data per il giorno del limite
+    const inizioGiorno = new Date(limite.data);
+    inizioGiorno.setHours(0, 0, 0, 0);
+    
+    const fineGiorno = new Date(limite.data);
+    fineGiorno.setHours(23, 59, 59, 999);
+    
+    console.log(`\n🔍 ===== CALCOLO ORDINATO =====`);
+    console.log(`📦 Prodotto/Categoria: ${limite.prodotto || limite.categoria}`);
+    console.log(`📅 Data: ${inizioGiorno.toLocaleDateString('it-IT')}`);
+    console.log(`⏰ Range: ${inizioGiorno.toISOString()} → ${fineGiorno.toISOString()}`);
+    
+    // Trova tutti gli ordini per quella data
+    const ordini = await Ordine.find({
+      dataRitiro: { $gte: inizioGiorno, $lte: fineGiorno },
+      stato: { $ne: 'annullato' } // Escludi annullati
+    });
+    
+    console.log(`📋 Ordini trovati: ${ordini.length}`);
+    
+    let totaleOrdinato = 0;
+    let contatoreMatch = 0;
+    
+    ordini.forEach((ordine, idx) => {
+      if (!ordine.prodotti) return;
+      
+      console.log(`\n  📦 Ordine ${idx + 1}/${ordini.length} - ${ordine.numeroOrdine}`);
+      
+      ordine.prodotti.forEach((prodotto, pIdx) => {
+        const nomeProdotto = prodotto.nome || prodotto.prodotto || '';
+        const quantita = parseFloat(prodotto.quantita) || 0;
+        const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
+        
+        console.log(`    ${pIdx + 1}. ${nomeProdotto} - ${quantita} ${unita}`);
+        
+        // Skip vassoi
+        if (unita === 'vassoio' || nomeProdotto === 'Vassoio Dolci Misti') {
+          console.log(`       ⏭️  Skip vassoio`);
+          return;
+        }
+        
+        // Converti in Kg se necessario
+        let quantitaKg = quantita;
+        if (unita === 'g') {
+          quantitaKg = quantita / 1000;
+          console.log(`       🔄 Conversione: ${quantita}g → ${quantitaKg}Kg`);
+        } else if (unita === 'Pezzi' || unita === 'pz') {
+          if (limite.unitaMisura === 'Pezzi') {
+            quantitaKg = quantita;
+            console.log(`       ✅ Limite in pezzi, uso diretto: ${quantitaKg}`);
+          } else {
+            quantitaKg = quantita / 30;
+            console.log(`       🔄 Conversione: ${quantita}pz → ${quantitaKg}Kg (stima)`);
+          }
+        } else if (unita === '€') {
+          const prezzoAlKg = 20;
+          quantitaKg = quantita / prezzoAlKg;
+          console.log(`       🔄 Conversione: ${quantita}€ → ${quantitaKg}Kg (stima @20€/Kg)`);
+        }
+        
+        // Verifica match con limite
+        let match = false;
+        
+        // Match per prodotto specifico
+        if (limite.prodotto) {
+          if (nomeProdotto.toLowerCase().includes(limite.prodotto.toLowerCase()) ||
+              limite.prodotto.toLowerCase().includes(nomeProdotto.toLowerCase())) {
+            match = true;
+            console.log(`       ✅ MATCH prodotto: "${limite.prodotto}"`);
+          }
+        }
+        
+        // Match per categoria
+        if (limite.categoria) {
+          const categoriaProdotto = determinaCategoria(nomeProdotto);
+          if (categoriaProdotto.toLowerCase() === limite.categoria.toLowerCase()) {
+            match = true;
+            console.log(`       ✅ MATCH categoria: "${limite.categoria}"`);
+          } else {
+            console.log(`       ❌ NO MATCH: categoria prodotto="${categoriaProdotto}" vs limite="${limite.categoria}"`);
+          }
+        }
+        
+        if (match) {
+          totaleOrdinato += quantitaKg;
+          contatoreMatch++;
+          console.log(`       ➕ Aggiunto: ${quantitaKg}Kg → Totale: ${totaleOrdinato.toFixed(2)}Kg`);
+        }
+      });
+    });
+    
+    console.log(`\n✅ RISULTATO FINALE:`);
+    console.log(`   Prodotti matchati: ${contatoreMatch}`);
+    console.log(`   Totale ordinato: ${totaleOrdinato.toFixed(2)} ${limite.unitaMisura}`);
+    console.log(`   Limite: ${limite.limiteQuantita} ${limite.unitaMisura}`);
+    console.log(`   Disponibile: ${(limite.limiteQuantita - totaleOrdinato).toFixed(2)} ${limite.unitaMisura}`);
+    console.log(`================================\n`);
+    
+    return totaleOrdinato;
+    
+  } catch (error) {
+    console.error('❌ ERRORE calcolo ordinato:', error);
+    return 0;
+  }
+};
+
+/**
+ * ✅ HELPER: Determina categoria di un prodotto
+ */
+const determinaCategoria = (nomeProdotto) => {
+  if (!nomeProdotto) return 'Altro';
+  const nome = nomeProdotto.toLowerCase();
+  
+  if (nome.includes('ravioli') || nome.includes('culurgion')) {
+    return 'Ravioli';
+  }
+  if (nome.includes('pardula')) {
+    return 'Pardulas';
+  }
+  if (nome.includes('panada') || nome.includes('panadin')) {
+    return 'Panadas';
+  }
+  if (nome.includes('amarett') || nome.includes('bianchin') || 
+      nome.includes('ciambelle') || nome.includes('sebada') ||
+      nome.includes('gueffus') || nome.includes('pabassina') ||
+      nome.includes('torta')) {
+    return 'Dolci';
+  }
+  
+  return 'Altro';
+};
+
+/**
  * @route   GET /api/limiti
- * @desc    Ottieni tutti i limiti
+ * @desc    Ottieni tutti i limiti CON calcolo dinamico ordinato
  * @access  Pubblico (temporaneamente per test)
  */
 router.get('/', async (req, res) => {
   try {
     const { data, attivo } = req.query;
+    
+    console.log(`\n🌐 GET /api/limiti - Query params:`, { data, attivo });
     
     let query = {};
     
@@ -36,14 +176,25 @@ router.get('/', async (req, res) => {
     }
     
     const limiti = await LimiteGiornaliero.find(query).sort({ data: 1, prodotto: 1 });
+    console.log(`📊 Limiti trovati in DB: ${limiti.length}`);
+    
+    // ✅ NUOVO: Calcola ordinato dinamicamente per ogni limite
+    const limitiConOrdinato = await Promise.all(
+      limiti.map(async (limite) => {
+        const limiteObj = limite.toObject();
+        limiteObj.quantitaOrdinata = await calcolaOrdinatoPerLimite(limite);
+        return limiteObj;
+      })
+    );
     
     res.json({
       success: true,
-      count: limiti.length,
-      data: limiti
+      count: limitiConOrdinato.length,
+      data: limitiConOrdinato
     });
     
   } catch (error) {
+    console.error('❌ Errore GET /limiti:', error);
     logger.error('Errore GET /limiti:', error);
     res.status(500).json({
       success: false,
