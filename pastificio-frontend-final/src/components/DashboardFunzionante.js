@@ -54,7 +54,7 @@ const DashboardFunzionante = () => {
 
   const loadDashboardData = async () => {
     try {
-      const response = await authManager.authenticatedFetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/ordini');
+      const response = await authManager.authenticatedFetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api/ordini');
       
       if (!response.ok) {
         if (response.status === 401) {

@@ -27,7 +27,7 @@ import {
   MoreVert as MoreIcon
 } from '@mui/icons-material';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 const CATEGORIE = ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Pasta', 'Altro'];
 const UNITA_MISURA = ['Kg', 'g', 'pz', 'dozzina', 'mezzo kg', '€'];

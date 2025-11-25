@@ -52,7 +52,7 @@ import { useRouter } from 'next/navigation';
 import FormCliente from './FormCliente';
 import ClickToCallButton from './ClickToCallButton'; // ✅ ATTIVATO
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 function GestioneClienti() {
   const router = useRouter();

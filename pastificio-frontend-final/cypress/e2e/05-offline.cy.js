@@ -32,3 +32,4 @@ describe('Modalità Offline', () => {
     cy.contains('Sincronizzazione').should('be.visible')
   })
 })
+

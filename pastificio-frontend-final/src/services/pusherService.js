@@ -307,7 +307,7 @@ if (typeof window !== 'undefined') {
       console.log('🧪 Test chiamata con webhook backend...');
       console.log('📞 Numero:', numero);
       
-      fetch('https://pastificio-backend-production.up.railway.app/api/webhook/chiamata-entrante', {
+      fetch('https://pastificio-completo-production.up.railway.app/api/webhook/chiamata-entrante', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'

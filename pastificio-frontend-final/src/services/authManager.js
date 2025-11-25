@@ -1,7 +1,7 @@
 // src/services/authManager.js
 class AuthManager {
   constructor() {
-    this.baseURL = 'https://pastificio-backend-production.up.railway.app/api';
+    this.baseURL = 'https://pastificio-completo-production.up.railway.app/api';
   }
 
   // Pulisce tutto e fa un login fresco

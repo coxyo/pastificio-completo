@@ -61,7 +61,7 @@ const Magazzino = () => {
     { nome: 'Etichette', categoria: 'Imballaggio' }
   ];
 
-  const API_URL = '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api';
+  const API_URL = '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api';
 
   // Funzione per ottenere il token
   const getAuthToken = () => {

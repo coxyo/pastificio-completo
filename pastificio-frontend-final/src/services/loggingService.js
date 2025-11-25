@@ -53,7 +53,7 @@ class LoggingServiceClass {
 
   async sendToServer(logEntry) {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
       
       await fetch(`${apiUrl}/api/logs`, {
         method: 'POST',

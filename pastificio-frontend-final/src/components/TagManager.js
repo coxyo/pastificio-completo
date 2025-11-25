@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Tag, Plus, Trash2 } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
 
 // Tag predefiniti con colori
 const TAGS_PREDEFINITI = [

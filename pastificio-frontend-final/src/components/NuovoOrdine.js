@@ -58,7 +58,7 @@ import VariantiProdotto, {
   CONFIGURAZIONE_VARIANTI  // ✅ NUOVO: Per opzioni extra
 } from './VariantiProdotto';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 // ✅ CACHE GLOBALE - NON MODIFICARE
 let clientiCache = null;

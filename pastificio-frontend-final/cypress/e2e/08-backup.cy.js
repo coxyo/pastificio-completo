@@ -24,3 +24,4 @@ describe('Sistema Backup', () => {
     cy.contains('Automatico').should('be.visible')
   })
 })
+

@@ -29,3 +29,4 @@ describe('Gestione Clienti', () => {
     cy.contains('Dettagli Cliente').should('be.visible')
   })
 })
+

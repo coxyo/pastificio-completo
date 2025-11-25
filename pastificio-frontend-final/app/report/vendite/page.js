@@ -9,3 +9,4 @@ export default function ReportVenditePage() {
   
   return <Report ordini={ordini} isConnected={isConnected} />;
 }
+

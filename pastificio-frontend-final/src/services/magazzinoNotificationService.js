@@ -11,7 +11,7 @@ class MagazzinoNotificationService {
   init(userId) {
     if (this.isInitialized) return;
     
-    const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
+    const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}';
     this.socket = io(`${API_URL}/magazzino`, {
       auth: {
         token: localStorage.getItem('token'),

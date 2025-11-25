@@ -76,7 +76,7 @@ export default function NotificheManager() {
       loggingService.log('info', 'Preferenze notifiche salvate dal manager', { preferenze });
       
       // Qui puoi aggiungere la chiamata API per salvare sul server
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}';
       const token = localStorage.getItem('token');
       
       if (token) {

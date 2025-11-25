@@ -33,3 +33,4 @@ const NotificheContent = dynamic(
 export default function NotifichePage() {
   return <NotificheContent />;
 }
+

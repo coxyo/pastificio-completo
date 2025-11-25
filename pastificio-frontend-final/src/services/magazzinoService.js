@@ -1,5 +1,5 @@
 // src/services/magazzinoService.js
-const API_BASE_URL = 'https://pastificio-backend-production.up.railway.app/api';
+const API_BASE_URL = 'https://pastificio-completo-production.up.railway.app/api';
 
 class MagazzinoService {
   async fetchWithAuth(url, options = {}) {

@@ -49,7 +49,7 @@ import {
   LocalOffer
 } from '@mui/icons-material';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;

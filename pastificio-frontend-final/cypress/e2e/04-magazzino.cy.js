@@ -30,3 +30,4 @@ describe('Gestione Magazzino', () => {
     cy.contains('Alert Scorte').should('be.visible')
   })
 })
+

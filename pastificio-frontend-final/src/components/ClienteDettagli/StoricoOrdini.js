@@ -41,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api';
 
 export default function StoricoOrdini({ clienteId, nomeCliente }) {
   const router = useRouter();

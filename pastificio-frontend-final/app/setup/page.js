@@ -5,3 +5,4 @@ import SetupDebug from '@/components/SetupDebug';
 export default function SetupPage() {
   return <SetupDebug />;
 }
+

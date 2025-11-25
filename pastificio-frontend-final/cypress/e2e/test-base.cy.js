@@ -5,3 +5,4 @@ describe('Test Base', () => {
     cy.get('body').should('be.visible')
   })
 })
+

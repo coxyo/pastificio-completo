@@ -55,3 +55,4 @@ Cypress.Commands.add('waitForWebSocket', () => {
   cy.window().its('webSocketService').should('exist')
   cy.window().its('webSocketService.connected').should('be.true')
 })
+

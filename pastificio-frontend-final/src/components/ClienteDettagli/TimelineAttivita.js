@@ -34,7 +34,7 @@ import {
   PersonAdd
 } from '@mui/icons-material';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api';
 
 export default function TimelineAttivita({ clienteId }) {
   const [attivita, setAttivita] = useState([]);

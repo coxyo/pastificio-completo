@@ -29,7 +29,7 @@ const SimpleDashboardMinimal = () => {
       setError(null);
       
       // Login
-      const loginRes = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/auth/login', {
+      const loginRes = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -47,7 +47,7 @@ const SimpleDashboardMinimal = () => {
       localStorage.setItem('token', loginData.token);
 
       // Carica ordini
-      const ordiniRes = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/ordini', {
+      const ordiniRes = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api/ordini', {
         headers: {
           'Authorization': `Bearer ${loginData.token}`
         }

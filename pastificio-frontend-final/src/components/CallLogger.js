@@ -36,7 +36,7 @@ import {
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 export default function CallLogger() {
   const [chiamate, setChiamate] = useState([]);

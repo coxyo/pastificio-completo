@@ -54,7 +54,7 @@ import useIncomingCall from '@/hooks/useIncomingCall';  // ✅ AGGIUNTO
 import StoricoChiamate from './StoricoChiamate';
 import StatisticheChiamate from './StatisticheChiamate';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
 

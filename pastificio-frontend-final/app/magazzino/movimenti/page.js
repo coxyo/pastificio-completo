@@ -43,3 +43,4 @@ const MovimentiMagazzino = dynamic(
 export default function MovimentiPage() {
   return <MovimentiMagazzino />;
 }
+

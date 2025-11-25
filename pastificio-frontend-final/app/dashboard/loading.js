@@ -2,3 +2,4 @@
 export default function Loading() {
   return <div>Caricamento dashboard...</div>
 }
+

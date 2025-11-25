@@ -28,3 +28,4 @@ describe('Dashboard', () => {
     cy.contains('Ultimi 7 giorni').should('be.visible')
   })
 })
+

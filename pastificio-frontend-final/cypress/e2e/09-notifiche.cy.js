@@ -33,3 +33,4 @@ describe('Sistema Notifiche', () => {
     cy.get('.notification-item').should('have.length.greaterThan', 0)
   })
 })
+

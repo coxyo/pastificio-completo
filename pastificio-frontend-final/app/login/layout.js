@@ -23,3 +23,4 @@ export default function LoginLayout({ children }) {
     </ThemeProvider>
   );
 }
+

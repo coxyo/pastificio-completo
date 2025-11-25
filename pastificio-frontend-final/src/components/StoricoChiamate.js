@@ -4,7 +4,7 @@ import { Phone, Tag as TagIcon, User, Calendar, Clock, Search, Filter, Download 
 import axios from 'axios';
 import TagManager from './TagManager';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
 
 export function StoricoChiamate() {
   const [chiamate, setChiamate] = useState([]);

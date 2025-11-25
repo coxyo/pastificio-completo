@@ -37,3 +37,4 @@ describe('Calendario Produzione', () => {
     cy.get('.month-view').should('be.visible')
   })
 })
+

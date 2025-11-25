@@ -24,3 +24,4 @@ describe('Export Dati', () => {
     cy.window().its('print').should('be.called')
   })
 })
+

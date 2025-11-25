@@ -33,3 +33,4 @@ describe('Gestione Ordini', () => {
     cy.get('table tbody tr').should('exist')
   })
 })
+

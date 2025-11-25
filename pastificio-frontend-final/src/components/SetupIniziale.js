@@ -21,7 +21,7 @@ const SetupIniziale = () => {
       setMessage('Storage pulito, tentativo login...');
 
       // Login con credenziali corrette
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-backend-production.up.railway.app"}/api/auth/login', {
+      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

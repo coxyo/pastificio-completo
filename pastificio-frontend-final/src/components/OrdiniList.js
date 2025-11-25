@@ -21,7 +21,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 
-const API_URL = 'https://pastificio-backend-production.up.railway.app/api';
+const API_URL = 'https://pastificio-completo-production.up.railway.app/api';
 
 // ========== CONFIGURAZIONE CATEGORIE ==========
 const CATEGORIE = {

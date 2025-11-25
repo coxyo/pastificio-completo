@@ -1,6 +1,6 @@
 // src/config/api.js
-export const API_BASE_URL = 'https://pastificio-backend-production.up.railway.app';
-export const WS_URL = 'https://pastificio-backend-production.up.railway.app';
+export const API_BASE_URL = 'https://pastificio-completo-production.up.railway.app';
+export const WS_URL = 'https://pastificio-completo-production.up.railway.app';
 
 export const API_ENDPOINTS = {
   AUTH: {

@@ -61,7 +61,7 @@ import {
 } from '@mui/icons-material';
 
 // ✅ CONFIGURAZIONE API
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 // ✅ HELPER: Ottieni token JWT da localStorage
 const getAuthToken = () => {

@@ -243,7 +243,7 @@ function DashboardUltimate() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://pastificio-backend-production.up.railway.app/api/reports/email', {
+      const response = await fetch('https://pastificio-completo-production.up.railway.app/api/reports/email', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -273,7 +273,7 @@ function DashboardUltimate() {
       let token = localStorage.getItem('token');
       
       if (!token) {
-        const loginRes = await fetch('https://pastificio-backend-production.up.railway.app/api/auth/login', {
+        const loginRes = await fetch('https://pastificio-completo-production.up.railway.app/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -291,7 +291,7 @@ function DashboardUltimate() {
         }
       }
       
-      const ordersRes = await fetch('https://pastificio-backend-production.up.railway.app/api/ordini', {
+      const ordersRes = await fetch('https://pastificio-completo-production.up.railway.app/api/ordini', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
