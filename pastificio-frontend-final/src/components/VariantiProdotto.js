@@ -1,377 +1,361 @@
 // components/VariantiProdotto.js
-// ✅ VERSIONE COMPLETA - Supporto varianti per tutti i prodotti
+// ✅ AGGIORNATO 19/11/2025: Aggiunto supporto opzioni extra per note
+// Gestisce varianti prodotto con checkbox multiple e opzioni cottura
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  FormGroup,
+  Typography,
   FormControlLabel,
   Checkbox,
-  Typography,
-  Paper,
-  Radio,
-  RadioGroup,
+  Divider,
   Chip,
-  Divider
+  Stack
 } from '@mui/material';
-import { Info } from 'lucide-react';
 
-/**
- * ✅ CONFIGURAZIONE COMPLETA VARIANTI PRODOTTI
- * Supporta: checkbox multiple, radio single-choice, note cottura
- */
-const VARIANTI_PRODOTTI = {
-  // ========== RAVIOLI ==========
-  'Ravioli ricotta': {
-    tipo: 'checkbox', // Selezione multipla
-    varianti: ['spinaci', 'zafferano', 'dolci'],
-    labels: {
-      spinaci: 'con Spinaci',
-      zafferano: 'con Zafferano',
-      dolci: 'Dolci'
-    },
-    descrizione: 'Seleziona le varianti desiderate'
-  },
+// ========== CONFIGURAZIONE VARIANTI ==========
 
-  // ========== CIAMBELLE ==========
-  'Ciambelle': {
-    tipo: 'radio', // Selezione singola
-    varianti: ['marmellata', 'nutella', 'solo_base', 'miste'],
-    labels: {
-      marmellata: 'con Marmellata',
-      nutella: 'con Nutella',
-      solo_base: 'Solo Base (senza ripieno)',
-      miste: 'Miste (marmellata + nutella + base)'
-    },
-    default: 'marmellata',
-    descrizione: 'Scegli il tipo di ripieno',
-    info: 'Per vassoi misti, seleziona "Miste" e specifica nelle note'
-  },
-
-  'Ciambelle con marmellata': {
-    tipo: 'info',
-    nota: 'Prodotto già specificato - nessuna variante necessaria'
-  },
-
-  'Ciambelle con Nutella': {
-    tipo: 'info',
-    nota: 'Prodotto già specificato - nessuna variante necessaria'
-  },
-
-  // ========== PANADAS ==========
-  'Panada di anguille': {
-    tipo: 'radio',
-    varianti: ['con_aglio', 'senza_aglio'],
-    labels: {
-      con_aglio: 'con Aglio',
-      senza_aglio: 'senza Aglio'
-    },
-    default: 'con_aglio',
-    descrizione: 'Preferenza aglio'
-  },
-
-  'Panada di Agnello': {
-    tipo: 'radio',
-    varianti: ['con_aglio', 'senza_aglio'],
-    labels: {
-      con_aglio: 'con Aglio',
-      senza_aglio: 'senza Aglio'
-    },
-    default: 'con_aglio',
-    descrizione: 'Preferenza aglio'
-  },
-
-  'Panada di maiale': {
-    tipo: 'radio',
-    varianti: ['con_aglio', 'senza_aglio'],
-    labels: {
-      con_aglio: 'con Aglio',
-      senza_aglio: 'senza Aglio'
-    },
-    default: 'con_aglio',
-    descrizione: 'Preferenza aglio'
-  },
-
-  'Panada di vitella': {
-    tipo: 'radio',
-    varianti: ['con_aglio', 'senza_aglio'],
-    labels: {
-      con_aglio: 'con Aglio',
-      senza_aglio: 'senza Aglio'
-    },
-    default: 'con_aglio',
-    descrizione: 'Preferenza aglio'
-  },
-
-  'Panada di verdure': {
-    tipo: 'radio',
-    varianti: ['con_aglio', 'senza_aglio'],
-    labels: {
-      con_aglio: 'con Aglio',
-      senza_aglio: 'senza Aglio'
-    },
-    default: 'con_aglio',
-    descrizione: 'Preferenza aglio'
-  },
-
-  // ========== PARDULAS ==========
-  'Pardulas': {
-    tipo: 'radio',
-    varianti: ['normale', 'ben_cotte', 'poco_cotte'],
-    labels: {
-      normale: 'Cottura Normale',
-      ben_cotte: 'Ben Cotte',
-      poco_cotte: 'Poco Cotte'
-    },
-    default: 'normale',
-    descrizione: 'Livello di cottura',
-    info: 'Specifica la doratura desiderata'
-  },
-
-  // ========== DOLCI MISTI ==========
-  'Dolci misti (Pardulas, ciambelle, papassinas, amaretti, gueffus, bianchini)': {
+export const CONFIGURAZIONE_VARIANTI = {
+  'Ravioli': {  // ✅ CORRETTO: usa 'Ravioli' come chiave (nome nel database)
     tipo: 'checkbox',
-    varianti: ['senza_ciambelle', 'senza_bianchini', 'senza_amaretti', 'senza_gueffus'],
-    labels: {
-      senza_ciambelle: 'Escludi Ciambelle',
-      senza_bianchini: 'Escludi Bianchini',
-      senza_amaretti: 'Escludi Amaretti',
-      senza_gueffus: 'Escludi Gueffus'
-    },
-    descrizione: 'Esclusioni dal mix'
+    multiple: true,
+    varianti: [
+      { id: 'spinaci', label: 'Spinaci', valore: 'con Spinaci' },
+      { id: 'zafferano', label: 'Zafferano', valore: 'con Zafferano' },
+      { id: 'dolci', label: 'Dolci', valore: 'Dolci' }
+    ],
+    // ✅ NUOVO: Opzioni extra che vanno nelle note
+    opzioniExtra: [
+      { id: 'piu_piccoli', label: 'Più piccoli', valore: 'più piccoli' },
+      { id: 'piu_grandi', label: 'Più grandi', valore: 'più grandi' },
+      { id: 'piu_spinaci', label: 'Più spinaci', valore: 'più spinaci' },
+      { id: 'piu_zafferano', label: 'Più zafferano', valore: 'più zafferano' },
+      { id: 'pasta_grossa', label: 'Pasta più grossa', valore: 'pasta più grossa' },
+      { id: 'molto_dolci', label: 'Molto dolci', valore: 'molto dolci' },
+      { id: 'poco_dolci', label: 'Poco dolci', valore: 'poco dolci' }
+    ],
+    nomeBase: 'Ravioli ricotta'  // Il nome finale sarà comunque "Ravioli ricotta con..."
   },
-
-  'Dolci misti (Pardulas, ciambelle)': {
-    tipo: 'info',
-    nota: 'Mix standard Pardulas + Ciambelle'
+  'Panada di Agnello': {
+    tipo: 'select',
+    varianti: [
+      { id: 'patate', label: 'con patate', valore: '(con patate)' },
+      { id: 'piselli', label: 'con piselli', valore: '(con piselli)' },
+      { id: 'carciofi', label: 'con carciofi', valore: '(con carciofi)' }
+    ],
+    nomeBase: 'Panada di Agnello'
+  },
+  'Panada di Maiale': {
+    tipo: 'select',
+    varianti: [
+      { id: 'patate', label: 'con patate', valore: '(con patate)' },
+      { id: 'piselli', label: 'con piselli', valore: '(con piselli)' },
+      { id: 'carciofi', label: 'con carciofi', valore: '(con carciofi)' }
+    ],
+    nomeBase: 'Panada di Maiale'
+  },
+  'Panada di Vitella': {
+    tipo: 'select',
+    varianti: [
+      { id: 'patate', label: 'con patate', valore: '(con patate)' },
+      { id: 'piselli', label: 'con piselli', valore: '(con piselli)' },
+      { id: 'carciofi', label: 'con carciofi', valore: '(con carciofi)' }
+    ],
+    nomeBase: 'Panada di Vitella'
+  },
+  'Ciambelle': {
+    tipo: 'select',
+    varianti: [
+      { id: 'marmellata_albicocca', label: 'Marmellata albicocca', valore: 'con marmellata di albicocca' },
+      { id: 'marmellata_ciliegia', label: 'Marmellata ciliegia', valore: 'con marmellata di ciliegia' },
+      { id: 'nutella', label: 'Nutella', valore: 'con nutella' },
+      { id: 'zucchero_velo', label: 'Zucchero a velo', valore: 'con zucchero a velo' },
+      { id: 'semplici', label: 'Semplici (nude)', valore: 'semplici' }
+    ],
+    nomeBase: 'Ciambelle'
+  },
+  'Pardulas': {
+    tipo: 'select',
+    varianti: [
+      { id: 'base', label: 'Base (senza copertura)', valore: '(base)' },
+      { id: 'glassa', label: 'Con glassa', valore: 'con glassa' },
+      { id: 'zucchero_velo', label: 'Con zucchero a velo', valore: 'con zucchero a velo' }
+    ],
+    nomeBase: 'Pardulas'
   }
 };
 
-/**
- * ✅ Genera nome prodotto con varianti selezionate
- */
-export function generaNomeProdottoConVarianti(prodottoBase, variantiSelezionate) {
-  if (!variantiSelezionate || variantiSelezionate.length === 0) {
-    return prodottoBase;
-  }
-
-  const config = VARIANTI_PRODOTTI[prodottoBase];
-  if (!config || config.tipo === 'info') return prodottoBase;
-
-  // CASO 1: Radio (selezione singola)
-  if (config.tipo === 'radio') {
-    const variante = Array.isArray(variantiSelezionate) 
-      ? variantiSelezionate[0] 
-      : variantiSelezionate;
-    
-    const label = config.labels[variante];
-    
-    // Se è la variante di default, non aggiungere al nome
-    if (variante === config.default) {
-      return prodottoBase;
+// ✅ NUOVO: Funzione per estrarre opzioni extra dal nome prodotto
+export const estraiOpzioniExtra = (nomeProdotto, configKey) => {
+  const config = CONFIGURAZIONE_VARIANTI[configKey];
+  if (!config || !config.opzioniExtra) return [];
+  
+  const nomeLC = nomeProdotto.toLowerCase();
+  const opzioniTrovate = [];
+  
+  config.opzioniExtra.forEach(opzione => {
+    if (nomeLC.includes(opzione.valore.toLowerCase())) {
+      opzioniTrovate.push(opzione.valore);
     }
-    
-    return `${prodottoBase} ${label}`;
+  });
+  
+  return opzioniTrovate;
+};
+
+// ✅ NUOVO: Funzione per rimuovere opzioni extra dal nome (lasciare solo varianti principali)
+export const rimuoviOpzioniExtraDaNome = (nomeProdotto, configKey) => {
+  const config = CONFIGURAZIONE_VARIANTI[configKey];
+  if (!config || !config.opzioniExtra) return nomeProdotto;
+  
+  let nomeClean = nomeProdotto;
+  
+  config.opzioniExtra.forEach(opzione => {
+    // Rimuovi la variante dal nome (case insensitive)
+    const regex = new RegExp(`\\s*e\\s+${opzione.valore}|\\s+${opzione.valore}`, 'gi');
+    nomeClean = nomeClean.replace(regex, '');
+  });
+  
+  return nomeClean.trim();
+};
+
+// ✅ Funzione per verificare se un prodotto ha varianti configurate
+export const prodottoHaVarianti = (nomeProdotto) => {
+  if (!nomeProdotto) return false;
+  
+  return Object.keys(CONFIGURAZIONE_VARIANTI).some(key => 
+    nomeProdotto.toLowerCase().includes(key.toLowerCase())
+  );
+};
+
+// ✅ Funzione per generare il nome completo del prodotto con varianti
+export const generaNomeProdottoConVarianti = (nomeBase, variantiIds) => {
+  // Trova la configurazione
+  const configKey = Object.keys(CONFIGURAZIONE_VARIANTI).find(key => 
+    nomeBase.toLowerCase().includes(key.toLowerCase())
+  );
+  
+  if (!configKey) return nomeBase;
+  
+  const config = CONFIGURAZIONE_VARIANTI[configKey];
+  
+  if (!variantiIds || variantiIds.length === 0) {
+    return config.nomeBase;
   }
-
-  // CASO 2: Checkbox (selezione multipla)
-  if (config.tipo === 'checkbox') {
-    const nomiVarianti = variantiSelezionate
-      .map(v => config.labels[v])
-      .filter(Boolean)
-      .join(', ');
-
-    if (nomiVarianti) {
-      return `${prodottoBase} (${nomiVarianti})`;
-    }
+  
+  // Genera il nome con le varianti selezionate
+  const variantiValori = variantiIds.map(id => {
+    const variante = config.varianti.find(v => v.id === id);
+    return variante ? variante.valore : '';
+  }).filter(Boolean);
+  
+  if (variantiValori.length === 0) {
+    return config.nomeBase;
   }
+  
+  return `${config.nomeBase} ${variantiValori.join(' e ')}`;
+};
 
-  return prodottoBase;
-}
+// ========== COMPONENTE PRINCIPALE ==========
 
-/**
- * ✅ Componente principale per selezionare varianti prodotto
- */
-export default function VariantiProdotto({ prodotto, onChange, value }) {
-  const [variantiSelezionate, setVariantiSelezionate] = useState(value || []);
-
-  const config = VARIANTI_PRODOTTI[prodotto];
-
-  // Inizializza con valore di default per radio
+export default function VariantiProdotto({ 
+  prodottoBase, 
+  onVarianteChange, 
+  variantiSelezionate = [],
+  opzioniExtraSelezionate = [] // ✅ NUOVO
+}) {
+  const [selezioneVarianti, setSelezioneVarianti] = useState(variantiSelezionate);
+  const [selezioneExtra, setSelezioneExtra] = useState(opzioniExtraSelezionate); // ✅ NUOVO
+  
+  // Trova la configurazione per questo prodotto
+  const configKey = Object.keys(CONFIGURAZIONE_VARIANTI).find(key => 
+    prodottoBase.toLowerCase().includes(key.toLowerCase())
+  );
+  
+  const config = configKey ? CONFIGURAZIONE_VARIANTI[configKey] : null;
+  
+  // Reset quando cambia prodotto (solo prodottoBase, non le selezioni)
   useEffect(() => {
-    if (config && config.tipo === 'radio' && config.default && !value) {
-      setVariantiSelezionate([config.default]);
-      if (onChange) {
-        onChange([config.default]);
+    setSelezioneVarianti(variantiSelezionate || []);
+    setSelezioneExtra(opzioniExtraSelezionate || []);
+  }, [prodottoBase]); // ✅ FIX: Solo quando cambia il prodotto
+  
+  // ✅ FIX: Funzione helper per notificare il parent
+  const notificaParent = (nuoveVarianti, nuoveExtra) => {
+    if (!config || !onVarianteChange) return;
+    
+    // Costruisci il nome completo
+    let nomeCompleto = config.nomeBase;
+    
+    if (config.tipo === 'checkbox' && nuoveVarianti.length > 0) {
+      const variantiValori = nuoveVarianti.map(id => {
+        const variante = config.varianti.find(v => v.id === id);
+        return variante ? variante.valore : '';
+      }).filter(Boolean);
+      
+      if (variantiValori.length > 0) {
+        nomeCompleto = `${config.nomeBase} ${variantiValori.join(' e ')}`;
+      }
+    } else if (config.tipo === 'select' && nuoveVarianti.length > 0) {
+      const variante = config.varianti.find(v => v.id === nuoveVarianti[0]);
+      if (variante) {
+        nomeCompleto = `${config.nomeBase} ${variante.valore}`;
       }
     }
-  }, [prodotto]);
-
-  // Sincronizza con prop value
-  useEffect(() => {
-    if (value) {
-      setVariantiSelezionate(value);
-    }
-  }, [value]);
-
-  // Se il prodotto non ha varianti, non mostrare nulla
-  if (!config) return null;
-
-  // Caso INFO: solo messaggio informativo
-  if (config.tipo === 'info') {
-    return (
-      <Paper sx={{ p: 2, bgcolor: 'info.light', mt: 1 }}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <Info size={18} />
-          <Typography variant="body2" color="text.secondary">
-            {config.nota}
-          </Typography>
-        </Box>
-      </Paper>
-    );
+    
+    // Aggiungi opzioni extra
+    const extraValori = nuoveExtra.map(id => {
+      const opzione = config.opzioniExtra?.find(o => o.id === id);
+      return opzione ? opzione.valore : '';
+    }).filter(Boolean);
+    
+    onVarianteChange(nomeCompleto, nuoveVarianti, extraValori);
+  };
+  
+  // Se non c'è configurazione, non mostrare nulla
+  if (!config) {
+    return null;
   }
-
-  // ========== HANDLER CHECKBOX (multi-select) ==========
-  const handleCheckboxChange = (variante) => (event) => {
-    const nuoveVarianti = event.target.checked
-      ? [...variantiSelezionate, variante]
-      : variantiSelezionate.filter(v => v !== variante);
-
-    setVariantiSelezionate(nuoveVarianti);
+  
+  // Handler per checkbox varianti principali
+  const handleCheckboxChange = (varianteId) => {
+    const nuoveVarianti = selezioneVarianti.includes(varianteId)
+      ? selezioneVarianti.filter(id => id !== varianteId)
+      : [...selezioneVarianti, varianteId];
     
-    if (onChange) {
-      onChange(nuoveVarianti);
-    }
+    setSelezioneVarianti(nuoveVarianti);
+    notificaParent(nuoveVarianti, selezioneExtra);
   };
-
-  // ========== HANDLER RADIO (single-select) ==========
-  const handleRadioChange = (event) => {
-    const nuoveVarianti = [event.target.value];
-    setVariantiSelezionate(nuoveVarianti);
+  
+  // Handler per select (singola selezione)
+  const handleSelectChange = (varianteId) => {
+    const nuoveVarianti = [varianteId];
+    setSelezioneVarianti(nuoveVarianti);
+    notificaParent(nuoveVarianti, selezioneExtra);
+  };
+  
+  // ✅ NUOVO: Handler per opzioni extra
+  const handleExtraChange = (opzioneId) => {
+    const nuoveExtra = selezioneExtra.includes(opzioneId)
+      ? selezioneExtra.filter(id => id !== opzioneId)
+      : [...selezioneExtra, opzioneId];
     
-    if (onChange) {
-      onChange(nuoveVarianti);
-    }
+    setSelezioneExtra(nuoveExtra);
+    notificaParent(selezioneVarianti, nuoveExtra);
   };
-
-  const nomeProdottoFinale = generaNomeProdottoConVarianti(prodotto, variantiSelezionate);
-
+  
   return (
-    <Paper 
-      sx={{ 
-        p: 2, 
-        bgcolor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'divider',
-        mt: 1 
-      }}
-    >
-      <Typography variant="subtitle2" gutterBottom color="primary" fontWeight="bold">
-        🎨 {config.descrizione || 'Personalizza il tuo ordine'}
+    <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#1976d2' }}>
+        🎯 Seleziona variante{config.tipo === 'checkbox' ? ' (puoi selezionarne più di una)' : ''}:
       </Typography>
-
-      {config.info && (
-        <Box display="flex" alignItems="center" gap={1} mb={1}>
-          <Info size={16} color="#1976d2" />
-          <Typography variant="caption" color="text.secondary">
-            {config.info}
-          </Typography>
-        </Box>
-      )}
-
-      <Divider sx={{ my: 1 }} />
-
-      {/* ========== RENDER CHECKBOX ========== */}
-      {config.tipo === 'checkbox' && (
-        <FormGroup>
+      
+      {/* Varianti principali */}
+      {config.tipo === 'checkbox' ? (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {config.varianti.map(variante => (
             <FormControlLabel
-              key={variante}
+              key={variante.id}
               control={
                 <Checkbox
-                  checked={variantiSelezionate.includes(variante)}
-                  onChange={handleCheckboxChange(variante)}
+                  checked={selezioneVarianti.includes(variante.id)}
+                  onChange={() => handleCheckboxChange(variante.id)}
                   color="primary"
                 />
               }
-              label={config.labels[variante]}
+              label={variante.label}
+              sx={{
+                bgcolor: selezioneVarianti.includes(variante.id) ? '#e3f2fd' : 'white',
+                borderRadius: 1,
+                px: 1,
+                border: '1px solid #ddd'
+              }}
             />
           ))}
-        </FormGroup>
-      )}
-
-      {/* ========== RENDER RADIO ========== */}
-      {config.tipo === 'radio' && (
-        <RadioGroup
-          value={variantiSelezionate[0] || config.default}
-          onChange={handleRadioChange}
-        >
+        </Box>
+      ) : (
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           {config.varianti.map(variante => (
-            <FormControlLabel
-              key={variante}
-              value={variante}
-              control={<Radio color="primary" />}
-              label={config.labels[variante]}
+            <Chip
+              key={variante.id}
+              label={variante.label}
+              onClick={() => handleSelectChange(variante.id)}
+              color={selezioneVarianti.includes(variante.id) ? 'primary' : 'default'}
+              variant={selezioneVarianti.includes(variante.id) ? 'filled' : 'outlined'}
+              sx={{ mb: 1 }}
             />
           ))}
-        </RadioGroup>
+        </Stack>
       )}
-
-      {/* ========== PREVIEW PRODOTTO FINALE ========== */}
-      {variantiSelezionate.length > 0 && nomeProdottoFinale !== prodotto && (
+      
+      {/* ✅ NUOVO: Opzioni extra (solo per ravioli) */}
+      {config.opzioniExtra && config.opzioniExtra.length > 0 && (
         <>
-          <Divider sx={{ my: 1.5 }} />
-          <Box sx={{ p: 1.5, bgcolor: 'success.light', borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary" display="block">
-              ✅ Prodotto finale:
-            </Typography>
-            <Typography variant="body2" fontWeight="bold" color="success.dark">
-              {nomeProdottoFinale}
-            </Typography>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#f57c00' }}>
+            📝 Opzioni extra (vanno nelle note):
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {config.opzioniExtra.map(opzione => (
+              <FormControlLabel
+                key={opzione.id}
+                control={
+                  <Checkbox
+                    checked={selezioneExtra.includes(opzione.id)}
+                    onChange={() => handleExtraChange(opzione.id)}
+                    color="warning"
+                    size="small"
+                  />
+                }
+                label={opzione.label}
+                sx={{
+                  bgcolor: selezioneExtra.includes(opzione.id) ? '#fff3e0' : 'white',
+                  borderRadius: 1,
+                  px: 1,
+                  border: '1px solid #ddd',
+                  '& .MuiFormControlLabel-label': {
+                    fontSize: '0.85rem'
+                  }
+                }}
+              />
+            ))}
           </Box>
         </>
       )}
-    </Paper>
+      
+      {/* Preview nome completo */}
+      {(selezioneVarianti.length > 0 || selezioneExtra.length > 0) && (
+        <Box sx={{ mt: 2, p: 1, bgcolor: '#e8f5e9', borderRadius: 1 }}>
+          <Typography variant="caption" color="success.main">
+            <strong>Nome prodotto:</strong>{' '}
+            {(() => {
+              let nome = config.nomeBase;
+              
+              if (config.tipo === 'checkbox' && selezioneVarianti.length > 0) {
+                const variantiValori = selezioneVarianti.map(id => {
+                  const v = config.varianti.find(x => x.id === id);
+                  return v ? v.valore : '';
+                }).filter(Boolean);
+                nome = `${config.nomeBase} ${variantiValori.join(' e ')}`;
+              } else if (config.tipo === 'select' && selezioneVarianti.length > 0) {
+                const v = config.varianti.find(x => x.id === selezioneVarianti[0]);
+                if (v) nome = `${config.nomeBase} ${v.valore}`;
+              }
+              
+              return nome;
+            })()}
+          </Typography>
+          
+          {selezioneExtra.length > 0 && (
+            <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
+              <strong>Note cottura:</strong>{' '}
+              {selezioneExtra.map(id => {
+                const o = config.opzioniExtra.find(x => x.id === id);
+                return o ? o.valore : '';
+              }).filter(Boolean).join(', ')}
+            </Typography>
+          )}
+        </Box>
+      )}
+    </Box>
   );
-}
-
-/**
- * ✅ Hook per usare le varianti (versione semplificata)
- */
-export function useVariantiProdotto(prodottoBase) {
-  const [varianti, setVarianti] = useState([]);
-
-  const config = VARIANTI_PRODOTTI[prodottoBase];
-  
-  // Inizializza con default se radio
-  useEffect(() => {
-    if (config && config.tipo === 'radio' && config.default) {
-      setVarianti([config.default]);
-    }
-  }, [prodottoBase]);
-
-  const nomeProdotto = generaNomeProdottoConVarianti(prodottoBase, varianti);
-  const hasVarianti = config && config.tipo !== 'info';
-
-  return {
-    varianti,
-    setVarianti,
-    nomeProdotto,
-    hasVarianti,
-    config
-  };
-}
-
-/**
- * ✅ Verifica se un prodotto ha varianti
- */
-export function prodottoHaVarianti(nomeProdotto) {
-  const config = VARIANTI_PRODOTTI[nomeProdotto];
-  return config && config.tipo !== 'info';
-}
-
-/**
- * ✅ Ottieni configurazione varianti prodotto
- */
-export function getConfigVarianti(nomeProdotto) {
-  return VARIANTI_PRODOTTI[nomeProdotto] || null;
 }

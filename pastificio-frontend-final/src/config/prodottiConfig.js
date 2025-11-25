@@ -1,5 +1,6 @@
 // config/prodottiConfig.js
-// ✅ Configurazione completa prodotti con VARIANTI - AGGIORNATA
+// ✅ VERSIONE AGGIORNATA - 19 Novembre 2025
+// Aggiunto: Ravioli di formaggio, pulizia doppioni
 
 export const MODALITA_VENDITA = {
   SOLO_KG: 'solo_kg',
@@ -24,6 +25,7 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.MISTA,
     pezziPerKg: 30,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    supportaVassoiMultipli: true,
     varianti: [
       {
         nome: 'spinaci',
@@ -59,7 +61,14 @@ export const PRODOTTI_CONFIG = {
         nome: 'piccoli',
         label: 'Ravioli ricotta piccoli',
         prezzoKg: 11.00,
-        pezziPerKg: 40 // ✅ Più pezzi per kg perché sono piccoli
+        pezziPerKg: 40
+      },
+      // ✅ NUOVO: Ravioli di formaggio
+      {
+        nome: 'formaggio',
+        label: 'Ravioli di formaggio',
+        prezzoKg: 11.00,
+        pezziPerKg: 30
       }
     ]
   },
@@ -70,7 +79,8 @@ export const PRODOTTI_CONFIG = {
     prezzoKg: 16.00,
     pezziPerKg: 32,
     modalitaVendita: MODALITA_VENDITA.MISTA,
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    supportaVassoiMultipli: true
   },
 
   // ========== PARDULAS CON VARIANTI ==========
@@ -82,6 +92,12 @@ export const PRODOTTI_CONFIG = {
     pezziPerKg: 25,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    // ✅ Aggiunta opzione livello cottura
+    opzioniCottura: [
+      { nome: 'normale', label: 'Cottura Normale' },
+      { nome: 'ben_cotte', label: 'Ben Cotte' },
+      { nome: 'poco_cotte', label: 'Poco Cotte' }
+    ],
     varianti: [
       {
         nome: 'base',
@@ -113,11 +129,7 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
     varianti: [
-      {
-        nome: 'base',
-        label: 'Ciambelle solo base',
-        prezzoKg: 17.00
-      },
+      // ✅ RIMOSSO "Ciambelle solo base" - duplicato inutile
       {
         nome: 'albicocca',
         label: 'Ciambelle con marmellata di albicocca',
@@ -131,7 +143,7 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'nutella',
         label: 'Ciambelle con nutella',
-        prezzoKg: 17.00 // ✅ Prezzo maggiorato per nutella
+        prezzoKg: 18.00
       },
       {
         nome: 'zucchero_velo',
@@ -139,18 +151,18 @@ export const PRODOTTI_CONFIG = {
         prezzoKg: 17.00
       },
       {
+        nome: 'semplici',
+        label: 'Ciambelle semplici (senza farcitura)',
+        prezzoKg: 17.00
+      },
+      {
         nome: 'miste_marmellata_nutella',
         label: 'Ciambelle miste: marmellata - nutella',
-        prezzoKg: 17.00 // ✅ Prezzo medio tra marmellata e nutella
+        prezzoKg: 17.50
       },
       {
         nome: 'miste_marmellata_zucchero',
         label: 'Ciambelle miste: marmellata - zucchero a velo',
-        prezzoKg: 17.00
-      },
-      {
-        nome: 'miste_marmellata_base',
-        label: 'Ciambelle miste: marmellata - solo base',
         prezzoKg: 17.00
       }
     ]
@@ -161,7 +173,21 @@ export const PRODOTTI_CONFIG = {
     categoria: 'Dolci',
     prezzoPezzo: 2.50,
     modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
-    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO],
+    // ✅ Aggiunta variante al mirto
+    hasVarianti: true,
+    varianti: [
+      {
+        nome: 'classica',
+        label: 'Sebadas',
+        prezzoPezzo: 2.50
+      },
+      {
+        nome: 'mirto',
+        label: 'Sebadas al mirto',
+        prezzoPezzo: 2.50
+      }
+    ]
   },
 
   'Amaretti': {
@@ -172,7 +198,7 @@ export const PRODOTTI_CONFIG = {
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
-  'Papassini': {
+  'Papassinas': {
     categoria: 'Dolci',
     prezzoKg: 22.00,
     pezziPerKg: 30,
@@ -210,47 +236,112 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
     composizione: {
-      pardulas: 0.40,    // 40% Pardulas
-      cimbelle: 0.30,    // 30% Ciambelle
-      amaretti: 0.15,    // 15% Amaretti
-      misti: 0.15        // 15% Pabassinas, bianchini, gueffus
+      pardulas: 0.40,
+      ciambelle: 0.30,
+      amaretti: 0.15,
+      misti: 0.15
     }
   },
 
-  // ========== PANADAS ==========
+  // ========== PANADAS CON VARIANTI ==========
   'Panada di Agnello': {
-    prezzoKg: 30.00,
+    prezzoKg: 25.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
+      ]
+    },
+    supportaVassoiMultipli: true
   },
 
   'Panada di Maiale': {
     prezzoKg: 21.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
+      ]
+    },
+    supportaVassoiMultipli: true
   },
 
   'Panada di Vitella': {
     prezzoKg: 23.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
+      ]
+    },
+    supportaVassoiMultipli: true
   },
 
   'Panada di verdure': {
     prezzoKg: 17.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
+      ]
+    },
+    supportaVassoiMultipli: true
   },
 
   'Panadine': {
     prezzoPezzo: 0.80,
     modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    gustiPanadine: {
+      rapidi: [
+        { nome: 'carne', label: 'Carne' },
+        { nome: 'verdura', label: 'Verdura' }
+      ],
+      ingredienti: [
+        { nome: 'carne', label: 'Carne' },
+        { nome: 'piselli', label: 'Piselli' },
+        { nome: 'patate', label: 'Patate' },
+        { nome: 'melanzane', label: 'Melanzane' },
+        { nome: 'peperoni', label: 'Peperoni' },
+        { nome: 'zucchine', label: 'Zucchine' },
+        { nome: 'pomodoro_fresco', label: 'Pomodoro fresco' },
+        { nome: 'salsiccia', label: 'Salsiccia' },
+        { nome: 'funghi', label: 'Funghi' }
+      ]
+    }
   },
 
   // ========== PASTA ==========
@@ -284,20 +375,26 @@ export const PRODOTTI_CONFIG = {
   }
 };
 
-// ✅ Funzione per ottenere config prodotto (gestisce varianti)
+// ✅ Funzione per ottenere config prodotto (gestisce varianti e opzioni)
 export const getProdottoConfig = (nomeProdotto) => {
-  // Cerca prodotto esatto
+  // Cerca prima il prodotto esatto
   if (PRODOTTI_CONFIG[nomeProdotto]) {
     return PRODOTTI_CONFIG[nomeProdotto];
+  }
+
+  // Cerca il nome base (senza opzioni tra parentesi)
+  const nomeBase = nomeProdotto.split(' (')[0];
+  if (PRODOTTI_CONFIG[nomeBase]) {
+    return PRODOTTI_CONFIG[nomeBase];
   }
 
   // Cerca nelle varianti
   for (const [key, config] of Object.entries(PRODOTTI_CONFIG)) {
     if (config.hasVarianti && config.varianti) {
       const variante = config.varianti.find(v => 
-        nomeProdotto.includes(v.nome) || 
+        nomeProdotto.toLowerCase().includes(v.nome.toLowerCase()) || 
         nomeProdotto === v.label ||
-        v.label.includes(nomeProdotto)
+        v.label.toLowerCase().includes(nomeProdotto.toLowerCase())
       );
       
       if (variante) {
@@ -315,7 +412,6 @@ export const getProdottoConfig = (nomeProdotto) => {
   return null;
 };
 
-// Lista prodotti per dropdown (solo prodotti base, non varianti)
 export const LISTA_PRODOTTI = Object.keys(PRODOTTI_CONFIG).sort();
 
 export default PRODOTTI_CONFIG;

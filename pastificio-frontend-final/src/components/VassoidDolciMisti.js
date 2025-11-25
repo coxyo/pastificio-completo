@@ -1,4 +1,4 @@
-// components/VassoidDolciMisti_FINALE.js
+// components/VassoidDolciMisti.js - ✅ CON DROPDOWN VARIANTI
 // 🎂 COMPOSITORE VASSOI DOLCI PERSONALIZZATI - VERSIONE COMPLETA
 // Implementa 3 modalità di composizione + opzioni packaging avanzate
 
@@ -320,11 +320,13 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     const unitaDefault = config.unitaMisuraDisponibili?.[0] || 'Kg';
     const prezzo = calcolaPrezzoProdotto(nomeProdotto, quantitaDefault, unitaDefault);
 
+    // ✅ MODIFICA 1: Aggiungi campo variante
     const nuovoItem = {
       id: Date.now() + Math.random(),
       prodotto: nomeProdotto,
       quantita: quantitaDefault,
       unita: unitaDefault,
+      variante: config.varianti?.[0] || null, // ✅ NUOVO: Prima variante default
       prezzo: prezzo
     };
 
@@ -353,6 +355,21 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       if (item.id === id) {
         const prezzo = calcolaPrezzoProdotto(item.prodotto, item.quantita, nuovaUnita);
         return { ...item, unita: nuovaUnita, prezzo };
+      }
+      return item;
+    }));
+  };
+
+  // ✅ MODIFICA 2: Aggiungi funzione cambiaVariante
+  /**
+   * Cambia variante prodotto
+   */
+  const cambiaVariante = (id, nuovaVariante) => {
+    setComposizione(prev => prev.map(item => {
+      if (item.id === id) {
+        // Il prezzo potrebbe cambiare in base alla variante
+        // Per ora manteniamo lo stesso prezzo
+        return { ...item, variante: nuovaVariante };
       }
       return item;
     }));
@@ -394,16 +411,21 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       return;
     }
 
-    // Prepara dati vassoio
+    // ✅ MODIFICA 3: Aggiungi variante in dettagliComposizione
     const dettagliComposizione = composizione.map(item => ({
       nome: item.prodotto,
       quantita: item.quantita,
       unita: item.unita,
+      variante: item.variante || null, // ✅ NUOVO
       prezzo: item.prezzo
     }));
 
+    // ✅ MODIFICA 4: Includi variante in dettagliStringa
     const dettagliStringa = composizione
-      .map(item => `${item.prodotto}: ${item.quantita} ${item.unita}`)
+      .map(item => {
+        const varianteStr = item.variante ? ` (${item.variante})` : '';
+        return `${item.prodotto}${varianteStr}: ${item.quantita} ${item.unita}`;
+      })
       .join(', ');
 
     // Note complete
@@ -676,7 +698,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                       {/* Nome Prodotto */}
-                      <Typography variant="subtitle1" sx={{ minWidth: 150 }}>
+                      <Typography variant="subtitle1" sx={{ minWidth: 150, fontWeight: 'bold' }}>
                         {item.prodotto}
                       </Typography>
 
@@ -721,6 +743,23 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                           />
                         ))}
                       </RadioGroup>
+
+                      {/* ✅ MODIFICA 5: Dropdown Varianti */}
+                      {config?.varianti && config.varianti.length > 0 && (
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                          <Select
+                            value={item.variante || config.varianti[0]}
+                            onChange={(e) => cambiaVariante(item.id, e.target.value)}
+                            displayEmpty
+                          >
+                            {config.varianti.map(variante => (
+                              <MenuItem key={variante} value={variante}>
+                                {variante}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
 
                       {/* Prezzo */}
                       <Typography 

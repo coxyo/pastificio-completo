@@ -1,4 +1,5 @@
-// components/NuovoOrdine.js - ✅ CON CACHE OTTIMIZZATA E FIX PREZZO VARIANTI
+// components/NuovoOrdine.js - ✅ CON CHECKBOX MULTIPLE PER RAVIOLI + OPZIONI EXTRA
+// ✅ AGGIORNATO 19/11/2025: Opzioni extra (più piccoli, più grandi, etc.) vanno automaticamente in noteCottura
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -49,10 +50,12 @@ import {
   CheckCircle as CheckIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
+import { PRODOTTI_CONFIG } from '../config/prodottiConfig';
 import VassoidDolciMisti from './VassoidDolciMisti_FINALE';
 import VariantiProdotto, { 
   generaNomeProdottoConVarianti,
-  prodottoHaVarianti 
+  prodottoHaVarianti,
+  CONFIGURAZIONE_VARIANTI  // ✅ NUOVO: Per opzioni extra
 } from './VariantiProdotto';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
@@ -70,6 +73,9 @@ const VALORI_RAPIDI = {
   Pezzi: [4, 6, 8, 12, 16, 24, 50],
   '€': [5, 10, 15, 20, 25, 30]
 };
+
+// ✅ NUOVO: Dimensioni vassoi disponibili
+const DIMENSIONI_VASSOIO = ['2', '3', '4', '4.5', '5', '6', '7', '8'];
 
 export default function NuovoOrdine({ 
   open, 
@@ -108,9 +114,29 @@ clienteIdPreselezionato,
   quantita: '',
   unita: 'Kg',
   prezzo: 0,
-  varianti: [], // ✅ NUOVO: Array varianti per nuovo sistema
-  noteCottura: '' // ✅ NUOVO: Note cottura
+  varianti: [], // ✅ Array varianti per nuovo sistema checkbox
+  opzioniExtra: [], // ✅ NUOVO: Array opzioni extra (più piccoli, più grandi, etc.)
+  noteCottura: ''
 });
+
+  // ✅ STATI PER GESTIONE VASSOIO
+  const [modalitaVassoio, setModalitaVassoio] = useState(null);
+  const [composizioneVassoio, setComposizioneVassoio] = useState([]);
+  const [totaleVassoio, setTotaleVassoio] = useState(0);
+
+ // ✅ States per panade e panadine
+  const [opzioniPanada, setOpzioniPanada] = useState({
+    aglio: 'con_aglio',
+    contorno: 'con_patate'
+  });
+  const [numeroVassoi, setNumeroVassoi] = useState(1);
+  const [gustiPanadine, setGustiPanadine] = useState([]);
+  const [modalitaPanadine, setModalitaPanadine] = useState('rapida');
+  const [panadineRapide, setPanadineRapide] = useState({ carne: 0, verdura: 0 });
+
+  // ✅ NUOVO: States per vassoi multipli e dimensione vassoio
+  const [numeroVassoiProdotto, setNumeroVassoiProdotto] = useState(1);
+  const [dimensioneVassoio, setDimensioneVassoio] = useState('');
 
   // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
   useEffect(() => {
@@ -120,7 +146,6 @@ clienteIdPreselezionato,
   }, [isConnected]);
 
   const caricaProdotti = async () => {
-    // ✅ PROVA PRIMA DALLA CACHE LOCALSTORAGE
     const cacheTime = localStorage.getItem('prodotti_cache_time');
     const now = Date.now();
     
@@ -140,7 +165,6 @@ clienteIdPreselezionato,
       }
     }
 
-    // Se cache mancante/scaduta, carica da API
     try {
       setLoadingProdotti(true);
       console.log('🔄 Caricamento prodotti da API...');
@@ -151,7 +175,6 @@ clienteIdPreselezionato,
         const data = await response.json();
         const prodottiData = data.data || data || [];
         
-        // Salva in cache
         prodottiCache = prodottiData;
         prodottiCacheTime = Date.now();
         localStorage.setItem('prodotti_cache', JSON.stringify(prodottiData));
@@ -302,7 +325,7 @@ clienteIdPreselezionato,
     setAlertLimiti(alerts);
   };
 
-  // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA (INCLUDI PARDULAS NEI DOLCI)
+  // ✅ RAGGRUPPA PRODOTTI PER CATEGORIA
   const prodottiPerCategoria = useMemo(() => {
     const categorie = {
       Ravioli: [],
@@ -358,7 +381,6 @@ clienteIdPreselezionato,
   }, [isConnected]);
 
   const caricaClienti = async () => {
-    // ✅ PROVA PRIMA DALLA CACHE LOCALSTORAGE
     const cacheTime = localStorage.getItem('clienti_cache_time');
     const now = Date.now();
     
@@ -378,26 +400,23 @@ clienteIdPreselezionato,
       }
     }
 
-    // Se cache mancante/scaduta, carica da API
     try {
       setLoadingClienti(true);
       console.log('🔄 Caricamento clienti da API...');
       
-     // ✅ Ottieni token JWT
-const token = localStorage.getItem('token') || 'dev-token-123';
+      const token = localStorage.getItem('token') || 'dev-token-123';
 
-const response = await fetch(`${API_URL}/clienti?attivo=true`, {
-  headers: { 
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` })
-  }
-});
+      const response = await fetch(`${API_URL}/clienti?attivo=true`, {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
 
       if (response.ok) {
         const data = await response.json();
         const clientiData = data.data || data.clienti || data || [];
         
-        // Salva in cache
         clientiCache = clientiData;
         clientiCacheTime = Date.now();
         localStorage.setItem('clienti_cache', JSON.stringify(clientiData));
@@ -417,7 +436,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     }
   };
 
-  // ✅ NUOVO: Leggi dati chiamata da localStorage (PRIMA DI TUTTO!)
+  // ✅ Leggi dati chiamata da localStorage
   useEffect(() => {
     console.log('🔍 [NuovoOrdine] Controllo chiamata da localStorage...');
     
@@ -428,7 +447,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         const dati = JSON.parse(chiamataData);
         console.log('📞 [NuovoOrdine] Dati chiamata trovati:', dati);
         
-        // ✅ PRECOMPILA SEMPRE IL TELEFONO
         if (dati.telefono) {
           setFormData(prev => ({
             ...prev,
@@ -437,8 +455,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           console.log('✅ Telefono precompilato:', dati.telefono);
         }
         
-        // ✅ PRECOMPILA NOME SOLO SE CLIENTE TROVATO
-        // I dati arrivano già con nome/cognome al primo livello
         if (dati.nome) {
           const nomeCompleto = `${dati.nome || ''} ${dati.cognome || ''}`.trim();
           setFormData(prev => ({
@@ -450,7 +466,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           console.log('ℹ️ Cliente sconosciuto, solo telefono precompilato');
         }
         
-        // ✅ PULISCI SOLO DOPO AVER LETTO
         localStorage.removeItem('chiamataCliente');
         console.log('🧹 localStorage pulito');
         
@@ -461,9 +476,9 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     } else {
       console.log('ℹ️ Nessuna chiamata in localStorage');
     }
-  }, []); // ⚠️ Array vuoto = esegue solo al mount!
+  }, []);
 
-// ✅ NUOVO: Preseleziona cliente da chiamata
+  // ✅ Preseleziona cliente da chiamata
   useEffect(() => {
     if (clienteIdPreselezionato && clienti.length > 0) {
       const clienteTrovato = clienti.find(c => c._id === clienteIdPreselezionato);
@@ -509,22 +524,29 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     return getProdottoConfigDB(prodottoCorrente.nome);
   }, [prodottoCorrente.nome, prodottiDB]);
 
-  const hasVarianti = prodottoConfig?.hasVarianti || false;
+  // ✅ MODIFICATO: hasVarianti solo per dropdown legacy (NON per checkbox)
+  const usaNuovoSistemaVarianti = prodottoHaVarianti(prodottoCorrente.nome);
+  const hasVarianti = prodottoConfig?.hasVarianti && !usaNuovoSistemaVarianti;
   const varianti = prodottoConfig?.varianti || [];
 
   const handleProdottoSelect = (prodotto) => {
-  console.log('🎯 Prodotto selezionato:', prodotto.nome);
-  
-  setProdottoCorrente({
-    nome: prodotto.nome,
-    variante: '',
-    quantita: '',
-    unita: prodotto.unitaMisuraDisponibili?.[0] || 'Kg',
-    prezzo: 0,
-    varianti: [], // ✅ Reset varianti nuovo sistema
-    noteCottura: '' // ✅ Reset note cottura
-  });
-};
+    console.log('🎯 Prodotto selezionato:', prodotto.nome);
+    
+    setProdottoCorrente({
+      nome: prodotto.nome,
+      variante: '',
+      quantita: '',
+      unita: prodotto.unitaMisuraDisponibili?.[0] || 'Kg',
+      prezzo: 0,
+      varianti: [],
+      opzioniExtra: [], // ✅ NUOVO: Reset opzioni extra
+      noteCottura: ''
+    });
+    
+    // ✅ NUOVO: Reset numero vassoi e dimensione
+    setNumeroVassoiProdotto(1);
+    setDimensioneVassoio('');
+  };
 
   const handleVarianteChange = (event) => {
     setProdottoCorrente({
@@ -533,12 +555,15 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     });
   };
 
-  // ✅ NUOVO: Handler per nuovo sistema varianti
-  const handleVariantiChange = (nuoveVarianti) => {
-    console.log('🎨 Varianti aggiornate (nuovo sistema):', nuoveVarianti);
+  // ✅ AGGIORNATO: Handler per nuovo sistema varianti (checkbox) + opzioni extra
+  const handleVariantiChange = (nomeCompleto, variantiIds, opzioniExtraValori) => {
+    console.log('🎨 Varianti aggiornate (checkbox):', variantiIds);
+    console.log('📝 Opzioni extra:', opzioniExtraValori);
+    
     setProdottoCorrente({
       ...prodottoCorrente,
-      varianti: nuoveVarianti
+      varianti: variantiIds,
+      opzioniExtra: opzioniExtraValori || []
     });
   };
 
@@ -549,7 +574,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
     });
   };
 
-  // ✅ FIX CALCOLO PREZZO VARIANTI
+  // ✅ CALCOLO PREZZO - AGGIORNATO PER CHECKBOX MULTIPLE
   useEffect(() => {
     if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
       setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
@@ -562,16 +587,36 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
 
       let prezzo = 0;
       
-      // ✅ FIX: Gestione varianti CORRETTA
-      if (prodotto.hasVarianti) {
-        // Se il prodotto ha varianti MA non è stata selezionata ancora
+      // ✅ NUOVO SISTEMA: Checkbox multiple (es. Ravioli)
+      // Prezzo fisso €11/Kg indipendentemente dalle varianti selezionate
+      if (usaNuovoSistemaVarianti) {
+        console.log('📦 Usando nuovo sistema checkbox per:', prodottoCorrente.nome);
+        
+        // Per Ravioli: prezzo base €11/Kg
+        const prezzoBase = prodotto.varianti?.[0]?.prezzoKg || prodotto.prezzoKg || 11;
+        
+        if (prodottoCorrente.unita === 'Kg' || prodottoCorrente.unita === 'g') {
+          const quantitaKg = prodottoCorrente.unita === 'g' 
+            ? prodottoCorrente.quantita / 1000 
+            : prodottoCorrente.quantita;
+          prezzo = prezzoBase * quantitaKg;
+        } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
+          const prezzoPezzo = prodotto.varianti?.[0]?.prezzoPezzo || prodotto.prezzoPezzo || 0.37;
+          prezzo = prezzoPezzo * prodottoCorrente.quantita;
+        } else if (prodottoCorrente.unita === '€') {
+          prezzo = prodottoCorrente.quantita;
+        }
+        
+        console.log(`💰 Prezzo checkbox: ${prodottoCorrente.quantita} ${prodottoCorrente.unita} x €${prezzoBase} = €${prezzo.toFixed(2)}`);
+        
+      // ✅ SISTEMA LEGACY: Dropdown singolo
+      } else if (prodotto.hasVarianti) {
         if (!prodottoCorrente.variante) {
           console.log('⚠️ Variante non selezionata per', prodotto.nome);
           setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
           return;
         }
         
-        // Trova la variante selezionata
         const varianteSelezionata = prodotto.varianti.find(v => v.nome === prodottoCorrente.variante);
         
         if (!varianteSelezionata) {
@@ -580,7 +625,6 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           return;
         }
         
-        // ✅ USA IL PREZZO DELLA VARIANTE SELEZIONATA
         console.log('✅ Variante selezionata:', varianteSelezionata.nome, varianteSelezionata);
         
         if (prodottoCorrente.unita === 'Kg' || prodottoCorrente.unita === 'g') {
@@ -603,6 +647,8 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           prezzo = prodotto.prezzoKg * quantitaKg;
         } else if (prodottoCorrente.unita === 'Pezzi' || prodottoCorrente.unita === 'Unità') {
           prezzo = prodotto.prezzoPezzo * prodottoCorrente.quantita;
+        } else if (prodottoCorrente.unita === '€') {
+          prezzo = prodottoCorrente.quantita;
         }
       }
 
@@ -614,58 +660,25 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       console.error('Errore calcolo prezzo:', error);
       setProdottoCorrente(prev => ({ ...prev, prezzo: 0 }));
     }
-  }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.quantita, prodottoCorrente.unita, prodottiDB]);
+  }, [prodottoCorrente.nome, prodottoCorrente.variante, prodottoCorrente.varianti, prodottoCorrente.quantita, prodottoCorrente.unita, prodottiDB, usaNuovoSistemaVarianti]);
 
 
   const handleAggiungiProdotto = () => {
-    if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
-      alert('Seleziona un prodotto e inserisci una quantità valida');
-      return;
-    }
+    console.log('🔵 handleAggiungiProdotto chiamato', { prodottoCorrente, modalitaVassoio });
 
-    // ✅ SISTEMA VECCHIO: Verifica varianti legacy (DB)
-    if (hasVarianti && !prodottoCorrente.variante) {
-      alert('Seleziona una variante');
-      return;
-    }
-
-    // ✅ SISTEMA NUOVO: Genera nome con varianti configurate
-    let nomeProdottoCompleto = prodottoCorrente.nome;
-    
-    if (prodottoCorrente.varianti && prodottoCorrente.varianti.length > 0) {
-      // Sistema nuovo: usa generaNomeProdottoConVarianti
-      nomeProdottoCompleto = generaNomeProdottoConVarianti(
-        prodottoCorrente.nome,
-        prodottoCorrente.varianti
-      );
-      console.log('✅ Nome con varianti (nuovo sistema):', nomeProdottoCompleto);
-    } else if (prodottoCorrente.variante) {
-      // Sistema vecchio: variante legacy
-      const variante = varianti.find(v => v.nome === prodottoCorrente.variante);
-      nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
-      console.log('✅ Nome con variante legacy:', nomeProdottoCompleto);
-    }
-
-    const nuovoProdotto = {
-      nome: nomeProdottoCompleto,
-      quantita: prodottoCorrente.quantita,
-      unita: prodottoCorrente.unita,
-      unitaMisura: prodottoCorrente.unita,
-      prezzo: prodottoCorrente.prezzo,
-      categoria: prodottoConfig?.categoria || 'Altro',
-      variante: prodottoCorrente.variante, // Sistema vecchio
-      varianti: prodottoCorrente.varianti, // ✅ Sistema nuovo
-      noteCottura: prodottoCorrente.noteCottura // ✅ Note cottura
-    };
-
-    console.log('➕ Prodotto aggiunto al carrello:', nuovoProdotto);
-
-    setFormData({
-      ...formData,
-      prodotti: [...formData.prodotti, nuovoProdotto]
-    });
-
-    // Reset completo
+    // ✅ SE SIAMO IN MODALITÀ VASSOIO
+    if (modalitaVassoio === 'imposta_totale') {
+      const nuovoItem = {
+        nome: prodottoCorrente.nome,
+        quantita: 0,
+        unita: 'Kg',
+        prezzo: 0,
+        id: `temp_${Date.now()}_${Math.random()}`
+      };
+      
+      setComposizioneVassoio(prev => [...prev, nuovoItem]);
+      console.log('✅ Prodotto aggiunto alla composizione vassoio');
+      
     setProdottoCorrente({
       nome: '',
       variante: '',
@@ -673,8 +686,268 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
       unita: 'Kg',
       prezzo: 0,
       varianti: [],
+      opzioniExtra: [],
       noteCottura: ''
     });
+    setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+    setNumeroVassoi(1);
+    setGustiPanadine([]);
+    setModalitaPanadine('rapida');
+    setPanadineRapide({ carne: 0, verdura: 0 });
+    
+       return;
+    }
+
+    // ✅ SE SIAMO IN MODALITÀ DOLCI MISTI COMPLETO
+    if (modalitaVassoio === 'dolci_misti') {
+      const nuovoItem = {
+        nome: prodottoCorrente.nome,
+        quantita: 0,
+        unita: 'Kg',
+        prezzo: 0,
+        pesoMix: 0,
+        id: `temp_${Date.now()}_${Math.random()}`
+      };
+      
+      setComposizioneVassoio(prev => [...prev, nuovoItem]);
+      console.log('✅ Prodotto aggiunto al mix dolci');
+      
+      setProdottoCorrente({
+        nome: '',
+        variante: '',
+        quantita: '',
+        unita: 'Kg',
+        prezzo: 0,
+        varianti: [],
+        opzioniExtra: [],
+        noteCottura: ''
+      });
+      return;
+    }
+
+    // ✅ GESTIONE SPECIALE PANADINE CON GUSTI
+    const configProdotto = PRODOTTI_CONFIG[prodottoCorrente.nome];
+    
+    if (configProdotto?.gustiPanadine) {
+      let totaleQuantita = 0;
+      let dettagliGusti = [];
+      
+      if (modalitaPanadine === 'rapida') {
+        totaleQuantita = panadineRapide.carne + panadineRapide.verdura;
+        if (panadineRapide.carne > 0) dettagliGusti.push(`Carne: ${panadineRapide.carne}`);
+        if (panadineRapide.verdura > 0) dettagliGusti.push(`Verdura: ${panadineRapide.verdura}`);
+      } else {
+        totaleQuantita = gustiPanadine.reduce((sum, g) => sum + g.quantita, 0);
+        gustiPanadine.forEach(g => {
+          if (g.quantita > 0) {
+            dettagliGusti.push(`${g.ingrediente1}+${g.ingrediente2}: ${g.quantita}`);
+          }
+        });
+      }
+      
+      if (totaleQuantita <= 0) {
+        alert('Inserisci almeno una panadina');
+        return;
+      }
+      
+      const prezzoPezzo = configProdotto.prezzoPezzo || 0.80;
+      const prezzoTotale = totaleQuantita * prezzoPezzo;
+      
+      const nuovoProdotto = {
+        nome: 'Panadine',
+        quantita: totaleQuantita,
+        unita: 'Pezzi',
+        unitaMisura: 'Pezzi',
+        prezzo: Math.round(prezzoTotale * 100) / 100,
+        categoria: 'Panadas',
+        note: dettagliGusti.join(', '),
+        dettagliCalcolo: {
+          gusti: modalitaPanadine === 'rapida' ? panadineRapide : gustiPanadine,
+          modalita: modalitaPanadine
+        }
+      };
+      
+      console.log('🥟 Panadine aggiunte:', nuovoProdotto);
+      
+      setFormData({
+        ...formData,
+        prodotti: [...formData.prodotti, nuovoProdotto]
+      });
+      
+      // Reset
+      setProdottoCorrente({
+        nome: '',
+        variante: '',
+        quantita: '',
+        unita: 'Kg',
+        prezzo: 0,
+        varianti: [],
+        opzioniExtra: [],
+        noteCottura: ''
+      });
+      setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+      setNumeroVassoi(1);
+      setGustiPanadine([]);
+      setModalitaPanadine('rapida');
+      setPanadineRapide({ carne: 0, verdura: 0 });
+      return;
+    }
+    
+    // ✅ GESTIONE SPECIALE PANADE CON OPZIONI
+    if (configProdotto?.opzioniAggiuntive) {
+      if (!prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
+        alert('Inserisci una quantità');
+        return;
+      }
+      
+      const aglioNote = opzioniPanada.aglio === 'senza_aglio' ? 'senza aglio' : '';
+      const contornoLabel = opzioniPanada.contorno === 'con_patate' ? 'con patate' : 
+                           opzioniPanada.contorno === 'con_piselli' ? 'con piselli' : 'con patate e piselli';
+      
+      let nomeCompleto = `${prodottoCorrente.nome} (${contornoLabel})`;
+      if (aglioNote) {
+        nomeCompleto = `${prodottoCorrente.nome} (${aglioNote}, ${contornoLabel})`;
+      }
+      
+      const nuoviProdotti = [];
+      for (let i = 0; i < numeroVassoi; i++) {
+        nuoviProdotti.push({
+          nome: nomeCompleto,
+          quantita: prodottoCorrente.quantita,
+          unita: prodottoCorrente.unita,
+          unitaMisura: prodottoCorrente.unita,
+          prezzo: prodottoCorrente.prezzo,
+          categoria: 'Panadas',
+          note: '',
+          dettagliCalcolo: {
+            nomeBase: prodottoCorrente.nome,
+            opzioni: opzioniPanada,
+            numeroVassoi: 1,
+            quantitaSingola: prodottoCorrente.quantita,
+            prezzoCalcolato: true
+          }
+        });
+      }
+      
+      console.log('🥘 Panade aggiunte:', nuoviProdotti);
+      
+      setFormData({
+        ...formData,
+        prodotti: [...formData.prodotti, ...nuoviProdotti]
+      });
+      
+      // Reset
+      setProdottoCorrente({
+        nome: '',
+        variante: '',
+        quantita: '',
+        unita: 'Kg',
+        prezzo: 0,
+        varianti: [],
+        opzioniExtra: [],
+        noteCottura: ''
+      });
+      setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+      setNumeroVassoi(1);
+      setGustiPanadine([]);
+      setModalitaPanadine('rapida');
+      setPanadineRapide({ carne: 0, verdura: 0 });
+      return;
+    }
+
+    // ✅ MODALITÀ NORMALE
+    if (!prodottoCorrente.nome || !prodottoCorrente.quantita || prodottoCorrente.quantita <= 0) {
+      alert('Seleziona un prodotto e inserisci una quantità valida');
+      return;
+    }
+
+    // ✅ SISTEMA LEGACY: Verifica varianti dropdown
+    if (hasVarianti && !prodottoCorrente.variante) {
+      alert('Seleziona una variante');
+      return;
+    }
+
+    // ✅ GENERA NOME CON VARIANTI
+    let nomeProdottoCompleto = prodottoCorrente.nome;
+    
+    // Nuovo sistema checkbox
+    if (prodottoCorrente.varianti && prodottoCorrente.varianti.length > 0) {
+      nomeProdottoCompleto = generaNomeProdottoConVarianti(
+        prodottoCorrente.nome,
+        prodottoCorrente.varianti
+      );
+      console.log('✅ Nome con varianti (checkbox):', nomeProdottoCompleto);
+    } 
+    // Sistema legacy dropdown
+    else if (prodottoCorrente.variante) {
+      const variante = varianti.find(v => v.nome === prodottoCorrente.variante);
+      nomeProdottoCompleto = variante?.label || `${prodottoCorrente.nome} ${prodottoCorrente.variante}`;
+      console.log('✅ Nome con variante (dropdown):', nomeProdottoCompleto);
+    }
+
+    // ✅ NUOVO: Combina noteCottura esistenti con opzioni extra
+    let noteCotturaCombinate = prodottoCorrente.noteCottura || '';
+    
+    if (prodottoCorrente.opzioniExtra && prodottoCorrente.opzioniExtra.length > 0) {
+      const opzioniExtraStr = prodottoCorrente.opzioniExtra.join(', ');
+      console.log('📝 Opzioni extra da aggiungere alle note:', opzioniExtraStr);
+      
+      if (noteCotturaCombinate) {
+        noteCotturaCombinate = `${noteCotturaCombinate}, ${opzioniExtraStr}`;
+      } else {
+        noteCotturaCombinate = opzioniExtraStr;
+      }
+    }
+    
+    // ✅ NUOVO: Aggiungi dimensione vassoio alle note se selezionata
+    console.log('🔍 DEBUG dimensioneVassoio:', dimensioneVassoio, 'tipo:', typeof dimensioneVassoio);
+    if (dimensioneVassoio) {
+      const dimensioneNote = `Vassoio nr ${dimensioneVassoio}`;
+      if (noteCotturaCombinate) {
+        noteCotturaCombinate = `${noteCotturaCombinate}, ${dimensioneNote}`;
+      } else {
+        noteCotturaCombinate = dimensioneNote;
+      }
+      console.log('📦 Dimensione vassoio aggiunta alle note:', dimensioneNote);
+    }
+
+    // ✅ NUOVO: Crea più prodotti se numeroVassoiProdotto > 1
+    const nuoviProdotti = [];
+    for (let i = 0; i < numeroVassoiProdotto; i++) {
+      nuoviProdotti.push({
+        nome: nomeProdottoCompleto,
+        quantita: prodottoCorrente.quantita,
+        unita: prodottoCorrente.unita,
+        unitaMisura: prodottoCorrente.unita,
+        prezzo: prodottoCorrente.prezzo,
+        categoria: prodottoConfig?.categoria || 'Altro',
+        variante: prodottoCorrente.variante,
+        varianti: prodottoCorrente.varianti,
+        noteCottura: noteCotturaCombinate
+      });
+    }
+
+    console.log(`➕ ${numeroVassoiProdotto} prodotto/i aggiunto/i al carrello:`, nuoviProdotti);
+
+    setFormData({
+      ...formData,
+      prodotti: [...formData.prodotti, ...nuoviProdotti]
+    });
+
+    setProdottoCorrente({
+      nome: '',
+      variante: '',
+      quantita: '',
+      unita: 'Kg',
+      prezzo: 0,
+      varianti: [],
+      opzioniExtra: [],
+      noteCottura: ''
+    });
+    
+    // ✅ NUOVO: Reset numero vassoi e dimensione
+    setNumeroVassoiProdotto(1);
+    setDimensioneVassoio('');
   };
 
   const handleRimuoviProdotto = (index) => {
@@ -685,21 +958,57 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
   };
 
   const aggiungiVassoioAlCarrello = (vassoio) => {
-    console.log('🎂 Vassoio aggiunto al carrello:', vassoio);
+  console.log('🎂 Vassoio ricevuto:', vassoio);
+  
+  let vassoiArray;
+  
+  if (Array.isArray(vassoio)) {
+    vassoiArray = vassoio;
+  } else if (vassoio && typeof vassoio === 'object') {
+    vassoiArray = [vassoio];
+    console.log('✅ Convertito oggetto vassoio in array');
+  } else {
+    console.error('❌ Vassoio non valido:', vassoio);
+    return;
+  }
+  
+  setFormData({
+    ...formData,
+    prodotti: [...formData.prodotti, ...vassoiArray]
+  });
+  
+  setTabValue(0);
+  console.log('✅ Vassoio aggiunto al carrello');
+};
+
+  const handleConfermaVassoio = (vassoi) => {
+    console.log('🎂 Conferma vassoio ricevuto:', vassoi);
     
-    setFormData({
-      ...formData,
-      prodotti: [...formData.prodotti, vassoio]
-    });
+    setFormData(prev => ({
+      ...prev,
+      prodotti: [...prev.prodotti, ...vassoi]
+    }));
     
+    setModalitaVassoio(null);
+    setComposizioneVassoio([]);
+    setTotaleVassoio(0);
     setTabValue(0);
+    
+    console.log('✅ Vassoio aggiunto all\'ordine');
+  };
+
+  const handleAnnullaVassoio = () => {
+    setModalitaVassoio(null);
+    setComposizioneVassoio([]);
+    setTotaleVassoio(0);
+    setTabValue(0);
+    console.log('❌ Vassoio annullato');
   };
 
   const calcolaTotale = () => {
     return formData.prodotti.reduce((sum, p) => sum + (p.prezzo || 0), 0);
   };
 
-  // ✅ Verifica limiti PRIMA di salvare CON FORCE OVERRIDE
   const handleSalva = async () => {
     if (!formData.nomeCliente || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
       alert('Compila tutti i campi obbligatori: cliente, data ritiro, ora ritiro e almeno un prodotto');
@@ -869,18 +1178,22 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                     Configura: <strong>{prodottoCorrente.nome}</strong>
                   </Typography>
 
-                  {/* ✅ NUOVO: Componente VariantiProdotto (sistema configurato) */}
-                  {prodottoHaVarianti(prodottoCorrente.nome) && (
+                  {/* ✅ NUOVO SISTEMA: Checkbox multiple (Ravioli, ecc.) */}
+                  {usaNuovoSistemaVarianti && 
+                   !PRODOTTI_CONFIG[prodottoCorrente.nome]?.opzioniAggiuntive && 
+                   !PRODOTTI_CONFIG[prodottoCorrente.nome]?.gustiPanadine && (
                     <Box sx={{ my: 2 }}>
                       <VariantiProdotto
-                        prodotto={prodottoCorrente.nome}
-                        value={prodottoCorrente.varianti}
-                        onChange={handleVariantiChange}
+                        prodottoBase={prodottoCorrente.nome}
+                        onVarianteChange={handleVariantiChange}
+                        variantiSelezionate={prodottoCorrente.varianti}
+                        opzioniExtraSelezionate={prodottoCorrente.opzioniExtra}
                       />
                     </Box>
                   )}
 
                   <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {/* ✅ SISTEMA LEGACY: Dropdown singolo (solo se NON usa nuovo sistema) */}
                     {hasVarianti && (
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth size="small">
@@ -945,14 +1258,18 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                           })}
                           label="Unità"
                         >
-                          {(prodottoConfig?.unitaMisuraDisponibili || ['Kg']).map((u) => (
-                            <MenuItem key={u} value={u}>{u}</MenuItem>
-                          ))}
+                          {/* ✅ AGGIORNATO: Aggiungi sempre € come opzione */}
+                          {[...(prodottoConfig?.unitaMisuraDisponibili || ['Kg']), '€']
+                            .filter((u, i, arr) => arr.indexOf(u) === i) // rimuovi duplicati
+                            .map((u) => (
+                              <MenuItem key={u} value={u}>{u}</MenuItem>
+                            ))
+                          }
                         </Select>
                       </FormControl>
                     </Grid>
 
-                    {/* ✅ NUOVO: Campo Note Cottura */}
+                    {/* Campo Note Cottura */}
                     <Grid item xs={12} sm={6}>
                       <TextField
                         fullWidth
@@ -965,6 +1282,39 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                         })}
                         size="small"
                       />
+                    </Grid>
+
+                    {/* ✅ NUOVO: Numero Vassoi Uguali */}
+                    <Grid item xs={6} sm={3}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Nr vassoi uguali"
+                        value={numeroVassoiProdotto}
+                        onChange={(e) => setNumeroVassoiProdotto(Math.max(1, parseInt(e.target.value) || 1))}
+                        size="small"
+                        inputProps={{ min: 1 }}
+                      />
+                    </Grid>
+
+                    {/* ✅ NUOVO: Dimensione Vassoio */}
+                    <Grid item xs={6} sm={3}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Dim. Vassoio</InputLabel>
+                        <Select
+                          value={dimensioneVassoio}
+                          onChange={(e) => {
+                            console.log('🎯 Dimensione vassoio selezionata:', e.target.value);
+                            setDimensioneVassoio(e.target.value);
+                          }}
+                          label="Dim. Vassoio"
+                        >
+                          <MenuItem value="">-</MenuItem>
+                          {DIMENSIONI_VASSOIO.map((dim) => (
+                            <MenuItem key={dim} value={dim}>Nr {dim}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
                     </Grid>
 
                     {/* Griglia Valori Rapidi */}
@@ -996,7 +1346,7 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                       />
                     </Grid>
 
-                    <Grid item xs={4} sm={hasVarianti ? 4 : 2}>
+              <Grid item xs={4} sm={hasVarianti ? 4 : 2}>
                       <Button
                         fullWidth
                         variant="contained"
@@ -1008,6 +1358,227 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
                         Aggiungi
                       </Button>
                     </Grid>
+
+                    {/* Opzioni Panade (Aglio + Contorno) */}
+                    {PRODOTTI_CONFIG[prodottoCorrente.nome]?.opzioniAggiuntive && (
+                      <Grid item xs={12}>
+                        <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            🥘 Opzioni Panada
+                          </Typography>
+                          
+                          <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Aglio</InputLabel>
+                                <Select
+                                  value={opzioniPanada.aglio}
+                                  onChange={(e) => setOpzioniPanada(prev => ({ ...prev, aglio: e.target.value }))}
+                                  label="Aglio"
+                                >
+                                  <MenuItem value="con_aglio">Con aglio</MenuItem>
+                                  <MenuItem value="senza_aglio">Senza aglio</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+                            
+                            <Grid item xs={6}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Contorno</InputLabel>
+                                <Select
+                                  value={opzioniPanada.contorno}
+                                  onChange={(e) => setOpzioniPanada(prev => ({ ...prev, contorno: e.target.value }))}
+                                  label="Contorno"
+                                >
+                                  <MenuItem value="con_patate">Con patate</MenuItem>
+                                  <MenuItem value="con_piselli">Con piselli</MenuItem>
+                                  <MenuItem value="patate_piselli">Con patate e piselli</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+                            
+                            <Grid item xs={12}>
+                              <TextField
+                                label="Numero Vassoi/Panade"
+                                type="number"
+                                value={numeroVassoi}
+                                onChange={(e) => setNumeroVassoi(Math.max(1, parseInt(e.target.value) || 1))}
+                                size="small"
+                                fullWidth
+                                inputProps={{ min: 1 }}
+                                helperText="Es: 2 panade da 1kg = inserisci 2"
+                              />
+                            </Grid>
+                          </Grid>
+                        </Box>
+                      </Grid>
+                    )}
+
+                    {/* Gusti Panadine */}
+                    {PRODOTTI_CONFIG[prodottoCorrente.nome]?.gustiPanadine && (
+                      <Grid item xs={12}>
+                        <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3e0', borderRadius: 1 }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            🥟 Gusti Panadine
+                          </Typography>
+                          
+                          <Box sx={{ mb: 2 }}>
+                            <Button
+                              variant={modalitaPanadine === 'rapida' ? 'contained' : 'outlined'}
+                              size="small"
+                              onClick={() => setModalitaPanadine('rapida')}
+                              sx={{ mr: 1 }}
+                            >
+                              Scelta Rapida
+                            </Button>
+                            <Button
+                              variant={modalitaPanadine === 'componi' ? 'contained' : 'outlined'}
+                              size="small"
+                              onClick={() => setModalitaPanadine('componi')}
+                            >
+                              Componi
+                            </Button>
+                          </Box>
+                          
+                          {modalitaPanadine === 'rapida' && (
+                            <Grid container spacing={2}>
+                              <Grid item xs={6}>
+                                <TextField
+                                  label="Carne"
+                                  type="number"
+                                  value={panadineRapide.carne}
+                                  onChange={(e) => setPanadineRapide(prev => ({ 
+                                    ...prev, 
+                                    carne: Math.max(0, parseInt(e.target.value) || 0) 
+                                  }))}
+                                  size="small"
+                                  fullWidth
+                                  inputProps={{ min: 0 }}
+                                />
+                              </Grid>
+                              <Grid item xs={6}>
+                                <TextField
+                                  label="Verdura"
+                                  type="number"
+                                  value={panadineRapide.verdura}
+                                  onChange={(e) => setPanadineRapide(prev => ({ 
+                                    ...prev, 
+                                    verdura: Math.max(0, parseInt(e.target.value) || 0) 
+                                  }))}
+                                  size="small"
+                                  fullWidth
+                                  inputProps={{ min: 0 }}
+                                />
+                              </Grid>
+                              <Grid item xs={12}>
+                                <Typography variant="body2" color="primary" fontWeight="bold">
+                                  Totale: {panadineRapide.carne + panadineRapide.verdura} panadine = €{((panadineRapide.carne + panadineRapide.verdura) * 0.80).toFixed(2)}
+                                </Typography>
+                              </Grid>
+                            </Grid>
+                          )}
+                          
+                          {modalitaPanadine === 'componi' && (
+                            <Box>
+                              {gustiPanadine.map((gusto, index) => (
+                                <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                                    <Select
+                                      value={gusto.ingrediente1}
+                                      onChange={(e) => {
+                                        const newGusti = [...gustiPanadine];
+                                        newGusti[index].ingrediente1 = e.target.value;
+                                        setGustiPanadine(newGusti);
+                                      }}
+                                      displayEmpty
+                                    >
+                                      <MenuItem value="">Ingr. 1</MenuItem>
+                                      <MenuItem value="carne">Carne</MenuItem>
+                                      <MenuItem value="piselli">Piselli</MenuItem>
+                                      <MenuItem value="patate">Patate</MenuItem>
+                                      <MenuItem value="melanzane">Melanzane</MenuItem>
+                                      <MenuItem value="peperoni">Peperoni</MenuItem>
+                                      <MenuItem value="zucchine">Zucchine</MenuItem>
+                                      <MenuItem value="pomodoro">Pomodoro</MenuItem>
+                                      <MenuItem value="salsiccia">Salsiccia</MenuItem>
+                                      <MenuItem value="funghi">Funghi</MenuItem>
+                                    </Select>
+                                  </FormControl>
+                                  
+                                  <Typography>+</Typography>
+                                  
+                                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                                    <Select
+                                      value={gusto.ingrediente2}
+                                      onChange={(e) => {
+                                        const newGusti = [...gustiPanadine];
+                                        newGusti[index].ingrediente2 = e.target.value;
+                                        setGustiPanadine(newGusti);
+                                      }}
+                                      displayEmpty
+                                    >
+                                      <MenuItem value="">Ingr. 2</MenuItem>
+                                      <MenuItem value="carne">Carne</MenuItem>
+                                      <MenuItem value="piselli">Piselli</MenuItem>
+                                      <MenuItem value="patate">Patate</MenuItem>
+                                      <MenuItem value="melanzane">Melanzane</MenuItem>
+                                      <MenuItem value="peperoni">Peperoni</MenuItem>
+                                      <MenuItem value="zucchine">Zucchine</MenuItem>
+                                      <MenuItem value="pomodoro">Pomodoro</MenuItem>
+                                      <MenuItem value="salsiccia">Salsiccia</MenuItem>
+                                      <MenuItem value="funghi">Funghi</MenuItem>
+                                    </Select>
+                                  </FormControl>
+                                  
+                                  <TextField
+                                    type="number"
+                                    value={gusto.quantita}
+                                    onChange={(e) => {
+                                      const newGusti = [...gustiPanadine];
+                                      newGusti[index].quantita = Math.max(0, parseInt(e.target.value) || 0);
+                                      setGustiPanadine(newGusti);
+                                    }}
+                                    size="small"
+                                    sx={{ width: 60 }}
+                                    inputProps={{ min: 0 }}
+                                  />
+                                  
+                                  <IconButton 
+                                    size="small" 
+                                    color="error"
+                                    onClick={() => {
+                                      setGustiPanadine(gustiPanadine.filter((_, i) => i !== index));
+                                    }}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+                              ))}
+                              
+                              <Button
+                                size="small"
+                                startIcon={<AddIcon />}
+                                onClick={() => {
+                                  setGustiPanadine([...gustiPanadine, { 
+                                    ingrediente1: '', 
+                                    ingrediente2: '', 
+                                    quantita: 0 
+                                  }]);
+                                }}
+                                sx={{ mt: 1 }}
+                              >
+                                Aggiungi Combinazione
+                              </Button>
+                              
+                              <Typography variant="body2" color="primary" fontWeight="bold" sx={{ mt: 1 }}>
+                                Totale: {gustiPanadine.reduce((sum, g) => sum + g.quantita, 0)} panadine = €{(gustiPanadine.reduce((sum, g) => sum + g.quantita, 0) * 0.80).toFixed(2)}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      </Grid>
+                    )}
+
                   </Grid>
                 </Box>
               )}
@@ -1088,14 +1659,14 @@ const response = await fetch(`${API_URL}/clienti?attivo=true`, {
           </Box>
         )}
 
-        {/* TAB 1: VASSOIO DOLCI MISTI */}
-        {tabValue === 1 && (
-          <VassoidDolciMisti 
-            prodotti={prodottiDB}
-            onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
-            calcolaPrezzoOrdine={calcolaPrezzoOrdine}
-          />
-        )}
+       {/* TAB 1: VASSOIO DOLCI MISTI */}
+{tabValue === 1 && (
+  <VassoidDolciMisti 
+    prodottiDisponibili={prodottiDB}
+    onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
+    onClose={() => setTabValue(0)}
+  />
+)}
 
         {/* SEZIONI COMUNI */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>

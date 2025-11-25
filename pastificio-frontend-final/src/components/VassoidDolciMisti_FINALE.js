@@ -70,7 +70,6 @@ const DIMENSIONI_VASSOIO = {
   8: { label: 'Nr 8 - XL', pesoSuggerito: 1.5, range: '~1-2kg' }
 };
 
-const PESO_MAX_PER_VASSOIO = 2.0; // Kg
 
 // ==========================================
 // 🎯 MODALITÀ COMPOSIZIONE
@@ -203,6 +202,74 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     return (raggiuntoValore / totaleTarget.valore) * 100;
   }, [modalita, totaleTarget, pesoTotaleVassoio, totaleVassoio, composizione]);
 
+  // ✅ CALCOLO AUTOMATICO QUANTITÀ IN MODALITÀ TOTALE_PRIMA
+  useEffect(() => {
+    if (modalita !== MODALITA.TOTALE_PRIMA) return;
+    if (composizione.length === 0) return;
+    if (totaleTarget.valore <= 0) return;
+
+    // Conta solo prodotti con flag autoCalc
+    const prodottiDaCalcolare = composizione.filter(item => item.autoCalc);
+    if (prodottiDaCalcolare.length === 0) return;
+
+    // ✅ CALCOLO BASATO SU UNITÀ TARGET
+    if (totaleTarget.unita === 'Kg') {
+      // Calcola Kg per prodotto
+      const kgPerProdotto = totaleTarget.valore / composizione.length;
+
+      setComposizione(prev => prev.map(item => {
+        if (!item.autoCalc) return item;
+
+        const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, kgPerProdotto, 'Kg');
+
+        return {
+          ...item,
+          quantita: kgPerProdotto,
+          unita: 'Kg',
+          prezzo: nuovoPrezzo
+        };
+      }));
+
+    } else if (totaleTarget.unita === 'Pezzi') {
+      // Calcola Pezzi per prodotto
+      const pezziPerProdotto = Math.floor(totaleTarget.valore / composizione.length);
+
+      setComposizione(prev => prev.map(item => {
+        if (!item.autoCalc) return item;
+
+        const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, pezziPerProdotto, 'Pezzi');
+
+        return {
+          ...item,
+          quantita: pezziPerProdotto,
+          unita: 'Pezzi',
+          prezzo: nuovoPrezzo
+        };
+      }));
+
+    } else if (totaleTarget.unita === '€') {
+      // Calcola prezzo target per prodotto
+      const prezzoTargetPerProdotto = totaleTarget.valore / composizione.length;
+
+      setComposizione(prev => prev.map(item => {
+        if (!item.autoCalc) return item;
+
+        const config = getProdottoConfig(item.prodotto);
+        if (!config) return item;
+
+        // Calcola Kg necessari per raggiungere il prezzo target
+        const kgNecessari = prezzoTargetPerProdotto / (config.prezzoKg || 19);
+
+        return {
+          ...item,
+          quantita: kgNecessari,
+          unita: 'Kg',
+          prezzo: prezzoTargetPerProdotto
+        };
+      }));
+    }
+  }, [modalita, composizione.length, totaleTarget.valore, totaleTarget.unita]);
+
   // ========== VALIDAZIONI ==========
   
   /**
@@ -212,23 +279,13 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     setErrore('');
     setWarning('');
     
-    if (pesoTotaleVassoio > PESO_MAX_PER_VASSOIO) {
-      setErrore(`⚠️ Peso vassoio ${pesoTotaleVassoio.toFixed(2)} Kg supera il massimo di ${PESO_MAX_PER_VASSOIO} Kg. Dividi in più vassoi!`);
-    } else if (pesoTotaleVassoio > (PESO_MAX_PER_VASSOIO * 0.85)) {
-      setWarning(`⚠️ Stai raggiungendo il limite peso (${pesoTotaleVassoio.toFixed(2)} Kg / ${PESO_MAX_PER_VASSOIO} Kg max)`);
-    }
-    
+      
     // Suggerimento dimensione vassoio
     const dimensioneSuggerita = Object.entries(DIMENSIONI_VASSOIO).find(([num, info]) => 
       pesoTotaleVassoio <= info.pesoSuggerito * 1.1
     );
     
-    if (dimensioneSuggerita && parseInt(dimensioneSuggerita[0]) !== numeroVassoioDimensione) {
-      const [num, info] = dimensioneSuggerita;
-      if (!warning) {
-        setWarning(`💡 Suggerimento: ${info.label} per ${pesoTotaleVassoio.toFixed(2)} Kg`);
-      }
-    }
+   
   }, [pesoTotaleVassoio, numeroVassoioDimensione]);
 
   // ========== HANDLERS ==========
@@ -316,6 +373,23 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     const config = getProdottoConfig(nomeProdotto);
     if (!config) return;
 
+    // ✅ MODALITÀ TOTALE_PRIMA: Aggiungi solo prodotto, calcolo automatico dopo
+    if (modalita === MODALITA.TOTALE_PRIMA) {
+      const nuovoItem = {
+        id: Date.now() + Math.random(),
+        prodotto: nomeProdotto,
+        quantita: 0, // Verrà calcolato automaticamente
+        unita: 'Kg',
+        prezzo: 0,
+        autoCalc: true, // Flag per indicare calcolo automatico
+        varianteSelezionata: config.varianti?.[0] || null // ✅ NUOVO: Variante default
+      };
+
+      setComposizione(prev => [...prev, nuovoItem]);
+      return;
+    }
+
+    // ✅ MODALITÀ LIBERA: Aggiungi con quantità default
     const quantitaDefault = config.modalitaVendita === 'solo_kg' ? 0.5 : 1;
     const unitaDefault = config.unitaMisuraDisponibili?.[0] || 'Kg';
     const prezzo = calcolaPrezzoProdotto(nomeProdotto, quantitaDefault, unitaDefault);
@@ -325,7 +399,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       prodotto: nomeProdotto,
       quantita: quantitaDefault,
       unita: unitaDefault,
-      prezzo: prezzo
+      prezzo: prezzo,
+      varianteSelezionata: config.varianti?.[0] || null // ✅ NUOVO: Variante default
     };
 
     setComposizione(prev => [...prev, nuovoItem]);
@@ -353,6 +428,18 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       if (item.id === id) {
         const prezzo = calcolaPrezzoProdotto(item.prodotto, item.quantita, nuovaUnita);
         return { ...item, unita: nuovaUnita, prezzo };
+      }
+      return item;
+    }));
+  };
+
+  /**
+   * ✅ NUOVO: Cambia variante prodotto
+   */
+  const cambiaVariante = (id, nuovaVariante) => {
+    setComposizione(prev => prev.map(item => {
+      if (item.id === id) {
+        return { ...item, varianteSelezionata: nuovaVariante };
       }
       return item;
     }));
@@ -389,11 +476,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       return;
     }
 
-    if (pesoTotaleVassoio > PESO_MAX_PER_VASSOIO) {
-      setErrore(`⚠️ Peso vassoio supera ${PESO_MAX_PER_VASSOIO} Kg. Dividi in più vassoi!`);
-      return;
-    }
-
+   
     // Prepara dati vassoio
     const dettagliComposizione = composizione.map(item => ({
       nome: item.prodotto,
@@ -524,8 +607,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
       {/* ========== SEZIONE 2: TOTALE TARGET (se modalità = totale_prima) ========== */}
       {modalita === MODALITA.TOTALE_PRIMA && (
-        <Paper sx={{ p: 3, mb: 3, bgcolor: 'info.light' }}>
-          <Typography variant="h6" gutterBottom>
+        <Paper sx={{ p: 3, mb: 3, bgcolor: '#E3F2FD', borderLeft: '4px solid #2196F3' }}>
+          <Typography variant="h6" gutterBottom sx={{ color: '#1565C0' }}>
             ⚖️ Totale Vassoio Target
           </Typography>
           
@@ -579,6 +662,19 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
               </Box>
             </Grid>
           </Grid>
+
+          {/* ✅ ALERT ESPLICATIVO MODALITÀ TOTALE_PRIMA */}
+          <Alert severity="info" sx={{ mt: 2, bgcolor: '#E3F2FD' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+              🎯 Modalità "Totale Prima" - Come funziona:
+            </Typography>
+            <Typography variant="body2" component="div">
+              1. Hai impostato un target di <strong>{totaleTarget.valore} {totaleTarget.unita}</strong><br/>
+              2. Seleziona i prodotti che vuoi includere nel vassoio<br/>
+              3. Le quantità verranno <strong>calcolate automaticamente</strong> in modo equo<br/>
+              4. Non devi impostare quantità manualmente!
+            </Typography>
+          </Alert>
         </Paper>
       )}
 
@@ -676,51 +772,95 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                       {/* Nome Prodotto */}
-                      <Typography variant="subtitle1" sx={{ minWidth: 150 }}>
+                      <Typography variant="subtitle1" sx={{ minWidth: 150, fontWeight: 'bold' }}>
                         {item.prodotto}
+                        {item.varianteSelezionata && (
+                          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                            ({item.varianteSelezionata})
+                          </Typography>
+                        )}
                       </Typography>
 
-                      {/* Controlli Quantità */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => incrementaQuantita(item.id, -1)}
-                        >
-                          <Minus size={16} />
-                        </IconButton>
+                      {/* ✅ NUOVO: Dropdown Varianti */}
+                      {config?.varianti && config.varianti.length > 0 && modalita !== MODALITA.TOTALE_PRIMA && (
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                          <Select
+                            value={item.varianteSelezionata || config.varianti[0]}
+                            onChange={(e) => cambiaVariante(item.id, e.target.value)}
+                          >
+                            {config.varianti.map(variante => (
+                              <MenuItem key={variante} value={variante}>
+                                {variante}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
 
-                        <TextField
-                          type="number"
-                          value={item.quantita}
-                          onChange={(e) => aggiornaQuantita(item.id, e.target.value)}
-                          size="small"
-                          sx={{ width: 80 }}
-                          inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
-                        />
+                      {/* ✅ MODALITÀ TOTALE_PRIMA: Mostra solo quantità calcolata */}
+                      {modalita === MODALITA.TOTALE_PRIMA && item.autoCalc ? (
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          bgcolor: '#E8F5E9',
+                          px: 2,
+                          py: 1,
+                          borderRadius: 1
+                        }}>
+                          <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                            {item.unita === 'Pezzi' 
+                              ? `${Math.floor(item.quantita)} ${item.unita}`
+                              : `${item.quantita.toFixed(2)} ${item.unita}`
+                            }
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            (calcolato automaticamente)
+                          </Typography>
+                        </Box>
+                      ) : (
+                        /* ✅ MODALITÀ LIBERA: Controlli quantità normali */
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => incrementaQuantita(item.id, -1)}
+                          >
+                            <Minus size={16} />
+                          </IconButton>
 
-                        <IconButton 
-                          size="small" 
-                          onClick={() => incrementaQuantita(item.id, 1)}
-                        >
-                          <Plus size={16} />
-                        </IconButton>
-                      </Box>
-
-                      {/* Unità di Misura */}
-                      <RadioGroup
-                        row
-                        value={item.unita}
-                        onChange={(e) => cambiaUnita(item.id, e.target.value)}
-                      >
-                        {config?.unitaMisuraDisponibili?.map(unita => (
-                          <FormControlLabel
-                            key={unita}
-                            value={unita}
-                            control={<Radio size="small" />}
-                            label={unita}
+                          <TextField
+                            type="number"
+                            value={item.quantita}
+                            onChange={(e) => aggiornaQuantita(item.id, e.target.value)}
+                            size="small"
+                            sx={{ width: 80 }}
+                            inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
                           />
-                        ))}
-                      </RadioGroup>
+
+                          <IconButton 
+                            size="small" 
+                            onClick={() => incrementaQuantita(item.id, 1)}
+                          >
+                            <Plus size={16} />
+                          </IconButton>
+                        </Box>
+                      )}
+
+                      {/* ✅ MODIFICA: Dropdown Unità di Misura - Solo in modalità LIBERA */}
+                      {modalita !== MODALITA.TOTALE_PRIMA && (
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
+                          <Select
+                            value={item.unita}
+                            onChange={(e) => cambiaUnita(item.id, e.target.value)}
+                          >
+                            {config?.unitaMisuraDisponibili?.map(unita => (
+                              <MenuItem key={unita} value={unita}>
+                                {unita}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
 
                       {/* Prezzo */}
                       <Typography 

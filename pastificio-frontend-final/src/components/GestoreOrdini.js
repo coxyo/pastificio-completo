@@ -43,6 +43,7 @@ import OrdiniList from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
+import RiepilogoStampabile from './RiepilogoStampabile';
 import GestioneLimiti from './GestioneLimiti';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
@@ -285,7 +286,7 @@ function WhatsAppHelperComponent({ ordini }) {
   
   // ----------------------------------------------------------------
   // EFFETTO 1: Pusher Listener per Chiamate
-  // ⚠️ DISABILITATO: Ora gestito da useIncomingCall() hook
+  //⚠️ DISABILITATO: Ora gestito da useIncomingCall() hook
   // ----------------------------------------------------------------
   /* 
   useEffect(() => {
@@ -1300,7 +1301,9 @@ useEffect(() => {
   }, [sincronizzaConMongoDB]); // Rimosso connectWebSocket (disabilitato)
   
   // =============================================================  // RENDER JSX PRINCIPALE
-  // =============================================================  return (
+  // =============================================================  
+
+return (
     <>
       <style jsx global>{`
         @keyframes rotate {
@@ -1344,16 +1347,6 @@ useEffect(() => {
               <Button
                 variant="contained"
                 size="small"
-                color="secondary"
-                startIcon={<AssessmentIcon />}
-                onClick={() => setRiepilogoStampabileAperto(true)}
-              >
-                Riepilogo Stampabile
-              </Button>
-              
-              <Button
-                variant="contained"
-                size="small"
                 color="success"
                 startIcon={<WhatsAppIcon />}
                 onClick={() => setWhatsappHelperAperto(true)}
@@ -1383,23 +1376,34 @@ useEffect(() => {
               </Button>
               
               <Button
-                variant="contained"
-                size="small"
-                color="primary"
-                startIcon={<ListAltIcon />}
-                onClick={() => setRiepilogoAperto(true)}
-              >
-                Riepilogo
-              </Button>
-              
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<ExportIcon />}
-                onClick={(e) => setMenuExport(e.currentTarget)}
-              >
-                Export
-              </Button>
+  variant="contained"
+  size="small"
+  color="primary"
+  startIcon={<ListAltIcon />}
+  onClick={() => setRiepilogoAperto(true)}
+>
+  Riepilogo
+</Button>
+
+<Button
+  variant="contained"
+  size="small"
+  color="warning"
+  startIcon={<PrintIcon />}
+  onClick={() => setRiepilogoStampabileAperto(true)}
+  sx={{ ml: 1 }}
+>
+  📄 Stampabile
+</Button>
+
+<Button
+  variant="outlined"
+  size="small"
+  startIcon={<ExportIcon />}
+  onClick={(e) => setMenuExport(e.currentTarget)}
+>
+  Export
+</Button>
               <Menu
                 anchorEl={menuExport}
                 open={Boolean(menuExport)}
@@ -1489,7 +1493,17 @@ useEffect(() => {
               <OrdiniList 
                 ordini={ordini}
                 onDelete={eliminaOrdine}
-                onEdit={(ordine) => {
+                onEdit={(ordine, e) => {
+                  // ✅ FIX 22/11/2025: Blocca apertura modifica se click su L/F/C
+                  if (e && (
+                    e.target.closest('[data-no-edit="true"]') || 
+                    e.target.dataset.noEdit === 'true' ||
+                    e.target.getAttribute('data-no-edit') === 'true'
+                  )) {
+                    console.log('🛑 Click su L/F/C, blocco apertura modifica ordine');
+                    return; // NON aprire il dialog di modifica
+                  }
+                  
                   setOrdineSelezionato(ordine);
                   setDialogoNuovoOrdineAperto(true);
                 }}
@@ -1582,11 +1596,13 @@ useEffect(() => {
           </DialogActions>
         </Dialog>
         
-        <RiepilogoGiornaliero 
-          open={riepilogoStampabileAperto} 
-          onClose={() => setRiepilogoStampabileAperto(false)}
-          ordini={ordini}
-        />
+        {riepilogoStampabileAperto && (
+  <RiepilogoStampabile
+    ordini={ordini}
+    data={dataSelezionata}
+    onClose={() => setRiepilogoStampabileAperto(false)}
+  />
+)}
         
         <Dialog 
           open={whatsappHelperAperto} 
@@ -1679,6 +1695,3 @@ useEffect(() => {
     </>
   );
 }
-
-
-export default GestoreOrdini;
