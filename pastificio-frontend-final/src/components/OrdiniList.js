@@ -1,4 +1,4 @@
-// components/OrdiniList.js - ✅ FIX 21/11/2025: Disabilita L/F quando count > 1
+// components/OrdiniList.js - ✅ FIX 25/11/2025: L/F/C NON APRONO PIÙ IL DIALOG
 import React, { useState, useMemo } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
@@ -137,6 +137,7 @@ const OrdiniList = ({
     setCategoriaSchermoIntero(null);
   };
 
+  // ✅ FIX 25/11/2025: RIMOSSA chiamata a onEdit() - NON apre più il dialog!
   const aggiornaStatoProdotto = async (ordineId, indiceProdotto, nuovoStato) => {
     try {
       const token = localStorage.getItem('token');
@@ -154,7 +155,7 @@ const OrdiniList = ({
         throw new Error('Errore aggiornamento stato prodotto');
       }
 
-      // ✅ FIX: Aggiorna localStorage senza reload
+      // ✅ Aggiorna localStorage - L'UI si aggiornerà tramite WebSocket/Pusher
       const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
       const ordiniAggiornati = ordiniLocal.map(o => {
         if (o._id === ordineId && o.prodotti[indiceProdotto]) {
@@ -169,18 +170,13 @@ const OrdiniList = ({
       });
       localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
       
-      // ✅ Trigger refresh tramite onEdit invece di reload
-      if (onEdit) {
-        const ordineAggiornato = ordiniAggiornati.find(o => o._id === ordineId);
-        if (ordineAggiornato) {
-          onEdit(ordineAggiornato);
-        }
-      }
+      // ✅ La UI si aggiornerà automaticamente tramite sincronizzazione
+      console.log('✅ Stato prodotto aggiornato - WebSocket notificherà gli altri device');
       
     } catch (error) {
-      console.error('Errore aggiornamento stato prodotto:', error);
+      console.error('❌ Errore aggiornamento stato prodotto:', error);
       
-      // ✅ Fallback: aggiorna solo localStorage
+      // ✅ Fallback: aggiorna comunque localStorage
       const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
       const ordiniAggiornati = ordiniLocal.map(o => {
         if (o._id === ordineId && o.prodotti[indiceProdotto]) {
@@ -194,13 +190,6 @@ const OrdiniList = ({
         return o;
       });
       localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-      
-      if (onEdit) {
-        const ordineAggiornato = ordiniAggiornati.find(o => o._id === ordineId);
-        if (ordineAggiornato) {
-          onEdit(ordineAggiornato);
-        }
-      }
     }
   };
 
@@ -608,7 +597,7 @@ Pastificio Nonna Claudia`;
                             </Typography>
                           </TableCell>
                           
-                          {/* ✅ FIX 22/11/2025: L/F/C sempre attivi + Consegnato */}
+                          {/* ✅ FIX 25/11/2025: L/F/C NON APRONO PIÙ IL DIALOG */}
                           <TableCell align="center" sx={{ p: 0.5, pointerEvents: 'none' }}>
                             <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center', pointerEvents: 'none' }}>
                               <Tooltip title={count > 1 ? "In Lavorazione (gruppo)" : "In Lavorazione"}>
@@ -620,11 +609,11 @@ Pastificio Nonna Claudia`;
                                   sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
                                   <Chip
-  label="L"
-  data-no-edit="true"
-  color={isInLavorazione ? 'warning' : 'default'}
-  variant={isInLavorazione ? 'filled' : 'outlined'}
-  onClick={(e) => {
+                                    label="L"
+                                    data-no-edit="true"
+                                    color={isInLavorazione ? 'warning' : 'default'}
+                                    variant={isInLavorazione ? 'filled' : 'outlined'}
+                                    onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
                                       handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
@@ -649,11 +638,11 @@ Pastificio Nonna Claudia`;
                                   sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
                                   <Chip
-  label="F"
-  data-no-edit="true"
-  color={isFatto ? 'success' : 'default'}
-  variant={isFatto ? 'filled' : 'outlined'}
- onClick={(e) => {
+                                    label="F"
+                                    data-no-edit="true"
+                                    color={isFatto ? 'success' : 'default'}
+                                    variant={isFatto ? 'filled' : 'outlined'}
+                                    onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
                                       handleFatto(ordine._id, indiceProdotto, !isFatto);
@@ -677,11 +666,11 @@ Pastificio Nonna Claudia`;
                                   }}
                                   sx={{ display: 'inline-block', pointerEvents: 'auto' }}
                                 >
-                                 <Chip
-  label="C"
-  data-no-edit="true"
-  color={isConsegnato ? 'error' : 'default'}
-  variant={isConsegnato ? 'filled' : 'outlined'}
+                                  <Chip
+                                    label="C"
+                                    data-no-edit="true"
+                                    color={isConsegnato ? 'error' : 'default'}
+                                    variant={isConsegnato ? 'filled' : 'outlined'}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
@@ -808,7 +797,7 @@ Pastificio Nonna Claudia`;
         </MenuItem>
       </Menu>
 
-    {/* Dialog zoom con L/F disabilitati quando count > 1 */}
+    {/* Dialog zoom con L/F/C funzionanti */}
     <Dialog
       open={!!categoriaSchermoIntero}
       onClose={chiudiSchermoIntero}
@@ -840,7 +829,7 @@ Pastificio Nonna Claudia`;
                 <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>PRODOTTO</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Q.TÀ</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>PREZZO</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>L/F</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>L/F/C</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>NOTE</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>AZIONI</TableCell>
               </TableRow>
@@ -895,7 +884,7 @@ Pastificio Nonna Claudia`;
                       €{(prezzoTotale || 0).toFixed(2)}
                     </TableCell>
                     
-                    {/* ✅ FIX 22/11/2025: L/F/C sempre attivi anche in schermo intero */}
+                    {/* ✅ FIX 25/11/2025: L/F/C NON APRONO PIÙ IL DIALOG */}
                     <TableCell align="center" sx={{ pointerEvents: 'none' }}>
                       <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', pointerEvents: 'none' }}>
                         <Chip
@@ -911,9 +900,9 @@ Pastificio Nonna Claudia`;
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
                         <Chip
-                        label="F"
-                        data-no-edit="true"
-                        color={isFatto ? 'success' : 'default'}
+                          label="F"
+                          data-no-edit="true"
+                          color={isFatto ? 'success' : 'default'}
                           variant={isFatto ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -923,9 +912,9 @@ Pastificio Nonna Claudia`;
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
                         <Chip
-                        label="C"
-                        data-no-edit="true"
-                        color={isConsegnato ? 'error' : 'default'}
+                          label="C"
+                          data-no-edit="true"
+                          color={isConsegnato ? 'error' : 'default'}
                           variant={isConsegnato ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
