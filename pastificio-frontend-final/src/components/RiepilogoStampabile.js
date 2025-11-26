@@ -96,6 +96,8 @@ const ABBREVIAZIONI = {
 
   'Ciambelle semplici': 'C.Nude',
 
+  'Ciambelle miste': 'C.Miste',
+
   'Sebadas': 'Sebad',
 
   'Torta di saba': 'T.Saba',
@@ -658,7 +660,7 @@ const isSoloPezzo = (nomeProdotto) => {
 
 
 
-// ✅ NUOVO 26/11/2025: Estrae composizione prodotto (es: "0,3A 0,3P 0,3B" o "PA")
+// ✅ AGGIORNATO 26/11/2025: Estrae composizione prodotto abbreviata (es: "C 0,5 A 0,3 B 0,1")
 
 const getComposizioneProdotto = (prodotto) => {
 
@@ -674,17 +676,27 @@ const getComposizioneProdotto = (prodotto) => {
 
   
 
-  // Se è una stringa tipo "0,3A 0,3P 0,3B" o "PA", restituiscila direttamente
+  // Se è una stringa tipo "0,3A 0,3P 0,3B" o "PA", puliscila e formattala
 
   if (typeof dettagli === 'string') {
 
-    return dettagli.toUpperCase();
+    // Converti "0.3A 0.3P" in "A 0,3 P 0,3"
+
+    return dettagli
+
+      .replace(/(\d+\.?\d*)\s*([A-Z])/gi, '$2 $1')
+
+      .replace(/\./g, ',')
+
+      .toUpperCase()
+
+      .trim();
 
   }
 
   
 
-  // Altrimenti tenta parsing della composizione
+  // Parsing dalla composizione array
 
   if (prodotto.dettagliCalcolo.composizione && Array.isArray(prodotto.dettagliCalcolo.composizione)) {
 
@@ -694,7 +706,9 @@ const getComposizioneProdotto = (prodotto) => {
 
         const abbr = abbreviaProdotto(item.nome);
 
-        return `${item.quantita}${abbr}`;
+        const qta = item.quantita.toString().replace('.', ',');
+
+        return `${abbr} ${qta}`;
 
       })
 
@@ -954,7 +968,51 @@ const formattaQuantitaConCount = (prodotto, count) => {
 
   
 
-  if (unita === 'vassoio') {
+  // ✅ Per vassoi, calcola peso totale dalla composizione
+
+  if (unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+
+    let pesoTotale = 0;
+
+    let prezzoTotale = prodotto.prezzo || 0;
+
+    
+
+    prodotto.dettagliCalcolo.composizione.forEach(comp => {
+
+      if (comp.unita === 'Kg') {
+
+        pesoTotale += comp.quantita;
+
+      } else if (comp.unita === 'Pezzi') {
+
+        const pezziPerKg = getPezziPerKg(comp.nome);
+
+        if (pezziPerKg && !isSoloPezzo(comp.nome)) {
+
+          pesoTotale += comp.quantita / pezziPerKg;
+
+        }
+
+      }
+
+    });
+
+    
+
+    // Mostra peso se > 0, altrimenti prezzo
+
+    if (pesoTotale > 0) {
+
+      return count > 1 ? `${count} X ${pesoTotale.toFixed(1)} KG` : `${pesoTotale.toFixed(1)} KG`;
+
+    } else if (prezzoTotale > 0) {
+
+      return count > 1 ? `${count} X €${prezzoTotale.toFixed(0)}` : `€${prezzoTotale.toFixed(0)}`;
+
+    }
+
+    
 
     return count > 1 ? `${count} X 1 VASS` : '1 VASS';
 
@@ -1460,7 +1518,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {/* ✅ NUOVO 21/11/2025: Righe vuote per completare foglio A4 */}
                     {(() => {
                       const righeAttuali = ordiniPerCategoria.RAVIOLI.length;
-                      const righeTarget = 35;
+                      const righeTarget = 30;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
                       return Array.from({ length: righeVuote }, (_, i) => (
@@ -1562,13 +1620,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     {ordiniPerCategoria.PARDULAS.map((item, index) => {
 
-                      const composizione = getComposizioneProdotto(item.prodotto);
-
-                      const nomeConComposizione = composizione 
-
-                        ? `${abbreviaProdotto(item.prodotto.nome)} (${composizione})`
-
-                        : abbreviaProdotto(item.prodotto.nome);
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
 
                       
 
@@ -1578,7 +1630,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         <td className="center">{item.oraRitiro}</td>
 
-                        <td style={{ fontWeight: 'bold' }}>{nomeConComposizione.toUpperCase()}</td>
+                        <td style={{ fontWeight: 'bold' }}>{nomeProdotto}</td>
 
                         {/* ✅ AGGIORNATO: Mostra quantità con moltiplicatore */}
 
@@ -1607,7 +1659,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {/* ✅ NUOVO 21/11/2025: Righe vuote per completare foglio A4 */}
                     {(() => {
                       const righeAttuali = ordiniPerCategoria.PARDULAS.length;
-                      const righeTarget = 35;
+                      const righeTarget = 30;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
                       return Array.from({ length: righeVuote }, (_, i) => (
@@ -1715,23 +1767,17 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                       
 
-                      if (item.prodotto.nome === 'Vassoio Dolci Misti') {
+                      // ✅ Per vassoi, mostra SOLO la composizione abbreviata (es: "C 0,5 A 0,3 G 0,1 B 0,1")
 
-                        nomeProdotto = `🎂 VASSOIO €${(item.prodotto.prezzo || 0).toFixed(0)}`;
+                      if (item.prodotto.nome === 'Vassoio Dolci Misti' || item.prodotto.unita === 'vassoio') {
+
+                        nomeProdotto = composizione || 'VASSOIO';
 
                       } else {
 
                         nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
 
                       }
-
-                      
-
-                      const nomeConComposizione = composizione 
-
-                        ? `${nomeProdotto} (${composizione})`
-
-                        : nomeProdotto;
 
                       
 
@@ -1743,7 +1789,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         <td style={{ fontWeight: 'bold' }}>
 
-                          {nomeConComposizione}
+                          {nomeProdotto}
 
                         </td>
 
@@ -1774,7 +1820,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {/* ✅ NUOVO 21/11/2025: Righe vuote per completare foglio A4 */}
                     {(() => {
                       const righeAttuali = ordiniPerCategoria.DOLCI.length;
-                      const righeTarget = 35;
+                      const righeTarget = 30;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
                       return Array.from({ length: righeVuote }, (_, i) => (
@@ -1876,13 +1922,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     {ordiniPerCategoria.ALTRI.map((item, index) => {
 
-                      const composizione = getComposizioneProdotto(item.prodotto);
-
-                      const nomeConComposizione = composizione 
-
-                        ? `${abbreviaProdotto(item.prodotto.nome)} (${composizione})`
-
-                        : abbreviaProdotto(item.prodotto.nome);
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
 
                       
 
@@ -1894,7 +1934,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         <td style={{ fontWeight: 'bold' }}>
 
-                          {nomeConComposizione.toUpperCase()}
+                          {nomeProdotto}
 
                         </td>
 
@@ -1925,7 +1965,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {/* ✅ NUOVO 21/11/2025: Righe vuote per completare foglio A4 */}
                     {(() => {
                       const righeAttuali = ordiniPerCategoria.ALTRI.length;
-                      const righeTarget = 35;
+                      const righeTarget = 30;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
                       return Array.from({ length: righeVuote }, (_, i) => (
