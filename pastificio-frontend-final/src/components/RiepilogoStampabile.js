@@ -702,133 +702,39 @@ const isSoloPezzo = (nomeProdotto) => {
 
 
 
-// ✅ AGGIORNATO 26/11/2025: Estrae e formatta composizione prodotto abbreviata
+// ✅ AGGIORNATO 26/11/2025: Estrae composizione prodotto (versione semplificata)
 
 const getComposizioneProdotto = (prodotto) => {
 
-  if (!prodotto.dettagliCalcolo || !prodotto.dettagliCalcolo.dettagli) {
+  console.log('🔍 getComposizioneProdotto chiamata per:', prodotto.nome);
 
-    return '';
-
-  }
+  console.log('📦 dettagliCalcolo:', prodotto.dettagliCalcolo);
 
   
 
-  const dettagli = prodotto.dettagliCalcolo.dettagli;
+  // ✅ PRIORITÀ 1: Usa array composizione se disponibile
 
-  
+  if (prodotto.dettagliCalcolo?.composizione && Array.isArray(prodotto.dettagliCalcolo.composizione)) {
 
-  // Se è una stringa, parsala
+    console.log('✅ Trovato array composizione:', prodotto.dettagliCalcolo.composizione);
 
-  if (typeof dettagli === 'string') {
+    const items = prodotto.dettagliCalcolo.composizione.map(item => {
 
-    // Esempio input: "CIAMBELLE: K 0,5G, AMARETTI: K 0,3G, BIANCHINI: K 0,1G"
+      const abbr = abbreviaProdotto(item.nome);
 
-    // Output desiderato: "C 0,5 A 0,3 B 0,1"
+      const qta = parseFloat(item.quantita);
 
-    
-
-    // Esempio input: "AMARETTI: P 6EZZI, PARDULAS: P 6EZZI"
-
-    // Output desiderato: "A 6 P 6"
-
-    
-
-    const parti = dettagli.split(',').map(p => p.trim());
-
-    const risultato = [];
-
-    const quantita_trovate = [];
-
-    
-
-    parti.forEach(parte => {
-
-      // Cerca pattern: "NOME_PRODOTTO: K/P QUANTITÀG/EZZI"
-
-      const match = parte.match(/^([A-Z\s]+):\s*([KP])\s*([\d,\.]+)(G|EZZI)?/i);
-
-      
-
-      if (match) {
-
-        const nomeProdotto = match[1].trim();
-
-        let quantita = match[3].replace('.', ',');
-
-        const abbr = abbreviaProdotto(nomeProdotto);
-
-        
-
-        // Salva quantità per analisi
-
-        quantita_trovate.push(parseFloat(quantita.replace(',', '.')));
-
-        
-
-        risultato.push({ abbr, quantita });
-
-      }
+      return { abbr, qta };
 
     });
 
     
 
-    // ✅ Se tutte le quantità sono uguali e < 1, mostra solo lettere (es: "AGB")
+    // Se tutte le quantità sono uguali e < 1, mostra solo lettere
 
-    const tutteUguali = quantita_trovate.every((q, i, arr) => 
+    const quantita_arr = items.map(i => i.qta);
 
-      Math.abs(q - arr[0]) < 0.01
-
-    );
-
-    
-
-    const tutteMinoriDi1 = quantita_trovate.every(q => q < 1);
-
-    
-
-    if (tutteUguali && tutteMinoriDi1 && risultato.length > 1) {
-
-      // Mostra solo lettere
-
-      return risultato.map(r => r.abbr).join('');
-
-    }
-
-    
-
-    // Altrimenti mostra con quantità
-
-    return risultato.map(r => `${r.abbr} ${r.quantita}`).join(' ').toUpperCase();
-
-  }
-
-  
-
-  // Parsing dalla composizione array
-
-  if (prodotto.dettagliCalcolo.composizione && Array.isArray(prodotto.dettagliCalcolo.composizione)) {
-
-    const items = prodotto.dettagliCalcolo.composizione.map(item => ({
-
-      abbr: abbreviaProdotto(item.nome),
-
-      quantita: item.quantita
-
-    }));
-
-    
-
-    // Controlla se tutte le quantità sono uguali e < 1
-
-    const quantita_arr = items.map(i => i.quantita);
-
-    const tutteUguali = quantita_arr.every((q, i, arr) => 
-
-      Math.abs(q - arr[0]) < 0.01
-
-    );
+    const tutteUguali = quantita_arr.every((q, i, arr) => Math.abs(q - arr[0]) < 0.01);
 
     const tutteMinoriDi1 = quantita_arr.every(q => q < 1);
 
@@ -844,7 +750,7 @@ const getComposizioneProdotto = (prodotto) => {
 
     return items
 
-      .map(i => `${i.abbr} ${i.quantita.toString().replace('.', ',')}`)
+      .map(i => `${i.abbr} ${i.qta.toString().replace('.', ',')}`)
 
       .join(' ')
 
@@ -853,6 +759,74 @@ const getComposizioneProdotto = (prodotto) => {
   }
 
   
+
+  // ✅ PRIORITÀ 2: Prova a parsare dettagli stringa
+
+  if (prodotto.dettagliCalcolo?.dettagli && typeof prodotto.dettagliCalcolo.dettagli === 'string') {
+
+    const dettagli = prodotto.dettagliCalcolo.dettagli;
+
+    
+
+    console.log('🔍 DEBUG dettagli:', dettagli); // LOG per debug
+
+    
+
+    // Pattern semplice: cerca "NOME_PRODOTTO" seguito da numero
+
+    // Es: "CIAMBELLE 0.5 AMARETTI 0.3" o "CIAMBELLE: 0.5, AMARETTI: 0.3"
+
+    const risultato = [];
+
+    
+
+    // Split per virgola o spazio
+
+    const parti = dettagli.split(/[,;]/);
+
+    
+
+    parti.forEach(parte => {
+
+      // Rimuovi caratteri extra (K, G, EZZI, :, etc)
+
+      const pulita = parte.replace(/[KPG:]/gi, '').trim();
+
+      
+
+      // Cerca pattern "PAROLA NUMERO"
+
+      const match = pulita.match(/([A-Z\s]+?)\s+([\d,.]+)/i);
+
+      
+
+      if (match) {
+
+        const nome = match[1].trim();
+
+        const qta = match[2].replace('.', ',');
+
+        const abbr = abbreviaProdotto(nome);
+
+        risultato.push(`${abbr} ${qta}`);
+
+      }
+
+    });
+
+    
+
+    if (risultato.length > 0) {
+
+      return risultato.join(' ').toUpperCase();
+
+    }
+
+  }
+
+  
+
+  // ✅ FALLBACK: Ritorna stringa vuota (verrà gestito dal chiamante)
 
   return '';
 
@@ -1901,11 +1875,27 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                       
 
-                      // ✅ Per vassoi, mostra SOLO la composizione abbreviata (es: "C 0,5 A 0,3 G 0,1 B 0,1")
+                      // ✅ Per vassoi, mostra composizione se disponibile, altrimenti prezzo
 
                       if (item.prodotto.nome === 'Vassoio Dolci Misti' || item.prodotto.unita === 'vassoio') {
 
-                        nomeProdotto = composizione || 'VASSOIO';
+                        if (composizione) {
+
+                          nomeProdotto = composizione;
+
+                        } else {
+
+                          // Fallback: mostra prezzo se composizione non disponibile
+
+                          const prezzo = item.prodotto.prezzo || 0;
+
+                          nomeProdotto = `VASSOIO €${prezzo.toFixed(0)}`;
+
+                          console.log('⚠️ Composizione vuota per vassoio, mostro prezzo:', nomeProdotto);
+
+                          console.log('📦 Prodotto completo:', JSON.stringify(item.prodotto, null, 2));
+
+                        }
 
                       } else {
 
