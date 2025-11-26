@@ -1,9 +1,9 @@
-// components/OrdiniList.js - ✅ FIX 25/11/2025: L/F/C NON APRONO PIÙ IL DIALOG
-import React, { useState, useMemo } from 'react';
+// components/OrdiniList.js - ✅ FIX 25/11/2025: AGGIORNAMENTO REAL-TIME IMMEDIATO
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, IconButton, Button, TextField, Chip, Menu, MenuItem, Divider,
-  Tooltip, Collapse, Dialog, DialogTitle, DialogContent, DialogActions
+  Tooltip, Collapse, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -68,12 +68,23 @@ const getCategoriaProdotto = (nomeProdotto) => {
 const GIORNI_SETTIMANA = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 
 const OrdiniList = ({ 
-  ordini, 
+  ordini: ordiniProps, 
   onDelete, 
   onEdit, 
   onDateChange, 
   onNuovoOrdine,
 }) => {
+  // ✅ FIX: State LOCALE per aggiornamenti IMMEDIATI
+  const [ordiniLocali, setOrdiniLocali] = useState(ordiniProps);
+  
+  // ✅ Sincronizza quando arrivano nuovi dati dal parent
+  useEffect(() => {
+    setOrdiniLocali(ordiniProps);
+  }, [ordiniProps]);
+  
+  // USA ordiniLocali per il rendering (si aggiorna immediatamente!)
+  const ordini = ordiniLocali;
+
   const [dataFiltro, setDataFiltro] = useState(new Date().toISOString().split('T')[0]);
   const [anchorEl, setAnchorEl] = useState(null);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
@@ -84,6 +95,9 @@ const OrdiniList = ({
     ALTRI: true
   });
   const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
+  
+  // ✅ Snackbar per feedback
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const handleDateChange = (e) => {
     const newDate = e.target.value;
@@ -137,8 +151,41 @@ const OrdiniList = ({
     setCategoriaSchermoIntero(null);
   };
 
-  // ✅ FIX 25/11/2025: RIMOSSA chiamata a onEdit() - NON apre più il dialog!
-  const aggiornaStatoProdotto = async (ordineId, indiceProdotto, nuovoStato) => {
+  // ✅✅✅ FIX PRINCIPALE: AGGIORNAMENTO REAL-TIME IMMEDIATO ✅✅✅
+  const aggiornaStatoProdotto = useCallback(async (ordineId, indiceProdotto, nuovoStato) => {
+    console.log(`🔄 Aggiornamento IMMEDIATO: ordine=${ordineId}, prodotto=${indiceProdotto}, stato=${nuovoStato}`);
+    
+    // ✅ STEP 1: Aggiorna UI IMMEDIATAMENTE (optimistic update)
+    setOrdiniLocali(prevOrdini => {
+      return prevOrdini.map(o => {
+        if (o._id === ordineId && o.prodotti[indiceProdotto]) {
+          const nuoviProdotti = [...o.prodotti];
+          nuoviProdotti[indiceProdotto] = {
+            ...nuoviProdotti[indiceProdotto],
+            statoProduzione: nuovoStato
+          };
+          return { ...o, prodotti: nuoviProdotti };
+        }
+        return o;
+      });
+    });
+    
+    // ✅ STEP 2: Aggiorna localStorage
+    const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
+    const ordiniAggiornatiLocal = ordiniLocal.map(o => {
+      if (o._id === ordineId && o.prodotti[indiceProdotto]) {
+        const nuoviProdotti = [...o.prodotti];
+        nuoviProdotti[indiceProdotto] = {
+          ...nuoviProdotti[indiceProdotto],
+          statoProduzione: nuovoStato
+        };
+        return { ...o, prodotti: nuoviProdotti };
+      }
+      return o;
+    });
+    localStorage.setItem('ordini', JSON.stringify(ordiniAggiornatiLocal));
+    
+    // ✅ STEP 3: Chiama API in background
     try {
       const token = localStorage.getItem('token');
       
@@ -152,70 +199,30 @@ const OrdiniList = ({
       });
 
       if (!response.ok) {
-        throw new Error('Errore aggiornamento stato prodotto');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Errore ${response.status}`);
       }
 
-      // ✅ Aggiorna localStorage - L'UI si aggiornerà tramite WebSocket/Pusher
-      const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
-      const ordiniAggiornati = ordiniLocal.map(o => {
-        if (o._id === ordineId && o.prodotti[indiceProdotto]) {
-          const nuoviProdotti = [...o.prodotti];
-          nuoviProdotti[indiceProdotto] = {
-            ...nuoviProdotti[indiceProdotto],
-            statoProduzione: nuovoStato
-          };
-          return { ...o, prodotti: nuoviProdotti };
-        }
-        return o;
-      });
-      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-      
-      // ✅ La UI si aggiornerà automaticamente tramite sincronizzazione
-      console.log('✅ Stato prodotto aggiornato - WebSocket notificherà gli altri device');
+      console.log('✅ Stato salvato sul server');
       
     } catch (error) {
-      console.error('❌ Errore aggiornamento stato prodotto:', error);
-      
-      // ✅ Fallback: aggiorna comunque localStorage
-      const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
-      const ordiniAggiornati = ordiniLocal.map(o => {
-        if (o._id === ordineId && o.prodotti[indiceProdotto]) {
-          const nuoviProdotti = [...o.prodotti];
-          nuoviProdotti[indiceProdotto] = {
-            ...nuoviProdotti[indiceProdotto],
-            statoProduzione: nuovoStato
-          };
-          return { ...o, prodotti: nuoviProdotti };
-        }
-        return o;
-      });
-      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+      console.error('❌ Errore API:', error.message);
+      setSnackbar({ open: true, message: `Errore: ${error.message}`, severity: 'error' });
+      // L'UI rimane aggiornata, ma mostra errore. La prossima sync correggerà se necessario.
     }
-  };
+  }, []);
 
-  const handleInLavorazione = (ordineId, indiceProdotto, isChecked) => {
-    if (isChecked) {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'in_lavorazione');
-    } else {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'nuovo');
-    }
-  };
+  const handleInLavorazione = useCallback((ordineId, indiceProdotto, isChecked) => {
+    aggiornaStatoProdotto(ordineId, indiceProdotto, isChecked ? 'in_lavorazione' : 'nuovo');
+  }, [aggiornaStatoProdotto]);
 
-  const handleFatto = (ordineId, indiceProdotto, isChecked) => {
-    if (isChecked) {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'completato');
-    } else {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'in_lavorazione');
-    }
-  };
+  const handleFatto = useCallback((ordineId, indiceProdotto, isChecked) => {
+    aggiornaStatoProdotto(ordineId, indiceProdotto, isChecked ? 'completato' : 'in_lavorazione');
+  }, [aggiornaStatoProdotto]);
 
-  const handleConsegnato = (ordineId, indiceProdotto, isChecked) => {
-    if (isChecked) {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'consegnato');
-    } else {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'completato');
-    }
-  };
+  const handleConsegnato = useCallback((ordineId, indiceProdotto, isChecked) => {
+    aggiornaStatoProdotto(ordineId, indiceProdotto, isChecked ? 'consegnato' : 'completato');
+  }, [aggiornaStatoProdotto]);
 
   const inviaWhatsApp = (ordine, tipo = 'conferma') => {
     try {
@@ -332,7 +339,7 @@ Pastificio Nonna Claudia`;
     handleMenuClose();
   };
 
-  // ========== RAGGRUPPAMENTO CON FIX ==========
+  // ========== RAGGRUPPAMENTO ==========
   const ordiniPerCategoria = useMemo(() => {
     const result = {
       RAVIOLI: [],
@@ -412,6 +419,18 @@ Pastificio Nonna Claudia`;
 
   return (
     <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent' }}>
+      {/* ✅ Snackbar per feedback errori */}
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={4000} 
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <IconButton 
@@ -554,7 +573,7 @@ Pastificio Nonna Claudia`;
 
                       return (
                         <TableRow 
-                          key={`${ordine._id}-${idx}`}
+                          key={`${ordine._id}-${indiceProdotto}-${idx}`}
                           sx={{
                             '&:nth-of-type(odd)': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)' },
                             '&:hover': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)' },
@@ -597,95 +616,62 @@ Pastificio Nonna Claudia`;
                             </Typography>
                           </TableCell>
                           
-                          {/* ✅ FIX 25/11/2025: L/F/C NON APRONO PIÙ IL DIALOG */}
-                          <TableCell align="center" sx={{ p: 0.5, pointerEvents: 'none' }}>
-                            <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center', pointerEvents: 'none' }}>
-                              <Tooltip title={count > 1 ? "In Lavorazione (gruppo)" : "In Lavorazione"}>
-                                <Box 
+                          {/* ✅ L/F/C con AGGIORNAMENTO IMMEDIATO */}
+                          <TableCell align="center" sx={{ p: 0.5 }}>
+                            <Box sx={{ display: 'flex', gap: 0.25, justifyContent: 'center' }}>
+                              <Tooltip title="In Lavorazione">
+                                <Chip
+                                  label="L"
+                                  color={isInLavorazione ? 'warning' : 'default'}
+                                  variant={isInLavorazione ? 'filled' : 'outlined'}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    e.preventDefault();
+                                    handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
                                   }}
-                                  sx={{ display: 'inline-block', pointerEvents: 'auto' }}
-                                >
-                                  <Chip
-                                    label="L"
-                                    data-no-edit="true"
-                                    color={isInLavorazione ? 'warning' : 'default'}
-                                    variant={isInLavorazione ? 'filled' : 'outlined'}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
-                                    }}
-                                    sx={{ 
-                                      cursor: 'pointer', 
-                                      minWidth: '24px',
-                                      fontSize: '0.6rem',
-                                      height: '18px',
-                                      '& .MuiChip-label': { px: 0.4 },
-                                      pointerEvents: 'auto'
-                                    }}
-                                  />
-                                </Box>
+                                  sx={{ 
+                                    cursor: 'pointer', 
+                                    minWidth: '24px',
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 }
+                                  }}
+                                />
                               </Tooltip>
-                              <Tooltip title={count > 1 ? "Fatto (gruppo)" : "Fatto"}>
-                                <Box 
+                              <Tooltip title="Fatto">
+                                <Chip
+                                  label="F"
+                                  color={isFatto ? 'success' : 'default'}
+                                  variant={isFatto ? 'filled' : 'outlined'}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    e.preventDefault();
+                                    handleFatto(ordine._id, indiceProdotto, !isFatto);
                                   }}
-                                  sx={{ display: 'inline-block', pointerEvents: 'auto' }}
-                                >
-                                  <Chip
-                                    label="F"
-                                    data-no-edit="true"
-                                    color={isFatto ? 'success' : 'default'}
-                                    variant={isFatto ? 'filled' : 'outlined'}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      handleFatto(ordine._id, indiceProdotto, !isFatto);
-                                    }}
-                                    sx={{ 
-                                      cursor: 'pointer', 
-                                      minWidth: '24px',
-                                      fontSize: '0.6rem',
-                                      height: '18px',
-                                      '& .MuiChip-label': { px: 0.4 },
-                                      pointerEvents: 'auto'
-                                    }}
-                                  />
-                                </Box>
+                                  sx={{ 
+                                    cursor: 'pointer', 
+                                    minWidth: '24px',
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 }
+                                  }}
+                                />
                               </Tooltip>
-                              <Tooltip title={count > 1 ? "Consegnato (gruppo)" : "Consegnato"}>
-                                <Box 
+                              <Tooltip title="Consegnato">
+                                <Chip
+                                  label="C"
+                                  color={isConsegnato ? 'error' : 'default'}
+                                  variant={isConsegnato ? 'filled' : 'outlined'}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    e.preventDefault();
+                                    handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
                                   }}
-                                  sx={{ display: 'inline-block', pointerEvents: 'auto' }}
-                                >
-                                  <Chip
-                                    label="C"
-                                    data-no-edit="true"
-                                    color={isConsegnato ? 'error' : 'default'}
-                                    variant={isConsegnato ? 'filled' : 'outlined'}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
-                                    }}
-                                    sx={{ 
-                                      cursor: 'pointer', 
-                                      minWidth: '24px',
-                                      fontSize: '0.6rem',
-                                      height: '18px',
-                                      '& .MuiChip-label': { px: 0.4 },
-                                      pointerEvents: 'auto'
-                                    }}
-                                  />
-                                </Box>
+                                  sx={{ 
+                                    cursor: 'pointer', 
+                                    minWidth: '24px',
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 }
+                                  }}
+                                />
                               </Tooltip>
                             </Box>
                           </TableCell>
@@ -712,14 +698,14 @@ Pastificio Nonna Claudia`;
                             </Box>
                           </TableCell>
                           
-                          <TableCell align="center" sx={{ p: 0.5, pointerEvents: 'none' }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+                          <TableCell align="center" sx={{ p: 0.5 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                               <IconButton 
                                 onClick={(e) => { e.stopPropagation(); onEdit(ordine); }} 
                                 size="small" 
                                 color="primary" 
                                 title="Modifica" 
-                                sx={{ p: 0.25, pointerEvents: 'auto' }}
+                                sx={{ p: 0.25 }}
                               >
                                 <EditIcon sx={{ fontSize: '0.9rem' }} />
                               </IconButton>
@@ -728,7 +714,7 @@ Pastificio Nonna Claudia`;
                                 size="small" 
                                 color="error" 
                                 title="Elimina" 
-                                sx={{ p: 0.25, pointerEvents: 'auto' }}
+                                sx={{ p: 0.25 }}
                               >
                                 <DeleteIcon sx={{ fontSize: '0.9rem' }} />
                               </IconButton>
@@ -736,7 +722,7 @@ Pastificio Nonna Claudia`;
                                 onClick={(e) => handleMenuOpen(e, ordine)} 
                                 size="small" 
                                 title="Menu" 
-                                sx={{ p: 0.25, pointerEvents: 'auto' }}
+                                sx={{ p: 0.25 }}
                               >
                                 <MoreVertIcon sx={{ fontSize: '0.9rem' }} />
                               </IconButton>
@@ -797,7 +783,7 @@ Pastificio Nonna Claudia`;
         </MenuItem>
       </Menu>
 
-    {/* Dialog zoom con L/F/C funzionanti */}
+    {/* Dialog zoom */}
     <Dialog
       open={!!categoriaSchermoIntero}
       onClose={chiudiSchermoIntero}
@@ -858,7 +844,7 @@ Pastificio Nonna Claudia`;
                 }
                 
                 return (
-                  <TableRow key={idx} sx={{ 
+                  <TableRow key={`zoom-${ordine._id}-${indiceProdotto}-${idx}`} sx={{ 
                     '&:nth-of-type(odd)': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)' },
                     height: '60px',
                     opacity: isConsegnato ? 0.6 : 1,
@@ -884,44 +870,38 @@ Pastificio Nonna Claudia`;
                       €{(prezzoTotale || 0).toFixed(2)}
                     </TableCell>
                     
-                    {/* ✅ FIX 25/11/2025: L/F/C NON APRONO PIÙ IL DIALOG */}
-                    <TableCell align="center" sx={{ pointerEvents: 'none' }}>
-                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', pointerEvents: 'none' }}>
+                    {/* L/F/C nel dialog */}
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                         <Chip
                           label="L"
-                          data-no-edit="true"
                           color={isInLavorazione ? 'warning' : 'default'}
                           variant={isInLavorazione ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
-                            e.preventDefault();
                             handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
                           }}
-                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
                         />
                         <Chip
                           label="F"
-                          data-no-edit="true"
                           color={isFatto ? 'success' : 'default'}
                           variant={isFatto ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
-                            e.preventDefault();
                             handleFatto(ordine._id, indiceProdotto, !isFatto);
                           }}
-                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
                         />
                         <Chip
                           label="C"
-                          data-no-edit="true"
                           color={isConsegnato ? 'error' : 'default'}
                           variant={isConsegnato ? 'filled' : 'outlined'}
                           onClick={(e) => {
                             e.stopPropagation();
-                            e.preventDefault();
                             handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
                           }}
-                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
+                          sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px' }}
                         />
                       </Box>
                     </TableCell>
