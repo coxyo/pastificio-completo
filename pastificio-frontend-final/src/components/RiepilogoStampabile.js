@@ -702,133 +702,75 @@ const isSoloPezzo = (nomeProdotto) => {
 
 
 
-// ✅ AGGIORNATO 26/11/2025: Estrae composizione prodotto (versione semplificata)
+// ✅ VERSIONE SEMPLIFICATA: Usa SOLO array composizione
 
 const getComposizioneProdotto = (prodotto) => {
 
-  console.log('🔍 getComposizioneProdotto chiamata per:', prodotto.nome);
+  // Controlla se esiste array composizione
 
-  console.log('📦 dettagliCalcolo:', prodotto.dettagliCalcolo);
+  if (!prodotto.dettagliCalcolo?.composizione || !Array.isArray(prodotto.dettagliCalcolo.composizione)) {
 
-  
+    console.error('❌ Array composizione NON trovato per:', prodotto.nome);
 
-  // ✅ PRIORITÀ 1: Usa array composizione se disponibile
-
-  if (prodotto.dettagliCalcolo?.composizione && Array.isArray(prodotto.dettagliCalcolo.composizione)) {
-
-    console.log('✅ Trovato array composizione:', prodotto.dettagliCalcolo.composizione);
-
-    const items = prodotto.dettagliCalcolo.composizione.map(item => {
-
-      const abbr = abbreviaProdotto(item.nome);
-
-      const qta = parseFloat(item.quantita);
-
-      return { abbr, qta };
-
-    });
-
-    
-
-    // Se tutte le quantità sono uguali e < 1, mostra solo lettere
-
-    const quantita_arr = items.map(i => i.qta);
-
-    const tutteUguali = quantita_arr.every((q, i, arr) => Math.abs(q - arr[0]) < 0.01);
-
-    const tutteMinoriDi1 = quantita_arr.every(q => q < 1);
-
-    
-
-    if (tutteUguali && tutteMinoriDi1 && items.length > 1) {
-
-      return items.map(i => i.abbr).join('').toUpperCase();
-
-    }
-
-    
-
-    return items
-
-      .map(i => `${i.abbr} ${i.qta.toString().replace('.', ',')}`)
-
-      .join(' ')
-
-      .toUpperCase();
+    return ''; // Ritorna vuoto, verrà gestito dal chiamante
 
   }
 
   
 
-  // ✅ PRIORITÀ 2: Prova a parsare dettagli stringa
+  console.log('✅ Array composizione trovato:', prodotto.dettagliCalcolo.composizione);
 
-  if (prodotto.dettagliCalcolo?.dettagli && typeof prodotto.dettagliCalcolo.dettagli === 'string') {
+  
 
-    const dettagli = prodotto.dettagliCalcolo.dettagli;
+  const items = prodotto.dettagliCalcolo.composizione.map(item => {
 
-    
+    const abbr = abbreviaProdotto(item.nome);
 
-    console.log('🔍 DEBUG dettagli:', dettagli); // LOG per debug
+    const qta = parseFloat(item.quantita);
 
-    
+    return { abbr, qta };
 
-    // Pattern semplice: cerca "NOME_PRODOTTO" seguito da numero
+  });
 
-    // Es: "CIAMBELLE 0.5 AMARETTI 0.3" o "CIAMBELLE: 0.5, AMARETTI: 0.3"
+  
 
-    const risultato = [];
+  // Se tutte le quantità sono uguali e < 1, mostra solo lettere (es: "AGB")
 
-    
+  const quantita_arr = items.map(i => i.qta);
 
-    // Split per virgola o spazio
+  const tutteUguali = quantita_arr.every((q, i, arr) => Math.abs(q - arr[0]) < 0.01);
 
-    const parti = dettagli.split(/[,;]/);
+  const tutteMinoriDi1 = quantita_arr.every(q => q < 1);
 
-    
+  
 
-    parti.forEach(parte => {
+  if (tutteUguali && tutteMinoriDi1 && items.length > 1) {
 
-      // Rimuovi caratteri extra (K, G, EZZI, :, etc)
+    const risultato = items.map(i => i.abbr).join('').toUpperCase();
 
-      const pulita = parte.replace(/[KPG:]/gi, '').trim();
+    console.log('📝 Composizione compatta (tutte uguali):', risultato);
 
-      
-
-      // Cerca pattern "PAROLA NUMERO"
-
-      const match = pulita.match(/([A-Z\s]+?)\s+([\d,.]+)/i);
-
-      
-
-      if (match) {
-
-        const nome = match[1].trim();
-
-        const qta = match[2].replace('.', ',');
-
-        const abbr = abbreviaProdotto(nome);
-
-        risultato.push(`${abbr} ${qta}`);
-
-      }
-
-    });
-
-    
-
-    if (risultato.length > 0) {
-
-      return risultato.join(' ').toUpperCase();
-
-    }
+    return risultato;
 
   }
 
   
 
-  // ✅ FALLBACK: Ritorna stringa vuota (verrà gestito dal chiamante)
+  // Altrimenti mostra con quantità
 
-  return '';
+  const risultato = items
+
+    .map(i => `${i.abbr} ${i.qta.toString().replace('.', ',')}`)
+
+    .join(' ')
+
+    .toUpperCase();
+
+  
+
+  console.log('📝 Composizione dettagliata:', risultato);
+
+  return risultato;
 
 };
 
