@@ -199,22 +199,6 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
     // Usa configurazione default
     return Object.entries(PRODOTTI_DOLCI_DEFAULT).map(([nome, config]) => ({
 
-    // ✅ Se prodotto ha varianti, usa prezzo della variante selezionata
-    if (varianteSelezionata && config.hasVarianti && config.varianti) {
-      const variante = config.varianti.find(v => 
-        (typeof v === "string" && v === varianteSelezionata) ||
-        (typeof v === "object" && v.nome === varianteSelezionata)
-      );
-      
-      if (variante && typeof variante === "object") {
-        if (unita === "Pezzi" && variante.prezzoPezzo) {
-          return qty * variante.prezzoPezzo;
-        }
-        if (variante.prezzoKg) {
-          config = { ...config, prezzoKg: variante.prezzoKg };
-        }
-      }
-    }
       nome,
       ...config
     }));
