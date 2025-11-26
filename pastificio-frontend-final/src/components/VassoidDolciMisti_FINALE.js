@@ -103,15 +103,22 @@ const getProdottoConfigSafe = (nomeProdotto) => {
 const getVarianteLabel = (nomeProdotto, nomeVariante) => {
   if (!nomeVariante) return null;
   
+  // ✅ PROTEZIONE: Se nomeVariante è un oggetto, estrai .nome o .label
+  if (typeof nomeVariante === 'object') {
+    nomeVariante = nomeVariante.nome || nomeVariante.label || JSON.stringify(nomeVariante);
+  }
+  
   const config = getProdottoConfigSafe(nomeProdotto);
-  if (!config?.varianti || !Array.isArray(config.varianti)) return nomeVariante;
+  if (!config?.varianti || !Array.isArray(config.varianti)) return String(nomeVariante);
   
   const variante = config.varianti.find(v => 
     (typeof v === "string" && v === nomeVariante) ||
     (typeof v === "object" && v.nome === nomeVariante)
   );
   
-  return variante?.label || nomeVariante;
+  // ✅ PROTEZIONE: Garantisci sempre output stringa
+  const result = variante?.label || nomeVariante;
+  return typeof result === 'string' ? result : String(result);
 };
 
 // ==========================================
@@ -512,12 +519,21 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
     }
 
     // Prepara dati vassoio
-    const dettagliComposizione = composizione.map(item => ({
-      nome: item.prodotto || '',
-      quantita: parseFloat(item.quantita) || 0,
-      unita: item.unita || 'Kg',
-      prezzo: parseFloat(item.prezzo) || 0
-    }));
+    const dettagliComposizione = composizione.map(item => {
+      // ✅ Ottieni label variante (sempre stringa)
+      const varianteLabel = item.varianteSelezionata ? 
+        getVarianteLabel(item.prodotto, item.varianteSelezionata) : 
+        null;
+      
+      return {
+        nome: item.prodotto || "",
+        quantita: parseFloat(item.quantita) || 0,
+        unita: item.unita || "Kg",
+        prezzo: parseFloat(item.prezzo) || 0,
+        // ✅ Aggiungi variante se presente (sempre stringa)
+        ...(varianteLabel && { variante: String(varianteLabel) })
+      };
+    });
 
     const dettagliStringa = composizione
       .map(item => `${item.prodotto || ''}: ${parseFloat(item.quantita) || 0} ${item.unita || 'Kg'}`)
@@ -793,10 +809,10 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                       {/* Nome Prodotto */}
                       <Typography variant="subtitle1" sx={{ minWidth: 150, fontWeight: 'bold' }}>
-                        {item.prodotto || 'N/D'}
+                        {String(item.prodotto || 'N/D')}
                         {item.varianteSelezionata && (
                           <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                            ({getVarianteLabel(item.prodotto, item.varianteSelezionata)})
+                            ({String(getVarianteLabel(item.prodotto, item.varianteSelezionata) || "")})
                           </Typography>
                         )}
                       </Typography>
