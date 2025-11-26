@@ -1617,7 +1617,7 @@ clienteIdPreselezionato,
                             )}
                             {p.dettagliCalcolo?.dettagli && (
                               <Typography variant="caption" color="text.secondary" display="block">
-                                {p.dettagliCalcolo.dettagli}
+                                {typeof p.dettagliCalcolo.dettagli === "string" ? p.dettagliCalcolo.dettagli : JSON.stringify(p.dettagliCalcolo.dettagli)}
                               </Typography>
                             )}
                             {p.dettagliCalcolo?.composizione && (
