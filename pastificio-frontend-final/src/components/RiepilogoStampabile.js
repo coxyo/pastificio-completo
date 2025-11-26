@@ -314,7 +314,49 @@ const abbreviaProdotto = (nome) => {
 
   }
 
-  return ABBREVIAZIONI[nome] || nome;
+  
+
+  // Cerca match esatto
+
+  if (ABBREVIAZIONI[nome]) {
+
+    return ABBREVIAZIONI[nome];
+
+  }
+
+  
+
+  // Cerca case-insensitive
+
+  const nomeLC = nome.toLowerCase();
+
+  for (const [key, abbr] of Object.entries(ABBREVIAZIONI)) {
+
+    if (key.toLowerCase() === nomeLC) {
+
+      return abbr;
+
+    }
+
+  }
+
+  
+
+  // Cerca match parziale (contiene)
+
+  for (const [key, abbr] of Object.entries(ABBREVIAZIONI)) {
+
+    if (nomeLC.includes(key.toLowerCase()) || key.toLowerCase().includes(nomeLC)) {
+
+      return abbr;
+
+    }
+
+  }
+
+  
+
+  return nome;
 
 };
 
@@ -660,7 +702,7 @@ const isSoloPezzo = (nomeProdotto) => {
 
 
 
-// ✅ AGGIORNATO 26/11/2025: Estrae composizione prodotto abbreviata (es: "C 0,5 A 0,3 B 0,1")
+// ✅ AGGIORNATO 26/11/2025: Estrae e formatta composizione prodotto abbreviata
 
 const getComposizioneProdotto = (prodotto) => {
 
@@ -676,21 +718,89 @@ const getComposizioneProdotto = (prodotto) => {
 
   
 
-  // Se è una stringa tipo "0,3A 0,3P 0,3B" o "PA", puliscila e formattala
+  // Se è una stringa, parsala
 
   if (typeof dettagli === 'string') {
 
-    // Converti "0.3A 0.3P" in "A 0,3 P 0,3"
+    // Esempio input: "CIAMBELLE: K 0,5G, AMARETTI: K 0,3G, BIANCHINI: K 0,1G"
 
-    return dettagli
+    // Output desiderato: "C 0,5 A 0,3 B 0,1"
 
-      .replace(/(\d+\.?\d*)\s*([A-Z])/gi, '$2 $1')
+    
 
-      .replace(/\./g, ',')
+    // Esempio input: "AMARETTI: P 6EZZI, PARDULAS: P 6EZZI"
 
-      .toUpperCase()
+    // Output desiderato: "A 6 P 6"
 
-      .trim();
+    
+
+    const parti = dettagli.split(',').map(p => p.trim());
+
+    const risultato = [];
+
+    const quantita_trovate = [];
+
+    
+
+    parti.forEach(parte => {
+
+      // Cerca pattern: "NOME_PRODOTTO: K/P QUANTITÀG/EZZI"
+
+      const match = parte.match(/^([A-Z\s]+):\s*([KP])\s*([\d,\.]+)(G|EZZI)?/i);
+
+      
+
+      if (match) {
+
+        const nomeProdotto = match[1].trim();
+
+        let quantita = match[3].replace('.', ',');
+
+        const abbr = abbreviaProdotto(nomeProdotto);
+
+        
+
+        // Salva quantità per analisi
+
+        quantita_trovate.push(parseFloat(quantita.replace(',', '.')));
+
+        
+
+        risultato.push({ abbr, quantita });
+
+      }
+
+    });
+
+    
+
+    // ✅ Se tutte le quantità sono uguali e < 1, mostra solo lettere (es: "AGB")
+
+    const tutteUguali = quantita_trovate.every((q, i, arr) => 
+
+      Math.abs(q - arr[0]) < 0.01
+
+    );
+
+    
+
+    const tutteMinoriDi1 = quantita_trovate.every(q => q < 1);
+
+    
+
+    if (tutteUguali && tutteMinoriDi1 && risultato.length > 1) {
+
+      // Mostra solo lettere
+
+      return risultato.map(r => r.abbr).join('');
+
+    }
+
+    
+
+    // Altrimenti mostra con quantità
+
+    return risultato.map(r => `${r.abbr} ${r.quantita}`).join(' ').toUpperCase();
 
   }
 
@@ -700,17 +810,41 @@ const getComposizioneProdotto = (prodotto) => {
 
   if (prodotto.dettagliCalcolo.composizione && Array.isArray(prodotto.dettagliCalcolo.composizione)) {
 
-    return prodotto.dettagliCalcolo.composizione
+    const items = prodotto.dettagliCalcolo.composizione.map(item => ({
 
-      .map(item => {
+      abbr: abbreviaProdotto(item.nome),
 
-        const abbr = abbreviaProdotto(item.nome);
+      quantita: item.quantita
 
-        const qta = item.quantita.toString().replace('.', ',');
+    }));
 
-        return `${abbr} ${qta}`;
+    
 
-      })
+    // Controlla se tutte le quantità sono uguali e < 1
+
+    const quantita_arr = items.map(i => i.quantita);
+
+    const tutteUguali = quantita_arr.every((q, i, arr) => 
+
+      Math.abs(q - arr[0]) < 0.01
+
+    );
+
+    const tutteMinoriDi1 = quantita_arr.every(q => q < 1);
+
+    
+
+    if (tutteUguali && tutteMinoriDi1 && items.length > 1) {
+
+      return items.map(i => i.abbr).join('').toUpperCase();
+
+    }
+
+    
+
+    return items
+
+      .map(i => `${i.abbr} ${i.quantita.toString().replace('.', ',')}`)
 
       .join(' ')
 
