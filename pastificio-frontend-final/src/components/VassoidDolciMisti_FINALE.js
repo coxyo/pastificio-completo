@@ -99,6 +99,21 @@ const getProdottoConfigSafe = (nomeProdotto) => {
   };
 };
 
+// ✅ FUNZIONE HELPER: Trova label variante da nome
+const getVarianteLabel = (nomeProdotto, nomeVariante) => {
+  if (!nomeVariante) return null;
+  
+  const config = getProdottoConfigSafe(nomeProdotto);
+  if (!config?.varianti || !Array.isArray(config.varianti)) return nomeVariante;
+  
+  const variante = config.varianti.find(v => 
+    (typeof v === "string" && v === nomeVariante) ||
+    (typeof v === "object" && v.nome === nomeVariante)
+  );
+  
+  return variante?.label || nomeVariante;
+};
+
 // ==========================================
 // 🎯 CONFIGURAZIONE MIX PREDEFINITO
 // ==========================================
@@ -183,6 +198,23 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
     
     // Usa configurazione default
     return Object.entries(PRODOTTI_DOLCI_DEFAULT).map(([nome, config]) => ({
+
+    // ✅ Se prodotto ha varianti, usa prezzo della variante selezionata
+    if (varianteSelezionata && config.hasVarianti && config.varianti) {
+      const variante = config.varianti.find(v => 
+        (typeof v === "string" && v === varianteSelezionata) ||
+        (typeof v === "object" && v.nome === varianteSelezionata)
+      );
+      
+      if (variante && typeof variante === "object") {
+        if (unita === "Pezzi" && variante.prezzoPezzo) {
+          return qty * variante.prezzoPezzo;
+        }
+        if (variante.prezzoKg) {
+          config = { ...config, prezzoKg: variante.prezzoKg };
+        }
+      }
+    }
       nome,
       ...config
     }));
@@ -191,13 +223,35 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
   // ========== CALCOLI DINAMICI ==========
   
   /**
-   * ✅ Calcola prezzo singolo prodotto (con protezione errori)
+   * ✅ Calcola prezzo singolo prodotto (con protezione errori + gestione varianti)
    */
-  const calcolaPrezzoProdotto = useCallback((prodotto, quantita, unita) => {
+  const calcolaPrezzoProdotto = useCallback((prodotto, quantita, unita, varianteSelezionata = null) => {
     if (!prodotto || quantita === undefined || quantita === null) return 0;
     
-    const config = getProdottoConfigSafe(prodotto);
+    let config = getProdottoConfigSafe(prodotto);
     if (!config) return 0;
+
+    // ✅ Se prodotto ha varianti, usa prezzo della variante selezionata
+    if (varianteSelezionata && config.hasVarianti && config.varianti && Array.isArray(config.varianti)) {
+      const variante = config.varianti.find(v => 
+        (typeof v === 'string' && v === varianteSelezionata) ||
+        (typeof v === 'object' && v.nome === varianteSelezionata)
+      );
+      
+      if (variante && typeof variante === 'object') {
+        // Usa prezzi specifici della variante
+        if (unita === 'Pezzi' && variante.prezzoPezzo) {
+          const qty = parseFloat(quantita) || 0;
+          return qty * variante.prezzoPezzo;
+        }
+        if (variante.prezzoKg) {
+          config = { ...config, prezzoKg: variante.prezzoKg };
+        }
+        if (variante.prezzoPezzo) {
+          config = { ...config, prezzoPezzo: variante.prezzoPezzo };
+        }
+      }
+    }
 
     try {
       const qty = parseFloat(quantita) || 0;
@@ -405,7 +459,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
     setComposizione(prev => prev.map(item => {
       if (item.id === id) {
         const quantita = parseFloat(nuovaQuantita) || 0;
-        const prezzo = calcolaPrezzoProdotto(item.prodotto, quantita, item.unita);
+        const prezzo = calcolaPrezzoProdotto(item.prodotto, quantita, item.unita, item.varianteSelezionata);
         return { ...item, quantita, prezzo: prezzo || 0 };
       }
       return item;
@@ -418,7 +472,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
   const cambiaUnita = (id, nuovaUnita) => {
     setComposizione(prev => prev.map(item => {
       if (item.id === id) {
-        const prezzo = calcolaPrezzoProdotto(item.prodotto, item.quantita, nuovaUnita);
+        const prezzo = calcolaPrezzoProdotto(item.prodotto, item.quantita, nuovaUnita, item.varianteSelezionata);
         return { ...item, unita: nuovaUnita, prezzo: prezzo || 0 };
       }
       return item;
@@ -431,7 +485,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
   const cambiaVariante = (id, nuovaVariante) => {
     setComposizione(prev => prev.map(item => {
       if (item.id === id) {
-        return { ...item, varianteSelezionata: nuovaVariante };
+        const prezzo = calcolaPrezzoProdotto(item.prodotto, item.quantita, item.unita, nuovaVariante);
+        return { ...item, varianteSelezionata: nuovaVariante, prezzo: prezzo || item.prezzo };
       }
       return item;
     }));
@@ -449,7 +504,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         } else {
           nuovaQuantita = Math.max(1, Math.floor((parseFloat(item.quantita) || 0) + delta));
         }
-        const prezzo = calcolaPrezzoProdotto(item.prodotto, nuovaQuantita, item.unita);
+        const prezzo = calcolaPrezzoProdotto(item.prodotto, nuovaQuantita, item.unita, item.varianteSelezionata);
         return { ...item, quantita: nuovaQuantita, prezzo: prezzo || 0 };
       }
       return item;
@@ -757,7 +812,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                         {item.prodotto || 'N/D'}
                         {item.varianteSelezionata && (
                           <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                            ({item.varianteSelezionata})
+                            ({getVarianteLabel(item.prodotto, item.varianteSelezionata)})
                           </Typography>
                         )}
                       </Typography>
@@ -766,12 +821,12 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                       {config?.varianti && config.varianti.length > 0 && modalita !== MODALITA.TOTALE_PRIMA && (
                         <FormControl size="small" sx={{ minWidth: 150 }}>
                           <Select
-                            value={item.varianteSelezionata || config.varianti[0]}
+                            value={item.varianteSelezionata || (config.varianti[0]?.nome || config.varianti[0])}
                             onChange={(e) => cambiaVariante(item.id, e.target.value)}
                           >
                             {config.varianti.map(variante => (
-                              <MenuItem key={variante} value={variante}>
-                                {variante}
+                              <MenuItem key={variante?.nome || variante} value={variante?.nome || variante}>
+                                {variante?.label || variante}
                               </MenuItem>
                             ))}
                           </Select>
