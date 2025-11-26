@@ -1607,27 +1607,27 @@ clienteIdPreselezionato,
                             </Typography>
                             {p.variante && (
                               <Typography variant="caption" color="text.secondary">
-                                📦 Variante: {p.variante}
+                                📦 Variante: {String(p.variante)}
                               </Typography>
                             )}
                             {p.noteCottura && (
                               <Typography variant="caption" color="text.secondary" display="block">
-                                🔥 {p.noteCottura}
+                                🔥 {String(p.noteCottura)}
                               </Typography>
                             )}
                             {p.dettagliCalcolo?.dettagli && (
                               <Typography variant="caption" color="text.secondary" display="block">
-                                {typeof p.dettagliCalcolo.dettagli === "string" ? p.dettagliCalcolo.dettagli : JSON.stringify(p.dettagliCalcolo.dettagli)}
+                                {typeof p.dettagliCalcolo.dettagli === 'string' ? p.dettagliCalcolo.dettagli : JSON.stringify(p.dettagliCalcolo.dettagli)}
                               </Typography>
                             )}
-                            {p.dettagliCalcolo?.composizione && (
+                            {p.dettagliCalcolo?.composizione && Array.isArray(p.dettagliCalcolo.composizione) && (
                               <Typography variant="caption" color="primary" display="block">
                                 🎂 Vassoio: {p.dettagliCalcolo.composizione.length} prodotti
                               </Typography>
                             )}
                             {p.note && (
                               <Typography variant="caption" color="warning.main" display="block">
-                                📝 {p.note}
+                                📝 {String(p.note)}
                               </Typography>
                             )}
                           </Box>
