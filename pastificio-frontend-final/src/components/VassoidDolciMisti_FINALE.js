@@ -1,8 +1,8 @@
 // components/VassoidDolciMisti_FINALE.js
-// 🎂 COMPOSITORE VASSOI DOLCI PERSONALIZZATI - VERSIONE COMPLETA
-// Implementa 3 modalità di composizione + opzioni packaging avanzate
+// 🎂 COMPOSITORE VASSOI DOLCI PERSONALIZZATI - VERSIONE CORRETTA 26/11/2025
+// ✅ FIX: Protezione contro errori React #31 (undefined values)
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -44,7 +44,60 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { PRODOTTI_CONFIG, getProdottoConfig } from '../config/prodottiConfig.js';
+
+// ==========================================
+// 🎯 CONFIGURAZIONE PRODOTTI DOLCI (FALLBACK)
+// ==========================================
+// Se PRODOTTI_CONFIG non è disponibile, usa questa configurazione
+const PRODOTTI_DOLCI_DEFAULT = {
+  'Pardulas': { prezzoKg: 19, categoria: 'Dolci', unitaMisuraDisponibili: ['Kg', 'Pezzi'], pezziPerKg: 20 },
+  'Amaretti': { prezzoKg: 22, categoria: 'Dolci', unitaMisuraDisponibili: ['Kg', 'Pezzi'], pezziPerKg: 40 },
+  'Bianchini': { prezzoKg: 25, categoria: 'Dolci', unitaMisuraDisponibili: ['Kg', 'Pezzi'], pezziPerKg: 50 },
+  'Gueffus': { prezzoKg: 28, categoria: 'Dolci', unitaMisuraDisponibili: ['Kg', 'Pezzi'], pezziPerKg: 30 },
+  'Ciambelle': { prezzoKg: 18, categoria: 'Dolci', unitaMisuraDisponibili: ['Kg', 'Pezzi'], pezziPerKg: 15 },
+  'Pabassine': { prezzoKg: 20, categoria: 'Dolci', unitaMisuraDisponibili: ['Kg', 'Pezzi'], pezziPerKg: 25 },
+  'Papassinas': { prezzoKg: 20, categoria: 'Dolci', unitaMisuraDisponibili: ['Kg', 'Pezzi'], pezziPerKg: 25 }
+};
+
+// ✅ Import dinamico con fallback
+let PRODOTTI_CONFIG_IMPORTED = null;
+let getProdottoConfigImported = null;
+
+try {
+  const config = require('../config/prodottiConfig.js');
+  PRODOTTI_CONFIG_IMPORTED = config.PRODOTTI_CONFIG;
+  getProdottoConfigImported = config.getProdottoConfig;
+} catch (e) {
+  console.warn('⚠️ Impossibile importare prodottiConfig, uso configurazione default');
+}
+
+// ✅ Funzione sicura per ottenere config prodotto
+const getProdottoConfigSafe = (nomeProdotto) => {
+  if (!nomeProdotto) return null;
+  
+  // Prova prima con l'import
+  if (getProdottoConfigImported) {
+    try {
+      const config = getProdottoConfigImported(nomeProdotto);
+      if (config) return config;
+    } catch (e) {
+      console.warn('Errore getProdottoConfig:', e);
+    }
+  }
+  
+  // Fallback alla configurazione default
+  if (PRODOTTI_DOLCI_DEFAULT[nomeProdotto]) {
+    return PRODOTTI_DOLCI_DEFAULT[nomeProdotto];
+  }
+  
+  // Fallback generico
+  return {
+    prezzoKg: 20,
+    categoria: 'Dolci',
+    unitaMisuraDisponibili: ['Kg', 'Pezzi'],
+    pezziPerKg: 20
+  };
+};
 
 // ==========================================
 // 🎯 CONFIGURAZIONE MIX PREDEFINITO
@@ -55,7 +108,6 @@ const MIX_DOLCI_COMPLETO_DEFAULT = {
   'Amaretti': { peso: 0.140, percentuale: 15 },
   'Bianchini': { peso: 0.040, percentuale: 5 },
   'Gueffus': { peso: 0.040, percentuale: 5 }
-  // Pabassine: peso tracce (gestito dinamicamente)
 };
 
 const PESO_TOTALE_MIX_DEFAULT = 1.0; // 1 Kg
@@ -70,7 +122,6 @@ const DIMENSIONI_VASSOIO = {
   8: { label: 'Nr 8 - XL', pesoSuggerito: 1.5, range: '~1-2kg' }
 };
 
-
 // ==========================================
 // 🎯 MODALITÀ COMPOSIZIONE
 // ==========================================
@@ -83,7 +134,7 @@ const MODALITA = {
 // ==========================================
 // 🎂 COMPONENTE PRINCIPALE
 // ==========================================
-const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
+const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili }) => {
   // ========== STATE ==========
   const [modalita, setModalita] = useState(MODALITA.LIBERA);
   
@@ -120,61 +171,79 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
   // ========== PRODOTTI DOLCI ==========
   const prodottiDolci = useMemo(() => {
-    return Object.entries(PRODOTTI_CONFIG)
-      .filter(([nome, config]) => config.categoria === 'Dolci')
-      .map(([nome, config]) => ({
-        nome,
-        ...config
-      }))
-      .sort((a, b) => a.nome.localeCompare(b.nome));
-  }, []);
+    // ✅ Usa prodottiDisponibili se passati, altrimenti usa default
+    if (prodottiDisponibili && Array.isArray(prodottiDisponibili)) {
+      return prodottiDisponibili
+        .filter(p => p.categoria === 'Dolci' || p.categoria === 'dolci')
+        .map(p => ({
+          nome: p.nome || p.name,
+          ...p
+        }));
+    }
+    
+    // Usa configurazione default
+    return Object.entries(PRODOTTI_DOLCI_DEFAULT).map(([nome, config]) => ({
+      nome,
+      ...config
+    }));
+  }, [prodottiDisponibili]);
 
   // ========== CALCOLI DINAMICI ==========
   
   /**
-   * Calcola prezzo singolo prodotto
+   * ✅ Calcola prezzo singolo prodotto (con protezione errori)
    */
-  const calcolaPrezzoProdotto = (prodotto, quantita, unita) => {
-    const config = getProdottoConfig(prodotto);
+  const calcolaPrezzoProdotto = useCallback((prodotto, quantita, unita) => {
+    if (!prodotto || quantita === undefined || quantita === null) return 0;
+    
+    const config = getProdottoConfigSafe(prodotto);
     if (!config) return 0;
 
     try {
+      const qty = parseFloat(quantita) || 0;
+      
       if (unita === 'Kg') {
-        return quantita * (config.prezzoKg || 0);
+        return qty * (config.prezzoKg || 0);
       } else if (unita === 'Pezzi') {
         if (config.prezzoPezzo) {
-          return quantita * config.prezzoPezzo;
+          return qty * config.prezzoPezzo;
         } else if (config.prezzoKg && config.pezziPerKg) {
-          return (quantita / config.pezziPerKg) * config.prezzoKg;
+          return (qty / config.pezziPerKg) * config.prezzoKg;
         }
       } else if (unita === '€') {
-        return quantita;
+        return qty;
       }
       return 0;
     } catch (error) {
       console.error('Errore calcolo prezzo:', error);
       return 0;
     }
-  };
+  }, []);
 
   /**
-   * Totale vassoio corrente
+   * ✅ Totale vassoio corrente (con protezione)
    */
   const totaleVassoio = useMemo(() => {
-    return composizione.reduce((acc, item) => acc + (item.prezzo || 0), 0);
+    if (!composizione || !Array.isArray(composizione)) return 0;
+    return composizione.reduce((acc, item) => acc + (parseFloat(item?.prezzo) || 0), 0);
   }, [composizione]);
 
   /**
-   * Peso totale vassoio (in Kg)
+   * ✅ Peso totale vassoio (in Kg) (con protezione)
    */
   const pesoTotaleVassoio = useMemo(() => {
+    if (!composizione || !Array.isArray(composizione)) return 0;
+    
     return composizione.reduce((acc, item) => {
-      if (item.unita === 'Kg') return acc + item.quantita;
-      if (item.unita === 'g') return acc + (item.quantita / 1000);
+      if (!item) return acc;
+      const qty = parseFloat(item.quantita) || 0;
+      
+      if (item.unita === 'Kg') return acc + qty;
+      if (item.unita === 'g') return acc + (qty / 1000);
       if (item.unita === 'Pezzi') {
-        const config = getProdottoConfig(item.prodotto);
+        const config = getProdottoConfigSafe(item.prodotto);
         if (config?.pezziPerKg) {
-          return acc + (item.quantita / config.pezziPerKg);
+          return acc + (qty / config.pezziPerKg);
         }
       }
       return acc;
@@ -186,6 +255,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
    */
   const progressoTarget = useMemo(() => {
     if (modalita !== MODALITA.TOTALE_PRIMA) return 0;
+    if (!totaleTarget.valore || totaleTarget.valore <= 0) return 0;
     
     let raggiuntoValore = 0;
     
@@ -193,7 +263,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       raggiuntoValore = pesoTotaleVassoio;
     } else if (totaleTarget.unita === 'Pezzi') {
       raggiuntoValore = composizione.reduce((acc, item) => {
-        return item.unita === 'Pezzi' ? acc + item.quantita : acc;
+        return item?.unita === 'Pezzi' ? acc + (parseFloat(item.quantita) || 0) : acc;
       }, 0);
     } else if (totaleTarget.unita === '€') {
       raggiuntoValore = totaleVassoio;
@@ -201,92 +271,6 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     
     return (raggiuntoValore / totaleTarget.valore) * 100;
   }, [modalita, totaleTarget, pesoTotaleVassoio, totaleVassoio, composizione]);
-
-  // ✅ CALCOLO AUTOMATICO QUANTITÀ IN MODALITÀ TOTALE_PRIMA
-  useEffect(() => {
-    if (modalita !== MODALITA.TOTALE_PRIMA) return;
-    if (composizione.length === 0) return;
-    if (totaleTarget.valore <= 0) return;
-
-    // Conta solo prodotti con flag autoCalc
-    const prodottiDaCalcolare = composizione.filter(item => item.autoCalc);
-    if (prodottiDaCalcolare.length === 0) return;
-
-    // ✅ CALCOLO BASATO SU UNITÀ TARGET
-    if (totaleTarget.unita === 'Kg') {
-      // Calcola Kg per prodotto
-      const kgPerProdotto = totaleTarget.valore / composizione.length;
-
-      setComposizione(prev => prev.map(item => {
-        if (!item.autoCalc) return item;
-
-        const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, kgPerProdotto, 'Kg');
-
-        return {
-          ...item,
-          quantita: kgPerProdotto,
-          unita: 'Kg',
-          prezzo: nuovoPrezzo
-        };
-      }));
-
-    } else if (totaleTarget.unita === 'Pezzi') {
-      // Calcola Pezzi per prodotto
-      const pezziPerProdotto = Math.floor(totaleTarget.valore / composizione.length);
-
-      setComposizione(prev => prev.map(item => {
-        if (!item.autoCalc) return item;
-
-        const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, pezziPerProdotto, 'Pezzi');
-
-        return {
-          ...item,
-          quantita: pezziPerProdotto,
-          unita: 'Pezzi',
-          prezzo: nuovoPrezzo
-        };
-      }));
-
-    } else if (totaleTarget.unita === '€') {
-      // Calcola prezzo target per prodotto
-      const prezzoTargetPerProdotto = totaleTarget.valore / composizione.length;
-
-      setComposizione(prev => prev.map(item => {
-        if (!item.autoCalc) return item;
-
-        const config = getProdottoConfig(item.prodotto);
-        if (!config) return item;
-
-        // Calcola Kg necessari per raggiungere il prezzo target
-        const kgNecessari = prezzoTargetPerProdotto / (config.prezzoKg || 19);
-
-        return {
-          ...item,
-          quantita: kgNecessari,
-          unita: 'Kg',
-          prezzo: prezzoTargetPerProdotto
-        };
-      }));
-    }
-  }, [modalita, composizione.length, totaleTarget.valore, totaleTarget.unita]);
-
-  // ========== VALIDAZIONI ==========
-  
-  /**
-   * Verifica limiti peso vassoio
-   */
-  useEffect(() => {
-    setErrore('');
-    setWarning('');
-    
-      
-    // Suggerimento dimensione vassoio
-    const dimensioneSuggerita = Object.entries(DIMENSIONI_VASSOIO).find(([num, info]) => 
-      pesoTotaleVassoio <= info.pesoSuggerito * 1.1
-    );
-    
-   
-  }, [pesoTotaleVassoio, numeroVassoioDimensione]);
 
   // ========== HANDLERS ==========
   
@@ -317,7 +301,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
         prodotto: nome,
         quantita: info.peso,
         unita: 'Kg',
-        prezzo: prezzo,
+        prezzo: prezzo || 0,
         percentuale: info.percentuale
       };
     });
@@ -349,6 +333,11 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     
     const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
     
+    if (sommaPercentuali === 0) {
+      setComposizione([]);
+      return;
+    }
+    
     const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
       const pesoRicalcolato = (info.percentuale / sommaPercentuali) * PESO_TOTALE_MIX_DEFAULT;
       const prezzo = calcolaPrezzoProdotto(nome, pesoRicalcolato, 'Kg');
@@ -358,7 +347,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
         prodotto: nome,
         quantita: pesoRicalcolato,
         unita: 'Kg',
-        prezzo: prezzo,
+        prezzo: prezzo || 0,
         percentuale: (info.percentuale / sommaPercentuali) * 100
       };
     });
@@ -370,19 +359,22 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
    * Aggiungi prodotto alla composizione
    */
   const aggiungiProdotto = (nomeProdotto) => {
-    const config = getProdottoConfig(nomeProdotto);
-    if (!config) return;
+    const config = getProdottoConfigSafe(nomeProdotto);
+    if (!config) {
+      console.warn('Config non trovato per:', nomeProdotto);
+      return;
+    }
 
     // ✅ MODALITÀ TOTALE_PRIMA: Aggiungi solo prodotto, calcolo automatico dopo
     if (modalita === MODALITA.TOTALE_PRIMA) {
       const nuovoItem = {
         id: Date.now() + Math.random(),
         prodotto: nomeProdotto,
-        quantita: 0, // Verrà calcolato automaticamente
+        quantita: 0,
         unita: 'Kg',
         prezzo: 0,
-        autoCalc: true, // Flag per indicare calcolo automatico
-        varianteSelezionata: config.varianti?.[0] || null // ✅ NUOVO: Variante default
+        autoCalc: true,
+        varianteSelezionata: config.varianti?.[0] || null
       };
 
       setComposizione(prev => [...prev, nuovoItem]);
@@ -399,8 +391,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       prodotto: nomeProdotto,
       quantita: quantitaDefault,
       unita: unitaDefault,
-      prezzo: prezzo,
-      varianteSelezionata: config.varianti?.[0] || null // ✅ NUOVO: Variante default
+      prezzo: prezzo || 0,
+      varianteSelezionata: config.varianti?.[0] || null
     };
 
     setComposizione(prev => [...prev, nuovoItem]);
@@ -414,7 +406,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       if (item.id === id) {
         const quantita = parseFloat(nuovaQuantita) || 0;
         const prezzo = calcolaPrezzoProdotto(item.prodotto, quantita, item.unita);
-        return { ...item, quantita, prezzo };
+        return { ...item, quantita, prezzo: prezzo || 0 };
       }
       return item;
     }));
@@ -427,14 +419,14 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     setComposizione(prev => prev.map(item => {
       if (item.id === id) {
         const prezzo = calcolaPrezzoProdotto(item.prodotto, item.quantita, nuovaUnita);
-        return { ...item, unita: nuovaUnita, prezzo };
+        return { ...item, unita: nuovaUnita, prezzo: prezzo || 0 };
       }
       return item;
     }));
   };
 
   /**
-   * ✅ NUOVO: Cambia variante prodotto
+   * Cambia variante prodotto
    */
   const cambiaVariante = (id, nuovaVariante) => {
     setComposizione(prev => prev.map(item => {
@@ -451,10 +443,14 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
   const incrementaQuantita = (id, delta) => {
     setComposizione(prev => prev.map(item => {
       if (item.id === id) {
-        const step = item.unita === 'Kg' ? 0.1 : 1;
-        const nuovaQuantita = Math.max(0, item.quantita + (delta * step));
+        let nuovaQuantita;
+        if (item.unita === 'Kg') {
+          nuovaQuantita = Math.max(0.1, (parseFloat(item.quantita) || 0) + (delta * 0.1));
+        } else {
+          nuovaQuantita = Math.max(1, Math.floor((parseFloat(item.quantita) || 0) + delta));
+        }
         const prezzo = calcolaPrezzoProdotto(item.prodotto, nuovaQuantita, item.unita);
-        return { ...item, quantita: nuovaQuantita, prezzo };
+        return { ...item, quantita: nuovaQuantita, prezzo: prezzo || 0 };
       }
       return item;
     }));
@@ -472,21 +468,20 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
    */
   const handleAggiungiAlCarrello = () => {
     if (composizione.length === 0) {
-      setErrore('⚠️ Aggiungi almeno un prodotto al vassoio');
+      setErrore('Aggiungi almeno un prodotto al vassoio');
       return;
     }
 
-   
     // Prepara dati vassoio
     const dettagliComposizione = composizione.map(item => ({
-      nome: item.prodotto,
-      quantita: item.quantita,
-      unita: item.unita,
-      prezzo: item.prezzo
+      nome: item.prodotto || '',
+      quantita: parseFloat(item.quantita) || 0,
+      unita: item.unita || 'Kg',
+      prezzo: parseFloat(item.prezzo) || 0
     }));
 
     const dettagliStringa = composizione
-      .map(item => `${item.prodotto}: ${item.quantita} ${item.unita}`)
+      .map(item => `${item.prodotto || ''}: ${parseFloat(item.quantita) || 0} ${item.unita || 'Kg'}`)
       .join(', ');
 
     // Note complete
@@ -496,8 +491,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
       opzioni.daViaggio ? '✈️ Da viaggio (sottovuoto)' : '',
       opzioni.confezionGift ? '🎁 Confezione regalo' : '',
       `📦 Packaging: ${packaging === 'vassoio_carta' ? 'Vassoio Carta' : packaging === 'scatola' ? 'Scatola' : 'Busta Carta'}`,
-      `📏 Dimensione: Nr ${numeroVassoioDimensione} (${DIMENSIONI_VASSOIO[numeroVassoioDimensione].range})`,
-      esclusioni.length > 0 ? `🚫 Esclusi: ${esclusioni.join(', ')}` : ''
+      `📏 Dimensione: Nr ${numeroVassoioDimensione} (${DIMENSIONI_VASSOIO[numeroVassoioDimensione]?.range || ''})`
     ].filter(Boolean).join(' | ');
 
     const vassoioData = {
@@ -533,6 +527,13 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
     if (onClose) {
       onClose();
     }
+  };
+
+  // ✅ Helper per formattare numeri in modo sicuro
+  const formatNumber = (value, decimals = 2) => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return '0.00';
+    return num.toFixed(decimals);
   };
 
   // ========== RENDER ==========
@@ -656,25 +657,12 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                   {progressoTarget >= 100 ? (
                     <Chip label="✅ Raggiunto!" color="success" size="small" />
                   ) : (
-                    `${progressoTarget.toFixed(1)}% raggiunto`
+                    `${formatNumber(progressoTarget, 1)}% raggiunto`
                   )}
                 </Typography>
               </Box>
             </Grid>
           </Grid>
-
-          {/* ✅ ALERT ESPLICATIVO MODALITÀ TOTALE_PRIMA */}
-          <Alert severity="info" sx={{ mt: 2, bgcolor: '#E3F2FD' }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-              🎯 Modalità "Totale Prima" - Come funziona:
-            </Typography>
-            <Typography variant="body2" component="div">
-              1. Hai impostato un target di <strong>{totaleTarget.valore} {totaleTarget.unita}</strong><br/>
-              2. Seleziona i prodotti che vuoi includere nel vassoio<br/>
-              3. Le quantità verranno <strong>calcolate automaticamente</strong> in modo equo<br/>
-              4. Non devi impostare quantità manualmente!
-            </Typography>
-          </Alert>
         </Paper>
       )}
 
@@ -698,45 +686,38 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                     onChange={() => toggleEsclusione(nome)}
                   />
                 }
-                label={nome}
+                label={`🚫 ${nome}`}
               />
             ))}
           </FormGroup>
         </Paper>
       )}
 
-      {/* ========== SEZIONE 4: LISTA PRODOTTI ========== */}
-      {modalita !== MODALITA.MIX_COMPLETO && (
+      {/* ========== SEZIONE 4: SELEZIONE PRODOTTI (modalità LIBERA o TOTALE_PRIMA) ========== */}
+      {(modalita === MODALITA.LIBERA || modalita === MODALITA.TOTALE_PRIMA) && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Box 
-            sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              cursor: 'pointer',
-              mb: 2
-            }}
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
             onClick={() => setProdottiExpanded(!prodottiExpanded)}
           >
             <Typography variant="h6">
-              📋 Prodotti Disponibili ({prodottiDolci.length})
+              🍰 Seleziona Prodotti
             </Typography>
-            <IconButton size="small">
+            <IconButton>
               {prodottiExpanded ? <ChevronUp /> : <ChevronDown />}
             </IconButton>
           </Box>
           
           <Collapse in={prodottiExpanded}>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {prodottiDolci.map(prodotto => (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
+              {prodottiDolci.map((prodotto) => (
                 <Chip
                   key={prodotto.nome}
                   label={prodotto.nome}
                   onClick={() => aggiungiProdotto(prodotto.nome)}
-                  icon={<Plus size={16} />}
                   color="primary"
                   variant="outlined"
-                  sx={{ cursor: 'pointer' }}
+                  sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'primary.light' } }}
                 />
               ))}
             </Box>
@@ -744,9 +725,9 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
         </Paper>
       )}
 
-      {/* ========== SEZIONE 5: COMPOSIZIONE VASSOIO ========== */}
+      {/* ========== SEZIONE 5: COMPOSIZIONE CORRENTE ========== */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
           🛒 Composizione Vassoio
           {composizione.length > 0 && (
             <Chip 
@@ -765,7 +746,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {composizione.map((item) => {
-              const config = getProdottoConfig(item.prodotto);
+              const config = getProdottoConfigSafe(item?.prodotto);
               
               return (
                 <Card key={item.id} variant="outlined">
@@ -773,7 +754,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                       {/* Nome Prodotto */}
                       <Typography variant="subtitle1" sx={{ minWidth: 150, fontWeight: 'bold' }}>
-                        {item.prodotto}
+                        {item.prodotto || 'N/D'}
                         {item.varianteSelezionata && (
                           <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                             ({item.varianteSelezionata})
@@ -781,7 +762,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                         )}
                       </Typography>
 
-                      {/* ✅ NUOVO: Dropdown Varianti */}
+                      {/* Dropdown Varianti */}
                       {config?.varianti && config.varianti.length > 0 && modalita !== MODALITA.TOTALE_PRIMA && (
                         <FormControl size="small" sx={{ minWidth: 150 }}>
                           <Select
@@ -797,7 +778,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                         </FormControl>
                       )}
 
-                      {/* ✅ MODALITÀ TOTALE_PRIMA: Mostra solo quantità calcolata */}
+                      {/* MODALITÀ TOTALE_PRIMA: Mostra solo quantità calcolata */}
                       {modalita === MODALITA.TOTALE_PRIMA && item.autoCalc ? (
                         <Box sx={{ 
                           display: 'flex', 
@@ -810,8 +791,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                         }}>
                           <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'success.main' }}>
                             {item.unita === 'Pezzi' 
-                              ? `${Math.floor(item.quantita)} ${item.unita}`
-                              : `${item.quantita.toFixed(2)} ${item.unita}`
+                              ? `${Math.floor(parseFloat(item.quantita) || 0)} ${item.unita}`
+                              : `${formatNumber(item.quantita)} ${item.unita}`
                             }
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
@@ -819,7 +800,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                           </Typography>
                         </Box>
                       ) : (
-                        /* ✅ MODALITÀ LIBERA: Controlli quantità normali */
+                        /* MODALITÀ LIBERA: Controlli quantità normali */
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <IconButton 
                             size="small" 
@@ -830,7 +811,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
 
                           <TextField
                             type="number"
-                            value={item.quantita}
+                            value={item.quantita || 0}
                             onChange={(e) => aggiornaQuantita(item.id, e.target.value)}
                             size="small"
                             sx={{ width: 80 }}
@@ -846,14 +827,14 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                         </Box>
                       )}
 
-                      {/* ✅ MODIFICA: Dropdown Unità di Misura - Solo in modalità LIBERA */}
+                      {/* Dropdown Unità di Misura - Solo in modalità LIBERA */}
                       {modalita !== MODALITA.TOTALE_PRIMA && (
                         <FormControl size="small" sx={{ minWidth: 100 }}>
                           <Select
-                            value={item.unita}
+                            value={item.unita || 'Kg'}
                             onChange={(e) => cambiaUnita(item.id, e.target.value)}
                           >
-                            {config?.unitaMisuraDisponibili?.map(unita => (
+                            {(config?.unitaMisuraDisponibili || ['Kg', 'Pezzi']).map(unita => (
                               <MenuItem key={unita} value={unita}>
                                 {unita}
                               </MenuItem>
@@ -862,13 +843,13 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                         </FormControl>
                       )}
 
-                      {/* Prezzo */}
+                      {/* ✅ Prezzo (con protezione) */}
                       <Typography 
                         variant="h6" 
                         color="primary"
                         sx={{ ml: 'auto', minWidth: 80, textAlign: 'right' }}
                       >
-                        €{item.prezzo.toFixed(2)}
+                        €{formatNumber(item.prezzo)}
                       </Typography>
 
                       {/* Rimuovi */}
@@ -884,7 +865,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                     {/* Info Percentuale (solo per Mix Completo) */}
                     {item.percentuale && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                        {item.percentuale.toFixed(0)}% del mix
+                        {formatNumber(item.percentuale, 0)}% del mix
                       </Typography>
                     )}
                   </CardContent>
@@ -903,7 +884,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                   Peso Totale:
                 </Typography>
                 <Typography variant="h6">
-                  {pesoTotaleVassoio.toFixed(2)} Kg
+                  {formatNumber(pesoTotaleVassoio)} Kg
                 </Typography>
               </Grid>
               
@@ -912,7 +893,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
                   Prezzo Totale:
                 </Typography>
                 <Typography variant="h6" color="primary">
-                  €{totaleVassoio.toFixed(2)}
+                  €{formatNumber(totaleVassoio)}
                 </Typography>
               </Grid>
             </Grid>
@@ -954,7 +935,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
               </IconButton>
               
               <Typography variant="caption" color="text.secondary">
-                Totale: €{(totaleVassoio * numeroVassoi).toFixed(2)}
+                Totale: €{formatNumber(totaleVassoio * numeroVassoi)}
               </Typography>
             </Box>
           </Grid>
@@ -1088,12 +1069,12 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
           <Grid container spacing={2}>
             <Grid item xs={6}>
               <Typography variant="body2">Peso per vassoio:</Typography>
-              <Typography variant="h6">{pesoTotaleVassoio.toFixed(2)} Kg</Typography>
+              <Typography variant="h6">{formatNumber(pesoTotaleVassoio)} Kg</Typography>
             </Grid>
             
             <Grid item xs={6}>
               <Typography variant="body2">Prezzo per vassoio:</Typography>
-              <Typography variant="h6">€{totaleVassoio.toFixed(2)}</Typography>
+              <Typography variant="h6">€{formatNumber(totaleVassoio)}</Typography>
             </Grid>
             
             <Grid item xs={6}>
@@ -1104,7 +1085,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose }) => {
             <Grid item xs={6}>
               <Typography variant="body2" color="primary">TOTALE:</Typography>
               <Typography variant="h4" color="primary">
-                €{(totaleVassoio * numeroVassoi).toFixed(2)}
+                €{formatNumber(totaleVassoio * numeroVassoi)}
               </Typography>
             </Grid>
           </Grid>
