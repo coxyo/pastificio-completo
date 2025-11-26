@@ -80,6 +80,12 @@ const ABBREVIAZIONI = {
 
   'Papassinas': 'Papas',
 
+  'Papassine': 'Papas',
+
+  'Pabassine': 'Papas',
+
+  'Pabassinas': 'Papas',
+
   'Gueffus': 'G',
 
   'Pabassine': 'Pab',
@@ -180,6 +186,12 @@ const PEZZI_PER_KG = {
 
   'Papassinas': 30,
 
+  'Papassine': 30,
+
+  'Pabassine': 30,
+
+  'Pabassinas': 30,
+
   'Gueffus': 65,
 
   'Ciambelle': 30,
@@ -238,9 +250,9 @@ const CATEGORIE = {
 
     nome: 'DOLCI',
 
-    prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Gueffus', 'Ciambelle', 
+    prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Papassine', 'Pabassine', 'Pabassinas', 
 
-               'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti', 'Pabassine'],
+               'Gueffus', 'Ciambelle', 'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti'],
 
     colore: '#FFE66D'
 
@@ -378,6 +390,11 @@ const normalizzaNomeProdotto = (nome) => {
   // Pardulas - tutte le varianti diventano "Pardulas"
   if (nomeLC.includes('pardulas')) {
     return 'Pardulas';
+  }
+  
+  // Papassinas - tutte le varianti diventano "Papassinas"
+  if (nomeLC.includes('papassin') || nomeLC.includes('pabassin') || nomeLC.includes('pabas')) {
+    return 'Papassinas';
   }
   
   // Altri prodotti rimangono invariati
@@ -702,7 +719,7 @@ const isSoloPezzo = (nomeProdotto) => {
 
 
 
-// ✅ VERSIONE SEMPLIFICATA: Usa SOLO array composizione
+// ✅ VERSIONE FINALE PULITA: Usa array composizione
 
 const getComposizioneProdotto = (prodotto) => {
 
@@ -710,15 +727,9 @@ const getComposizioneProdotto = (prodotto) => {
 
   if (!prodotto.dettagliCalcolo?.composizione || !Array.isArray(prodotto.dettagliCalcolo.composizione)) {
 
-    console.error('❌ Array composizione NON trovato per:', prodotto.nome);
-
-    return ''; // Ritorna vuoto, verrà gestito dal chiamante
+    return ''; // Ritorna vuoto per prodotti normali
 
   }
-
-  
-
-  console.log('✅ Array composizione trovato:', prodotto.dettagliCalcolo.composizione);
 
   
 
@@ -734,7 +745,7 @@ const getComposizioneProdotto = (prodotto) => {
 
   
 
-  // Se tutte le quantità sono uguali e < 1, mostra solo lettere (es: "AGB")
+  // Se tutte le quantità sono uguali e < 1, mostra solo lettere (es: "ABG")
 
   const quantita_arr = items.map(i => i.qta);
 
@@ -746,11 +757,7 @@ const getComposizioneProdotto = (prodotto) => {
 
   if (tutteUguali && tutteMinoriDi1 && items.length > 1) {
 
-    const risultato = items.map(i => i.abbr).join('').toUpperCase();
-
-    console.log('📝 Composizione compatta (tutte uguali):', risultato);
-
-    return risultato;
+    return items.map(i => i.abbr).join('').toUpperCase();
 
   }
 
@@ -758,19 +765,13 @@ const getComposizioneProdotto = (prodotto) => {
 
   // Altrimenti mostra con quantità
 
-  const risultato = items
+  return items
 
     .map(i => `${i.abbr} ${i.qta.toString().replace('.', ',')}`)
 
     .join(' ')
 
     .toUpperCase();
-
-  
-
-  console.log('📝 Composizione dettagliata:', risultato);
-
-  return risultato;
 
 };
 
@@ -1568,7 +1569,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {/* ✅ NUOVO 21/11/2025: Righe vuote per completare foglio A4 */}
                     {(() => {
                       const righeAttuali = ordiniPerCategoria.RAVIOLI.length;
-                      const righeTarget = 30;
+                      const righeTarget = 25;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
                       return Array.from({ length: righeVuote }, (_, i) => (
@@ -1709,7 +1710,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {/* ✅ NUOVO 21/11/2025: Righe vuote per completare foglio A4 */}
                     {(() => {
                       const righeAttuali = ordiniPerCategoria.PARDULAS.length;
-                      const righeTarget = 30;
+                      const righeTarget = 25;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
                       return Array.from({ length: righeVuote }, (_, i) => (
@@ -1817,7 +1818,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                       
 
-                      // ✅ Per vassoi, mostra composizione se disponibile, altrimenti prezzo
+                      // ✅ Per vassoi, mostra composizione se disponibile
 
                       if (item.prodotto.nome === 'Vassoio Dolci Misti' || item.prodotto.unita === 'vassoio') {
 
@@ -1832,10 +1833,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           const prezzo = item.prodotto.prezzo || 0;
 
                           nomeProdotto = `VASSOIO €${prezzo.toFixed(0)}`;
-
-                          console.log('⚠️ Composizione vuota per vassoio, mostro prezzo:', nomeProdotto);
-
-                          console.log('📦 Prodotto completo:', JSON.stringify(item.prodotto, null, 2));
 
                         }
 
@@ -1886,7 +1883,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {/* ✅ NUOVO 21/11/2025: Righe vuote per completare foglio A4 */}
                     {(() => {
                       const righeAttuali = ordiniPerCategoria.DOLCI.length;
-                      const righeTarget = 30;
+                      const righeTarget = 25;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
                       return Array.from({ length: righeVuote }, (_, i) => (
@@ -2031,7 +2028,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     {/* ✅ NUOVO 21/11/2025: Righe vuote per completare foglio A4 */}
                     {(() => {
                       const righeAttuali = ordiniPerCategoria.ALTRI.length;
-                      const righeTarget = 30;
+                      const righeTarget = 25;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
                       return Array.from({ length: righeVuote }, (_, i) => (
