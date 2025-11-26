@@ -252,7 +252,7 @@ const CATEGORIE = {
 
     prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Papassine', 'Pabassine', 'Pabassinas', 
 
-               'Gueffus', 'Ciambelle', 'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti'],
+               'Gueffus', 'Ciambelle', 'Sebadas', 'Panadine', 'Torta di saba', 'Vassoio', 'Dolci misti'],
 
     colore: '#FFE66D'
 
@@ -1479,27 +1479,27 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     <tr>
 
-                      <th style={{ width: '50px' }}>ORA</th>
+                      <th style={{ width: '60px' }}>ORA</th>
 
-                      <th style={{ width: '35px' }}>SPIN</th>
+                      <th style={{ width: '50px' }}>SPIN</th>
 
-                      <th style={{ width: '35px' }}>ZAFF</th>
+                      <th style={{ width: '50px' }}>ZAFF</th>
 
-                      <th style={{ width: '40px' }}>DOLCI</th>
+                      <th style={{ width: '50px' }}>DOLCI</th>
 
-                      <th style={{ width: '40px' }}>CULUR</th>
+                      <th style={{ width: '50px' }}>CULUR</th>
 
-                      <th style={{ width: '40px' }}>FORM</th>
+                      <th style={{ width: '50px' }}>FORM</th>
 
-                      <th style={{ width: '80px' }}>Q.TÀ</th>
+                      <th style={{ width: '100px' }}>Q.TÀ</th>
 
-                      <th style={{ width: '25px' }}>🧳</th>
+                      <th style={{ width: '30px' }}>🧳</th>
 
-                      <th style={{ width: '100px' }}>CLIENTE</th>
+                      <th style={{ width: '150px' }}>CLIENTE</th>
 
-                      <th style={{ width: '30px' }}>+</th>
+                      <th style={{ width: '35px' }}>+</th>
 
-                      <th style={{ width: '100px' }}>NOTE</th>
+                      <th style={{ width: '150px' }}>NOTE</th>
 
                     </tr>
 
@@ -2180,7 +2180,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           margin: 0;
 
-          font-size: 18px;
+          font-size: 14px;
 
           font-weight: bold;
 
@@ -2228,6 +2228,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border: 1px solid #34495e;
 
+          white-space: nowrap;
+
         }
 
 
@@ -2239,6 +2241,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           border: 1px solid #ddd;
 
           font-size: 13px;
+
+          white-space: nowrap;
 
         }
 
@@ -2424,7 +2428,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .page-header h2 {
 
-            font-size: 16px;
+            font-size: 12px;
 
           }
 
