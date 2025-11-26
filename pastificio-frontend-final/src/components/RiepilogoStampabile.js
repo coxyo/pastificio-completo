@@ -252,7 +252,7 @@ const CATEGORIE = {
 
     prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Papassine', 'Pabassine', 'Pabassinas', 
 
-               'Gueffus', 'Ciambelle', 'Sebadas', 'Panadine', 'Torta di saba', 'Vassoio', 'Dolci misti'],
+               'Gueffus', 'Ciambelle', 'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti'],
 
     colore: '#FFE66D'
 
@@ -1479,27 +1479,27 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     <tr>
 
-                      <th style={{ width: '60px' }}>ORA</th>
+                      <th style={{ width: '70px' }}>ORA</th>
 
-                      <th style={{ width: '50px' }}>SPIN</th>
+                      <th style={{ width: '55px' }}>SPIN</th>
 
-                      <th style={{ width: '50px' }}>ZAFF</th>
+                      <th style={{ width: '55px' }}>ZAFF</th>
 
-                      <th style={{ width: '50px' }}>DOLCI</th>
+                      <th style={{ width: '55px' }}>DOLCI</th>
 
-                      <th style={{ width: '50px' }}>CULUR</th>
+                      <th style={{ width: '55px' }}>CULUR</th>
 
-                      <th style={{ width: '50px' }}>FORM</th>
+                      <th style={{ width: '55px' }}>FORM</th>
 
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
+                      <th style={{ width: '110px' }}>Q.TÀ</th>
 
-                      <th style={{ width: '30px' }}>🧳</th>
+                      <th style={{ width: '35px' }}>🧳</th>
 
-                      <th style={{ width: '150px' }}>CLIENTE</th>
+                      <th style={{ width: '180px' }}>CLIENTE</th>
 
-                      <th style={{ width: '35px' }}>+</th>
+                      <th style={{ width: '40px' }}>+</th>
 
-                      <th style={{ width: '150px' }}>NOTE</th>
+                      <th style={{ width: '180px' }}>NOTE</th>
 
                     </tr>
 
@@ -1649,19 +1649,19 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     <tr>
 
-                      <th style={{ width: '60px' }}>ORA</th>
+                      <th style={{ width: '70px' }}>ORA</th>
 
-                      <th style={{ width: '150px' }}>PRODOTTO</th>
+                      <th style={{ width: '250px' }}>PRODOTTO</th>
 
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
+                      <th style={{ width: '110px' }}>Q.TÀ</th>
 
-                      <th style={{ width: '150px' }}>CLIENTE</th>
+                      <th style={{ width: '180px' }}>CLIENTE</th>
 
-                      <th style={{ width: '40px' }}>🧳</th>
+                      <th style={{ width: '35px' }}>🧳</th>
 
                       <th style={{ width: '40px' }}>+</th>
 
-                      <th style={{ width: '150px' }}>NOTE</th>
+                      <th style={{ width: '165px' }}>NOTE</th>
 
                     </tr>
 
@@ -1790,15 +1790,15 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     <tr>
 
-                      <th style={{ width: '60px' }}>ORA</th>
+                      <th style={{ width: '70px' }}>ORA</th>
 
-                      <th style={{ width: '200px' }}>PRODOTTO</th>
+                      <th style={{ width: '300px' }}>PRODOTTO</th>
 
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
+                      <th style={{ width: '110px' }}>Q.TÀ</th>
 
-                      <th style={{ width: '150px' }}>CLIENTE</th>
+                      <th style={{ width: '180px' }}>CLIENTE</th>
 
-                      <th style={{ width: '40px' }}>🧳</th>
+                      <th style={{ width: '35px' }}>🧳</th>
 
                       <th style={{ width: '40px' }}>+</th>
 
@@ -1963,19 +1963,19 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     <tr>
 
-                      <th style={{ width: '60px' }}>ORA</th>
+                      <th style={{ width: '70px' }}>ORA</th>
 
-                      <th style={{ width: '200px' }}>PRODOTTO</th>
+                      <th style={{ width: '250px' }}>PRODOTTO</th>
 
-                      <th style={{ width: '100px' }}>Q.TÀ</th>
+                      <th style={{ width: '110px' }}>Q.TÀ</th>
 
-                      <th style={{ width: '150px' }}>CLIENTE</th>
+                      <th style={{ width: '180px' }}>CLIENTE</th>
 
-                      <th style={{ width: '40px' }}>🧳</th>
+                      <th style={{ width: '35px' }}>🧳</th>
 
                       <th style={{ width: '40px' }}>+</th>
 
-                      <th style={{ width: '200px' }}>NOTE</th>
+                      <th style={{ width: '165px' }}>NOTE</th>
 
                     </tr>
 
