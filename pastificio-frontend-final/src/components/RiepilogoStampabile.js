@@ -89,6 +89,7 @@ const ABBREVIAZIONI = {
   'Gueffus': 'G',
 
   'Ciambelle': 'C',
+  'CIMBELLE': 'C',
 
   'Ciambelle con marmellata di albicocca': 'C.Albic',
 
@@ -381,7 +382,7 @@ const normalizzaNomeProdotto = (nome) => {
   }
   
   // Ciambelle - tutte le varianti diventano "Ciambelle"
-  if (nomeLC.includes('ciambelle')) {
+  if (nomeLC.includes('ciambelle') || nomeLC.includes('cimbelle')) {
     return 'Ciambelle';
   }
   
@@ -1019,7 +1020,7 @@ const formattaQuantitaConCount = (prodotto, count) => {
 
   // ✅ Per vassoi, calcola peso totale dalla composizione
 
-  if (unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+  if ((unitaNorm === 'vassoio' || unitaNorm.includes('vass')) && prodotto.dettagliCalcolo?.composizione) {
 
     let pesoTotale = 0;
 
@@ -1062,8 +1063,26 @@ const formattaQuantitaConCount = (prodotto, count) => {
     }
 
     
+    
+    // 🔍 DEBUG: Log completo prodotto vassoio
+    if (pesoTotale === 0) {
+      console.log('⚠️ Vassoio con peso 0 - Tentativo recupero:', {
+        nome: prodotto.nome,
+        quantita: prodotto.quantita,
+        unita: prodotto.unita,
+        prezzo: prodotto.prezzo,
+        dettagliCalcolo: prodotto.dettagliCalcolo,
+        composizioneLength: prodotto.dettagliCalcolo?.composizione?.length || 0
+      });
+      
+      // Tentativo 1: Usa quantita del prodotto se > 0
+      if (qta > 0) {
+        return count > 1 ? `${count} X ${qta.toFixed(1)} KG` : `${qta.toFixed(1)} KG`;
+      }
+    }
+    
 
-    return count > 1 ? `${count} X 1 VASS` : '1 VASS';
+    return count > 1 ? `${count} X ${qta || 1} ${unita.toUpperCase()}` : `${qta || 1} ${unita.toUpperCase()}`;
 
   } else if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
 
