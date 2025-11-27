@@ -355,6 +355,70 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
   };
 
   /**
+   * ✅ CALCOLA DISTRIBUZIONE TOTALE (modalità TOTALE_PRIMA)
+   */
+  const calcolaDistribuzioneTotale = () => {
+    if (!totaleTarget.valore || totaleTarget.valore <= 0) {
+      setErrore('Inserisci un valore target valido (maggiore di 0)');
+      return;
+    }
+
+    if (composizione.length === 0) {
+      setErrore('Aggiungi almeno un prodotto prima di calcolare');
+      return;
+    }
+
+    const itemsAutoCalc = composizione.filter(item => item.autoCalc);
+    if (itemsAutoCalc.length === 0) {
+      setWarning('Nessun prodotto da distribuire (tutti hanno quantità fissa)');
+      return;
+    }
+
+    // Quota per ogni prodotto
+    const quotaProdotto = totaleTarget.valore / itemsAutoCalc.length;
+
+    setComposizione(prev =>
+      prev.map(item => {
+        if (!item.autoCalc) return item;
+
+        let quantita = 0;
+        let unita = totaleTarget.unita;
+
+        if (totaleTarget.unita === 'Kg') {
+          quantita = quotaProdotto;
+          unita = 'Kg';
+        } else if (totaleTarget.unita === 'Pezzi') {
+          quantita = Math.round(quotaProdotto);
+          unita = 'Pezzi';
+        } else if (totaleTarget.unita === '€') {
+          const config = getProdottoConfigSafe(item.prodotto);
+          let prezzoKg = config?.prezzoKg || 20;
+
+          if (item.varianteSelezionata && config?.hasVarianti && config.varianti) {
+            const variante = config.varianti.find(v => 
+              (typeof v === 'string' && v === item.varianteSelezionata) ||
+              (typeof v === 'object' && v.nome === item.varianteSelezionata)
+            );
+            if (variante && typeof variante === 'object' && variante.prezzoKg) {
+              prezzoKg = variante.prezzoKg;
+            }
+          }
+
+          quantita = quotaProdotto / prezzoKg;
+          unita = 'Kg';
+        }
+
+        const prezzo = calcolaPrezzoProdotto(item.prodotto, quantita, unita, item.varianteSelezionata);
+        return { ...item, quantita, unita, prezzo: prezzo || 0, autoCalc: false };
+      })
+    );
+
+    setErrore('');
+    setWarning('');
+    console.log(\`✅ Distribuiti \${totaleTarget.valore} \${totaleTarget.unita} tra \${itemsAutoCalc.length} prodotti\`);
+  };
+
+  /**
    * Toggle esclusione prodotto (Mix Completo)
    */
   const toggleEsclusione = (nomeProdotto) => {
@@ -696,6 +760,17 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                 }))}
                 inputProps={{ min: 0, step: 0.1 }}
               />
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                onClick={calcolaDistribuzioneTotale}
+                disabled={!totaleTarget.valore || totaleTarget.valore <= 0 || composizione.length === 0}
+                sx={{ mt: 2 }}
+                startIcon={<Calculator size={20} />}
+              >
+                Calcola Distribuzione
+              </Button>
             </Grid>
             
             <Grid item xs={12} md={4}>
