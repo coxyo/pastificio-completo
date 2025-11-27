@@ -78,17 +78,15 @@ const ABBREVIAZIONI = {
 
   'Bianchini': 'B',
 
-  'Papassinas': 'Papas',
+  'Papassinas': 'PAB',
 
-  'Papassine': 'Papas',
+  'Papassine': 'PAB',
 
-  'Pabassine': 'Papas',
+  'Pabassine': 'PAB',
 
-  'Pabassinas': 'Papas',
+  'Pabassinas': 'PAB',
 
   'Gueffus': 'G',
-
-  'Pabassine': 'Pab',
 
   'Ciambelle': 'C',
 
