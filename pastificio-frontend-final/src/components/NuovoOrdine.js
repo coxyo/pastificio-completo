@@ -334,6 +334,9 @@ clienteIdPreselezionato,
       Pasta: []
     };
 
+    // ✅ ORDINE PRIORITÀ PRODOTTI (più venduti per primi)
+    const ORDINE_PRIORITA = ['Pardulas', 'Ciambelle', 'Amaretti'];
+
     prodottiDB.forEach(prodotto => {
       const categoria = prodotto.categoria || 'Altro';
       
@@ -344,7 +347,43 @@ clienteIdPreselezionato,
       }
     });
 
+    // ✅ ORDINA I PRODOTTI ALL'INTERNO DI OGNI CATEGORIA
+    Object.keys(categorie).forEach(catKey => {
+      categorie[catKey].sort((a, b) => {
+        const indexA = ORDINE_PRIORITA.indexOf(a.nome);
+        const indexB = ORDINE_PRIORITA.indexOf(b.nome);
+        
+        // Se entrambi sono nella lista priorità, ordina per indice
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        // Se solo A è nella lista, A viene prima
+        if (indexA !== -1) return -1;
+        // Se solo B è nella lista, B viene prima
+        if (indexB !== -1) return 1;
+        // Altrimenti ordina alfabeticamente
+        return a.nome.localeCompare(b.nome);
+      });
+    });
+
     return categorie;
+  }, [prodottiDB]);
+
+  // ✅ PRODOTTI ORDINATI PER VASSOIO DOLCI MISTI (Pardulas, Ciambelle, Amaretti primi)
+  const prodottiOrdinatiVassoio = useMemo(() => {
+    const ORDINE_PRIORITA = ['Pardulas', 'Ciambelle', 'Amaretti'];
+    
+    return [...prodottiDB].sort((a, b) => {
+      const indexA = ORDINE_PRIORITA.indexOf(a.nome);
+      const indexB = ORDINE_PRIORITA.indexOf(b.nome);
+      
+      // Se entrambi sono nella lista priorità, ordina per indice
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      // Se solo A è nella lista, A viene prima
+      if (indexA !== -1) return -1;
+      // Se solo B è nella lista, B viene prima
+      if (indexB !== -1) return 1;
+      // Altrimenti ordina alfabeticamente
+      return a.nome.localeCompare(b.nome);
+    });
   }, [prodottiDB]);
 
   useEffect(() => {
@@ -1662,7 +1701,7 @@ clienteIdPreselezionato,
        {/* TAB 1: VASSOIO DOLCI MISTI */}
 {tabValue === 1 && (
   <VassoidDolciMisti 
-    prodottiDisponibili={prodottiDB}
+    prodottiDisponibili={prodottiOrdinatiVassoio}
     onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
     onClose={() => setTabValue(0)}
   />
