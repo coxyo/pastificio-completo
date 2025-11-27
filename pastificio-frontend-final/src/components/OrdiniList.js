@@ -137,6 +137,12 @@ const OrdiniList = ({
     setCategoriaSchermoIntero(null);
   };
 
+  // ✅ Helper per formattare quantità (rimuove numeri periodici)
+  const formatQuantita = (num) => {
+    if (typeof num !== 'number') num = parseFloat(num) || 0;
+    return Number(num.toFixed(2)); // Arrotonda a 2 decimali e rimuove zeri trailing
+  };
+
   // ✅ FIX 25/11/2025: RIMOSSA chiamata a onEdit() - NON apre più il dialog!
   const aggiornaStatoProdotto = async (ordineId, indiceProdotto, nuovoStato) => {
     try {
@@ -539,13 +545,13 @@ Pastificio Nonna Claudia`;
                       const quantita = prodotto.quantita || 0;
                       const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
                       const qtaDisplay = count > 1 
-                        ? `${count} x ${quantita} ${unita}` 
-                        : `${quantita} ${unita}`;
+                        ? `${count} x ${formatQuantita(quantita)} ${unita}` 
+                        : `${formatQuantita(quantita)} ${unita}`;
 
                       let composizioneDisplay = '';
                       if (prodotto.dettagliCalcolo?.composizione) {
                         composizioneDisplay = prodotto.dettagliCalcolo.composizione
-                          .map(item => `${item.nome}: ${item.quantita}`)
+                          .map(item => `${item.nome}: ${formatQuantita(item.quantita)}`)
                           .join(', ');
                       } else if (prodotto.dettagliCalcolo?.dettagli && 
                                  (prodotto.nome === 'Vassoio Dolci Misti' || unita === 'vassoio')) {
@@ -845,13 +851,13 @@ Pastificio Nonna Claudia`;
                 const quantita = prodotto.quantita || 0;
                 const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
                 const qtaDisplay = count > 1 
-                  ? `${count} x ${quantita} ${unita}` 
-                  : `${quantita} ${unita}`;
+                  ? `${count} x ${formatQuantita(quantita)} ${unita}` 
+                  : `${formatQuantita(quantita)} ${unita}`;
                 
                 let composizioneDisplay = '';
                 if (prodotto.dettagliCalcolo?.composizione) {
                   composizioneDisplay = prodotto.dettagliCalcolo.composizione
-                    .map(item => `${item.nome}: ${item.quantita} ${item.unita}`)
+                    .map(item => `${item.nome}: ${formatQuantita(item.quantita)} ${item.unita}`)
                     .join(', ');
                 } else if (prodotto.dettagliCalcolo?.dettagli) {
                   composizioneDisplay = prodotto.dettagliCalcolo.dettagli;
