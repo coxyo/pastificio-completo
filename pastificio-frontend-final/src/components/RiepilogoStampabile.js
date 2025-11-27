@@ -87,6 +87,8 @@ const ABBREVIAZIONI = {
   'Pabassinas': 'PAB',
 
   'Gueffus': 'G',
+  'PPAPASSINI': 'PAB',
+
 
   'Ciambelle': 'C',
   'CIMBELLE': 'C',
@@ -756,7 +758,7 @@ const getComposizioneProdotto = (prodotto) => {
 
   if (tutteUguali && tutteMinoriDi1 && items.length > 1) {
 
-    return items.map(i => i.abbr).join('').toUpperCase();
+    return items.map(i => i.abbr).join(' ').toUpperCase();
 
   }
 
