@@ -415,7 +415,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
 
     setErrore('');
     setWarning('');
-    console.log(\`✅ Distribuiti \${totaleTarget.valore} \${totaleTarget.unita} tra \${itemsAutoCalc.length} prodotti\`);
+    console.log(`✅ Distribuiti ${totaleTarget.valore} ${totaleTarget.unita} tra ${itemsAutoCalc.length} prodotti`);
   };
 
   /**
