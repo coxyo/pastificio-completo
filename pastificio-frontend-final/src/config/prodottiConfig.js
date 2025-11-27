@@ -15,6 +15,46 @@ export const UNITA_MISURA = {
   UNITA: 'Unità',
   EURO: '€'
 };
+// Aggiungi dopo le costanti UNITA_MISURA (dopo riga 17)
+
+// ✅ ORDINE PRIORITÀ PRODOTTI (più venduti per primi)
+export const ORDINE_PRODOTTI = [
+  'Pardulas',
+  'Ciambelle',
+  'Ravioli',
+  'Culurgiones',
+  'Papassinas',
+  'Amaretti',
+  'Bianchini',
+  'Gueffus',
+  'Sebadas',
+  'Panadas',
+  'Panadine',
+  'Torta di saba',
+  'Pabassine'
+];
+
+// ✅ Funzione helper per ottenere prodotti nell'ordine corretto
+export const getProdottiOrdinati = () => {
+  const prodotti = PRODOTTI_CONFIG;
+  const result = {};
+  
+  // Prima aggiungi prodotti nell'ordine definito
+  ORDINE_PRODOTTI.forEach(nome => {
+    if (prodotti[nome]) {
+      result[nome] = prodotti[nome];
+    }
+  });
+  
+  // Poi aggiungi eventuali prodotti non in lista
+  Object.keys(prodotti).forEach(nome => {
+    if (!result[nome]) {
+      result[nome] = prodotti[nome];
+    }
+  });
+  
+  return result;
+};
 
 // ✅ CONFIGURAZIONE PRODOTTI CON VARIANTI
 export const PRODOTTI_CONFIG = {
