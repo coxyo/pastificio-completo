@@ -847,7 +847,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                   onClick={() => aggiungiProdotto(prodotto.nome)}
                   color="primary"
                   variant="outlined"
-                  sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'primary.light' } }}
+                  sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#E3F2FD' } }}
                 />
               ))}
             </Box>
@@ -1191,7 +1191,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
 
       {/* ========== RIEPILOGO FINALE ========== */}
       {composizione.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3, bgcolor: 'primary.light' }}>
+        <Paper sx={{ p: 3, mb: 3, bgcolor: '#E3F2FD' }}>
           <Typography variant="h6" gutterBottom>
             💰 Riepilogo Finale
           </Typography>
