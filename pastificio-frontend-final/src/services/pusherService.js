@@ -1,5 +1,5 @@
-// services/pusherService.js - FRONTEND v5.1 FIXED KEY
-// ✅ INIZIALIZZAZIONE AUTOMATICA + DEBUG COMPLETO + KEY CORRETTA
+// services/pusherService.js - FRONTEND v5.2 FIXED URL
+// ✅ INIZIALIZZAZIONE AUTOMATICA + DEBUG COMPLETO + URL CORRETTO
 
 import Pusher from 'pusher-js';
 
@@ -10,11 +10,15 @@ class PusherClientService {
     this.callChannel = null;
     this.initializationPromise = null;
     
-    // ✅ Configurazione - KEY CORRETTA!
-    this.PUSHER_KEY = '42b401f9d1043202d98a';  // ⚠️ FIXED: era 42b401f9d1043282d298
+    // ✅ Configurazione
+    this.PUSHER_KEY = '42b401f9d1043202d98a';
     this.PUSHER_CLUSTER = 'eu';
     
-    console.log('🚀 Pusher Service v5.1 creato (KEY CORRETTA)');
+    // ✅ URL BACKEND CORRETTO
+    this.BACKEND_URL = 'https://pastificio-backend-production.up.railway.app';
+    
+    console.log('🚀 Pusher Service v5.2 creato');
+    console.log('🔗 Backend URL:', this.BACKEND_URL);
     
     // ✅ AUTO-INIZIALIZZAZIONE solo in browser
     if (typeof window !== 'undefined') {
@@ -48,7 +52,6 @@ class PusherClientService {
           cluster: this.PUSHER_CLUSTER,
           encrypted: true,
           forceTLS: true,
-          // ✅ Abilita logging in development
           enabledTransports: ['ws', 'wss'],
           disableStats: true,
         });
@@ -63,7 +66,7 @@ class PusherClientService {
           // ✅ AUTO-SUBSCRIBE al canale chiamate
           setTimeout(() => {
             this.subscribeToCallChannel();
-          }, 500); // Piccolo delay per stabilizzare connessione
+          }, 500);
           
           resolve(this.pusher);
         });
@@ -175,7 +178,6 @@ class PusherClientService {
       console.warn('⚠️ Canale non sottoscritto, subscribing...');
       this.subscribeToCallChannel();
       
-      // Attendi 1s per subscribe
       setTimeout(() => {
         this._bindCallListener(callback);
       }, 1000);
@@ -196,7 +198,7 @@ class PusherClientService {
 
     // ✅ Bind evento nuova-chiamata
     this.callChannel.bind('nuova-chiamata', (data) => {
-      console.log('🔔 CHIAMATA IN ARRIVO via Pusher:', data);
+      console.log('📞 CHIAMATA IN ARRIVO via Pusher:', data);
       
       // ✅ Mostra notifica browser se permessi concessi
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -261,12 +263,13 @@ class PusherClientService {
       channelSubscribed: !!this.callChannel,
       channels: this.pusher ? Object.keys(this.pusher.channels?.channels || {}) : [],
       cluster: this.PUSHER_CLUSTER,
-      key: this.PUSHER_KEY
+      key: this.PUSHER_KEY,
+      backendUrl: this.BACKEND_URL
     };
   }
 }
 
-// ✅ SINGLETON - Crea istanza unica
+// ✅ SINGLETON
 const pusherService = new PusherClientService();
 
 // ✅ DEBUG HELPER (window.pusherDebug)
@@ -286,6 +289,7 @@ if (typeof window !== 'undefined') {
       console.log('Active Channels:', status.channels);
       console.log('Cluster:', status.cluster);
       console.log('Key:', status.key);
+      console.log('Backend URL:', status.backendUrl);
       console.log('============================');
       return status;
     },
@@ -302,22 +306,19 @@ if (typeof window !== 'undefined') {
       return pusherService.subscribeToCallChannel();
     },
     
-    // Test chiamata con webhook reale
+    // ✅ Test chiamata con URL CORRETTO
     testChiamata: (numero = '+393271234567') => {
       console.log('🧪 Test chiamata con webhook backend...');
       console.log('📞 Numero:', numero);
+      console.log('🔗 URL:', pusherService.BACKEND_URL);
       
-      fetch('https://pastificio-completo-production.up.railway.app/api/webhook/chiamata-entrante', {
+      fetch(`${pusherService.BACKEND_URL}/api/webhook/test`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          numero: numero,
-          timestamp: new Date().toISOString(),
-          callId: 'debug-test-' + Date.now(),
-          source: 'debug-console',
-          tipo: 'entrante'
+          numero: numero
         })
       })
       .then(response => {
@@ -337,23 +338,16 @@ if (typeof window !== 'undefined') {
     testLocale: (numero = '+393271234567') => {
       console.log('🧪 Test locale (evento simulato)...');
       
-      if (!pusherService.callChannel) {
-        console.error('❌ Canale non sottoscritto!');
-        return;
-      }
-
       const fakeData = {
         numero: numero,
         timestamp: new Date().toISOString(),
         callId: 'test-local-' + Date.now(),
         source: 'test-frontend',
-        tipo: 'entrante',
         cliente: null
       };
 
-      console.log('📤 Emetto evento "nuova-chiamata":', fakeData);
+      console.log('📤 Emetto evento "pusher-incoming-call":', fakeData);
       
-      // Emetti evento custom
       window.dispatchEvent(new CustomEvent('pusher-incoming-call', { 
         detail: fakeData 
       }));
@@ -376,9 +370,6 @@ if (typeof window !== 'undefined') {
       const callbacks = pusherService.callChannel.callbacks;
       console.log('👂 Listener registrati:', callbacks);
       
-      const hasListener = callbacks && callbacks['nuova-chiamata'];
-      console.log('✅ Listener "nuova-chiamata" presente:', !!hasListener);
-      
       return callbacks;
     }
   };
@@ -387,10 +378,8 @@ if (typeof window !== 'undefined') {
   console.log('window.pusherDebug.status()        - Mostra stato');
   console.log('window.pusherDebug.reconnect()     - Riconnetti');
   console.log('window.pusherDebug.testChiamata()  - Test webhook backend');
-  console.log('window.pusherDebug.testLocale()    - Test locale (simula)');
+  console.log('window.pusherDebug.testLocale()    - Test locale (simula popup)');
   console.log('window.pusherDebug.forceSubscribe()- Force subscribe');
-  console.log('window.pusherDebug.listChannels()  - Lista canali');
-  console.log('window.pusherDebug.checkListeners()- Verifica listener');
   console.log('====================================');
 }
 
