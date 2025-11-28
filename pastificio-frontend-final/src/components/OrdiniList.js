@@ -549,8 +549,17 @@ Pastificio Nonna Claudia`;
                       if ((prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio') 
                           && prodotto.dettagliCalcolo?.composizione) {
                         quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
-                          return sum + (parseFloat(item.quantita) || 0);
+                          // ✅ Somma solo se l'unità è Kg (ignora Pezzi, €, etc.)
+                          const unitaItem = (item.unita || '').toLowerCase();
+                          if (unitaItem === 'kg') {
+                            return sum + (parseFloat(item.quantita) || 0);
+                          }
+                          return sum;
                         }, 0);
+                        // ✅ Se peso calcolato è 0 (solo pezzi), usa quantità salvata
+                        if (quantitaEffettiva === 0) {
+                          quantitaEffettiva = prodotto.quantita || 1;
+                        }
                         unitaEffettiva = 'Kg'; // I vassoi sono sempre in Kg
                       }
                       
@@ -865,8 +874,17 @@ Pastificio Nonna Claudia`;
                       if ((prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio') 
                           && prodotto.dettagliCalcolo?.composizione) {
                         quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
-                          return sum + (parseFloat(item.quantita) || 0);
+                          // ✅ Somma solo se l'unità è Kg (ignora Pezzi, €, etc.)
+                          const unitaItem = (item.unita || '').toLowerCase();
+                          if (unitaItem === 'kg') {
+                            return sum + (parseFloat(item.quantita) || 0);
+                          }
+                          return sum;
                         }, 0);
+                        // ✅ Se peso calcolato è 0 (solo pezzi), usa quantità salvata
+                        if (quantitaEffettiva === 0) {
+                          quantitaEffettiva = prodotto.quantita || 1;
+                        }
                         unitaEffettiva = 'Kg'; // I vassoi sono sempre in Kg
                       }
                       
