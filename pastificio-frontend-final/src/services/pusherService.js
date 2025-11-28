@@ -1,5 +1,6 @@
-// services/pusherService.js - FRONTEND v5.2 FIXED URL
+// services/pusherService.js - FRONTEND v5.3 - SENZA NOTIFICHE BROWSER
 // ✅ INIZIALIZZAZIONE AUTOMATICA + DEBUG COMPLETO + URL CORRETTO
+// ✅ RIMOSSA NOTIFICA BROWSER (usa solo popup)
 
 import Pusher from 'pusher-js';
 
@@ -17,7 +18,7 @@ class PusherClientService {
     // ✅ URL BACKEND CORRETTO
     this.BACKEND_URL = 'https://pastificio-completo-production.up.railway.app';
     
-    console.log('🚀 Pusher Service v5.2 creato');
+    console.log('🚀 Pusher Service v5.3 creato (NO browser notifications)');
     console.log('🔗 Backend URL:', this.BACKEND_URL);
     
     // ✅ AUTO-INIZIALIZZAZIONE solo in browser
@@ -200,15 +201,8 @@ class PusherClientService {
     this.callChannel.bind('nuova-chiamata', (data) => {
       console.log('📞 CHIAMATA IN ARRIVO via Pusher:', data);
       
-      // ✅ Mostra notifica browser se permessi concessi
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('📞 Nuova Chiamata', {
-          body: `Chiamata da: ${data.numero}`,
-          icon: '/favicon.ico',
-          tag: data.callId,
-          requireInteraction: true
-        });
-      }
+      // ❌ RIMOSSA NOTIFICA BROWSER - usa solo popup CallPopup
+      // La notifica era qui e l'abbiamo rimossa
 
       // ✅ Emetti evento custom per hook React
       if (typeof window !== 'undefined') {
