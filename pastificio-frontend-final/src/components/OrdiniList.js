@@ -143,6 +143,33 @@ const OrdiniList = ({
     return Number(num.toFixed(2)); // Arrotonda a 2 decimali e rimuove zeri trailing
   };
 
+  // ✅ Filtra note automatiche, mostra solo note manuali dell'utente
+  const filtraNoteManuali = (note) => {
+    if (!note || note === '-') return '-';
+    
+    // Pattern note automatiche da rimuovere
+    const patternAutomatici = [
+      /packaging:/i,
+      /dimensione:/i,
+      /vassoio carta/i,
+      /vassoio plastica/i,
+      /scatola/i,
+      /n \d+ \(/i  // "N 4 (--400-500g)" etc.
+    ];
+    
+    // Split note per separatori comuni
+    const separatori = /[\n|;]/;
+    const noteArray = note.split(separatori).map(n => n.trim()).filter(n => n.length > 0);
+    
+    // Filtra note automatiche
+    const noteManuali = noteArray.filter(nota => {
+      return !patternAutomatici.some(pattern => pattern.test(nota));
+    });
+    
+    // Ritorna note manuali o '-' se vuote
+    return noteManuali.length > 0 ? noteManuali.join(' | ') : '-';
+  };
+
   // ✅ FIX 25/11/2025: RIMOSSA chiamata a onEdit() - NON apre più il dialog!
   const aggiornaStatoProdotto = async (ordineId, indiceProdotto, nuovoStato) => {
     try {
@@ -739,7 +766,7 @@ Pastificio Nonna Claudia`;
                                 variant="caption" 
                                 sx={{ fontSize: '0.65rem', lineHeight: 1.3, wordBreak: 'break-word' }}
                               >
-                                {prodotto.note || ordine.note || '-'}
+                                {filtraNoteManuali(prodotto.note || ordine.note)}
                               </Typography>
                             </Box>
                           </TableCell>
@@ -985,7 +1012,7 @@ Pastificio Nonna Claudia`;
                     </TableCell>
                     <TableCell sx={{ fontSize: '0.9rem' }}>
                       {daViaggio && <Chip label="VIAGGIO" size="small" color="warning" sx={{ mr: 0.5 }} />}
-                      {prodotto.note || ordine.note || '-'}
+                      {filtraNoteManuali(prodotto.note || ordine.note)}
                     </TableCell>
                     <TableCell align="center">
                       <IconButton onClick={() => { chiudiSchermoIntero(); onEdit(ordine); }} color="primary" size="large">
