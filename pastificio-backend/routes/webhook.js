@@ -1,11 +1,28 @@
-// routes/webhook.js - VERSIONE UNIFICATA CON STORICO
+// routes/webhook.js - VERSIONE CON CORS FIX
 import express from 'express';
+import cors from 'cors';
 import Pusher from 'pusher';
 import Cliente from '../models/Cliente.js';
 import ChiamataStorico from '../models/ChiamataStorico.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
+
+// ✅ CORS SPECIFICO PER WEBHOOK (permette richieste dal frontend per test)
+const webhookCors = cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://pastificio-frontend-final.vercel.app',
+    'https://pastificio-nonna-claudia.vercel.app'
+  ],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+});
+
+// Applica CORS a tutte le route del webhook
+router.use(webhookCors);
 
 // ===== INIZIALIZZA PUSHER =====
 const pusher = new Pusher({
@@ -74,7 +91,7 @@ router.post('/chiamata-entrante', async (req, res) => {
       logger.error('❌ Errore ricerca cliente:', searchError);
     }
     
-    // ===== ✅ NUOVO: SALVA CHIAMATA IN STORICO =====
+    // ===== SALVA CHIAMATA IN STORICO =====
     let chiamataStorico;
     try {
       const chiamataData = {
@@ -125,7 +142,6 @@ router.post('/chiamata-entrante', async (req, res) => {
         dataUltimoOrdine: clienteTrovato.dataUltimoOrdine,
         note: clienteTrovato.note
       } : null,
-      // ✅ NUOVO: Aggiungi note automatiche
       noteAutomatiche: chiamataStorico?.noteAutomatiche || []
     };
     
@@ -208,7 +224,9 @@ router.post('/test', async (req, res) => {
     const cliente = await Cliente.findOne({
       $or: [
         { telefono: numeroNormalizzato },
-        { cellulare: numeroNormalizzato }
+        { cellulare: numeroNormalizzato },
+        { telefono: { $regex: numeroNormalizzato.slice(-8), $options: 'i' } },
+        { cellulare: { $regex: numeroNormalizzato.slice(-8), $options: 'i' } }
       ]
     });
     
@@ -264,8 +282,6 @@ router.post('/test', async (req, res) => {
     });
   }
 });
-
-// ===== ✅ NUOVO: ENDPOINT PER STORICO CHIAMATE =====
 
 /**
  * GET /api/webhook/history
