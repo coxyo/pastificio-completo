@@ -15,7 +15,7 @@ class PusherClientService {
     this.PUSHER_CLUSTER = 'eu';
     
     // ✅ URL BACKEND CORRETTO
-    this.BACKEND_URL = 'https://pastificio-backend-production.up.railway.app';
+    this.BACKEND_URL = 'https://pastificio-completo-production.up.railway.app';
     
     console.log('🚀 Pusher Service v5.2 creato');
     console.log('🔗 Backend URL:', this.BACKEND_URL);
