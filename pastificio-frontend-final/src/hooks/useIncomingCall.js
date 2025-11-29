@@ -8,14 +8,14 @@ export default function useIncomingCall() {
   const [connected, setConnected] = useState(false);
   const [pusherService, setPusherService] = useState(null);
   
-  // ✅ NUOVO: Ref per prevenire chiamate duplicate
+  // Ref per prevenire chiamate duplicate
   const lastCallIdRef = useRef(null);
   const resetTimeoutRef = useRef(null);
 
   // Log state changes
   useEffect(() => {
     console.log('📊 [useIncomingCall] STATE UPDATE:');
-    console.log('  - chiamataCorrente:', chiamataCorrente);
+    console.log('  - chiamataCorrente:', chiamataCorrente?.numero || null);
     console.log('  - isPopupOpen:', isPopupOpen);
     console.log('  - connected:', connected);
   }, [chiamataCorrente, isPopupOpen, connected]);
@@ -25,7 +25,7 @@ export default function useIncomingCall() {
 
     console.log('🔧 [useIncomingCall] Inizializzazione...');
 
-    // ✅ NUOVO: Listener per visibilità pagina
+    // Listener per visibilità pagina
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         console.log('👁️ [useIncomingCall] Tab visibile, verifico Pusher...');
@@ -59,46 +59,35 @@ export default function useIncomingCall() {
       checkConnection();
       const interval = setInterval(checkConnection, 2000);
 
-      // ✅ LISTENER GLOBALE per eventi custom
+      // Listener per eventi custom
       const handleIncomingCall = (event) => {
         const callData = event.detail;
         
-        console.log('🔔 [useIncomingCall] Evento ricevuto:', callData);
+        console.log('📞 [useIncomingCall] Evento ricevuto:', callData);
         console.log('🔍 [useIncomingCall] Stato attuale:', {
           lastCallId: lastCallIdRef.current,
           isPopupOpen,
           chiamataCorrente: !!chiamataCorrente
         });
         
-        // ✅ NUOVO: Usa combinazione numero+timestamp per identificare chiamata unica
+        // Usa combinazione numero+timestamp per identificare chiamata unica
         const chiamataUniqueId = `${callData.numero}_${callData.timestamp}`;
         const now = Date.now();
         
-        // ✅ DEBOUNCE MIGLIORATO: Ignora se stesso evento entro 500ms (protezione duplicati Pusher)
+        // Debounce: Ignora se stesso evento entro 500ms
         if (lastCallIdRef.current?.id === chiamataUniqueId && 
             now - lastCallIdRef.current.time < 500) {
-          console.log('⚠️ [useIncomingCall] Evento duplicato ignorato (stesso timestamp):', chiamataUniqueId);
+          console.log('⚠️ [useIncomingCall] Evento duplicato ignorato:', chiamataUniqueId);
           return;
         }
         
-        // Verifica che Pusher sia ancora connesso
-        if (service && service.getStatus) {
-          const status = service.getStatus();
-          console.log('📡 [useIncomingCall] Stato Pusher:', status);
-          
-          if (!status.connected) {
-            console.warn('⚠️ [useIncomingCall] Pusher disconnesso! Tento riconnessione...');
-            // Lascia che il servizio gestisca la riconnessione automatica
-          }
-        }
-        
-        // Aggiorna last call con ID univoco basato su numero+timestamp
+        // Aggiorna last call
         lastCallIdRef.current = {
           id: chiamataUniqueId,
           time: now
         };
         
-        // Auto-reset dopo 1 secondo (solo per pulizia, non blocca nuove chiamate)
+        // Auto-reset dopo 1 secondo
         setTimeout(() => {
           if (lastCallIdRef.current?.id === chiamataUniqueId) {
             console.log('🔄 [useIncomingCall] Reset lastCallId per pulizia');
@@ -110,42 +99,37 @@ export default function useIncomingCall() {
         setChiamataCorrente(callData);
         setIsPopupOpen(true);
         
-        console.log('✅ [useIncomingCall] State aggiornato via event:', callData);
-        console.log('✅ [useIncomingCall] Popup aperto!');
+        console.log('✅ [useIncomingCall] Popup aperto per:', callData.numero);
       };
 
-      // Registra listener per eventi custom (da pusherService)
+      // Registra listener
       window.addEventListener('pusher-incoming-call', handleIncomingCall);
 
-      // ✅ Registra listener Pusher diretto
-      if (service.isConnected && service.callChannel) {
-        console.log('✅ [useIncomingCall] Registro listener Pusher');
-        service.onIncomingCall((data) => {
-          console.log('📞 [useIncomingCall] Chiamata Pusher:', data);
-          
-          // Usa stesso handler per evitare duplicazione logica
-          handleIncomingCall({ detail: data });
-        });
-      } else {
+      // Registra listener Pusher diretto
+      const setupPusherListener = () => {
+        const status = service.getStatus();
+        if (status.connected && status.channelSubscribed) {
+          console.log('✅ [useIncomingCall] Registro listener Pusher');
+          service.onIncomingCall((data) => {
+            console.log('📞 [useIncomingCall] Chiamata Pusher:', data);
+            handleIncomingCall({ detail: data });
+          });
+          return true;
+        }
+        return false;
+      };
+
+      if (!setupPusherListener()) {
         console.log('⏳ [useIncomingCall] Pusher non ancora pronto, attendo...');
         
         const retryInterval = setInterval(() => {
-          const status = service.getStatus();
-          if (status.connected && status.channelSubscribed) {
-            console.log('✅ [useIncomingCall] Pusher pronto, registro listener');
-            service.onIncomingCall((data) => {
-              console.log('📞 [useIncomingCall] Chiamata Pusher:', data);
-              handleIncomingCall({ detail: data });
-            });
+          if (setupPusherListener()) {
             clearInterval(retryInterval);
           }
         }, 1000);
 
-        return () => {
-          clearInterval(retryInterval);
-          clearInterval(interval);
-          window.removeEventListener('pusher-incoming-call', handleIncomingCall);
-        };
+        // Cleanup retry interval
+        setTimeout(() => clearInterval(retryInterval), 30000);
       }
 
       return () => {
@@ -156,44 +140,60 @@ export default function useIncomingCall() {
     });
   }, []);
 
-  // ✅ Handler per chiudere popup (Ignora)
+  // ✅ FIX: Handler per chiudere popup (Ignora) - chiusura IMMEDIATA
   const handleClosePopup = useCallback(() => {
     console.log('🔴 [useIncomingCall] Chiusura popup (Ignora)');
-    setIsPopupOpen(false);
-    setChiamataCorrente(null);
-    lastCallIdRef.current = null; // Reset per permettere nuove chiamate
-  }, []);
-
-  // ✅ Handler per accettare chiamata
-  const handleAcceptCall = useCallback(() => {
-    console.log('🟢 [useIncomingCall] Chiamata accettata');
-    setIsPopupOpen(false);
     
-    // ✅ NUOVO: Auto-reset dopo 10 secondi (aumentato da 3)
-    // Questo permette a NuovoOrdine di leggere chiamataCorrente dal localStorage
-    // ma poi pulisce lo state per permettere nuove chiamate
+    // Pulisci timeout se presente
     if (resetTimeoutRef.current) {
       clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
     }
     
+    // ✅ Chiudi popup IMMEDIATAMENTE
+    setIsPopupOpen(false);
+    setChiamataCorrente(null);
+    lastCallIdRef.current = null;
+    
+    console.log('✅ [useIncomingCall] Popup chiuso');
+  }, []);
+
+  // ✅ FIX: Handler per accettare chiamata - chiusura IMMEDIATA
+  const handleAcceptCall = useCallback(() => {
+    console.log('🟢 [useIncomingCall] Chiamata accettata');
+    
+    // Pulisci timeout se presente
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
+    }
+    
+    // ✅ Chiudi popup IMMEDIATAMENTE
+    setIsPopupOpen(false);
+    
+    // ✅ Mantieni chiamataCorrente per 5 secondi (per localStorage in ClientLayout)
+    // poi pulisci automaticamente
     resetTimeoutRef.current = setTimeout(() => {
       console.log('🧹 [useIncomingCall] Auto-reset chiamataCorrente dopo accettazione');
       setChiamataCorrente(null);
       lastCallIdRef.current = null;
-    }, 10000); // 10 secondi per sicurezza
+    }, 5000);
     
+    console.log('✅ [useIncomingCall] Popup chiuso, dati mantenuti per 5s');
   }, []);
 
-  // ✅ clearChiamata ora chiude anche il popup
+  // clearChiamata - pulizia completa
   const clearChiamata = useCallback(() => {
     console.log('🗑️ [useIncomingCall] Clear chiamata manuale');
-    setChiamataCorrente(null);
-    setIsPopupOpen(false);
-    lastCallIdRef.current = null;
     
     if (resetTimeoutRef.current) {
       clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
     }
+    
+    setChiamataCorrente(null);
+    setIsPopupOpen(false);
+    lastCallIdRef.current = null;
   }, []);
 
   // Cleanup timeout on unmount
