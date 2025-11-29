@@ -1,18 +1,21 @@
-// components/CallPopup.js - VERSIONE CON TAG MANAGER
-import React, { useEffect, useState } from 'react';
+// components/CallPopup.js - VERSIONE OTTIMIZZATA v2.0
+// ✅ Click singolo sui pulsanti
+// ✅ Timeout 60 secondi
+// ✅ Rimosso debug mode
+import React, { useEffect, useState, useCallback } from 'react';
 import { Phone, X, User, AlertCircle, Tag as TagIcon } from 'lucide-react';
 import TagManager from './TagManager';
 
 export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const [tags, setTags] = useState([]);
-  const [countdown, setCountdown] = useState(30); // ✅ NUOVO: Timer 30 secondi
+  const [countdown, setCountdown] = useState(60); // ✅ AUMENTATO a 60 secondi
 
-  // ✅ NUOVO: Auto-close dopo 30 secondi + SUONO + VIBRAZIONE
+  // ✅ Auto-close dopo 60 secondi + SUONO + VIBRAZIONE
   useEffect(() => {
     if (!isOpen) return;
 
-    setCountdown(30); // Reset countdown
+    setCountdown(60); // Reset countdown
     
     // 🔊 SUONO NOTIFICA
     try {
@@ -25,7 +28,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
 
     // 📳 VIBRAZIONE (se disponibile)
     if ('vibrate' in navigator) {
-      navigator.vibrate([200, 100, 200]); // Vibra 3 volte
+      navigator.vibrate([200, 100, 200]);
     }
 
     // ⏰ TIMER AUTO-CLOSE
@@ -43,13 +46,39 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     return () => clearInterval(timer);
   }, [isOpen, onClose]);
 
-  // Debug
+  // Tags dal callData
   useEffect(() => {
-    console.log('🚨 [CallPopup] Render:', { isOpen, callData: !!callData });
     if (callData?.chiamataId && callData?.tags) {
       setTags(callData.tags);
     }
-  }, [isOpen, callData]);
+  }, [callData]);
+
+  // ✅ HANDLER OTTIMIZZATI - useCallback per prevenire re-render
+  const handleIgnore = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🚫 [CallPopup] Ignora chiamata');
+    onClose();
+  }, [onClose]);
+
+  const handleAccept = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('📞 [CallPopup] Nuovo ordine');
+    onAccept();
+  }, [onAccept]);
+
+  const handleTagClick = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowTagManager(true);
+  }, []);
+
+  const handleOverlayClick = useCallback((e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
 
   // Se non aperto o senza dati, non renderizzare
   if (!isOpen || !callData) {
@@ -63,11 +92,31 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     console.log('✅ Tags aggiornati:', nuoviTags);
   };
 
+  // ✅ STILE PULSANTE BASE - ottimizzato per click singolo
+  const buttonBaseStyle = {
+    flex: '1 1 auto',
+    minWidth: '120px',
+    padding: '16px 20px',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    transition: 'transform 100ms, opacity 100ms',
+    touchAction: 'manipulation',
+    userSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
+    outline: 'none',
+  };
+
   return (
     <>
       {/* Overlay scuro */}
       <div 
-        onClick={onClose}
+        onClick={handleOverlayClick}
         style={{
           position: 'fixed',
           top: 0,
@@ -79,7 +128,6 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          animation: 'fadeIn 200ms ease-out'
         }}
       >
         {/* Popup content */}
@@ -96,18 +144,16 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
             overflowY: 'auto',
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
             zIndex: 999999,
-            animation: 'slideIn 300ms ease-out'
           }}
         >
-          {/* Barra rossa debug + countdown */}
+          {/* Barra colorata countdown */}
           <div style={{
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             height: '4px',
-            backgroundColor: countdown > 10 ? '#22c55e' : countdown > 5 ? '#f59e0b' : '#ef4444',
-            animation: 'pulse 1s infinite',
+            backgroundColor: countdown > 20 ? '#22c55e' : countdown > 10 ? '#f59e0b' : '#ef4444',
             transition: 'background-color 300ms'
           }} />
 
@@ -116,7 +162,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
             position: 'absolute',
             top: '8px',
             right: '48px',
-            backgroundColor: countdown > 10 ? '#22c55e' : countdown > 5 ? '#f59e0b' : '#ef4444',
+            backgroundColor: countdown > 20 ? '#22c55e' : countdown > 10 ? '#f59e0b' : '#ef4444',
             color: 'white',
             padding: '4px 12px',
             borderRadius: '12px',
@@ -142,16 +188,17 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
               margin: 0,
               flex: 1
             }}>
-              🚨 DEBUG MODE - Chiamata in arrivo
+              📞 Chiamata in arrivo
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleIgnore}
               style={{
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                padding: '4px',
-                color: '#666'
+                padding: '8px',
+                color: '#666',
+                touchAction: 'manipulation',
               }}
             >
               <X style={{ width: '24px', height: '24px' }} />
@@ -171,16 +218,9 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
               fontSize: '32px',
               fontWeight: 'bold',
               color: '#dc2626',
-              margin: '0 0 8px 0'
-            }}>
-              {numero || 'NUMERO MANCANTE'}
-            </p>
-            <p style={{
-              fontSize: '12px',
-              color: '#666',
               margin: 0
             }}>
-              Debug: isOpen={String(isOpen)}, callData={callData ? 'OK' : 'NULL'}
+              {numero || 'Numero sconosciuto'}
             </p>
           </div>
 
@@ -299,38 +339,19 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
             </div>
           )}
 
-          {/* Actions - 3 PULSANTI TOUCH-FRIENDLY */}
+          {/* ✅ PULSANTI OTTIMIZZATI - CLICK SINGOLO */}
           <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+            
             {/* Pulsante Tag */}
             {chiamataId && (
               <button
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={() => setShowTagManager(true)}
+                type="button"
+                onClick={handleTagClick}
                 style={{
-                  flex: '1 1 auto',
-                  minWidth: '140px',
-                  padding: '16px 20px', // ✅ AUMENTATO per touch
+                  ...buttonBaseStyle,
                   backgroundColor: 'white',
                   border: '2px solid #3b82f6',
-                  borderRadius: '8px', // ✅ AUMENTATO
-                  fontSize: '16px', // ✅ AUMENTATO
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
                   color: '#3b82f6',
-                  transition: 'all 150ms',
-                  touchAction: 'manipulation' // ✅ NUOVO: migliora touch
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = '#3b82f6';
-                  e.currentTarget.style.color = 'white';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'white';
-                  e.currentTarget.style.color = '#3b82f6';
                 }}
               >
                 <TagIcon style={{ width: '18px', height: '18px' }} />
@@ -340,31 +361,14 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
 
             {/* Pulsante Ignora */}
             <button
-              onMouseDown={(e) => e.stopPropagation()} // ✅ FIX doppio click
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('🚫 [CallPopup] Ignora chiamata');
-                onClose();
-              }}
+              type="button"
+              onClick={handleIgnore}
               style={{
-                flex: '1 1 auto',
-                minWidth: '140px',
-                padding: '16px 20px', // ✅ AUMENTATO per touch
+                ...buttonBaseStyle,
                 backgroundColor: 'white',
                 border: '2px solid #e5e7eb',
-                borderRadius: '8px', // ✅ AUMENTATO
-                fontSize: '16px', // ✅ AUMENTATO
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 150ms',
-                touchAction: 'manipulation' // ✅ NUOVO
+                color: '#374151',
               }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
             >
               <X style={{ width: '18px', height: '18px' }} />
               Ignora ({countdown}s)
@@ -372,54 +376,18 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
 
             {/* Pulsante Nuovo Ordine */}
             <button
-              onMouseDown={(e) => e.stopPropagation()} // ✅ FIX doppio click
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('📞 [CallPopup] Nuovo ordine');
-                onAccept();
-              }}
+              type="button"
+              onClick={handleAccept}
               style={{
-                flex: '1 1 auto',
-                minWidth: '140px',
-                padding: '16px 20px', // ✅ AUMENTATO per touch
+                ...buttonBaseStyle,
                 backgroundColor: '#22c55e',
                 border: '2px solid #22c55e',
-                borderRadius: '8px', // ✅ AUMENTATO
-                fontSize: '16px', // ✅ AUMENTATO
-                fontWeight: 600,
                 color: 'white',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 150ms',
-                touchAction: 'manipulation' // ✅ NUOVO
               }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#16a34a'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#22c55e'}
             >
               <Phone style={{ width: '18px', height: '18px' }} />
               Nuovo Ordine
             </button>
-          </div>
-
-          {/* Debug panel */}
-          <div style={{
-            backgroundColor: '#f3f4f6',
-            padding: '12px',
-            borderRadius: '6px',
-            marginTop: '16px',
-            fontSize: '12px',
-            fontFamily: 'monospace'
-          }}>
-            <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>Debug Info:</p>
-            <p style={{ margin: '4px 0' }}>isOpen: {String(isOpen)}</p>
-            <p style={{ margin: '4px 0' }}>numero: {numero}</p>
-            <p style={{ margin: '4px 0' }}>cliente: {cliente ? 'TROVATO' : 'NON TROVATO'}</p>
-            <p style={{ margin: '4px 0' }}>chiamataId: {chiamataId || 'NON DISPONIBILE'}</p>
-            <p style={{ margin: '4px 0' }}>tags: {tags?.length || 0}</p>
-            <p style={{ margin: '4px 0' }}>timestamp: {new Date().toLocaleTimeString()}</p>
           </div>
         </div>
       </div>
@@ -434,28 +402,6 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
           onTagsUpdated={handleTagsUpdated}
         />
       )}
-
-      {/* Animazioni */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
     </>
   );
 }
