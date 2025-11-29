@@ -1,4 +1,5 @@
-// app/ClientLayout.js - VERSIONE FINALE CON PRECOMPILAZIONE CHIAMATA
+// app/ClientLayout.js - VERSIONE CORRETTA v2.0
+// ✅ FIX: Popup si chiude correttamente al primo click
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -54,23 +55,28 @@ export default function ClientLayout({ children }) {
   const [mounted, setMounted] = useState(false);
   const [pusherInitialized, setPusherInitialized] = useState(false);
 
-  // Hook per gestire chiamate in arrivo
-  const { chiamataCorrente, clearChiamata, connected } = useIncomingCall();
+  // ✅ FIX: Usa isPopupOpen dal hook per controllo preciso
+  const { 
+    chiamataCorrente, 
+    isPopupOpen,
+    handleClosePopup,
+    handleAcceptCall,
+    clearChiamata, 
+    connected 
+  } = useIncomingCall();
 
   useEffect(() => {
     setMounted(true);
     
-    // ✅ PUSHER: Inizializzazione CORRETTA
+    // Pusher initialization
     if (typeof window !== 'undefined' && !pusherInitialized) {
       console.log('🔧 [ClientLayout] Inizializzazione Pusher...');
       
-      // Import dinamico per evitare SSR issues
       import('@/services/pusherService').then((module) => {
         const pusherService = module.default;
         
         console.log('✅ [ClientLayout] pusherService importato:', pusherService);
 
-        // Verifica se è già inizializzato
         const status = pusherService.getStatus();
         console.log('📊 [ClientLayout] Status iniziale:', status);
 
@@ -82,7 +88,6 @@ export default function ClientLayout({ children }) {
               console.log('✅ [ClientLayout] Pusher inizializzato con successo!');
               setPusherInitialized(true);
               
-              // Setup window.pusherDebug se non esiste
               if (!window.pusherDebug) {
                 window.pusherDebug = {
                   service: pusherService,
@@ -122,6 +127,45 @@ export default function ClientLayout({ children }) {
   const isSelected = (path) => {
     if (path === '/') return pathname === '/';
     return pathname === path || pathname.startsWith(path + '/');
+  };
+
+  // ✅ FIX: Handler per accettare chiamata - chiude popup PRIMA di navigare
+  const handleAcceptAndNavigate = () => {
+    console.log('📞 [ClientLayout] Accetta chiamata:', chiamataCorrente);
+    
+    // 1. Salva dati cliente in localStorage
+    if (chiamataCorrente?.cliente) {
+      localStorage.setItem('chiamataCliente', JSON.stringify({
+        clienteId: chiamataCorrente.cliente._id,
+        nome: chiamataCorrente.cliente.nome,
+        cognome: chiamataCorrente.cliente.cognome || '',
+        telefono: chiamataCorrente.numero,
+        email: chiamataCorrente.cliente.email || '',
+        timestamp: new Date().toISOString()
+      }));
+      console.log('✅ Dati cliente salvati:', chiamataCorrente.cliente.nome);
+    } else if (chiamataCorrente?.numero) {
+      localStorage.setItem('chiamataCliente', JSON.stringify({
+        clienteId: null,
+        nome: '',
+        cognome: '',
+        telefono: chiamataCorrente.numero,
+        email: '',
+        timestamp: new Date().toISOString()
+      }));
+      console.log('✅ Numero sconosciuto salvato:', chiamataCorrente.numero);
+    }
+    
+    // 2. Dispatch evento per GestoreOrdini
+    window.dispatchEvent(new Event('nuova-chiamata'));
+    console.log('📢 Evento nuova-chiamata dispatched');
+    
+    // 3. ✅ FIX: Chiudi popup IMMEDIATAMENTE
+    handleAcceptCall();
+    console.log('✅ Popup chiuso');
+    
+    // 4. Naviga alla pagina ordini
+    router.push('/');
   };
 
   const drawer = (
@@ -171,7 +215,7 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* ✅ Indicatore Pusher Connection */}
+          {/* Indicatore Pusher Connection */}
           {mounted && process.env.NODE_ENV === 'development' && (
             <Box
               sx={{
@@ -241,49 +285,15 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ✅ CallPopup quando c'è una chiamata */}
-      {mounted && chiamataCorrente && (
+      {/* ✅ FIX: Usa isPopupOpen per controllo preciso della visibilità */}
+      {mounted && isPopupOpen && chiamataCorrente && (
         <CallPopup
-          isOpen={!!chiamataCorrente}
+          isOpen={isPopupOpen}
           callData={chiamataCorrente}
-          onClose={clearChiamata}
-          onAccept={() => {
-  console.log('📞 Accetta chiamata:', chiamataCorrente);
-  
-  if (chiamataCorrente.cliente) {
-    localStorage.setItem('chiamataCliente', JSON.stringify({
-      clienteId: chiamataCorrente.cliente._id,
-      nome: chiamataCorrente.cliente.nome,
-      cognome: chiamataCorrente.cliente.cognome || '',
-      telefono: chiamataCorrente.numero,
-      email: chiamataCorrente.cliente.email || '',
-      timestamp: new Date().toISOString()
-    }));
-    console.log('✅ Dati cliente salvati:', chiamataCorrente.cliente.nome);
-  } else {
-    localStorage.setItem('chiamataCliente', JSON.stringify({
-      clienteId: null,
-      nome: '',
-      cognome: '',
-      telefono: chiamataCorrente.numero,
-      email: '',
-      timestamp: new Date().toISOString()
-    }));
-    console.log('✅ Numero sconosciuto salvato:', chiamataCorrente.numero);
-  }
-  
-  // ✅ Dispatch evento per GestoreOrdini
-  window.dispatchEvent(new Event('nuova-chiamata'));
-  console.log('📢 Evento nuova-chiamata dispatched');
-  
-  clearChiamata();
-  console.log('✅ Popup chiuso immediatamente');
-  
-  router.push('/');
-}}
+          onClose={handleClosePopup}
+          onAccept={handleAcceptAndNavigate}
         />
       )}
     </Box>
   );
 }
-
