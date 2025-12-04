@@ -1,21 +1,36 @@
-// components/CallPopup.js - VERSIONE OTTIMIZZATA v2.0
+// components/CallPopup.js - VERSIONE v3.0 CON SALVA CLIENTE
 // ✅ Click singolo sui pulsanti
 // ✅ Timeout 60 secondi
-// ✅ Rimosso debug mode
+// ✅ Mini-form per salvare cliente sconosciuto
 import React, { useEffect, useState, useCallback } from 'react';
-import { Phone, X, User, AlertCircle, Tag as TagIcon } from 'lucide-react';
+import { Phone, X, User, AlertCircle, Tag as TagIcon, UserPlus, Save, Loader } from 'lucide-react';
 import TagManager from './TagManager';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
 
 export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const [tags, setTags] = useState([]);
-  const [countdown, setCountdown] = useState(60); // ✅ AUMENTATO a 60 secondi
+  const [countdown, setCountdown] = useState(60);
+  
+  // ✅ NUOVO: Stati per mini-form salva cliente
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [nomeCliente, setNomeCliente] = useState('');
+  const [cognomeCliente, setCognomeCliente] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [savedCliente, setSavedCliente] = useState(null);
 
-  // ✅ Auto-close dopo 60 secondi + SUONO + VIBRAZIONE
+  // Auto-close dopo 60 secondi + SUONO + VIBRAZIONE
   useEffect(() => {
     if (!isOpen) return;
 
-    setCountdown(60); // Reset countdown
+    setCountdown(60);
+    setShowSaveForm(false);
+    setNomeCliente('');
+    setCognomeCliente('');
+    setSaveError(null);
+    setSavedCliente(null);
     
     // 🔊 SUONO NOTIFICA
     try {
@@ -26,7 +41,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
       console.log('Errore audio:', e);
     }
 
-    // 📳 VIBRAZIONE (se disponibile)
+    // 📳 VIBRAZIONE
     if ('vibrate' in navigator) {
       navigator.vibrate([200, 100, 200]);
     }
@@ -53,7 +68,58 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     }
   }, [callData]);
 
-  // ✅ HANDLER OTTIMIZZATI - useCallback per prevenire re-render
+  // ✅ HANDLER per salvare il cliente
+  const handleSaveCliente = async () => {
+    if (!nomeCliente.trim()) {
+      setSaveError('Inserisci almeno il nome');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      // Recupera token per autenticazione
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/api/clienti`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          nome: nomeCliente.trim(),
+          cognome: cognomeCliente.trim() || '',
+          telefono: callData?.numero?.replace(/\D/g, '') || '',
+          email: '',
+          note: `Cliente aggiunto da chiamata del ${new Date().toLocaleDateString('it-IT')}`
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        console.log('✅ [CallPopup] Cliente salvato:', data);
+        setSavedCliente(data.cliente || data.data);
+        setShowSaveForm(false);
+        
+        // ✅ Aggiorna callData con il nuovo cliente
+        if (callData) {
+          callData.cliente = data.cliente || data.data;
+        }
+      } else {
+        throw new Error(data.message || data.error || 'Errore durante il salvataggio');
+      }
+    } catch (error) {
+      console.error('❌ [CallPopup] Errore salvataggio cliente:', error);
+      setSaveError(error.message || 'Errore di connessione');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handler ottimizzati
   const handleIgnore = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -86,30 +152,35 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   }
 
   const { numero, cliente, noteAutomatiche, chiamataId } = callData;
+  
+  // Usa cliente salvato se disponibile
+  const clienteAttuale = savedCliente || cliente;
+  const isClienteSconosciuto = !clienteAttuale;
 
   const handleTagsUpdated = (nuoviTags) => {
     setTags(nuoviTags);
     console.log('✅ Tags aggiornati:', nuoviTags);
   };
 
-  // ✅ STILE PULSANTE BASE - ottimizzato per click singolo
+  // Stile pulsante base
   const buttonBaseStyle = {
     flex: '1 1 auto',
-    minWidth: '120px',
-    padding: '16px 20px',
+    minWidth: '100px',
+    padding: '14px 16px',
     borderRadius: '8px',
-    fontSize: '16px',
+    fontSize: '15px',
     fontWeight: 600,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '8px',
+    gap: '6px',
     transition: 'transform 100ms, opacity 100ms',
     touchAction: 'manipulation',
     userSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
     outline: 'none',
+    border: 'none',
   };
 
   return (
@@ -256,8 +327,8 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
             </div>
           )}
 
-          {/* Dati cliente */}
-          {cliente ? (
+          {/* Dati cliente - ESISTENTE o APPENA SALVATO */}
+          {clienteAttuale ? (
             <div style={{
               backgroundColor: '#d1fae5',
               border: '1px solid #10b981',
@@ -269,46 +340,184 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                 <User style={{ width: '20px', height: '20px', color: '#059669', flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontWeight: 600, color: '#065f46', margin: '0 0 4px 0' }}>
-                    {cliente.nome} {cliente.cognome || ''}
+                    {clienteAttuale.nome} {clienteAttuale.cognome || ''}
+                    {savedCliente && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#10b981' }}>✓ Appena salvato</span>}
                   </p>
-                  {cliente.codiceCliente && (
+                  {clienteAttuale.codiceCliente && (
                     <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
-                      Codice: {cliente.codiceCliente}
+                      Codice: {clienteAttuale.codiceCliente}
                     </p>
                   )}
-                  {cliente.livelloFedelta && (
+                  {clienteAttuale.livelloFedelta && (
                     <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
-                      Livello: {cliente.livelloFedelta}
+                      Livello: {clienteAttuale.livelloFedelta}
                     </p>
                   )}
-                  {cliente.email && (
+                  {clienteAttuale.email && (
                     <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
-                      {cliente.email}
+                      {clienteAttuale.email}
                     </p>
                   )}
                 </div>
               </div>
             </div>
           ) : (
-            <div style={{
-              backgroundColor: '#fef3c7',
-              border: '1px solid #f59e0b',
-              borderRadius: '8px',
-              padding: '16px',
-              marginBottom: '16px'
-            }}>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <User style={{ width: '20px', height: '20px', color: '#d97706', flexShrink: 0 }} />
-                <div>
-                  <p style={{ fontWeight: 600, color: '#78350f', margin: '0 0 4px 0' }}>
-                    Cliente Sconosciuto
-                  </p>
-                  <p style={{ fontSize: '14px', color: '#92400e', margin: 0 }}>
-                    Cliente non trovato nel database
-                  </p>
+            <>
+              {/* Cliente Sconosciuto - con opzione salvataggio */}
+              <div style={{
+                backgroundColor: '#fef3c7',
+                border: '1px solid #f59e0b',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <User style={{ width: '20px', height: '20px', color: '#d97706', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontWeight: 600, color: '#78350f', margin: '0 0 4px 0' }}>
+                      Cliente Sconosciuto
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#92400e', margin: 0 }}>
+                      Cliente non trovato nel database
+                    </p>
+                  </div>
                 </div>
+
+                {/* ✅ MINI-FORM SALVA CLIENTE */}
+                {!showSaveForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveForm(true)}
+                    style={{
+                      marginTop: '12px',
+                      padding: '10px 16px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      width: '100%',
+                      justifyContent: 'center',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    <UserPlus style={{ width: '16px', height: '16px' }} />
+                    Salva Cliente
+                  </button>
+                ) : (
+                  <div style={{ marginTop: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Nome *"
+                        value={nomeCliente}
+                        onChange={(e) => setNomeCliente(e.target.value)}
+                        disabled={isSaving}
+                        style={{
+                          flex: 1,
+                          padding: '10px 12px',
+                          border: '2px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          outline: 'none',
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                        onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                        autoFocus
+                      />
+                      <input
+                        type="text"
+                        placeholder="Cognome"
+                        value={cognomeCliente}
+                        onChange={(e) => setCognomeCliente(e.target.value)}
+                        disabled={isSaving}
+                        style={{
+                          flex: 1,
+                          padding: '10px 12px',
+                          border: '2px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          outline: 'none',
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                        onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                      />
+                    </div>
+                    
+                    {saveError && (
+                      <p style={{ color: '#dc2626', fontSize: '13px', margin: '0 0 8px 0' }}>
+                        ⚠️ {saveError}
+                      </p>
+                    )}
+                    
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSaveForm(false);
+                          setNomeCliente('');
+                          setCognomeCliente('');
+                          setSaveError(null);
+                        }}
+                        disabled={isSaving}
+                        style={{
+                          flex: 1,
+                          padding: '10px 12px',
+                          backgroundColor: '#f3f4f6',
+                          color: '#374151',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          touchAction: 'manipulation',
+                        }}
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveCliente}
+                        disabled={isSaving || !nomeCliente.trim()}
+                        style={{
+                          flex: 1,
+                          padding: '10px 12px',
+                          backgroundColor: isSaving ? '#9ca3af' : '#22c55e',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          cursor: isSaving ? 'wait' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          touchAction: 'manipulation',
+                        }}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+                            Salvo...
+                          </>
+                        ) : (
+                          <>
+                            <Save style={{ width: '16px', height: '16px' }} />
+                            Salva
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            </>
           )}
 
           {/* Note automatiche */}
@@ -339,8 +548,8 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
             </div>
           )}
 
-          {/* ✅ PULSANTI OTTIMIZZATI - CLICK SINGOLO */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+          {/* PULSANTI AZIONE */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
             
             {/* Pulsante Tag */}
             {chiamataId && (
@@ -349,12 +558,11 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                 onClick={handleTagClick}
                 style={{
                   ...buttonBaseStyle,
-                  backgroundColor: 'white',
-                  border: '2px solid #3b82f6',
+                  backgroundColor: '#f3f4f6',
                   color: '#3b82f6',
                 }}
               >
-                <TagIcon style={{ width: '18px', height: '18px' }} />
+                <TagIcon style={{ width: '16px', height: '16px' }} />
                 Tag
               </button>
             )}
@@ -365,12 +573,11 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
               onClick={handleIgnore}
               style={{
                 ...buttonBaseStyle,
-                backgroundColor: 'white',
-                border: '2px solid #e5e7eb',
+                backgroundColor: '#f3f4f6',
                 color: '#374151',
               }}
             >
-              <X style={{ width: '18px', height: '18px' }} />
+              <X style={{ width: '16px', height: '16px' }} />
               Ignora ({countdown}s)
             </button>
 
@@ -380,12 +587,12 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
               onClick={handleAccept}
               style={{
                 ...buttonBaseStyle,
+                flex: '2 1 auto',
                 backgroundColor: '#22c55e',
-                border: '2px solid #22c55e',
                 color: 'white',
               }}
             >
-              <Phone style={{ width: '18px', height: '18px' }} />
+              <Phone style={{ width: '16px', height: '16px' }} />
               Nuovo Ordine
             </button>
           </div>
@@ -402,6 +609,14 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
           onTagsUpdated={handleTagsUpdated}
         />
       )}
+
+      {/* CSS per animazione spinner */}
+      <style jsx global>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </>
   );
 }
