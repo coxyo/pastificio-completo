@@ -46,7 +46,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
       navigator.vibrate([200, 100, 200]);
     }
 
-    // ⏰ TIMER AUTO-CLOSE
+    // ⏰ TIMER AUTO-CLOSE (si ferma se form salva cliente è aperto)
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
@@ -60,6 +60,24 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
 
     return () => clearInterval(timer);
   }, [isOpen, onClose]);
+
+  // ✅ PAUSA COUNTDOWN quando form salva cliente è aperto
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    let pauseTimer;
+    if (showSaveForm) {
+      // Mantieni il countdown fermo resettandolo ogni secondo
+      pauseTimer = setInterval(() => {
+        setCountdown(prev => Math.max(prev, 30)); // Mantieni almeno 30 secondi
+      }, 1000);
+      console.log('⏸️ [CallPopup] Countdown in pausa - form salva cliente aperto');
+    }
+    
+    return () => {
+      if (pauseTimer) clearInterval(pauseTimer);
+    };
+  }, [isOpen, showSaveForm]);
 
   // Tags dal callData
   useEffect(() => {
