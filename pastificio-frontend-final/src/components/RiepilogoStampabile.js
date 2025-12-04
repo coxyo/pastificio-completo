@@ -738,7 +738,7 @@ const getComposizioneProdotto = (prodotto) => {
 
     const abbr = abbreviaProdotto(item.nome);
 
-    const qta = parseFloat(item.quantita);
+    const qta = Math.round(parseFloat(item.quantita) * 100) / 100; // ✅ FIX: Arrotonda a 2 decimali
 
     return { abbr, qta };
 
@@ -768,7 +768,11 @@ const getComposizioneProdotto = (prodotto) => {
 
   return items
 
-    .map(i => `${i.abbr} ${i.qta.toString().replace('.', ',')}`)
+    .map(i => {
+      // ✅ FIX: Se intero mostra senza decimali, altrimenti 1 decimale
+      const qtaStr = Number.isInteger(i.qta) ? i.qta.toString() : i.qta.toFixed(1);
+      return `${i.abbr} ${qtaStr.replace('.', ',')}`;
+    })
 
     .join(' ')
 
@@ -932,7 +936,7 @@ const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
 
         if (pezziPerKg) {
 
-          return acc + (comp.quantita / pezziPerKg);
+          return acc + Math.round((comp.quantita / pezziPerKg) * 100) / 100; // ✅ FIX precisione
 
         }
 
@@ -1042,7 +1046,7 @@ const formattaQuantitaConCount = (prodotto, count) => {
 
         if (pezziPerKg && !isSoloPezzo(comp.nome)) {
 
-          pesoTotale += comp.quantita / pezziPerKg;
+          pesoTotale += Math.round((comp.quantita / pezziPerKg) * 100) / 100; // ✅ FIX precisione
 
         }
 
@@ -1322,7 +1326,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
             if (pezziPerKg && !isSoloPezzo(comp.nome)) {
 
-              const kgEquivalenti = comp.quantita / pezziPerKg * moltiplicatore;
+              const kgEquivalenti = Math.round((comp.quantita / pezziPerKg * moltiplicatore) * 100) / 100; // ✅ FIX precisione
 
               totaleKg += kgEquivalenti;
 
@@ -1360,7 +1364,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         if (pezziPerKg && !isSoloPezzo(prodotto.nome)) {
 
-          const kgEquivalenti = prodotto.quantita / pezziPerKg * moltiplicatore;
+          const kgEquivalenti = Math.round((prodotto.quantita / pezziPerKg * moltiplicatore) * 100) / 100; // ✅ FIX precisione
 
           totaleKg += kgEquivalenti;
 
