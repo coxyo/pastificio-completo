@@ -1,12 +1,14 @@
-// components/CallPopup.js - VERSIONE v3.0 CON SALVA CLIENTE
+// components/CallPopup.js - VERSIONE v3.2 CON SALVA CLIENTE
 // ✅ Click singolo sui pulsanti
-// ✅ Timeout 60 secondi
+// ✅ Timeout 60 secondi (pausa durante salvataggio)
 // ✅ Mini-form per salvare cliente sconosciuto
+// ✅ URL backend hardcoded
 import React, { useEffect, useState, useCallback } from 'react';
 import { Phone, X, User, AlertCircle, Tag as TagIcon, UserPlus, Save, Loader } from 'lucide-react';
 import TagManager from './TagManager';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+// ✅ URL BACKEND CORRETTO - hardcoded per sicurezza
+const API_URL = 'https://pastificio-completo-production.up.railway.app';
 
 export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const [showTagManager, setShowTagManager] = useState(false);
