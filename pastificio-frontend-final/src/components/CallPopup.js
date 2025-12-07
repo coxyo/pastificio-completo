@@ -1,8 +1,9 @@
-// components/CallPopup.js - VERSIONE v3.2 CON SALVA CLIENTE
+// components/CallPopup.js - VERSIONE v3.3
 // ✅ Click singolo sui pulsanti
 // ✅ Timeout 60 secondi (pausa durante salvataggio)
 // ✅ Mini-form per salvare cliente sconosciuto
 // ✅ URL backend hardcoded
+// ✅ NOME GRANDE per clienti conosciuti, telefono piccolo
 import React, { useEffect, useState, useCallback } from 'react';
 import { Phone, X, User, AlertCircle, Tag as TagIcon, UserPlus, Save, Loader } from 'lucide-react';
 import TagManager from './TagManager';
@@ -175,7 +176,6 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   
   // Usa cliente salvato se disponibile
   const clienteAttuale = savedCliente || cliente;
-  const isClienteSconosciuto = !clienteAttuale;
 
   const handleTagsUpdated = (nuoviTags) => {
     setTags(nuoviTags);
@@ -296,24 +296,212 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
             </button>
           </div>
 
-          {/* Numero chiamante */}
-          <div style={{
-            textAlign: 'center',
-            padding: '20px',
-            backgroundColor: '#fef3c7',
-            border: '4px solid #f59e0b',
-            borderRadius: '8px',
-            marginBottom: '20px'
-          }}>
-            <p style={{
-              fontSize: '32px',
-              fontWeight: 'bold',
-              color: '#dc2626',
-              margin: 0
+          {/* ✅ SEZIONE PRINCIPALE: Cliente conosciuto vs Sconosciuto */}
+          {clienteAttuale ? (
+            /* CLIENTE CONOSCIUTO: Nome GRANDE, telefono piccolo */
+            <div style={{
+              textAlign: 'center',
+              padding: '20px',
+              backgroundColor: '#d1fae5',
+              border: '4px solid #10b981',
+              borderRadius: '8px',
+              marginBottom: '20px'
             }}>
-              {numero || 'Numero sconosciuto'}
-            </p>
-          </div>
+              <p style={{
+                fontSize: '36px',
+                fontWeight: 'bold',
+                color: '#065f46',
+                margin: '0 0 8px 0'
+              }}>
+                {clienteAttuale.nome} {clienteAttuale.cognome || ''}
+              </p>
+              {clienteAttuale.codiceCliente && (
+                <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
+                  {clienteAttuale.codiceCliente} • {clienteAttuale.livelloFedelta || 'bronzo'}
+                </p>
+              )}
+              <p style={{
+                fontSize: '14px',
+                color: '#6b7280',
+                margin: '8px 0 0 0'
+              }}>
+                📞 {numero}
+              </p>
+              {savedCliente && (
+                <p style={{ fontSize: '12px', color: '#10b981', marginTop: '8px' }}>
+                  ✓ Appena salvato
+                </p>
+              )}
+            </div>
+          ) : (
+            /* CLIENTE SCONOSCIUTO: Numero GRANDE + form salvataggio */
+            <>
+              <div style={{
+                textAlign: 'center',
+                padding: '20px',
+                backgroundColor: '#fef3c7',
+                border: '4px solid #f59e0b',
+                borderRadius: '8px',
+                marginBottom: '20px'
+              }}>
+                <p style={{
+                  fontSize: '32px',
+                  fontWeight: 'bold',
+                  color: '#dc2626',
+                  margin: 0
+                }}>
+                  {numero || 'Numero sconosciuto'}
+                </p>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#92400e',
+                  margin: '8px 0 0 0'
+                }}>
+                  Cliente non trovato nel database
+                </p>
+              </div>
+
+              {/* Mini-form salva cliente */}
+              <div style={{
+                backgroundColor: '#f3f4f6',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                {!showSaveForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveForm(true)}
+                    style={{
+                      padding: '12px 20px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      justifyContent: 'center',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    <UserPlus style={{ width: '20px', height: '20px' }} />
+                    Salva Cliente
+                  </button>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                      <input
+                        type="text"
+                        placeholder="Nome *"
+                        value={nomeCliente}
+                        onChange={(e) => setNomeCliente(e.target.value)}
+                        disabled={isSaving}
+                        style={{
+                          flex: 1,
+                          padding: '12px 14px',
+                          border: '2px solid #d1d5db',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          outline: 'none',
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                        onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                        autoFocus
+                      />
+                      <input
+                        type="text"
+                        placeholder="Cognome"
+                        value={cognomeCliente}
+                        onChange={(e) => setCognomeCliente(e.target.value)}
+                        disabled={isSaving}
+                        style={{
+                          flex: 1,
+                          padding: '12px 14px',
+                          border: '2px solid #d1d5db',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          outline: 'none',
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                        onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                      />
+                    </div>
+                    
+                    {saveError && (
+                      <p style={{ color: '#dc2626', fontSize: '14px', margin: '0 0 12px 0' }}>
+                        ⚠️ {saveError}
+                      </p>
+                    )}
+                    
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSaveForm(false);
+                          setNomeCliente('');
+                          setCognomeCliente('');
+                          setSaveError(null);
+                        }}
+                        disabled={isSaving}
+                        style={{
+                          flex: 1,
+                          padding: '12px 14px',
+                          backgroundColor: 'white',
+                          color: '#374151',
+                          border: '2px solid #d1d5db',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          touchAction: 'manipulation',
+                        }}
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveCliente}
+                        disabled={isSaving || !nomeCliente.trim()}
+                        style={{
+                          flex: 1,
+                          padding: '12px 14px',
+                          backgroundColor: isSaving ? '#9ca3af' : '#22c55e',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          cursor: isSaving ? 'wait' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          touchAction: 'manipulation',
+                        }}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} />
+                            Salvo...
+                          </>
+                        ) : (
+                          <>
+                            <Save style={{ width: '18px', height: '18px' }} />
+                            Salva
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Tags (se presenti) */}
           {tags && tags.length > 0 && (
@@ -345,199 +533,6 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                 ))}
               </div>
             </div>
-          )}
-
-          {/* Dati cliente - ESISTENTE o APPENA SALVATO */}
-          {clienteAttuale ? (
-            <div style={{
-              backgroundColor: '#d1fae5',
-              border: '1px solid #10b981',
-              borderRadius: '8px',
-              padding: '16px',
-              marginBottom: '16px'
-            }}>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <User style={{ width: '20px', height: '20px', color: '#059669', flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontWeight: 600, color: '#065f46', margin: '0 0 4px 0' }}>
-                    {clienteAttuale.nome} {clienteAttuale.cognome || ''}
-                    {savedCliente && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#10b981' }}>✓ Appena salvato</span>}
-                  </p>
-                  {clienteAttuale.codiceCliente && (
-                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
-                      Codice: {clienteAttuale.codiceCliente}
-                    </p>
-                  )}
-                  {clienteAttuale.livelloFedelta && (
-                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
-                      Livello: {clienteAttuale.livelloFedelta}
-                    </p>
-                  )}
-                  {clienteAttuale.email && (
-                    <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
-                      {clienteAttuale.email}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Cliente Sconosciuto - con opzione salvataggio */}
-              <div style={{
-                backgroundColor: '#fef3c7',
-                border: '1px solid #f59e0b',
-                borderRadius: '8px',
-                padding: '16px',
-                marginBottom: '16px'
-              }}>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <User style={{ width: '20px', height: '20px', color: '#d97706', flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 600, color: '#78350f', margin: '0 0 4px 0' }}>
-                      Cliente Sconosciuto
-                    </p>
-                    <p style={{ fontSize: '14px', color: '#92400e', margin: 0 }}>
-                      Cliente non trovato nel database
-                    </p>
-                  </div>
-                </div>
-
-                {/* ✅ MINI-FORM SALVA CLIENTE */}
-                {!showSaveForm ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowSaveForm(true)}
-                    style={{
-                      marginTop: '12px',
-                      padding: '10px 16px',
-                      backgroundColor: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      width: '100%',
-                      justifyContent: 'center',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    <UserPlus style={{ width: '16px', height: '16px' }} />
-                    Salva Cliente
-                  </button>
-                ) : (
-                  <div style={{ marginTop: '12px' }}>
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                      <input
-                        type="text"
-                        placeholder="Nome *"
-                        value={nomeCliente}
-                        onChange={(e) => setNomeCliente(e.target.value)}
-                        disabled={isSaving}
-                        style={{
-                          flex: 1,
-                          padding: '10px 12px',
-                          border: '2px solid #d1d5db',
-                          borderRadius: '6px',
-                          fontSize: '14px',
-                          outline: 'none',
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                        onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-                        autoFocus
-                      />
-                      <input
-                        type="text"
-                        placeholder="Cognome"
-                        value={cognomeCliente}
-                        onChange={(e) => setCognomeCliente(e.target.value)}
-                        disabled={isSaving}
-                        style={{
-                          flex: 1,
-                          padding: '10px 12px',
-                          border: '2px solid #d1d5db',
-                          borderRadius: '6px',
-                          fontSize: '14px',
-                          outline: 'none',
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                        onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-                      />
-                    </div>
-                    
-                    {saveError && (
-                      <p style={{ color: '#dc2626', fontSize: '13px', margin: '0 0 8px 0' }}>
-                        ⚠️ {saveError}
-                      </p>
-                    )}
-                    
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSaveForm(false);
-                          setNomeCliente('');
-                          setCognomeCliente('');
-                          setSaveError(null);
-                        }}
-                        disabled={isSaving}
-                        style={{
-                          flex: 1,
-                          padding: '10px 12px',
-                          backgroundColor: '#f3f4f6',
-                          color: '#374151',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          touchAction: 'manipulation',
-                        }}
-                      >
-                        Annulla
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveCliente}
-                        disabled={isSaving || !nomeCliente.trim()}
-                        style={{
-                          flex: 1,
-                          padding: '10px 12px',
-                          backgroundColor: isSaving ? '#9ca3af' : '#22c55e',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          cursor: isSaving ? 'wait' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          touchAction: 'manipulation',
-                        }}
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
-                            Salvo...
-                          </>
-                        ) : (
-                          <>
-                            <Save style={{ width: '16px', height: '16px' }} />
-                            Salva
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
           )}
 
           {/* Note automatiche */}
