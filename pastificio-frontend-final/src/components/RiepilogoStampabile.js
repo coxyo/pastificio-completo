@@ -211,15 +211,23 @@ const PEZZI_PER_KG = {
 
   // Pasta
 
-  'Pizzette sfoglia': 30
+  'Pizzette sfoglia': 30,
+  'Sebadas': 10, // ~100g ciascuna
+  'Torta di saba': 1,
+  'Panada di Agnello': 4,
+  'Panada di Maiale': 4,
+  'Panada di Vitella': 4,
+  'Panada di verdure': 4,
+  'Panadine': 20
 
 };
 
 
 
 // ✅ Prodotti venduti SOLO a pezzo (non convertibili in Kg)
+// ✅ AGGIORNATO 10/12/2025: Vuoto - ora tutto viene convertito in Kg
 
-const SOLO_PEZZO = ['Sebadas', 'Panadine'];
+const SOLO_PEZZO = [];
 
 
 
@@ -675,6 +683,7 @@ const getNoteCombinate = (prodotto) => {
 
 
 // ✅ Funzione per ottenere pezzi/Kg di un prodotto
+// ✅ AGGIORNATO 10/12/2025: Ritorna sempre un valore (default 30)
 
 const getPezziPerKg = (nomeProdotto) => {
 
@@ -703,8 +712,9 @@ const getPezziPerKg = (nomeProdotto) => {
   }
 
   
-
-  return null;
+  // ✅ DEFAULT: 30 pezzi per Kg (stima media)
+  console.log(`⚠️ Prodotto "${nomeProdotto}" non trovato in PEZZI_PER_KG, uso default 30`);
+  return 30;
 
 };
 
@@ -1410,15 +1420,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
 
 
-  // ✅ AGGIORNATO 26/11/2025: Helper per formattare la stringa totali in MAIUSCOLO
+  // ✅ AGGIORNATO 10/12/2025: Mostra SOLO KG (pezzi già convertiti)
 
   const formattaTotaliStringa = (totaleKg, totalePezzi, totaleEuro) => {
 
     const parti = [];
+    
+    // Totale sempre in KG
+    const totaleFinale = totaleKg + (totalePezzi > 0 ? totalePezzi / 30 : 0); // Fallback per pezzi residui
 
-    if (totaleKg > 0) parti.push(`${totaleKg.toFixed(1)} KG`);
-
-    if (totalePezzi > 0) parti.push(`${totalePezzi} PZ`);
+    if (totaleFinale > 0) parti.push(`${totaleFinale.toFixed(1)} KG`);
 
     if (totaleEuro > 0) parti.push(`€${totaleEuro.toFixed(2)}`);
 
@@ -1618,7 +1629,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                   {(() => {
 
-                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg, dettagliPezzi } = calcolaTotali('RAVIOLI');
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('RAVIOLI');
 
                     return (
 
@@ -1629,12 +1640,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         {Object.entries(dettagliKg).map(([nome, kg]) => (
 
                           <span key={`kg-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} KG</span>
-
-                        ))}
-
-                        {Object.entries(dettagliPezzi).map(([nome, pz]) => (
-
-                          <span key={`pz-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {pz} PZ</span>
 
                         ))}
 
@@ -1759,7 +1764,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                   {(() => {
 
-                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg, dettagliPezzi } = calcolaTotali('PARDULAS');
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('PARDULAS');
 
                     return (
 
@@ -1770,12 +1775,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         {Object.entries(dettagliKg).map(([nome, kg]) => (
 
                           <span key={`kg-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} KG</span>
-
-                        ))}
-
-                        {Object.entries(dettagliPezzi).map(([nome, pz]) => (
-
-                          <span key={`pz-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {pz} PZ</span>
 
                         ))}
 
@@ -1932,7 +1931,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                   {(() => {
 
-                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg, dettagliPezzi } = calcolaTotali('DOLCI');
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('DOLCI');
 
                     return (
 
@@ -1943,12 +1942,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         {Object.entries(dettagliKg).map(([nome, kg]) => (
 
                           <span key={`kg-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {kg.toFixed(1)} KG</span>
-
-                        ))}
-
-                        {Object.entries(dettagliPezzi).map(([nome, pz]) => (
-
-                          <span key={`pz-${nome}`} style={{ marginLeft: '15px' }}>{nome}: {pz} PZ</span>
 
                         ))}
 
@@ -2077,7 +2070,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                   {(() => {
 
-                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg, dettagliPezzi } = calcolaTotali('ALTRI');
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('ALTRI');
 
                     return (
 
@@ -2094,12 +2087,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           {Object.entries(dettagliKg).map(([nome, kg]) => (
 
                             <span key={`kg-${nome}`}>• {nome}: {kg.toFixed(1)} KG</span>
-
-                          ))}
-
-                          {Object.entries(dettagliPezzi).map(([nome, pz]) => (
-
-                            <span key={`pz-${nome}`}>• {nome}: {pz} PZ</span>
 
                           ))}
 
