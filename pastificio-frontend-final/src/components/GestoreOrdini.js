@@ -135,6 +135,139 @@ function RiepilogoSemplice({ ordini, dataSelezionata }) {
 }
 
 // =============================================================
+// ✅ NUOVO 10/12/2025: COMPONENTE TOTALI PRODUZIONE
+// =============================================================
+const PEZZI_PER_KG = {
+  'Ravioli': 30, 'Culurgiones': 32, 'Pardulas': 25,
+  'Amaretti': 35, 'Bianchini': 100, 'Papassinas': 30, 'Gueffus': 65,
+  'Ciambelle': 30, 'Sebadas': 10, 'Panadine': 20, 'Panada': 4
+};
+
+function TotaliProduzione({ ordini, dataSelezionata }) {
+  // Filtra ordini per data
+  const ordiniFiltrati = ordini.filter(o => {
+    const dataOrdine = o.dataRitiro || o.createdAt || '';
+    return dataOrdine.startsWith(dataSelezionata);
+  });
+
+  // Categorie prodotti
+  const CATEGORIE = {
+    RAVIOLI: ['Ravioli', 'Culurgiones'],
+    PARDULAS: ['Pardulas'],
+    DOLCI: ['Amaretti', 'Bianchini', 'Papassinas', 'Papassine', 'Gueffus', 'Ciambelle', 'Sebadas', 'Torta'],
+    ALTRI: ['Panada', 'Panadine', 'Fregula', 'Pizzette']
+  };
+
+  // Funzione per convertire in KG
+  const convertiInKg = (prodotto) => {
+    const unita = (prodotto.unita || 'kg').toLowerCase();
+    const quantita = prodotto.quantita || 0;
+    
+    if (unita === 'kg' || unita === 'kilogrammi') return quantita;
+    if (unita === 'pezzi' || unita === 'pz') {
+      // Trova fattore conversione
+      for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG)) {
+        if (prodotto.nome.toLowerCase().includes(nome.toLowerCase())) {
+          return quantita / pezziKg;
+        }
+      }
+      return quantita / 30; // default
+    }
+    if (unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+      // Calcola peso vassoio dalla composizione
+      return prodotto.dettagliCalcolo.composizione.reduce((acc, comp) => {
+        if (comp.unita === 'Kg') return acc + comp.quantita;
+        if (comp.unita === 'Pezzi') {
+          for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG)) {
+            if (comp.nome.toLowerCase().includes(nome.toLowerCase())) {
+              return acc + comp.quantita / pezziKg;
+            }
+          }
+          return acc + comp.quantita / 30;
+        }
+        return acc;
+      }, 0);
+    }
+    return 0;
+  };
+
+  // Calcola totali per categoria
+  const calcolaTotali = () => {
+    const totali = { RAVIOLI: 0, PARDULAS: 0, DOLCI: 0, ALTRI: 0 };
+    
+    ordiniFiltrati.forEach(ordine => {
+      (ordine.prodotti || []).forEach(prodotto => {
+        const nomeLC = prodotto.nome.toLowerCase();
+        let categoriaFound = 'ALTRI';
+        
+        for (const [cat, keywords] of Object.entries(CATEGORIE)) {
+          if (keywords.some(k => nomeLC.includes(k.toLowerCase()))) {
+            categoriaFound = cat;
+            break;
+          }
+        }
+        
+        totali[categoriaFound] += convertiInKg(prodotto);
+      });
+    });
+    
+    return totali;
+  };
+
+  const totali = calcolaTotali();
+  const totaleGenerale = Object.values(totali).reduce((a, b) => a + b, 0);
+
+  if (totaleGenerale === 0) return null;
+
+  return (
+    <Paper sx={{ p: 2, mb: 2, backgroundColor: '#f8f9fa' }}>
+      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#555' }}>
+        📊 TOTALI PRODUZIONE ({new Date(dataSelezionata).toLocaleDateString('it-IT')})
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+        {totali.RAVIOLI > 0 && (
+          <Chip 
+            label={`🥟 Ravioli: ${totali.RAVIOLI.toFixed(1)} KG`} 
+            color="error" 
+            variant="outlined"
+            sx={{ fontWeight: 'bold' }}
+          />
+        )}
+        {totali.PARDULAS > 0 && (
+          <Chip 
+            label={`🟡 Pardulas: ${totali.PARDULAS.toFixed(1)} KG`} 
+            color="warning"
+            variant="outlined" 
+            sx={{ fontWeight: 'bold' }}
+          />
+        )}
+        {totali.DOLCI > 0 && (
+          <Chip 
+            label={`🍪 Dolci: ${totali.DOLCI.toFixed(1)} KG`} 
+            color="success"
+            variant="outlined" 
+            sx={{ fontWeight: 'bold' }}
+          />
+        )}
+        {totali.ALTRI > 0 && (
+          <Chip 
+            label={`📦 Altri: ${totali.ALTRI.toFixed(1)} KG`} 
+            color="info"
+            variant="outlined" 
+            sx={{ fontWeight: 'bold' }}
+          />
+        )}
+        <Chip 
+          label={`TOTALE: ${totaleGenerale.toFixed(1)} KG`} 
+          color="primary"
+          sx={{ fontWeight: 'bold', ml: 'auto' }}
+        />
+      </Box>
+    </Paper>
+  );
+}
+
+// =============================================================
 // COMPONENTE WHATSAPP HELPER  
 // =============================================================
 function WhatsAppHelperComponent({ ordini }) {
@@ -1479,6 +1612,11 @@ return (
           
           {syncInProgress && <LinearProgress sx={{ mb: 2 }} />}
         </Box>
+        
+        {/* ✅ NUOVO 10/12/2025: Totali Produzione per categoria */}
+        {!caricamento && (
+          <TotaliProduzione ordini={ordini} dataSelezionata={dataSelezionata} />
+        )}
         
         {caricamento ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
