@@ -1,11 +1,12 @@
-// components/CallPopup.js - VERSIONE v3.3
+// components/CallPopup.js - VERSIONE v3.4
 // ✅ Click singolo sui pulsanti
 // ✅ Timeout 60 secondi (pausa durante salvataggio)
 // ✅ Mini-form per salvare cliente sconosciuto
 // ✅ URL backend hardcoded
 // ✅ NOME GRANDE per clienti conosciuti, telefono piccolo
+// ✅ NUOVO: Campo unico con autocomplete clienti esistenti
 import React, { useEffect, useState, useCallback } from 'react';
-import { Phone, X, User, AlertCircle, Tag as TagIcon, UserPlus, Save, Loader } from 'lucide-react';
+import { Phone, X, User, AlertCircle, Tag as TagIcon, UserPlus, Save, Loader, Check } from 'lucide-react';
 import TagManager from './TagManager';
 
 // ✅ URL BACKEND CORRETTO - hardcoded per sicurezza
@@ -16,13 +17,68 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const [tags, setTags] = useState([]);
   const [countdown, setCountdown] = useState(60);
   
-  // ✅ NUOVO: Stati per mini-form salva cliente
+  // ✅ NUOVO: Stati per mini-form salva cliente con autocomplete
   const [showSaveForm, setShowSaveForm] = useState(false);
+  const [nomeCompleto, setNomeCompleto] = useState(''); // Campo unico
   const [nomeCliente, setNomeCliente] = useState('');
   const [cognomeCliente, setCognomeCliente] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [savedCliente, setSavedCliente] = useState(null);
+  
+  // ✅ NUOVO: Stati per autocomplete clienti
+  const [clientiLista, setClientiLista] = useState([]);
+  const [suggerimenti, setSuggerimenti] = useState([]);
+  const [clienteEsistente, setClienteEsistente] = useState(null);
+
+  // ✅ NUOVO: Carica lista clienti quando si apre il form
+  useEffect(() => {
+    if (showSaveForm && clientiLista.length === 0) {
+      const fetchClienti = async () => {
+        try {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+          const response = await fetch(`${API_URL}/api/clienti`, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : ''
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            const lista = data.data || data || [];
+            setClientiLista(lista);
+            console.log(`✅ [CallPopup] Caricati ${lista.length} clienti per autocomplete`);
+          }
+        } catch (error) {
+          console.error('Errore caricamento clienti:', error);
+        }
+      };
+      fetchClienti();
+    }
+  }, [showSaveForm, clientiLista.length]);
+
+  // ✅ NUOVO: Cerca clienti mentre si digita
+  useEffect(() => {
+    if (nomeCompleto.length < 2) {
+      setSuggerimenti([]);
+      setClienteEsistente(null);
+      return;
+    }
+    
+    const cerca = nomeCompleto.toLowerCase().trim();
+    const risultati = clientiLista.filter(c => {
+      const nomeC = `${c.nome || ''} ${c.cognome || ''}`.toLowerCase();
+      return nomeC.includes(cerca) || (c.nome || '').toLowerCase().includes(cerca);
+    }).slice(0, 5); // Max 5 suggerimenti
+    
+    setSuggerimenti(risultati);
+    
+    // Controlla se è un match esatto
+    const matchEsatto = risultati.find(c => {
+      const nomeC = `${c.nome || ''} ${c.cognome || ''}`.toLowerCase().trim();
+      return nomeC === cerca;
+    });
+    setClienteEsistente(matchEsatto || null);
+  }, [nomeCompleto, clientiLista]);
 
   // Auto-close dopo 60 secondi + SUONO + VIBRAZIONE
   useEffect(() => {
@@ -30,10 +86,13 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
 
     setCountdown(60);
     setShowSaveForm(false);
+    setNomeCompleto(''); // ✅ Campo unico
     setNomeCliente('');
     setCognomeCliente('');
     setSaveError(null);
     setSavedCliente(null);
+    setSuggerimenti([]); // ✅ Reset suggerimenti
+    setClienteEsistente(null); // ✅ Reset cliente esistente
     
     // 🔊 SUONO NOTIFICA
     try {
@@ -394,43 +453,122 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                   </button>
                 ) : (
                   <div>
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    {/* ✅ CAMPO UNICO con autocomplete */}
+                    <div style={{ position: 'relative', marginBottom: '12px' }}>
                       <input
                         type="text"
-                        placeholder="Nome *"
-                        value={nomeCliente}
-                        onChange={(e) => setNomeCliente(e.target.value)}
-                        disabled={isSaving}
-                        style={{
-                          flex: 1,
-                          padding: '12px 14px',
-                          border: '2px solid #d1d5db',
-                          borderRadius: '8px',
-                          fontSize: '16px',
-                          outline: 'none',
+                        placeholder="Nome e Cognome *"
+                        value={nomeCompleto}
+                        onChange={(e) => {
+                          setNomeCompleto(e.target.value);
+                          // Splitta automaticamente nome/cognome
+                          const parti = e.target.value.trim().split(' ');
+                          setNomeCliente(parti[0] || '');
+                          setCognomeCliente(parti.slice(1).join(' ') || '');
                         }}
-                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                        onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                        disabled={isSaving || clienteEsistente}
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px',
+                          border: clienteEsistente ? '2px solid #f59e0b' : '2px solid #d1d5db',
+                          borderRadius: '8px',
+                          fontSize: '18px',
+                          outline: 'none',
+                          backgroundColor: clienteEsistente ? '#fef3c7' : 'white'
+                        }}
+                        onFocus={(e) => !clienteEsistente && (e.target.style.borderColor = '#3b82f6')}
+                        onBlur={(e) => !clienteEsistente && (e.target.style.borderColor = '#d1d5db')}
                         autoFocus
                       />
-                      <input
-                        type="text"
-                        placeholder="Cognome"
-                        value={cognomeCliente}
-                        onChange={(e) => setCognomeCliente(e.target.value)}
-                        disabled={isSaving}
-                        style={{
-                          flex: 1,
-                          padding: '12px 14px',
-                          border: '2px solid #d1d5db',
+                      
+                      {/* ✅ Lista suggerimenti */}
+                      {suggerimenti.length > 0 && !clienteEsistente && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          backgroundColor: 'white',
+                          border: '1px solid #d1d5db',
                           borderRadius: '8px',
-                          fontSize: '16px',
-                          outline: 'none',
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                        onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-                      />
+                          marginTop: '4px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          zIndex: 100,
+                          maxHeight: '200px',
+                          overflowY: 'auto'
+                        }}>
+                          {suggerimenti.map((cliente, idx) => (
+                            <div
+                              key={cliente._id || idx}
+                              onClick={() => {
+                                setClienteEsistente(cliente);
+                                setNomeCompleto(`${cliente.nome} ${cliente.cognome || ''}`.trim());
+                                setSuggerimenti([]);
+                              }}
+                              style={{
+                                padding: '12px 16px',
+                                cursor: 'pointer',
+                                borderBottom: idx < suggerimenti.length - 1 ? '1px solid #e5e7eb' : 'none',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                            >
+                              <span style={{ fontWeight: 500 }}>
+                                {cliente.nome} {cliente.cognome || ''}
+                              </span>
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                                {cliente.codiceCliente || cliente.telefono || ''}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                    
+                    {/* ✅ Avviso cliente esistente */}
+                    {clienteEsistente && (
+                      <div style={{
+                        backgroundColor: '#fef3c7',
+                        border: '1px solid #f59e0b',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginBottom: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <Check style={{ width: '20px', height: '20px', color: '#d97706' }} />
+                        <div>
+                          <p style={{ fontWeight: 600, color: '#92400e', margin: 0 }}>
+                            Cliente già esistente!
+                          </p>
+                          <p style={{ fontSize: '14px', color: '#78350f', margin: '4px 0 0 0' }}>
+                            {clienteEsistente.codiceCliente} - Tel: {clienteEsistente.telefono || 'N/D'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClienteEsistente(null);
+                            setNomeCompleto('');
+                          }}
+                          style={{
+                            marginLeft: 'auto',
+                            padding: '6px 12px',
+                            backgroundColor: 'white',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Nuovo
+                        </button>
+                      </div>
+                    )}
                     
                     {saveError && (
                       <p style={{ color: '#dc2626', fontSize: '14px', margin: '0 0 12px 0' }}>
@@ -443,9 +581,12 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                         type="button"
                         onClick={() => {
                           setShowSaveForm(false);
+                          setNomeCompleto('');
                           setNomeCliente('');
                           setCognomeCliente('');
                           setSaveError(null);
+                          setSuggerimenti([]);
+                          setClienteEsistente(null);
                         }}
                         disabled={isSaving}
                         style={{
@@ -466,17 +607,17 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                       <button
                         type="button"
                         onClick={handleSaveCliente}
-                        disabled={isSaving || !nomeCliente.trim()}
+                        disabled={isSaving || !nomeCliente.trim() || clienteEsistente}
                         style={{
                           flex: 1,
                           padding: '12px 14px',
-                          backgroundColor: isSaving ? '#9ca3af' : '#22c55e',
+                          backgroundColor: (isSaving || clienteEsistente) ? '#9ca3af' : '#22c55e',
                           color: 'white',
                           border: 'none',
                           borderRadius: '8px',
                           fontSize: '16px',
                           fontWeight: 600,
-                          cursor: isSaving ? 'wait' : 'pointer',
+                          cursor: (isSaving || clienteEsistente) ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -492,7 +633,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                         ) : (
                           <>
                             <Save style={{ width: '18px', height: '18px' }} />
-                            Salva
+                            {clienteEsistente ? 'Già salvato' : 'Salva'}
                           </>
                         )}
                       </button>
