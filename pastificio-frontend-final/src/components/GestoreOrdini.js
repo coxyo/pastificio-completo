@@ -210,9 +210,15 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
       Bianchini: 0,
       Pabassine: 0,
       Zeppole: 0,
-      // Pasta e Panadas
-      PastaPerPanada: 0,
+      // Panadas (farcite)
+      PanadaAgnello: 0,
+      PanadaMaiale: 0,
+      PanadaVitella: 0,
+      PanadaVerdure: 0,
+      PanadaAnguille: 0,
       Panadine: 0,
+      // Altro
+      PastaPerPanada: 0,
       Sebadas: 0,
       Pizzette: 0,
       Fregula: 0
@@ -234,6 +240,34 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
           return; // Non classificare ulteriormente
         }
         
+        // ✅ CASO SPECIALE: VASSOIO - esplodi composizione se presente
+        if (nomeLC.includes('vassoio') && prodotto.dettagliCalcolo?.composizione) {
+          prodotto.dettagliCalcolo.composizione.forEach(comp => {
+            const compNome = comp.nome?.toLowerCase() || '';
+            let compPeso = 0;
+            if (comp.unita === 'Kg' || comp.unita === 'kg') compPeso = comp.quantita;
+            else if (comp.unita === 'Pezzi' || comp.unita === 'pezzi' || comp.unita === 'pz') {
+              // Converti pezzi in kg
+              for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
+                if (compNome.includes(nome.toLowerCase())) {
+                  compPeso = comp.quantita / pezziKg;
+                  break;
+                }
+              }
+              if (compPeso === 0) compPeso = comp.quantita / 30;
+            }
+            
+            // Classifica il componente
+            if (compNome.includes('pardula')) totali.Pardulas += compPeso;
+            else if (compNome.includes('ciambelle') || compNome.includes('ciambella')) totali.Ciambelle += compPeso;
+            else if (compNome.includes('amarett')) totali.Amaretti += compPeso;
+            else if (compNome.includes('gueff')) totali.Gueffus += compPeso;
+            else if (compNome.includes('bianchin')) totali.Bianchini += compPeso;
+            else if (compNome.includes('pabassine') || compNome.includes('papassin')) totali.Pabassine += compPeso;
+          });
+          return; // Non classificare ulteriormente il vassoio stesso
+        }
+        
         // Classifica il prodotto
         if (nomeLC.includes('ravioli')) totali.Ravioli += peso;
         else if (nomeLC.includes('culurgion')) totali.Culurgiones += peso;
@@ -245,7 +279,13 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         else if (nomeLC.includes('pabassine') || nomeLC.includes('papassin') || nomeLC.includes('pabassinas')) totali.Pabassine += peso;
         else if (nomeLC.includes('zeppol')) totali.Zeppole += peso;
         else if (nomeLC.includes('panadine')) totali.Panadine += peso;
-        else if (nomeLC.includes('panada') || nomeLC.includes('pasta per panada')) totali.PastaPerPanada += peso;
+        // ✅ FIX: Separa "Pasta per panada" dalle Panadas farcite
+        else if (nomeLC.includes('pasta per panada') || nomeLC === 'pasta panada') totali.PastaPerPanada += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('agnello')) totali.PanadaAgnello += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('maiale')) totali.PanadaMaiale += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('vitella')) totali.PanadaVitella += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('verdur')) totali.PanadaVerdure += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('anguill')) totali.PanadaAnguille += peso;
         else if (nomeLC.includes('sebada')) totali.Sebadas += peso;
         else if (nomeLC.includes('pizzette')) totali.Pizzette += peso;
         else if (nomeLC.includes('fregula') || nomeLC.includes('fregola')) totali.Fregula += peso;
@@ -265,8 +305,10 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
   const totaleRavioli = totali.Ravioli + totali.Culurgiones;
   const totalePardulas = totali.Pardulas;
   const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine + totali.Zeppole;
-  const totalePasta = totali.PastaPerPanada + totali.Panadine + totali.Sebadas + totali.Pizzette + totali.Fregula;
-  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePasta;
+  // ✅ FIX: Panadas farcite separate
+  const totalePanadas = totali.PanadaAgnello + totali.PanadaMaiale + totali.PanadaVitella + totali.PanadaVerdure + totali.PanadaAnguille;
+  const totaleAltri = totali.PastaPerPanada + totali.Panadine + totali.Sebadas + totali.Pizzette + totali.Fregula;
+  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleAltri;
 
   if (totaleGenerale === 0) return null;
 
@@ -298,8 +340,11 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         {totaleDolci > 0 && (
           <Chip label={`🍪 Dolci: ${totaleDolci.toFixed(1)} KG`} color="success" sx={{ fontWeight: 'bold' }} />
         )}
-        {totalePasta > 0 && (
-          <Chip label={`🥧 Pasta/Panadas: ${totalePasta.toFixed(1)} KG`} color="info" sx={{ fontWeight: 'bold' }} />
+        {totalePanadas > 0 && (
+          <Chip label={`🥧 Panadas: ${totalePanadas.toFixed(1)} KG`} sx={{ fontWeight: 'bold', backgroundColor: '#ff9800', color: 'white' }} />
+        )}
+        {totaleAltri > 0 && (
+          <Chip label={`📦 Altri: ${totaleAltri.toFixed(1)} KG`} color="info" sx={{ fontWeight: 'bold' }} />
         )}
         <Chip label={`TOTALE: ${totaleGenerale.toFixed(1)} KG`} color="primary" sx={{ fontWeight: 'bold', ml: 'auto' }} />
       </Box>
@@ -317,10 +362,22 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         </Box>
       )}
       
-      {/* Riga dettaglio pasta/panadas */}
-      {totalePasta > 0 && (
+      {/* ✅ Riga dettaglio panadas farcite */}
+      {totalePanadas > 0 && (
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #ff9800' }}>
+          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Panadas:</Typography>
+          <ChipDettaglio label="Agnello" value={totali.PanadaAgnello} color="warning" />
+          <ChipDettaglio label="Maiale" value={totali.PanadaMaiale} color="warning" />
+          <ChipDettaglio label="Vitella" value={totali.PanadaVitella} color="warning" />
+          <ChipDettaglio label="Verdure" value={totali.PanadaVerdure} color="warning" />
+          <ChipDettaglio label="Anguille" value={totali.PanadaAnguille} color="warning" />
+        </Box>
+      )}
+      
+      {/* Riga dettaglio altri */}
+      {totaleAltri > 0 && (
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #2196f3' }}>
-          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Pasta/Panadas:</Typography>
+          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Altri:</Typography>
           <ChipDettaglio label="Pasta Panada" value={totali.PastaPerPanada} color="info" />
           <ChipDettaglio label="Panadine" value={totali.Panadine} color="info" />
           <ChipDettaglio label="Sebadas" value={totali.Sebadas} color="info" />
