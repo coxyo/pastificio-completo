@@ -1,10 +1,24 @@
 // routes/pusher.js - Endpoint per triggerare eventi Pusher dall'estensione Chrome
+// ✅ FIX CORS: Aggiunto header X-API-KEY agli allowed headers
 import express from 'express';
 import Pusher from 'pusher';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
+
+// ✅ FIX CORS: Middleware per permettere X-API-KEY
+router.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-KEY, X-Extension-Version');
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // ✅ Inizializza Pusher con le credenziali
 const pusher = new Pusher({
