@@ -1313,12 +1313,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       // ✅ Moltiplica per count per raggruppamenti
 
       const moltiplicatore = item.count || 1;
+      
+      // ✅ NUOVO: Riconosci se è un vassoio/dolci misti da esplodere
+      const nomeLC = prodotto.nome?.toLowerCase() || '';
+      const isVassioODolciMisti = unitaNorm === 'vassoio' || 
+                                   nomeLC.includes('dolci mix') || 
+                                   nomeLC.includes('dolci misti') ||
+                                   nomeLC.includes('vassoio');
 
       
 
-      // ✅ Gestione vassoi
-
-      if (unitaNorm === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+      // ✅ Gestione vassoi e DOLCI MIX - esplodi componenti
+      if (isVassioODolciMisti && prodotto.dettagliCalcolo?.composizione) {
 
         prodotto.dettagliCalcolo.composizione.forEach(comp => {
 
@@ -1393,7 +1399,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         }
 
       } else if (unitaNorm === '€' || unitaNorm === 'euro') {
-
+        // ✅ € NON è peso! Teniamo traccia ma non aggiungiamo a totaleKg
         totaleEuro += prodotto.quantita * moltiplicatore;
 
       }
@@ -1420,18 +1426,17 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
 
 
-  // ✅ AGGIORNATO 10/12/2025: Mostra SOLO KG (pezzi già convertiti)
+  // ✅ AGGIORNATO 10/12/2025: Mostra SOLO KG (€ NON è peso!)
 
   const formattaTotaliStringa = (totaleKg, totalePezzi, totaleEuro) => {
 
     const parti = [];
     
-    // Totale sempre in KG
-    const totaleFinale = totaleKg + (totalePezzi > 0 ? totalePezzi / 30 : 0); // Fallback per pezzi residui
-
-    if (totaleFinale > 0) parti.push(`${totaleFinale.toFixed(1)} KG`);
-
-    if (totaleEuro > 0) parti.push(`€${totaleEuro.toFixed(2)}`);
+    // ✅ Solo KG - gli € NON sono peso!
+    if (totaleKg > 0) parti.push(`${totaleKg.toFixed(1)} KG`);
+    
+    // ✅ € mostrato separatamente solo se presente
+    if (totaleEuro > 0) parti.push(`€${totaleEuro.toFixed(2)} (valore)`);
 
     return parti.join(' | ') || '0 KG';
 
