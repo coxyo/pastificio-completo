@@ -398,7 +398,9 @@ Pastificio Nonna Claudia`;
         
         let chiave;
         if (nomeProdotto === 'Vassoio Dolci Misti' || unita === 'vassoio') {
-          chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${prodotto.prezzo}-${ordine._id}-${indiceProdotto}`;
+          // ✅ FIX: Raggruppa vassoi per cliente + prezzo (arrotondato)
+          const prezzoArrotondato = Math.round((prodotto.prezzo || 0) * 100) / 100;
+          chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${prezzoArrotondato}`;
         } else {
           chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}`;
         }
