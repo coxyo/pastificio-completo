@@ -5,7 +5,16 @@ import chiamateController from '../controllers/chiamateController.js';
 
 const router = express.Router();
 
-// Middleware di autenticazione per tutte le route
+// ✅ NUOVO 10/12/2025: Endpoint PUBBLICO per estensione Chrome (PRIMA del middleware auth)
+/**
+ * @route   POST /api/chiamate/webhook
+ * @desc    Registra chiamata da estensione Chrome (pubblico con API key)
+ * @access  Pubblico (con X-API-KEY header)
+ * @header  X-API-KEY: chiave segreta condivisa con estensione
+ */
+router.post('/webhook', chiamateController.webhookChiamata);
+
+// Middleware di autenticazione per tutte le altre route
 router.use(protect);
 
 /**
