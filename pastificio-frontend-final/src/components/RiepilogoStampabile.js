@@ -218,8 +218,19 @@ const PEZZI_PER_KG = {
   'Panada di Maiale': 4,
   'Panada di Vitella': 4,
   'Panada di verdure': 4,
-  'Panadine': 20
+  'Panadine': 20,
+  'Zeppole': 24
 
+};
+
+// ✅ COMPOSIZIONE DOLCI MISTI (per 1 kg)
+const COMPOSIZIONE_DOLCI_MISTI = {
+  'Pardulas': 0.40,    // 400g
+  'Ciambelle': 0.25,   // 250g
+  'Amaretti': 0.15,    // 150g
+  'Gueffus': 0.05,     // 50g
+  'Pabassine': 0.05,   // 50g
+  'Bianchini': 0.03    // 30g (3 pezzi)
 };
 
 
@@ -1316,10 +1327,23 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       
       // ✅ NUOVO: Riconosci se è un vassoio/dolci misti da esplodere
       const nomeLC = prodotto.nome?.toLowerCase() || '';
-      const isVassioODolciMisti = unitaNorm === 'vassoio' || 
-                                   nomeLC.includes('dolci mix') || 
-                                   nomeLC.includes('dolci misti') ||
-                                   nomeLC.includes('vassoio');
+      const isDolciMisti = nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti');
+      const isVassioODolciMisti = unitaNorm === 'vassoio' || isDolciMisti || nomeLC.includes('vassoio');
+
+      // ✅ CASO SPECIALE: DOLCI MIX senza composizione dettagliata
+      // Usa la composizione standard per esplodere
+      if (isDolciMisti && !prodotto.dettagliCalcolo?.composizione) {
+        const pesoTotale = prodotto.quantita * moltiplicatore;
+        
+        // Esplodi usando composizione standard
+        for (const [componente, percentuale] of Object.entries(COMPOSIZIONE_DOLCI_MISTI)) {
+          const pesoComponente = pesoTotale * percentuale;
+          totaleKg += pesoComponente;
+          const nomeNorm = normalizzaNomeProdotto(componente);
+          dettagliKg[nomeNorm] = (dettagliKg[nomeNorm] || 0) + pesoComponente;
+        }
+        return; // Non processare ulteriormente
+      }
 
       
 
