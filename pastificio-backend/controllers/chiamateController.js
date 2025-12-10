@@ -427,6 +427,103 @@ export const eliminaChiamata = async (req, res) => {
   }
 };
 
+// ✅ NUOVO 10/12/2025: Endpoint pubblico per estensione Chrome
+/**
+ * @desc    Registra chiamata da estensione Chrome (webhook pubblico)
+ * @route   POST /api/chiamate/webhook
+ * @access  Pubblico (con X-API-KEY header)
+ */
+export const webhookChiamata = async (req, res) => {
+  try {
+    // Verifica API key (opzionale - per sicurezza base)
+    const apiKey = req.headers['x-api-key'];
+    const expectedKey = process.env.WEBHOOK_API_KEY || 'pastificio-chiamate-2025';
+    
+    if (apiKey && apiKey !== expectedKey) {
+      logger.warn('Webhook chiamata: API key non valida');
+      return res.status(401).json({
+        success: false,
+        message: 'API key non valida'
+      });
+    }
+
+    const {
+      numeroTelefono,
+      tipo = 'in-entrata',
+      esito = 'non-risposto',
+      dataChiamata,
+      note
+    } = req.body;
+
+    // Validazione base
+    if (!numeroTelefono) {
+      return res.status(400).json({
+        success: false,
+        message: 'Numero di telefono obbligatorio'
+      });
+    }
+
+    // Normalizza numero (rimuovi spazi e caratteri speciali)
+    const numeroNormalizzato = numeroTelefono.replace(/\D/g, '');
+
+    // Cerca cliente per numero di telefono
+    let clienteId = null;
+    try {
+      const cliente = await Cliente.findOne({
+        $or: [
+          { telefono: numeroNormalizzato },
+          { telefono: `+39${numeroNormalizzato}` },
+          { telefono: `+${numeroNormalizzato}` },
+          { telefono: numeroTelefono }
+        ]
+      });
+      if (cliente) {
+        clienteId = cliente._id;
+        logger.info(`Webhook: Cliente trovato per ${numeroTelefono}: ${cliente.nome}`);
+      }
+    } catch (err) {
+      logger.warn('Webhook: Errore ricerca cliente:', err.message);
+    }
+
+    // Crea la chiamata
+    const chiamata = await Chiamata.create({
+      numeroTelefono: numeroNormalizzato || numeroTelefono,
+      cliente: clienteId,
+      tipo,
+      esito,
+      note: note || `Chiamata registrata da estensione 3CX`,
+      dataChiamata: dataChiamata ? new Date(dataChiamata) : new Date(),
+      durataChiamata: 0
+    });
+
+    // Popola cliente se trovato
+    if (clienteId) {
+      await chiamata.populate('cliente', 'nome cognome telefono codiceCliente');
+    }
+
+    logger.info('Webhook: Chiamata registrata con successo:', {
+      id: chiamata._id,
+      numero: numeroTelefono,
+      cliente: clienteId ? 'trovato' : 'non trovato',
+      esito
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Chiamata registrata',
+      data: chiamata
+    });
+
+  } catch (error) {
+    logger.error('Webhook: Errore registrazione chiamata:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nella registrazione della chiamata',
+      error: error.message
+    });
+  }
+};
+
 export default {
   getChiamate,
   getChiamataById,
@@ -435,5 +532,6 @@ export default {
   aggiungiTag,
   rimuoviTag,
   getAllTags,
-  eliminaChiamata
+  eliminaChiamata,
+  webhookChiamata
 };
