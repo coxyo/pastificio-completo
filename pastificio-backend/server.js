@@ -37,6 +37,7 @@ import cx3Routes from './routes/cx3.js';
 import webhookRoutes from './routes/webhook.js'; // ✅ WEBHOOK 3CX
 import chiamateRoutes from './routes/chiamate.js'; // ✅ NUOVO - Gestione chiamate e tag
 import statisticheRoutes from './routes/statistiche.js'; // ✅ NUOVO - Statistiche chiamate (incluso /api/statistiche/chiamate)
+import pusherRoutes from './routes/pusher.js';
 
 
 // Import middleware
@@ -307,6 +308,7 @@ app.use('/api/prodotti', prodottiRoutes);
 app.use('/api/cx3', cx3Routes);
 app.use('/api/chiamate', chiamateRoutes); // ✅ NUOVO - Gestione chiamate e tag
 app.use('/api/statistiche', statisticheRoutes); // ✅ NUOVO - Statistiche chiamate
+app.use('/api/pusher', pusherRoutes);
 
 
 // Test route
