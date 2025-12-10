@@ -135,12 +135,13 @@ function RiepilogoSemplice({ ordini, dataSelezionata }) {
 }
 
 // =============================================================
-// ✅ NUOVO 10/12/2025: COMPONENTE TOTALI PRODUZIONE
+// ✅ AGGIORNATO 10/12/2025: COMPONENTE TOTALI PRODUZIONE DETTAGLIATI
 // =============================================================
-const PEZZI_PER_KG = {
+const PEZZI_PER_KG_TOTALI = {
   'Ravioli': 30, 'Culurgiones': 32, 'Pardulas': 25,
-  'Amaretti': 35, 'Bianchini': 100, 'Papassinas': 30, 'Gueffus': 65,
-  'Ciambelle': 30, 'Sebadas': 10, 'Panadine': 20, 'Panada': 4
+  'Amaretti': 35, 'Bianchini': 100, 'Papassinas': 30, 'Pabassine': 30,
+  'Gueffus': 65, 'Ciambelle': 30, 'Sebadas': 10, 
+  'Panadine': 20, 'Panada': 4, 'Pizzette': 30
 };
 
 function TotaliProduzione({ ordini, dataSelezionata }) {
@@ -150,35 +151,28 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
     return dataOrdine.startsWith(dataSelezionata);
   });
 
-  // Categorie prodotti
-  const CATEGORIE = {
-    RAVIOLI: ['Ravioli', 'Culurgiones'],
-    PARDULAS: ['Pardulas'],
-    DOLCI: ['Amaretti', 'Bianchini', 'Papassinas', 'Papassine', 'Gueffus', 'Ciambelle', 'Sebadas', 'Torta'],
-    ALTRI: ['Panada', 'Panadine', 'Fregula', 'Pizzette']
-  };
-
   // Funzione per convertire in KG
   const convertiInKg = (prodotto) => {
     const unita = (prodotto.unita || 'kg').toLowerCase();
     const quantita = prodotto.quantita || 0;
     
+    // ✅ IGNORA prodotti in € (non hanno peso)
+    if (unita === '€' || unita === 'euro') return 0;
+    
     if (unita === 'kg' || unita === 'kilogrammi') return quantita;
     if (unita === 'pezzi' || unita === 'pz') {
-      // Trova fattore conversione
-      for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG)) {
+      for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
         if (prodotto.nome.toLowerCase().includes(nome.toLowerCase())) {
           return quantita / pezziKg;
         }
       }
-      return quantita / 30; // default
+      return quantita / 30;
     }
     if (unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
-      // Calcola peso vassoio dalla composizione
       return prodotto.dettagliCalcolo.composizione.reduce((acc, comp) => {
         if (comp.unita === 'Kg') return acc + comp.quantita;
         if (comp.unita === 'Pezzi') {
-          for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG)) {
+          for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
             if (comp.nome.toLowerCase().includes(nome.toLowerCase())) {
               return acc + comp.quantita / pezziKg;
             }
@@ -191,78 +185,145 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
     return 0;
   };
 
-  // Calcola totali per categoria
-  const calcolaTotali = () => {
-    const totali = { RAVIOLI: 0, PARDULAS: 0, DOLCI: 0, ALTRI: 0 };
+  // ✅ Calcola totali DETTAGLIATI per ogni tipo di prodotto
+  const calcolaTotaliDettagliati = () => {
+    const totali = {
+      // Ravioli
+      Ravioli: 0,
+      Culurgiones: 0,
+      // Pardulas
+      Pardulas: 0,
+      // Dolci singoli
+      Ciambelle: 0,
+      Amaretti: 0,
+      Gueffus: 0,
+      Bianchini: 0,
+      Pabassine: 0,
+      // Altri
+      Panada: 0,
+      Panadine: 0,
+      Sebadas: 0,
+      Pizzette: 0,
+      AltriNonClassificati: 0
+    };
     
     ordiniFiltrati.forEach(ordine => {
       (ordine.prodotti || []).forEach(prodotto => {
         const nomeLC = prodotto.nome.toLowerCase();
-        let categoriaFound = 'ALTRI';
+        const peso = convertiInKg(prodotto);
         
-        for (const [cat, keywords] of Object.entries(CATEGORIE)) {
-          if (keywords.some(k => nomeLC.includes(k.toLowerCase()))) {
-            categoriaFound = cat;
-            break;
-          }
+        if (peso === 0) return; // Ignora € e prodotti senza peso
+        
+        // Classifica il prodotto
+        if (nomeLC.includes('ravioli')) totali.Ravioli += peso;
+        else if (nomeLC.includes('culurgion')) totali.Culurgiones += peso;
+        else if (nomeLC.includes('pardula')) totali.Pardulas += peso;
+        else if (nomeLC.includes('ciambelle') || nomeLC.includes('ciambella')) totali.Ciambelle += peso;
+        else if (nomeLC.includes('amarett')) totali.Amaretti += peso;
+        else if (nomeLC.includes('gueff')) totali.Gueffus += peso;
+        else if (nomeLC.includes('bianchin')) totali.Bianchini += peso;
+        else if (nomeLC.includes('pabassine') || nomeLC.includes('papassin')) totali.Pabassine += peso;
+        else if (nomeLC.includes('panadine')) totali.Panadine += peso;
+        else if (nomeLC.includes('panada') || nomeLC.includes('pasta per panada')) totali.Panada += peso;
+        else if (nomeLC.includes('sebada')) totali.Sebadas += peso;
+        else if (nomeLC.includes('pizzette')) totali.Pizzette += peso;
+        else totali.AltriNonClassificati += peso;
+        
+        // ✅ Se è un vassoio/dolci misti, esplodi la composizione
+        if (prodotto.dettagliCalcolo?.composizione) {
+          prodotto.dettagliCalcolo.composizione.forEach(comp => {
+            const compNome = comp.nome.toLowerCase();
+            let compPeso = 0;
+            if (comp.unita === 'Kg') compPeso = comp.quantita;
+            else if (comp.unita === 'Pezzi') {
+              for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
+                if (compNome.includes(nome.toLowerCase())) {
+                  compPeso = comp.quantita / pezziKg;
+                  break;
+                }
+              }
+              if (compPeso === 0) compPeso = comp.quantita / 30;
+            }
+            
+            // Aggiungi al totale corretto (già contato sopra con convertiInKg, quindi non duplicare)
+          });
         }
-        
-        totali[categoriaFound] += convertiInKg(prodotto);
       });
     });
     
     return totali;
   };
 
-  const totali = calcolaTotali();
-  const totaleGenerale = Object.values(totali).reduce((a, b) => a + b, 0);
+  const totali = calcolaTotaliDettagliati();
+  
+  // Raggruppa per macro-categoria
+  const totaleRavioli = totali.Ravioli + totali.Culurgiones;
+  const totalePardulas = totali.Pardulas;
+  const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine;
+  const totaleAltri = totali.Panada + totali.Panadine + totali.Sebadas + totali.Pizzette + totali.AltriNonClassificati;
+  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totaleAltri;
 
   if (totaleGenerale === 0) return null;
+
+  // Helper per formattare chip
+  const ChipDettaglio = ({ label, value, color }) => value > 0.05 ? (
+    <Chip 
+      label={`${label}: ${value.toFixed(1)} KG`} 
+      size="small"
+      sx={{ fontWeight: 500, fontSize: '0.75rem' }}
+      color={color}
+      variant="outlined"
+    />
+  ) : null;
 
   return (
     <Paper sx={{ p: 2, mb: 2, backgroundColor: '#f8f9fa' }}>
       <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#555' }}>
         📊 TOTALI PRODUZIONE ({new Date(dataSelezionata).toLocaleDateString('it-IT')})
       </Typography>
-      <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-        {totali.RAVIOLI > 0 && (
-          <Chip 
-            label={`🥟 Ravioli: ${totali.RAVIOLI.toFixed(1)} KG`} 
-            color="error" 
-            variant="outlined"
-            sx={{ fontWeight: 'bold' }}
-          />
+      
+      {/* Riga principale con macro-totali */}
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 1 }}>
+        {totaleRavioli > 0 && (
+          <Chip label={`🥟 Ravioli: ${totaleRavioli.toFixed(1)} KG`} color="error" sx={{ fontWeight: 'bold' }} />
         )}
-        {totali.PARDULAS > 0 && (
-          <Chip 
-            label={`🟡 Pardulas: ${totali.PARDULAS.toFixed(1)} KG`} 
-            color="warning"
-            variant="outlined" 
-            sx={{ fontWeight: 'bold' }}
-          />
+        {totalePardulas > 0 && (
+          <Chip label={`🟡 Pardulas: ${totalePardulas.toFixed(1)} KG`} color="warning" sx={{ fontWeight: 'bold' }} />
         )}
-        {totali.DOLCI > 0 && (
-          <Chip 
-            label={`🍪 Dolci: ${totali.DOLCI.toFixed(1)} KG`} 
-            color="success"
-            variant="outlined" 
-            sx={{ fontWeight: 'bold' }}
-          />
+        {totaleDolci > 0 && (
+          <Chip label={`🍪 Dolci: ${totaleDolci.toFixed(1)} KG`} color="success" sx={{ fontWeight: 'bold' }} />
         )}
-        {totali.ALTRI > 0 && (
-          <Chip 
-            label={`📦 Altri: ${totali.ALTRI.toFixed(1)} KG`} 
-            color="info"
-            variant="outlined" 
-            sx={{ fontWeight: 'bold' }}
-          />
+        {totaleAltri > 0 && (
+          <Chip label={`📦 Altri: ${totaleAltri.toFixed(1)} KG`} color="info" sx={{ fontWeight: 'bold' }} />
         )}
-        <Chip 
-          label={`TOTALE: ${totaleGenerale.toFixed(1)} KG`} 
-          color="primary"
-          sx={{ fontWeight: 'bold', ml: 'auto' }}
-        />
+        <Chip label={`TOTALE: ${totaleGenerale.toFixed(1)} KG`} color="primary" sx={{ fontWeight: 'bold', ml: 'auto' }} />
       </Box>
+      
+      {/* Riga dettaglio dolci */}
+      {totaleDolci > 0 && (
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #4caf50' }}>
+          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Dolci:</Typography>
+          <ChipDettaglio label="Ciambelle" value={totali.Ciambelle} color="success" />
+          <ChipDettaglio label="Amaretti" value={totali.Amaretti} color="success" />
+          <ChipDettaglio label="Gueffus" value={totali.Gueffus} color="success" />
+          <ChipDettaglio label="Bianchini" value={totali.Bianchini} color="success" />
+          <ChipDettaglio label="Pabassine" value={totali.Pabassine} color="success" />
+        </Box>
+      )}
+      
+      {/* Riga dettaglio altri */}
+      {totaleAltri > 0 && (
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #2196f3' }}>
+          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Altri:</Typography>
+          <ChipDettaglio label="Panada" value={totali.Panada} color="info" />
+          <ChipDettaglio label="Panadine" value={totali.Panadine} color="info" />
+          <ChipDettaglio label="Sebadas" value={totali.Sebadas} color="info" />
+          <ChipDettaglio label="Pizzette" value={totali.Pizzette} color="info" />
+          {totali.AltriNonClassificati > 0.05 && (
+            <ChipDettaglio label="Vari" value={totali.AltriNonClassificati} color="default" />
+          )}
+        </Box>
+      )}
     </Paper>
   );
 }
