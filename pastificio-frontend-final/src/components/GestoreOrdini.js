@@ -9,7 +9,9 @@ import {
   Box, Container, Grid, Paper, Typography, 
   Snackbar, Alert, CircularProgress, IconButton, Chip, Button,
   LinearProgress, Menu, MenuItem, Divider, Dialog, DialogTitle, 
-  DialogContent, DialogActions, TextField, Fab, Tooltip
+  DialogContent, DialogActions, TextField, Fab, Tooltip,
+  InputAdornment, Table, TableBody, TableCell, TableHead, TableRow,
+  Collapse, Card, CardContent
 } from '@mui/material';
 import { 
   Wifi as WifiIcon,
@@ -28,7 +30,11 @@ import {
   LocalShipping as ShippingIcon,
   Assessment as AssessmentIcon,
   Settings as SettingsIcon,
-  Phone as Phone  // ✅ NUOVO per pulsante Storico Chiamate
+  Phone as Phone,  // ✅ NUOVO per pulsante Storico Chiamate
+  Search as SearchIcon,  // ✅ NUOVO per ricerca
+  DateRange as DateRangeIcon,  // ✅ NUOVO per periodo
+  Clear as ClearIcon,  // ✅ NUOVO per pulire ricerca
+  Calculate as CalculateIcon  // ✅ NUOVO per calcolo totali
 } from '@mui/icons-material';
 
 import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
@@ -466,6 +472,327 @@ function WhatsAppHelperComponent({ ordini }) {
   );
 }
 
+// =============================================================
+// COMPONENTE TOTALI PER PERIODO - NUOVO 11/12/2025
+// =============================================================
+function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
+  // Filtra ordini per periodo
+  const ordiniFiltrati = ordini.filter(o => {
+    const dataOrdine = (o.dataRitiro || o.createdAt || '').split('T')[0];
+    return dataOrdine >= dataInizio && dataOrdine <= dataFine;
+  });
+
+  // Funzione per convertire in KG (copia da TotaliProduzione)
+  const convertiInKg = (prodotto) => {
+    const unita = (prodotto.unita || 'kg').toLowerCase();
+    const quantita = prodotto.quantita || 0;
+    
+    if (unita === '€' || unita === 'euro') return 0;
+    if (unita === 'kg' || unita === 'kilogrammi') return quantita;
+    if (unita === 'pezzi' || unita === 'pz') {
+      for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
+        if (prodotto.nome.toLowerCase().includes(nome.toLowerCase())) {
+          return quantita / pezziKg;
+        }
+      }
+      return quantita / 30;
+    }
+    if (unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+      return prodotto.dettagliCalcolo.composizione.reduce((acc, comp) => {
+        if (comp.unita === 'Kg') return acc + comp.quantita;
+        if (comp.unita === 'Pezzi') {
+          for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
+            if (comp.nome.toLowerCase().includes(nome.toLowerCase())) {
+              return acc + comp.quantita / pezziKg;
+            }
+          }
+          return acc + comp.quantita / 30;
+        }
+        return acc;
+      }, 0);
+    }
+    return 0;
+  };
+
+  // Calcola totali per categoria
+  const calcolaTotali = () => {
+    const totali = {
+      Ravioli: 0,
+      Culurgiones: 0,
+      Pardulas: 0,
+      Ciambelle: 0,
+      Amaretti: 0,
+      Gueffus: 0,
+      Bianchini: 0,
+      Pabassine: 0,
+      Zeppole: 0,
+      PanadaAgnello: 0,
+      PanadaMaiale: 0,
+      PanadaVitella: 0,
+      PanadaVerdure: 0,
+      PanadaAnguille: 0,
+      Panadine: 0,
+      PastaPerPanada: 0,
+      Sebadas: 0,
+      Pizzette: 0,
+      Fregula: 0
+    };
+    
+    ordiniFiltrati.forEach(ordine => {
+      (ordine.prodotti || []).forEach(prodotto => {
+        const nomeLC = prodotto.nome?.toLowerCase() || '';
+        let peso = convertiInKg(prodotto);
+        
+        if (peso === 0) return;
+        
+        // Esplodi vassoi
+        if (nomeLC.includes('vassoio') && prodotto.dettagliCalcolo?.composizione) {
+          prodotto.dettagliCalcolo.composizione.forEach(comp => {
+            const compNome = comp.nome?.toLowerCase() || '';
+            let compPeso = 0;
+            if (comp.unita === 'Kg' || comp.unita === 'kg') compPeso = comp.quantita;
+            else if (comp.unita === 'Pezzi' || comp.unita === 'pezzi' || comp.unita === 'pz') {
+              for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
+                if (compNome.includes(nome.toLowerCase())) {
+                  compPeso = comp.quantita / pezziKg;
+                  break;
+                }
+              }
+              if (compPeso === 0) compPeso = comp.quantita / 30;
+            }
+            
+            if (compNome.includes('pardula')) totali.Pardulas += compPeso;
+            else if (compNome.includes('ciambelle')) totali.Ciambelle += compPeso;
+            else if (compNome.includes('amarett')) totali.Amaretti += compPeso;
+            else if (compNome.includes('gueff')) totali.Gueffus += compPeso;
+            else if (compNome.includes('bianchin')) totali.Bianchini += compPeso;
+            else if (compNome.includes('pabassine')) totali.Pabassine += compPeso;
+          });
+          return;
+        }
+        
+        // Classifica il prodotto
+        if (nomeLC.includes('ravioli')) totali.Ravioli += peso;
+        else if (nomeLC.includes('culurgion')) totali.Culurgiones += peso;
+        else if (nomeLC.includes('pardula')) totali.Pardulas += peso;
+        else if (nomeLC.includes('ciambelle')) totali.Ciambelle += peso;
+        else if (nomeLC.includes('amarett')) totali.Amaretti += peso;
+        else if (nomeLC.includes('gueff')) totali.Gueffus += peso;
+        else if (nomeLC.includes('bianchin')) totali.Bianchini += peso;
+        else if (nomeLC.includes('pabassine')) totali.Pabassine += peso;
+        else if (nomeLC.includes('zeppol')) totali.Zeppole += peso;
+        else if (nomeLC.includes('panadine')) totali.Panadine += peso;
+        else if (nomeLC.includes('pasta per panada') || nomeLC === 'pasta panada') totali.PastaPerPanada += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('agnello')) totali.PanadaAgnello += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('maiale')) totali.PanadaMaiale += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('vitella')) totali.PanadaVitella += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('verdur')) totali.PanadaVerdure += peso;
+        else if (nomeLC.includes('panada') && nomeLC.includes('anguill')) totali.PanadaAnguille += peso;
+        else if (nomeLC.includes('sebada')) totali.Sebadas += peso;
+        else if (nomeLC.includes('pizzette')) totali.Pizzette += peso;
+        else if (nomeLC.includes('fregula')) totali.Fregula += peso;
+      });
+    });
+    
+    return totali;
+  };
+
+  const totali = calcolaTotali();
+  
+  // Raggruppa per macro-categoria
+  const totaleRavioli = totali.Ravioli + totali.Culurgiones;
+  const totalePardulas = totali.Pardulas;
+  const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine + totali.Zeppole;
+  const totalePanadas = totali.PanadaAgnello + totali.PanadaMaiale + totali.PanadaVitella + totali.PanadaVerdure + totali.PanadaAnguille;
+  const totaleAltri = totali.PastaPerPanada + totali.Panadine + totali.Sebadas + totali.Pizzette + totali.Fregula;
+  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleAltri;
+
+  // Calcola incasso totale
+  const incassoTotale = ordiniFiltrati.reduce((sum, o) => sum + (o.totale || 0), 0);
+
+  return (
+    <Box>
+      <Alert severity="info" sx={{ mb: 2 }}>
+        Periodo: dal <strong>{new Date(dataInizio).toLocaleDateString('it-IT')}</strong> al <strong>{new Date(dataFine).toLocaleDateString('it-IT')}</strong>
+        <br />
+        Ordini trovati: <strong>{ordiniFiltrati.length}</strong> | Incasso totale: <strong>€{incassoTotale.toFixed(2)}</strong>
+      </Alert>
+
+      {totaleGenerale === 0 ? (
+        <Alert severity="warning">Nessun prodotto trovato nel periodo selezionato</Alert>
+      ) : (
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableCell><strong>Categoria</strong></TableCell>
+              <TableCell align="right"><strong>Totale (KG)</strong></TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {/* RAVIOLI */}
+            {totaleRavioli > 0 && (
+              <>
+                <TableRow sx={{ backgroundColor: '#e3f2fd' }}>
+                  <TableCell colSpan={2}><strong>🥟 RAVIOLI/PASTA</strong></TableCell>
+                </TableRow>
+                {totali.Ravioli > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Ravioli</TableCell>
+                    <TableCell align="right">{totali.Ravioli.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Culurgiones > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Culurgiones</TableCell>
+                    <TableCell align="right">{totali.Culurgiones.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+              </>
+            )}
+
+            {/* PARDULAS */}
+            {totalePardulas > 0 && (
+              <TableRow sx={{ backgroundColor: '#fff3e0' }}>
+                <TableCell><strong>🧁 PARDULAS</strong></TableCell>
+                <TableCell align="right"><strong>{totalePardulas.toFixed(2)} KG</strong></TableCell>
+              </TableRow>
+            )}
+
+            {/* DOLCI */}
+            {totaleDolci > 0 && (
+              <>
+                <TableRow sx={{ backgroundColor: '#fce4ec' }}>
+                  <TableCell colSpan={2}><strong>🍪 DOLCI</strong></TableCell>
+                </TableRow>
+                {totali.Ciambelle > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Ciambelle</TableCell>
+                    <TableCell align="right">{totali.Ciambelle.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Amaretti > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Amaretti</TableCell>
+                    <TableCell align="right">{totali.Amaretti.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Gueffus > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Gueffus</TableCell>
+                    <TableCell align="right">{totali.Gueffus.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Bianchini > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Bianchini</TableCell>
+                    <TableCell align="right">{totali.Bianchini.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Pabassine > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Pabassine</TableCell>
+                    <TableCell align="right">{totali.Pabassine.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Zeppole > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Zeppole</TableCell>
+                    <TableCell align="right">{totali.Zeppole.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+              </>
+            )}
+
+            {/* PANADAS */}
+            {totalePanadas > 0 && (
+              <>
+                <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+                  <TableCell colSpan={2}><strong>🥧 PANADAS</strong></TableCell>
+                </TableRow>
+                {totali.PanadaAgnello > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Panada Agnello</TableCell>
+                    <TableCell align="right">{totali.PanadaAgnello.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.PanadaMaiale > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Panada Maiale</TableCell>
+                    <TableCell align="right">{totali.PanadaMaiale.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.PanadaVitella > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Panada Vitella</TableCell>
+                    <TableCell align="right">{totali.PanadaVitella.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.PanadaVerdure > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Panada Verdure</TableCell>
+                    <TableCell align="right">{totali.PanadaVerdure.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.PanadaAnguille > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Panada Anguille</TableCell>
+                    <TableCell align="right">{totali.PanadaAnguille.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+              </>
+            )}
+
+            {/* ALTRI */}
+            {totaleAltri > 0 && (
+              <>
+                <TableRow sx={{ backgroundColor: '#f3e5f5' }}>
+                  <TableCell colSpan={2}><strong>📦 ALTRI</strong></TableCell>
+                </TableRow>
+                {totali.PastaPerPanada > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Pasta per Panada</TableCell>
+                    <TableCell align="right">{totali.PastaPerPanada.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Panadine > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Panadine</TableCell>
+                    <TableCell align="right">{totali.Panadine.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Sebadas > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Sebadas</TableCell>
+                    <TableCell align="right">{totali.Sebadas.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Pizzette > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Pizzette</TableCell>
+                    <TableCell align="right">{totali.Pizzette.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+                {totali.Fregula > 0 && (
+                  <TableRow>
+                    <TableCell sx={{ pl: 4 }}>Fregula</TableCell>
+                    <TableCell align="right">{totali.Fregula.toFixed(2)} KG</TableCell>
+                  </TableRow>
+                )}
+              </>
+            )}
+
+            {/* TOTALE GENERALE */}
+            <TableRow sx={{ backgroundColor: '#1976d2', color: 'white' }}>
+              <TableCell sx={{ color: 'white' }}><strong>TOTALE GENERALE</strong></TableCell>
+              <TableCell align="right" sx={{ color: 'white' }}><strong>{totaleGenerale.toFixed(2)} KG</strong></TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      )}
+    </Box>
+  );
+}
+
  // =============================================================
  // COMPONENTE PRINCIPALE - GESTORE ORDINI
  // =============================================================
@@ -503,6 +830,13 @@ function WhatsAppHelperComponent({ ordini }) {
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
+  
+  // ✅ NUOVO 11/12/2025: State per ricerca avanzata
+  const [ricercaCliente, setRicercaCliente] = useState('');
+  const [ricercaExpanded, setRicercaExpanded] = useState(false);
+  const [dialogTotaliPeriodo, setDialogTotaliPeriodo] = useState(false);
+  const [periodoInizio, setPeriodoInizio] = useState(new Date().toISOString().split('T')[0]);
+  const [periodoFine, setPeriodoFine] = useState(new Date().toISOString().split('T')[0]);
   
   // ✅ PUSHER: Hook per chiamate entranti real-time
   const {
@@ -1735,8 +2069,64 @@ return (
           {syncInProgress && <LinearProgress sx={{ mb: 2 }} />}
         </Box>
         
+        {/* ✅ NUOVO 11/12/2025: Barra Ricerca e Totali Periodo */}
+        <Paper sx={{ p: 2, mb: 2, backgroundColor: '#e3f2fd' }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Ricerca per Cliente */}
+            <TextField
+              size="small"
+              placeholder="Cerca cliente... (es. Mameli)"
+              value={ricercaCliente}
+              onChange={(e) => setRicercaCliente(e.target.value)}
+              sx={{ minWidth: 250, backgroundColor: 'white', borderRadius: 1 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: ricercaCliente && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setRicercaCliente('')}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+            />
+            
+            {ricercaCliente && (
+              <Chip 
+                label={`Filtro: "${ricercaCliente}"`}
+                onDelete={() => setRicercaCliente('')}
+                color="primary"
+                size="small"
+              />
+            )}
+            
+            <Divider orientation="vertical" flexItem />
+            
+            {/* Pulsante Totali Periodo */}
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<CalculateIcon />}
+              onClick={() => setDialogTotaliPeriodo(true)}
+              size="small"
+            >
+              Totali Periodo
+            </Button>
+            
+            {ricercaCliente && (
+              <Typography variant="body2" color="text.secondary">
+                Mostrando ordini di tutti i giorni per "{ricercaCliente}"
+              </Typography>
+            )}
+          </Box>
+        </Paper>
+        
         {/* ✅ NUOVO 10/12/2025: Totali Produzione per categoria */}
-        {!caricamento && (
+        {!caricamento && !ricercaCliente && (
           <TotaliProduzione ordini={ordini} dataSelezionata={dataSelezionata} />
         )}
         
@@ -1750,8 +2140,13 @@ return (
         ) : (
           <Grid container spacing={3}>
             <Grid item xs={12}>
+              {/* ✅ NUOVO: Passa ordini filtrati per cliente se ricerca attiva */}
               <OrdiniList 
-                ordini={ordini}
+                ordini={ricercaCliente ? ordini.filter(o => {
+                  const cliente = (o.cliente || '').toLowerCase();
+                  const search = ricercaCliente.toLowerCase();
+                  return cliente.includes(search);
+                }) : ordini}
                 onDelete={eliminaOrdine}
                 onEdit={(ordine, e) => {
                   // ✅ FIX 22/11/2025: Blocca apertura modifica se click su L/F/C
@@ -1774,6 +2169,7 @@ return (
                 }}
                 dataSelezionata={dataSelezionata}
                 isConnected={isConnected}
+                ricercaCliente={ricercaCliente}  // ✅ NUOVO: passa ricerca
               />
             </Grid>
           </Grid>
@@ -1926,6 +2322,53 @@ return (
           <DialogContent sx={{ p: 0 }}>
             <StatisticheChiamate />
           </DialogContent>
+        </Dialog>
+        
+        {/* ✅ NUOVO 11/12/2025: Dialog Totali per Periodo */}
+        <Dialog 
+          open={dialogTotaliPeriodo} 
+          onClose={() => setDialogTotaliPeriodo(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">📊 Totali Produzione per Periodo</Typography>
+              <IconButton onClick={() => setDialogTotaliPeriodo(false)} size="small">
+                ×
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', gap: 2, mb: 3, mt: 1 }}>
+              <TextField
+                type="date"
+                label="Data Inizio"
+                value={periodoInizio}
+                onChange={(e) => setPeriodoInizio(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+              <TextField
+                type="date"
+                label="Data Fine"
+                value={periodoFine}
+                onChange={(e) => setPeriodoFine(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+            </Box>
+            
+            {/* Calcola e mostra totali per il periodo */}
+            <TotaliPeriodoComponent 
+              ordini={ordini}
+              dataInizio={periodoInizio}
+              dataFine={periodoFine}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDialogTotaliPeriodo(false)}>Chiudi</Button>
+          </DialogActions>
         </Dialog>
                
         <Snackbar
