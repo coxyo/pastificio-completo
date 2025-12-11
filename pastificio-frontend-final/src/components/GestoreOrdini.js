@@ -2143,9 +2143,19 @@ return (
               {/* ✅ NUOVO: Passa ordini filtrati per cliente se ricerca attiva */}
               <OrdiniList 
                 ordini={ricercaCliente ? ordini.filter(o => {
-                  const cliente = (o.cliente || '').toLowerCase();
+                  // ✅ FIX: Gestisci cliente come stringa O oggetto
+                  let clienteStr = '';
+                  if (typeof o.cliente === 'string') {
+                    clienteStr = o.cliente;
+                  } else if (o.cliente && typeof o.cliente === 'object') {
+                    clienteStr = `${o.cliente.nome || ''} ${o.cliente.cognome || ''}`.trim();
+                  }
+                  // Fallback a nomeCliente se cliente è vuoto
+                  if (!clienteStr && o.nomeCliente) {
+                    clienteStr = o.nomeCliente;
+                  }
                   const search = ricercaCliente.toLowerCase();
-                  return cliente.includes(search);
+                  return clienteStr.toLowerCase().includes(search);
                 }) : ordini}
                 onDelete={eliminaOrdine}
                 onEdit={(ordine, e) => {
