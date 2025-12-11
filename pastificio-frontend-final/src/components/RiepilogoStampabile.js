@@ -938,49 +938,75 @@ const getNoteCombinateFiltrateHelper = (prodotto) => {
 
 
 const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
-  const quantitaNum = parseFloat(quantita) || 0;
-  
-  // ✅ FIX: Per vassoi, se quantità > 1 mostra la quantità originale
-  if (unita === 'vassoio' || (unita && unita.toLowerCase().includes('vass'))) {
-    // Se sono MULTIPLI vassoi, mostra la quantità originale
-    if (quantitaNum > 1) {
-      return `${Math.round(quantitaNum)} VASSOIO`;
-    }
-    
-    // Se è UN SINGOLO vassoio con composizione, calcola il peso
-    if (dettagliCalcolo?.composizione) {
-      const pesoTotale = dettagliCalcolo.composizione.reduce((acc, comp) => {
-        if (comp.unita === 'Kg') {
-          return acc + comp.quantita;
-        } else if (comp.unita === 'Pezzi') {
-          const pezziPerKg = getPezziPerKg(comp.nome);
-          if (pezziPerKg) {
-            return acc + Math.round((comp.quantita / pezziPerKg) * 100) / 100;
-          }
+
+  // ✅ Per vassoi, usa il peso dalla composizione
+
+  if (dettagliCalcolo?.composizione && unita === 'vassoio') {
+
+    const pesoTotale = dettagliCalcolo.composizione.reduce((acc, comp) => {
+
+      if (comp.unita === 'Kg') {
+
+        return acc + comp.quantita;
+
+      } else if (comp.unita === 'Pezzi') {
+
+        // Converti pezzi in kg se possibile
+
+        const pezziPerKg = getPezziPerKg(comp.nome);
+
+        if (pezziPerKg) {
+
+          return acc + Math.round((comp.quantita / pezziPerKg) * 100) / 100; // ✅ FIX precisione
+
         }
-        return acc;
-      }, 0);
-      
-      if (pesoTotale > 0) {
-        return `${pesoTotale.toFixed(1)} KG`;
+
       }
-    }
+
+      return acc;
+
+    }, 0);
+
     
-    return `1 VASSOIO`;
+
+    if (pesoTotale > 0) {
+
+      return `${pesoTotale.toFixed(1)} Kg`;
+
+    }
+
   }
+
+  
 
   // Normalizza l'unità
+
   const unitaNorm = unita?.toLowerCase()?.trim() || 'kg';
 
+  
+
   if (unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
-    return `${parseFloat(quantita).toFixed(1)} KG`;
+
+    return `${parseFloat(quantita).toFixed(1)} Kg`;
+
   } else if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
-    return `${Math.round(quantita)} PZ`;
+
+    return `${Math.round(quantita)} pz`;
+
   } else if (unitaNorm === '€' || unitaNorm === 'euro') {
+
     return `€${parseFloat(quantita).toFixed(2)}`;
+
+  } else if (unitaNorm === 'vassoio') {
+
+    return `1 vassoio`;
+
   }
 
-  return `${quantita} ${unita}`.toUpperCase();
+  
+
+  return `${quantita} ${unita}`;
+
 };
 
 
@@ -1008,7 +1034,8 @@ const formattaData = (data) => {
 
 
 // ✅ AGGIORNATO: Formatta quantità con moltiplicatore in MAIUSCOLO
-// ✅ FIX: Mostra quantità originale per vassoi multipli
+// ✅ FIX: Mostra quantità originale per vassoi multipli (es. "5 VASSOIO")
+
 const formattaQuantitaConCount = (prodotto, count) => {
   const qta = prodotto.quantita || 0;
   const unita = prodotto.unita || 'Kg';
@@ -1043,45 +1070,21 @@ const formattaQuantitaConCount = (prodotto, count) => {
       } else if (prezzoTotale > 0) {
         return count > 1 ? `${count} X €${prezzoTotale.toFixed(0)}` : `€${prezzoTotale.toFixed(0)}`;
       }
-
-    
-    
-    // 🔍 DEBUG: Log completo prodotto vassoio
-    if (pesoTotale === 0) {
-      console.log('⚠️ Vassoio con peso 0 - Tentativo recupero:', {
-        nome: prodotto.nome,
-        quantita: prodotto.quantita,
-        unita: prodotto.unita,
-        prezzo: prodotto.prezzo,
-        dettagliCalcolo: prodotto.dettagliCalcolo,
-        composizioneLength: prodotto.dettagliCalcolo?.composizione?.length || 0
-      });
-      
-      // Tentativo 1: Usa quantita del prodotto se > 0
-      if (qta > 0) {
-        return count > 1 ? `${count} X ${qta.toFixed(1)} KG` : `${qta.toFixed(1)} KG`;
-      }
     }
     
-
-    return count > 1 ? `${count} X ${qta || 1} ${unita.toUpperCase()}` : `${qta || 1} ${unita.toUpperCase()}`;
-
-  } else if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
-
-    return count > 1 ? `${count} X ${Math.round(qta)} PZ` : `${Math.round(qta)} PZ`;
-
-  } else if (unita === '€' || unitaNorm === 'euro') {
-
-    return count > 1 ? `${count} X €${qta}` : `€${qta}`;
-
-  } else {
-
-    const unitaMaiusc = unita.toUpperCase();
-
-    return count > 1 ? `${count} X ${qta} ${unitaMaiusc}` : `${qta} ${unitaMaiusc}`;
-
+    // Fallback per vassoio singolo senza composizione
+    return count > 1 ? `${count} X 1 VASSOIO` : `1 VASSOIO`;
   }
-
+  
+  // Altri tipi di unità
+  if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
+    return count > 1 ? `${count} X ${Math.round(qta)} PZ` : `${Math.round(qta)} PZ`;
+  } else if (unita === '€' || unitaNorm === 'euro') {
+    return count > 1 ? `${count} X €${qta}` : `€${qta}`;
+  } else {
+    const unitaMaiusc = unita.toUpperCase();
+    return count > 1 ? `${count} X ${qta} ${unitaMaiusc}` : `${qta} ${unitaMaiusc}`;
+  }
 };
 
 
