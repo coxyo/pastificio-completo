@@ -1710,32 +1710,108 @@ clienteIdPreselezionato,
         {/* SEZIONI COMUNI */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
           
-          {/* SEZIONE CLIENTE */}
+          {/* SEZIONE CLIENTE - SEMPLIFICATA */}
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <PersonIcon /> Dati Cliente
             </Typography>
             
+            {/* ✅ CAMPO UNICO: Autocomplete freeSolo - digiti nome e suggerisce se esiste */}
             <Autocomplete
+              freeSolo
               options={clienti}
-              getOptionLabel={(option) => 
-                `${option.nome} ${option.cognome || ''} - ${option.telefono}`.trim()
-              }
-              value={formData.cliente}
-              onChange={handleClienteChange}
+              getOptionLabel={(option) => {
+                // Se è una stringa (digitata a mano), ritorna la stringa
+                if (typeof option === 'string') return option;
+                // Se è un oggetto cliente, mostra nome completo
+                return `${option.nome} ${option.cognome || ''}`.trim();
+              }}
+              filterOptions={(options, { inputValue }) => {
+                const input = inputValue.toLowerCase().trim();
+                if (!input) return options.slice(0, 10); // Mostra primi 10 se vuoto
+                return options.filter(opt => {
+                  const nomeCompleto = `${opt.nome} ${opt.cognome || ''}`.toLowerCase();
+                  const telefono = (opt.telefono || '').toLowerCase();
+                  return nomeCompleto.includes(input) || telefono.includes(input);
+                }).slice(0, 10);
+              }}
+              value={formData.cliente || formData.nomeCliente}
+              inputValue={formData.nomeCliente}
+              onInputChange={(event, newInputValue) => {
+                // Aggiorna il nome mentre digiti
+                setFormData(prev => ({
+                  ...prev,
+                  nomeCliente: newInputValue
+                }));
+              }}
+              onChange={(event, newValue) => {
+                if (newValue && typeof newValue === 'object') {
+                  // Selezionato un cliente esistente dal dropdown
+                  setFormData(prev => ({
+                    ...prev,
+                    cliente: newValue,
+                    nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
+                    telefono: newValue.telefono || ''
+                  }));
+                } else if (typeof newValue === 'string') {
+                  // Digitato un nome nuovo (premuto Enter)
+                  setFormData(prev => ({
+                    ...prev,
+                    cliente: null,
+                    nomeCliente: newValue,
+                    telefono: ''
+                  }));
+                } else {
+                  // Cancellato
+                  setFormData(prev => ({
+                    ...prev,
+                    cliente: null,
+                    nomeCliente: '',
+                    telefono: ''
+                  }));
+                }
+              }}
               loading={loadingClienti}
               loadingText="Caricamento clienti..."
-              noOptionsText={loadingClienti ? "Caricamento..." : "Nessun cliente trovato"}
+              renderOption={(props, option) => (
+                <li {...props} key={option._id || option.nome}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="body1" fontWeight="bold">
+                      {option.nome} {option.cognome || ''}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      📞 {option.telefono || 'N/D'}
+                    </Typography>
+                  </Box>
+                </li>
+              )}
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Cliente *"
-                  placeholder="Cerca cliente esistente"
+                  label="Nome Cliente *"
+                  placeholder="Digita nome o cerca cliente esistente..."
+                  helperText={
+                    formData.cliente 
+                      ? `✅ Cliente esistente: ${formData.cliente.telefono || 'tel. non disponibile'}`
+                      : formData.nomeCliente && clienti.some(c => 
+                          `${c.nome} ${c.cognome || ''}`.toLowerCase().includes(formData.nomeCliente.toLowerCase())
+                        )
+                        ? '💡 Esistono clienti con nome simile - seleziona dal menu o continua per nuovo'
+                        : ''
+                  }
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
                       <>
                         {loadingClienti ? <CircularProgress color="inherit" size={20} /> : null}
+                        {formData.cliente && (
+                          <Chip 
+                            size="small" 
+                            label="Cliente esistente" 
+                            color="success" 
+                            sx={{ mr: 1 }}
+                          />
+                        )}
                         {params.InputProps.endAdornment}
                       </>
                     ),
@@ -1743,23 +1819,6 @@ clienteIdPreselezionato,
                 />
               )}
             />
-
-            {!formData.cliente && (
-              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Nome Cliente *"
-                  value={formData.nomeCliente}
-                  onChange={(e) => setFormData({ ...formData, nomeCliente: e.target.value })}
-                />
-                <TextField
-                  fullWidth
-                  label="Telefono"
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                />
-              </Box>
-            )}
           </Paper>
 
           {/* Data e Ora */}
