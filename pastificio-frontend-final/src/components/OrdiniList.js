@@ -574,41 +574,62 @@ Pastificio Nonna Claudia`;
                       let quantitaEffettiva = prodotto.quantita || 0;
                       let unitaEffettiva = prodotto.unitaMisura || prodotto.unita || 'Kg';
                       
-                      // ✅ FIX: Per i vassoi, mostra la quantità originale se > 1
+                      // ✅ FIX VASSOI: Mostra moltiplicatore corretto con peso/composizione
                       if (prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio') {
-                        const quantitaOriginale = parseFloat(prodotto.quantita) || 1;
+                        const quantitaVassoi = parseFloat(prodotto.quantita) || 1;
                         
-                        // Se sono MULTIPLI vassoi (es. 5 vassoio), mostra la quantità originale
-                        if (quantitaOriginale > 1) {
-                          quantitaEffettiva = quantitaOriginale;
-                          unitaEffettiva = 'vassoio';
+                        // Calcola peso totale dalla composizione
+                        let pesoTotale = 0;
+                        if (prodotto.dettagliCalcolo?.pesoTotale) {
+                          pesoTotale = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                        } else if (prodotto.dettagliCalcolo?.composizione) {
+                          pesoTotale = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
+                            const unitaItem = (item.unita || '').toLowerCase();
+                            if (unitaItem === 'kg') {
+                              return sum + (parseFloat(item.quantita) || 0);
+                            }
+                            return sum;
+                          }, 0);
                         }
-                        // Se è UN SINGOLO vassoio, mostra il peso dalla composizione
-                        else {
-                          // Priorità 1: Usa pesoTotale se esiste
-                          if (prodotto.dettagliCalcolo?.pesoTotale) {
-                            quantitaEffettiva = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                        
+                        // Se la composizione è in Pezzi, crea stringa abbreviata
+                        let composizioneAbbr = '';
+                        if (prodotto.dettagliCalcolo?.composizione) {
+                          const pezziItems = prodotto.dettagliCalcolo.composizione.filter(
+                            item => (item.unita || '').toLowerCase() === 'pezzi'
+                          );
+                          if (pezziItems.length > 0) {
+                            composizioneAbbr = pezziItems.map(item => {
+                              const iniziale = item.nome.charAt(0).toUpperCase();
+                              return `${iniziale}${Math.round(item.quantita)}`;
+                            }).join(' ');
                           }
-                          // Priorità 2: Calcola dalla composizione (solo Kg)
-                          else if (prodotto.dettagliCalcolo?.composizione) {
-                            quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
-                              const unitaItem = (item.unita || '').toLowerCase();
-                              if (unitaItem === 'kg') {
-                                return sum + (parseFloat(item.quantita) || 0);
-                              }
-                              return sum;
-                            }, 0);
-                          }
-                          // Priorità 3: Fallback a 1 kg
-                          else {
-                            quantitaEffettiva = 1;
-                          }
+                        }
+                        
+                        // Determina cosa mostrare: peso o composizione abbreviata
+                        if (pesoTotale > 0) {
+                          // Calcola peso per singolo vassoio
+                          const pesoSingolo = quantitaVassoi > 1 ? pesoTotale / quantitaVassoi : pesoTotale;
+                          quantitaEffettiva = Math.round(pesoSingolo * 100) / 100;
                           unitaEffettiva = 'Kg';
+                        } else if (composizioneAbbr) {
+                          // Usa composizione abbreviata come "unità"
+                          quantitaEffettiva = 1;
+                          unitaEffettiva = composizioneAbbr;
+                        } else {
+                          quantitaEffettiva = 1;
+                          unitaEffettiva = 'vassoio';
                         }
                       }
                       
-                      const qtaDisplay = count > 1 
-                        ? `${count} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
+                      // ✅ FIX: Calcola moltiplicatore totale (ordini raggruppati * quantità vassoi)
+                      const quantitaVassoiProdotto = (prodotto.nome === 'Vassoio Dolci Misti' || (prodotto.unita || '').toLowerCase() === 'vassoio') 
+                        ? (parseFloat(prodotto.quantita) || 1) 
+                        : 1;
+                      const moltiplicatoreTotale = count * quantitaVassoiProdotto;
+                      
+                      const qtaDisplay = moltiplicatoreTotale > 1 
+                        ? `${moltiplicatoreTotale} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
                         : `${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}`;
 
                       let composizioneDisplay = '';
@@ -914,41 +935,62 @@ Pastificio Nonna Claudia`;
                       let quantitaEffettiva = prodotto.quantita || 0;
                       let unitaEffettiva = prodotto.unitaMisura || prodotto.unita || 'Kg';
                       
-                      // ✅ FIX: Per i vassoi, mostra la quantità originale se > 1
+                      // ✅ FIX VASSOI: Mostra moltiplicatore corretto con peso/composizione
                       if (prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio') {
-                        const quantitaOriginale = parseFloat(prodotto.quantita) || 1;
+                        const quantitaVassoi = parseFloat(prodotto.quantita) || 1;
                         
-                        // Se sono MULTIPLI vassoi (es. 5 vassoio), mostra la quantità originale
-                        if (quantitaOriginale > 1) {
-                          quantitaEffettiva = quantitaOriginale;
-                          unitaEffettiva = 'vassoio';
+                        // Calcola peso totale dalla composizione
+                        let pesoTotale = 0;
+                        if (prodotto.dettagliCalcolo?.pesoTotale) {
+                          pesoTotale = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                        } else if (prodotto.dettagliCalcolo?.composizione) {
+                          pesoTotale = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
+                            const unitaItem = (item.unita || '').toLowerCase();
+                            if (unitaItem === 'kg') {
+                              return sum + (parseFloat(item.quantita) || 0);
+                            }
+                            return sum;
+                          }, 0);
                         }
-                        // Se è UN SINGOLO vassoio, mostra il peso dalla composizione
-                        else {
-                          // Priorità 1: Usa pesoTotale se esiste
-                          if (prodotto.dettagliCalcolo?.pesoTotale) {
-                            quantitaEffettiva = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                        
+                        // Se la composizione è in Pezzi, crea stringa abbreviata
+                        let composizioneAbbr = '';
+                        if (prodotto.dettagliCalcolo?.composizione) {
+                          const pezziItems = prodotto.dettagliCalcolo.composizione.filter(
+                            item => (item.unita || '').toLowerCase() === 'pezzi'
+                          );
+                          if (pezziItems.length > 0) {
+                            composizioneAbbr = pezziItems.map(item => {
+                              const iniziale = item.nome.charAt(0).toUpperCase();
+                              return `${iniziale}${Math.round(item.quantita)}`;
+                            }).join(' ');
                           }
-                          // Priorità 2: Calcola dalla composizione (solo Kg)
-                          else if (prodotto.dettagliCalcolo?.composizione) {
-                            quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
-                              const unitaItem = (item.unita || '').toLowerCase();
-                              if (unitaItem === 'kg') {
-                                return sum + (parseFloat(item.quantita) || 0);
-                              }
-                              return sum;
-                            }, 0);
-                          }
-                          // Priorità 3: Fallback a 1 kg
-                          else {
-                            quantitaEffettiva = 1;
-                          }
+                        }
+                        
+                        // Determina cosa mostrare: peso o composizione abbreviata
+                        if (pesoTotale > 0) {
+                          // Calcola peso per singolo vassoio
+                          const pesoSingolo = quantitaVassoi > 1 ? pesoTotale / quantitaVassoi : pesoTotale;
+                          quantitaEffettiva = Math.round(pesoSingolo * 100) / 100;
                           unitaEffettiva = 'Kg';
+                        } else if (composizioneAbbr) {
+                          // Usa composizione abbreviata come "unità"
+                          quantitaEffettiva = 1;
+                          unitaEffettiva = composizioneAbbr;
+                        } else {
+                          quantitaEffettiva = 1;
+                          unitaEffettiva = 'vassoio';
                         }
                       }
                       
-                      const qtaDisplay = count > 1 
-                        ? `${count} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
+                      // ✅ FIX: Calcola moltiplicatore totale (ordini raggruppati * quantità vassoi)
+                      const quantitaVassoiProdotto = (prodotto.nome === 'Vassoio Dolci Misti' || (prodotto.unita || '').toLowerCase() === 'vassoio') 
+                        ? (parseFloat(prodotto.quantita) || 1) 
+                        : 1;
+                      const moltiplicatoreTotale = count * quantitaVassoiProdotto;
+                      
+                      const qtaDisplay = moltiplicatoreTotale > 1 
+                        ? `${moltiplicatoreTotale} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
                         : `${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}`;
                 
                 let composizioneDisplay = '';
