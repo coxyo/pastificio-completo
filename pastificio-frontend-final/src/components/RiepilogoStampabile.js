@@ -1077,9 +1077,8 @@ const formattaQuantitaConCount = (prodotto, count) => {
     
     // Determina cosa mostrare
     if (pesoTotale > 0) {
-      // Calcola peso per singolo vassoio
-      const pesoSingolo = quantitaVassoi > 1 ? pesoTotale / quantitaVassoi : pesoTotale;
-      const pesoDisplay = Math.round(pesoSingolo * 10) / 10;
+      // ✅ FIX: Il peso dalla composizione è GIÀ per singolo vassoio, NON dividere!
+      const pesoDisplay = Math.round(pesoTotale * 10) / 10;
       return moltiplicatore > 1 ? `${moltiplicatore} X ${pesoDisplay} KG` : `${pesoDisplay} KG`;
     } else if (composizioneAbbr) {
       // Usa composizione abbreviata per items in pezzi
