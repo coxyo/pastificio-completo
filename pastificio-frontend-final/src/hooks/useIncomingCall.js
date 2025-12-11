@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+
 export default function useIncomingCall() {
   const [chiamataCorrente, setChiamataCorrente] = useState(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   const [pusherService, setPusherService] = useState(null);
   
-  // Ref per prevenire chiamate duplicate
+  // Ref per prevenire chiamate duplicate - timeout più lungo
   const lastCallIdRef = useRef(null);
   const resetTimeoutRef = useRef(null);
 
@@ -19,6 +21,58 @@ export default function useIncomingCall() {
     console.log('  - isPopupOpen:', isPopupOpen);
     console.log('  - connected:', connected);
   }, [chiamataCorrente, isPopupOpen, connected]);
+
+  // ✅ NUOVO: Salva chiamata nel database
+  const salvaChiamataDB = useCallback(async (callData) => {
+    try {
+      const response = await fetch(`${API_URL}/chiamate/webhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-KEY': 'pastificio-chiamate-2025'
+        },
+        body: JSON.stringify({
+          numero: callData.numero,
+          timestamp: callData.timestamp || new Date().toISOString(),
+          cliente: callData.cliente || null,
+          clienteTrovato: !!callData.cliente,
+          sorgente: 'pusher-frontend'
+        })
+      });
+      
+      if (response.ok) {
+        console.log('✅ [useIncomingCall] Chiamata salvata nel database');
+      } else {
+        console.warn('⚠️ [useIncomingCall] Errore salvataggio chiamata:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ [useIncomingCall] Errore salvataggio chiamata:', error);
+    }
+  }, []);
+
+  // ✅ NUOVO: Salva chiamata in localStorage per persistenza locale
+  const salvaChiamataLocale = useCallback((callData) => {
+    try {
+      const storageKey = 'pastificio_chiamate_recenti';
+      const chiamateEsistenti = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      
+      // Aggiungi nuova chiamata all'inizio
+      const nuovaChiamata = {
+        ...callData,
+        id: `${callData.numero}_${Date.now()}`,
+        savedAt: new Date().toISOString(),
+        status: 'ricevuta'
+      };
+      
+      // Mantieni solo ultime 50 chiamate
+      const chiamateAggiornate = [nuovaChiamata, ...chiamateEsistenti].slice(0, 50);
+      localStorage.setItem(storageKey, JSON.stringify(chiamateAggiornate));
+      
+      console.log('✅ [useIncomingCall] Chiamata salvata in localStorage');
+    } catch (error) {
+      console.error('❌ [useIncomingCall] Errore salvataggio locale:', error);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -74,9 +128,9 @@ export default function useIncomingCall() {
         const chiamataUniqueId = `${callData.numero}_${callData.timestamp}`;
         const now = Date.now();
         
-        // Debounce: Ignora se stesso evento entro 500ms
+        // ✅ FIX: Debounce più lungo - 2 secondi invece di 500ms
         if (lastCallIdRef.current?.id === chiamataUniqueId && 
-            now - lastCallIdRef.current.time < 500) {
+            now - lastCallIdRef.current.time < 2000) {
           console.log('⚠️ [useIncomingCall] Evento duplicato ignorato:', chiamataUniqueId);
           return;
         }
@@ -87,13 +141,21 @@ export default function useIncomingCall() {
           time: now
         };
         
-        // Auto-reset dopo 1 secondo
-        setTimeout(() => {
+        // ✅ FIX: Reset dopo 30 SECONDI invece di 1 secondo
+        // Questo permette all'utente di vedere il popup abbastanza a lungo
+        if (resetTimeoutRef.current) {
+          clearTimeout(resetTimeoutRef.current);
+        }
+        resetTimeoutRef.current = setTimeout(() => {
           if (lastCallIdRef.current?.id === chiamataUniqueId) {
-            console.log('🔄 [useIncomingCall] Reset lastCallId per pulizia');
+            console.log('🔄 [useIncomingCall] Reset lastCallId dopo 30s');
             lastCallIdRef.current = null;
           }
-        }, 1000);
+        }, 30000); // 30 secondi
+        
+        // ✅ NUOVO: Salva chiamata PRIMA di mostrare popup
+        salvaChiamataLocale(callData);
+        salvaChiamataDB(callData);
         
         // ✅ AGGIORNA STATE + APRI POPUP
         setChiamataCorrente(callData);
@@ -138,11 +200,28 @@ export default function useIncomingCall() {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     });
-  }, []);
+  }, [salvaChiamataDB, salvaChiamataLocale]);
 
-  // ✅ FIX: Handler per chiudere popup (Ignora) - chiusura IMMEDIATA
+  // ✅ FIX: Handler per chiudere popup (Ignora) - aggiorna status locale
   const handleClosePopup = useCallback(() => {
     console.log('🔴 [useIncomingCall] Chiusura popup (Ignora)');
+    
+    // ✅ NUOVO: Aggiorna status chiamata in localStorage
+    if (chiamataCorrente) {
+      try {
+        const storageKey = 'pastificio_chiamate_recenti';
+        const chiamate = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const chiamateAggiornate = chiamate.map(c => {
+          if (c.numero === chiamataCorrente.numero && c.status === 'ricevuta') {
+            return { ...c, status: 'ignorata', closedAt: new Date().toISOString() };
+          }
+          return c;
+        });
+        localStorage.setItem(storageKey, JSON.stringify(chiamateAggiornate));
+      } catch (error) {
+        console.error('Errore aggiornamento status:', error);
+      }
+    }
     
     // Pulisci timeout se presente
     if (resetTimeoutRef.current) {
@@ -153,14 +232,31 @@ export default function useIncomingCall() {
     // ✅ Chiudi popup IMMEDIATAMENTE
     setIsPopupOpen(false);
     setChiamataCorrente(null);
-    lastCallIdRef.current = null;
+    // ✅ FIX: NON resettare lastCallIdRef qui - mantienilo per prevenire duplicati
     
     console.log('✅ [useIncomingCall] Popup chiuso');
-  }, []);
+  }, [chiamataCorrente]);
 
-  // ✅ FIX: Handler per accettare chiamata - chiusura IMMEDIATA
+  // ✅ FIX: Handler per accettare chiamata - aggiorna status locale
   const handleAcceptCall = useCallback(() => {
     console.log('🟢 [useIncomingCall] Chiamata accettata');
+    
+    // ✅ NUOVO: Aggiorna status chiamata in localStorage
+    if (chiamataCorrente) {
+      try {
+        const storageKey = 'pastificio_chiamate_recenti';
+        const chiamate = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const chiamateAggiornate = chiamate.map(c => {
+          if (c.numero === chiamataCorrente.numero && c.status === 'ricevuta') {
+            return { ...c, status: 'accettata', acceptedAt: new Date().toISOString() };
+          }
+          return c;
+        });
+        localStorage.setItem(storageKey, JSON.stringify(chiamateAggiornate));
+      } catch (error) {
+        console.error('Errore aggiornamento status:', error);
+      }
+    }
     
     // Pulisci timeout se presente
     if (resetTimeoutRef.current) {
@@ -171,16 +267,14 @@ export default function useIncomingCall() {
     // ✅ Chiudi popup IMMEDIATAMENTE
     setIsPopupOpen(false);
     
-    // ✅ Mantieni chiamataCorrente per 5 secondi (per localStorage in ClientLayout)
-    // poi pulisci automaticamente
+    // ✅ Mantieni chiamataCorrente per 10 secondi (per form NuovoOrdine)
     resetTimeoutRef.current = setTimeout(() => {
       console.log('🧹 [useIncomingCall] Auto-reset chiamataCorrente dopo accettazione');
       setChiamataCorrente(null);
-      lastCallIdRef.current = null;
-    }, 5000);
+    }, 10000); // 10 secondi invece di 5
     
-    console.log('✅ [useIncomingCall] Popup chiuso, dati mantenuti per 5s');
-  }, []);
+    console.log('✅ [useIncomingCall] Popup chiuso, dati mantenuti per 10s');
+  }, [chiamataCorrente]);
 
   // clearChiamata - pulizia completa
   const clearChiamata = useCallback(() => {
@@ -193,7 +287,18 @@ export default function useIncomingCall() {
     
     setChiamataCorrente(null);
     setIsPopupOpen(false);
-    lastCallIdRef.current = null;
+    // ✅ FIX: NON resettare lastCallIdRef qui
+  }, []);
+
+  // ✅ NUOVO: Funzione per ottenere storico chiamate locale
+  const getStoricoChiamateLocale = useCallback(() => {
+    try {
+      const storageKey = 'pastificio_chiamate_recenti';
+      return JSON.parse(localStorage.getItem(storageKey) || '[]');
+    } catch (error) {
+      console.error('Errore lettura storico:', error);
+      return [];
+    }
   }, []);
 
   // Cleanup timeout on unmount
@@ -212,6 +317,7 @@ export default function useIncomingCall() {
     handleAcceptCall,
     clearChiamata,
     connected,
-    pusherService
+    pusherService,
+    getStoricoChiamateLocale  // ✅ NUOVO: esponi storico locale
   };
 }
