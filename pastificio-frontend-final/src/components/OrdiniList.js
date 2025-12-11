@@ -608,9 +608,8 @@ Pastificio Nonna Claudia`;
                         
                         // Determina cosa mostrare: peso o composizione abbreviata
                         if (pesoTotale > 0) {
-                          // Calcola peso per singolo vassoio
-                          const pesoSingolo = quantitaVassoi > 1 ? pesoTotale / quantitaVassoi : pesoTotale;
-                          quantitaEffettiva = Math.round(pesoSingolo * 100) / 100;
+                          // ✅ FIX: Il peso dalla composizione è GIÀ per singolo vassoio, NON dividere!
+                          quantitaEffettiva = Math.round(pesoTotale * 100) / 100;
                           unitaEffettiva = 'Kg';
                         } else if (composizioneAbbr) {
                           // Usa composizione abbreviata come "unità"
@@ -969,9 +968,8 @@ Pastificio Nonna Claudia`;
                         
                         // Determina cosa mostrare: peso o composizione abbreviata
                         if (pesoTotale > 0) {
-                          // Calcola peso per singolo vassoio
-                          const pesoSingolo = quantitaVassoi > 1 ? pesoTotale / quantitaVassoi : pesoTotale;
-                          quantitaEffettiva = Math.round(pesoSingolo * 100) / 100;
+                          // ✅ FIX: Il peso dalla composizione è GIÀ per singolo vassoio, NON dividere!
+                          quantitaEffettiva = Math.round(pesoTotale * 100) / 100;
                           unitaEffettiva = 'Kg';
                         } else if (composizioneAbbr) {
                           // Usa composizione abbreviata come "unità"
