@@ -1033,26 +1033,22 @@ const formattaData = (data) => {
 
 
 
-// ✅ AGGIORNATO: Formatta quantità con moltiplicatore in MAIUSCOLO
-// ✅ FIX: Mostra quantità originale per vassoi multipli (es. "5 VASSOIO")
-
+// ✅ FIX: Formatta quantità con moltiplicatore corretto per vassoi
 const formattaQuantitaConCount = (prodotto, count) => {
-  const qta = prodotto.quantita || 0;
+  const qta = parseFloat(prodotto.quantita) || 0;
   const unita = prodotto.unita || 'Kg';
   const unitaNorm = unita.toLowerCase();
 
-  // ✅ FIX: Per vassoi, controlla PRIMA se sono multipli
+  // ✅ FIX VASSOI: Mostra moltiplicatore corretto e peso/composizione
   if (unitaNorm === 'vassoio' || unitaNorm.includes('vass')) {
-    // Se sono MULTIPLI vassoi (es. 5 vassoio), mostra la quantità originale
-    if (qta > 1) {
-      return count > 1 ? `${count} X ${Math.round(qta)} VASSOIO` : `${Math.round(qta)} VASSOIO`;
-    }
+    const quantitaVassoi = qta > 0 ? qta : 1;
     
-    // Se è UN SINGOLO vassoio con composizione, calcola il peso
+    // Calcola peso totale dalla composizione
+    let pesoTotale = 0;
+    let composizioneAbbr = '';
+    
     if (prodotto.dettagliCalcolo?.composizione) {
-      let pesoTotale = 0;
-      let prezzoTotale = prodotto.prezzo || 0;
-
+      // Calcola peso (solo items in Kg)
       prodotto.dettagliCalcolo.composizione.forEach(comp => {
         if (comp.unita === 'Kg') {
           pesoTotale += comp.quantita;
@@ -1063,17 +1059,39 @@ const formattaQuantitaConCount = (prodotto, count) => {
           }
         }
       });
-
-      // Mostra peso se > 0, altrimenti prezzo
-      if (pesoTotale > 0) {
-        return count > 1 ? `${count} X ${pesoTotale.toFixed(1)} KG` : `${pesoTotale.toFixed(1)} KG`;
-      } else if (prezzoTotale > 0) {
-        return count > 1 ? `${count} X €${prezzoTotale.toFixed(0)}` : `€${prezzoTotale.toFixed(0)}`;
+      
+      // Crea abbreviazione per items in Pezzi (es. "P10 C10")
+      const pezziItems = prodotto.dettagliCalcolo.composizione.filter(
+        item => (item.unita || '').toLowerCase() === 'pezzi'
+      );
+      if (pezziItems.length > 0) {
+        composizioneAbbr = pezziItems.map(item => {
+          const iniziale = item.nome.charAt(0).toUpperCase();
+          return `${iniziale}${Math.round(item.quantita)}`;
+        }).join(' ');
       }
     }
     
-    // Fallback per vassoio singolo senza composizione
-    return count > 1 ? `${count} X 1 VASSOIO` : `1 VASSOIO`;
+    // Calcola moltiplicatore totale = ordini raggruppati * vassoi per ordine
+    const moltiplicatore = count * quantitaVassoi;
+    
+    // Determina cosa mostrare
+    if (pesoTotale > 0) {
+      // Calcola peso per singolo vassoio
+      const pesoSingolo = quantitaVassoi > 1 ? pesoTotale / quantitaVassoi : pesoTotale;
+      const pesoDisplay = Math.round(pesoSingolo * 10) / 10;
+      return moltiplicatore > 1 ? `${moltiplicatore} X ${pesoDisplay} KG` : `${pesoDisplay} KG`;
+    } else if (composizioneAbbr) {
+      // Usa composizione abbreviata per items in pezzi
+      return moltiplicatore > 1 ? `${moltiplicatore} X ${composizioneAbbr}` : composizioneAbbr;
+    } else {
+      // Fallback: mostra prezzo se disponibile
+      const prezzoTotale = prodotto.prezzo || 0;
+      if (prezzoTotale > 0) {
+        return moltiplicatore > 1 ? `${moltiplicatore} X €${Math.round(prezzoTotale)}` : `€${Math.round(prezzoTotale)}`;
+      }
+      return moltiplicatore > 1 ? `${moltiplicatore} VASSOIO` : `1 VASSOIO`;
+    }
   }
   
   // Altri tipi di unità
