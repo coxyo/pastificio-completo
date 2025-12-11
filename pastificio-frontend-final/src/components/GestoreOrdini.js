@@ -2177,9 +2177,10 @@ return (
                   setOrdineSelezionato(null);
                   setDialogoNuovoOrdineAperto(true);
                 }}
-                dataSelezionata={dataSelezionata}
+                dataSelezionata={ricercaCliente ? null : dataSelezionata}  // ✅ FIX: null quando ricerca attiva
                 isConnected={isConnected}
                 ricercaCliente={ricercaCliente}  // ✅ NUOVO: passa ricerca
+                mostraTutteLeDate={!!ricercaCliente}  // ✅ NUOVO: flag per mostrare tutte le date
               />
             </Grid>
           </Grid>
