@@ -574,29 +574,37 @@ Pastificio Nonna Claudia`;
                       let quantitaEffettiva = prodotto.quantita || 0;
                       let unitaEffettiva = prodotto.unitaMisura || prodotto.unita || 'Kg';
                       
-                      // ✅ Per i vassoi, usa pesoTotale se esiste, altrimenti calcola dalla composizione
+                      // ✅ FIX: Per i vassoi, mostra la quantità originale se > 1
                       if (prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio') {
+                        const quantitaOriginale = parseFloat(prodotto.quantita) || 1;
                         
-                        // Priorità 1: Usa pesoTotale se esiste
-                        if (prodotto.dettagliCalcolo?.pesoTotale) {
-                          quantitaEffettiva = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                        // Se sono MULTIPLI vassoi (es. 5 vassoio), mostra la quantità originale
+                        if (quantitaOriginale > 1) {
+                          quantitaEffettiva = quantitaOriginale;
+                          unitaEffettiva = 'vassoio';
                         }
-                        // Priorità 2: Calcola dalla composizione (solo Kg)
-                        else if (prodotto.dettagliCalcolo?.composizione) {
-                          quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
-                            const unitaItem = (item.unita || '').toLowerCase();
-                            if (unitaItem === 'kg') {
-                              return sum + (parseFloat(item.quantita) || 0);
-                            }
-                            return sum;
-                          }, 0);
-                        }
-                        // Priorità 3: Fallback a 1 kg
+                        // Se è UN SINGOLO vassoio, mostra il peso dalla composizione
                         else {
-                          quantitaEffettiva = 1;
+                          // Priorità 1: Usa pesoTotale se esiste
+                          if (prodotto.dettagliCalcolo?.pesoTotale) {
+                            quantitaEffettiva = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                          }
+                          // Priorità 2: Calcola dalla composizione (solo Kg)
+                          else if (prodotto.dettagliCalcolo?.composizione) {
+                            quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
+                              const unitaItem = (item.unita || '').toLowerCase();
+                              if (unitaItem === 'kg') {
+                                return sum + (parseFloat(item.quantita) || 0);
+                              }
+                              return sum;
+                            }, 0);
+                          }
+                          // Priorità 3: Fallback a 1 kg
+                          else {
+                            quantitaEffettiva = 1;
+                          }
+                          unitaEffettiva = 'Kg';
                         }
-                        
-                        unitaEffettiva = 'Kg';
                       }
                       
                       const qtaDisplay = count > 1 
@@ -906,29 +914,37 @@ Pastificio Nonna Claudia`;
                       let quantitaEffettiva = prodotto.quantita || 0;
                       let unitaEffettiva = prodotto.unitaMisura || prodotto.unita || 'Kg';
                       
-                      // ✅ Per i vassoi, usa pesoTotale se esiste, altrimenti calcola dalla composizione
+                      // ✅ FIX: Per i vassoi, mostra la quantità originale se > 1
                       if (prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio') {
+                        const quantitaOriginale = parseFloat(prodotto.quantita) || 1;
                         
-                        // Priorità 1: Usa pesoTotale se esiste
-                        if (prodotto.dettagliCalcolo?.pesoTotale) {
-                          quantitaEffettiva = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                        // Se sono MULTIPLI vassoi (es. 5 vassoio), mostra la quantità originale
+                        if (quantitaOriginale > 1) {
+                          quantitaEffettiva = quantitaOriginale;
+                          unitaEffettiva = 'vassoio';
                         }
-                        // Priorità 2: Calcola dalla composizione (solo Kg)
-                        else if (prodotto.dettagliCalcolo?.composizione) {
-                          quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
-                            const unitaItem = (item.unita || '').toLowerCase();
-                            if (unitaItem === 'kg') {
-                              return sum + (parseFloat(item.quantita) || 0);
-                            }
-                            return sum;
-                          }, 0);
-                        }
-                        // Priorità 3: Fallback a 1 kg
+                        // Se è UN SINGOLO vassoio, mostra il peso dalla composizione
                         else {
-                          quantitaEffettiva = 1;
+                          // Priorità 1: Usa pesoTotale se esiste
+                          if (prodotto.dettagliCalcolo?.pesoTotale) {
+                            quantitaEffettiva = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                          }
+                          // Priorità 2: Calcola dalla composizione (solo Kg)
+                          else if (prodotto.dettagliCalcolo?.composizione) {
+                            quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
+                              const unitaItem = (item.unita || '').toLowerCase();
+                              if (unitaItem === 'kg') {
+                                return sum + (parseFloat(item.quantita) || 0);
+                              }
+                              return sum;
+                            }, 0);
+                          }
+                          // Priorità 3: Fallback a 1 kg
+                          else {
+                            quantitaEffettiva = 1;
+                          }
+                          unitaEffettiva = 'Kg';
                         }
-                        
-                        unitaEffettiva = 'Kg';
                       }
                       
                       const qtaDisplay = count > 1 
