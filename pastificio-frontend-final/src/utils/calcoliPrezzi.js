@@ -1,5 +1,6 @@
-// utils/calcoliPrezzi.js - ✅ FIX CALCOLO PARDULAS E PRODOTTI A PEZZO
+// utils/calcoliPrezzi.js - ✅ FIX 12/12/2025
 // Logica di calcolo prezzi basata su configurazione prodotti
+// MIGLIORATO: Gestisce prodotti non in config usando prezzo esistente
 
 import { getProdottoConfig, MODALITA_VENDITA, UNITA_MISURA } from '../config/prodottiConfig';
 
@@ -8,13 +9,40 @@ import { getProdottoConfig, MODALITA_VENDITA, UNITA_MISURA } from '../config/pro
  * @param {string} nomeProdotto - Nome del prodotto
  * @param {number} quantita - Quantità ordinata
  * @param {string} unitaMisura - Unità di misura (Kg, Pezzi, Unità, €)
+ * @param {number} prezzoEsistente - (NUOVO) Prezzo già presente nell'ordine, usato come fallback
  * @returns {Object} { prezzoTotale, kg, pezzi, dettagli }
  */
-export const calcolaPrezzoOrdine = (nomeProdotto, quantita, unitaMisura) => {
+export const calcolaPrezzoOrdine = (nomeProdotto, quantita, unitaMisura, prezzoEsistente = null) => {
   const config = getProdottoConfig(nomeProdotto);
   
+  // ✅ FIX: Se prodotto non trovato, usa prezzo esistente se disponibile
   if (!config) {
-    throw new Error(`Prodotto "${nomeProdotto}" non trovato in configurazione`);
+    if (prezzoEsistente !== null && prezzoEsistente > 0) {
+      console.warn(`⚠️ Prodotto "${nomeProdotto}" non in config, uso prezzo esistente: €${prezzoEsistente}`);
+      return {
+        prezzoTotale: parseFloat(prezzoEsistente),
+        kg: unitaMisura?.toLowerCase() === 'kg' ? quantita : 0,
+        pezzi: unitaMisura?.toLowerCase().includes('pezz') ? quantita : 0,
+        dettagli: `${quantita} ${unitaMisura || 'unità'} (prezzo manuale)`,
+        nomeProdotto: nomeProdotto,
+        unitaMisura: unitaMisura,
+        quantitaOriginale: quantita,
+        fromExisting: true
+      };
+    }
+    
+    // Se non c'è prezzo esistente, logga warning ma non bloccare
+    console.error(`❌ Prodotto "${nomeProdotto}" non trovato in configurazione e nessun prezzo esistente`);
+    return {
+      prezzoTotale: 0,
+      kg: 0,
+      pezzi: 0,
+      dettagli: `Prodotto non trovato`,
+      nomeProdotto: nomeProdotto,
+      unitaMisura: unitaMisura,
+      quantitaOriginale: quantita,
+      errore: true
+    };
   }
 
   let prezzoTotale = 0;
@@ -23,122 +51,203 @@ export const calcolaPrezzoOrdine = (nomeProdotto, quantita, unitaMisura) => {
   let dettagli = '';
 
   // ✅ Normalizza unità di misura (case-insensitive)
-  const unitaNormalizzata = (unitaMisura || 'kg').toLowerCase();
+  const unitaNormalizzata = (unitaMisura || 'kg').toLowerCase().trim();
 
-  switch (unitaNormalizzata) {
-    case 'kg':
-      // Ordine in KG
-      kg = quantita;
-      
-      if (!config.prezzoKg) {
-        throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/kg configurato`);
-      }
-      
-      prezzoTotale = quantita * config.prezzoKg;
-      
-      if (config.pezziPerKg) {
-        pezzi = Math.round(quantita * config.pezziPerKg);
-        dettagli = `${kg} kg (circa ${pezzi} pezzi)`;
-      } else {
-        dettagli = `${kg} kg`;
-      }
-      break;
-
-    case 'pezzi':
-    case 'pz':
-    case 'pezzo':
-    case 'pz.':
-      // ✅ FIX PRINCIPALE: Ordine in PEZZI
-      pezzi = quantita;
-      
-      // ✅ CASO 1: Prodotto venduto SOLO a pezzo (es. Sebadas)
-      if (config.modalitaVendita === MODALITA_VENDITA.SOLO_PEZZO) {
-        if (!config.prezzoPezzo) {
-          throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/pezzo configurato`);
-        }
-        
-        prezzoTotale = quantita * config.prezzoPezzo;
-        dettagli = `${pezzi} pezzi`;
-        
-        console.log(`✅ ${nomeProdotto} - SOLO_PEZZO: ${pezzi} × €${config.prezzoPezzo} = €${prezzoTotale.toFixed(2)}`);
-      } 
-      // ✅ CASO 2: Prodotto con conversione pezzi → kg (es. Pardulas, Culurgiones)
-      else if (config.pezziPerKg) {
-        if (!config.prezzoKg) {
-          throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/kg configurato`);
-        }
-        
-        // Converti pezzi in kg
-        kg = quantita / config.pezziPerKg;
-        
-        // Calcola prezzo basato sui kg
-        prezzoTotale = kg * config.prezzoKg;
-        
-        dettagli = `${pezzi} pezzi (${kg.toFixed(2)} kg)`;
-        
-        console.log(`✅ ${nomeProdotto} - PEZZI→KG: ${pezzi} pz ÷ ${config.pezziPerKg} × €${config.prezzoKg}/kg = €${prezzoTotale.toFixed(2)}`);
-      } 
-      else {
-        throw new Error(`Prodotto "${nomeProdotto}" non supporta vendita a pezzi`);
-      }
-      break;
-
-    case 'unità':
-    case 'unita':
-    case 'unitá':
-      // Ordine in UNITÀ (es. 1 torta di saba)
-      if (config.modalitaVendita === MODALITA_VENDITA.PESO_VARIABILE) {
-        // Per prodotti a peso variabile, serve il peso effettivo
-        // In questo caso, quantità = peso in kg della singola unità 
+  try {
+    switch (unitaNormalizzata) {
+      case 'kg':
+        // Ordine in KG
         kg = quantita;
         
         if (!config.prezzoKg) {
-          throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/kg configurato`);
+          // Fallback: se ha prezzoPezzo e pezziPerKg, calcola
+          if (config.prezzoPezzo && config.pezziPerKg) {
+            prezzoTotale = quantita * config.pezziPerKg * config.prezzoPezzo;
+          } else if (prezzoEsistente) {
+            prezzoTotale = prezzoEsistente;
+          } else {
+            throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/kg configurato`);
+          }
+        } else {
+          prezzoTotale = quantita * config.prezzoKg;
         }
-        
-        prezzoTotale = kg * config.prezzoKg;
-        dettagli = `1 unità (${kg} kg)`;
-      } else {
-        throw new Error(`Prodotto "${nomeProdotto}" non supporta vendita a unità`);
-      }
-      break;
-
-    case '€':
-    case 'euro':
-    case 'eur':
-      // Ordine in EURO (es. "10 euro di Pardulas")
-      const importoDesiderato = quantita;
-      
-      if (config.modalitaVendita === MODALITA_VENDITA.SOLO_PEZZO) {
-        // Prodotto venduto solo a pezzo (es. Sebadas)
-        if (!config.prezzoPezzo) {
-          throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/pezzo configurato`);
-        }
-        
-        pezzi = Math.floor(importoDesiderato / config.prezzoPezzo);
-        prezzoTotale = pezzi * config.prezzoPezzo;
-        const resto = importoDesiderato - prezzoTotale;
-        dettagli = `${pezzi} pezzi (resto: €${resto.toFixed(2)})`;
-      } else {
-        // Prodotto venduto a kg
-        if (!config.prezzoKg) {
-          throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/kg configurato`);
-        }
-        
-        kg = importoDesiderato / config.prezzoKg;
-        prezzoTotale = importoDesiderato;
         
         if (config.pezziPerKg) {
-          pezzi = Math.round(kg * config.pezziPerKg);
-          dettagli = `${kg.toFixed(2)} kg (circa ${pezzi} pezzi)`;
+          pezzi = Math.round(quantita * config.pezziPerKg);
+          dettagli = `${kg} kg (circa ${pezzi} pezzi)`;
         } else {
-          dettagli = `${kg.toFixed(2)} kg`;
+          dettagli = `${kg} kg`;
         }
-      }
-      break;
+        break;
 
-    default:
-      throw new Error(`Unità di misura "${unitaMisura}" non riconosciuta`);
+      case 'pezzi':
+      case 'pz':
+      case 'pezzo':
+      case 'pz.':
+        // ✅ Ordine in PEZZI
+        pezzi = quantita;
+        
+        // CASO 1: Prodotto venduto SOLO a pezzo (es. Sebadas)
+        if (config.modalitaVendita === MODALITA_VENDITA.SOLO_PEZZO) {
+          if (!config.prezzoPezzo) {
+            if (prezzoEsistente) {
+              prezzoTotale = prezzoEsistente;
+            } else {
+              throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/pezzo configurato`);
+            }
+          } else {
+            prezzoTotale = quantita * config.prezzoPezzo;
+          }
+          dettagli = `${pezzi} pezzi`;
+          
+          console.log(`✅ ${nomeProdotto} - SOLO_PEZZO: ${pezzi} × €${config.prezzoPezzo} = €${prezzoTotale.toFixed(2)}`);
+        } 
+        // CASO 2: Prodotto con prezzoPezzo definito
+        else if (config.prezzoPezzo) {
+          prezzoTotale = quantita * config.prezzoPezzo;
+          
+          if (config.pezziPerKg) {
+            kg = quantita / config.pezziPerKg;
+            dettagli = `${pezzi} pezzi (${kg.toFixed(2)} kg)`;
+          } else {
+            dettagli = `${pezzi} pezzi`;
+          }
+          
+          console.log(`✅ ${nomeProdotto} - PREZZO_PEZZO: ${pezzi} × €${config.prezzoPezzo} = €${prezzoTotale.toFixed(2)}`);
+        }
+        // CASO 3: Prodotto con conversione pezzi → kg (es. Pardulas, Culurgiones)
+        else if (config.pezziPerKg && config.prezzoKg) {
+          // Converti pezzi in kg
+          kg = quantita / config.pezziPerKg;
+          
+          // Calcola prezzo basato sui kg
+          prezzoTotale = kg * config.prezzoKg;
+          
+          dettagli = `${pezzi} pezzi (${kg.toFixed(2)} kg)`;
+          
+          console.log(`✅ ${nomeProdotto} - PEZZI→KG: ${pezzi} pz ÷ ${config.pezziPerKg} × €${config.prezzoKg}/kg = €${prezzoTotale.toFixed(2)}`);
+        } 
+        else if (prezzoEsistente) {
+          prezzoTotale = prezzoEsistente;
+          dettagli = `${pezzi} pezzi (prezzo manuale)`;
+        }
+        else {
+          throw new Error(`Prodotto "${nomeProdotto}" non supporta vendita a pezzi`);
+        }
+        break;
+
+      case 'unità':
+      case 'unita':
+      case 'unitá':
+        // Ordine in UNITÀ (es. 1 torta di saba)
+        if (config.modalitaVendita === MODALITA_VENDITA.PESO_VARIABILE) {
+          kg = quantita;
+          
+          if (!config.prezzoKg) {
+            if (prezzoEsistente) {
+              prezzoTotale = prezzoEsistente;
+            } else {
+              throw new Error(`Prodotto "${nomeProdotto}" non ha prezzo/kg configurato`);
+            }
+          } else {
+            prezzoTotale = kg * config.prezzoKg;
+          }
+          dettagli = `1 unità (${kg} kg)`;
+        } else if (config.prezzoPezzo) {
+          prezzoTotale = quantita * config.prezzoPezzo;
+          pezzi = quantita;
+          dettagli = `${quantita} unità`;
+        } else if (prezzoEsistente) {
+          prezzoTotale = prezzoEsistente;
+          dettagli = `${quantita} unità (prezzo manuale)`;
+        } else {
+          throw new Error(`Prodotto "${nomeProdotto}" non supporta vendita a unità`);
+        }
+        break;
+
+      case '€':
+      case 'euro':
+      case 'eur':
+        // Ordine in EURO (es. "10 euro di Pardulas")
+        const importoDesiderato = quantita;
+        
+        if (config.modalitaVendita === MODALITA_VENDITA.SOLO_PEZZO) {
+          if (!config.prezzoPezzo) {
+            prezzoTotale = importoDesiderato;
+            dettagli = `€${importoDesiderato} (prezzo manuale)`;
+          } else {
+            pezzi = Math.floor(importoDesiderato / config.prezzoPezzo);
+            prezzoTotale = pezzi * config.prezzoPezzo;
+            const resto = importoDesiderato - prezzoTotale;
+            dettagli = `${pezzi} pezzi (resto: €${resto.toFixed(2)})`;
+          }
+        } else {
+          if (!config.prezzoKg) {
+            prezzoTotale = importoDesiderato;
+            dettagli = `€${importoDesiderato} (prezzo manuale)`;
+          } else {
+            kg = importoDesiderato / config.prezzoKg;
+            prezzoTotale = importoDesiderato;
+            
+            if (config.pezziPerKg) {
+              pezzi = Math.round(kg * config.pezziPerKg);
+              dettagli = `${kg.toFixed(2)} kg (circa ${pezzi} pezzi)`;
+            } else {
+              dettagli = `${kg.toFixed(2)} kg`;
+            }
+          }
+        }
+        break;
+
+      // ✅ NUOVO: Gestione "vassoio"
+      case 'vassoio':
+        if (prezzoEsistente) {
+          prezzoTotale = prezzoEsistente;
+          dettagli = `${quantita} vassoio (prezzo composto)`;
+        } else {
+          prezzoTotale = 0;
+          dettagli = `Vassoio - calcolo manuale`;
+        }
+        break;
+
+      default:
+        // ✅ Fallback per unità non riconosciute
+        if (prezzoEsistente) {
+          prezzoTotale = prezzoEsistente;
+          dettagli = `${quantita} ${unitaMisura} (prezzo esistente)`;
+        } else {
+          console.warn(`⚠️ Unità di misura "${unitaMisura}" non riconosciuta per "${nomeProdotto}"`);
+          prezzoTotale = 0;
+          dettagli = `Unità non riconosciuta`;
+        }
+    }
+  } catch (error) {
+    console.error(`❌ Errore calcolo prezzo per ${nomeProdotto}:`, error.message);
+    
+    // Usa prezzo esistente come fallback
+    if (prezzoEsistente) {
+      return {
+        prezzoTotale: parseFloat(prezzoEsistente),
+        kg: kg,
+        pezzi: pezzi,
+        dettagli: `${quantita} ${unitaMisura} (fallback)`,
+        nomeProdotto: nomeProdotto,
+        unitaMisura: unitaMisura,
+        quantitaOriginale: quantita,
+        fromFallback: true
+      };
+    }
+    
+    return {
+      prezzoTotale: 0,
+      kg: 0,
+      pezzi: 0,
+      dettagli: error.message,
+      nomeProdotto: nomeProdotto,
+      unitaMisura: unitaMisura,
+      quantitaOriginale: quantita,
+      errore: true
+    };
   }
 
   const risultato = {
@@ -158,9 +267,6 @@ export const calcolaPrezzoOrdine = (nomeProdotto, quantita, unitaMisura) => {
 
 /**
  * Calcola prezzo da pezzi
- * @param {string} nomeProdotto 
- * @param {number} numeroPezzi 
- * @returns {number} prezzo totale
  */
 export const calcolaPrezzoDaPezzi = (nomeProdotto, numeroPezzi) => {
   const risultato = calcolaPrezzoOrdine(nomeProdotto, numeroPezzi, UNITA_MISURA.PEZZI);
@@ -169,9 +275,6 @@ export const calcolaPrezzoDaPezzi = (nomeProdotto, numeroPezzi) => {
 
 /**
  * Calcola prezzo da kg
- * @param {string} nomeProdotto 
- * @param {number} kg 
- * @returns {number} prezzo totale
  */
 export const calcolaPrezzoDaKg = (nomeProdotto, kg) => {
   const risultato = calcolaPrezzoOrdine(nomeProdotto, kg, UNITA_MISURA.KG);
@@ -180,9 +283,6 @@ export const calcolaPrezzoDaKg = (nomeProdotto, kg) => {
 
 /**
  * Calcola quantità da importo in euro
- * @param {string} nomeProdotto 
- * @param {number} euro 
- * @returns {Object} dettagli quantità ottenuta
  */
 export const calcolaQuantitaDaEuro = (nomeProdotto, euro) => {
   return calcolaPrezzoOrdine(nomeProdotto, euro, UNITA_MISURA.EURO);
@@ -190,15 +290,13 @@ export const calcolaQuantitaDaEuro = (nomeProdotto, euro) => {
 
 /**
  * Converte pezzi in kg per un prodotto
- * @param {string} nomeProdotto 
- * @param {number} pezzi 
- * @returns {number} kg
  */
 export const convertiPezziInKg = (nomeProdotto, pezzi) => {
   const config = getProdottoConfig(nomeProdotto);
   
   if (!config || !config.pezziPerKg) {
-    throw new Error(`Impossibile convertire pezzi in kg per "${nomeProdotto}"`);
+    console.warn(`Impossibile convertire pezzi in kg per "${nomeProdotto}"`);
+    return 0;
   }
   
   return pezzi / config.pezziPerKg;
@@ -206,15 +304,13 @@ export const convertiPezziInKg = (nomeProdotto, pezzi) => {
 
 /**
  * Converte kg in pezzi per un prodotto
- * @param {string} nomeProdotto 
- * @param {number} kg 
- * @returns {number} pezzi (arrotondato)
  */
 export const convertiKgInPezzi = (nomeProdotto, kg) => {
   const config = getProdottoConfig(nomeProdotto);
   
   if (!config || !config.pezziPerKg) {
-    throw new Error(`Impossibile convertire kg in pezzi per "${nomeProdotto}"`);
+    console.warn(`Impossibile convertire kg in pezzi per "${nomeProdotto}"`);
+    return 0;
   }
   
   return Math.round(kg * config.pezziPerKg);
@@ -222,32 +318,25 @@ export const convertiKgInPezzi = (nomeProdotto, kg) => {
 
 /**
  * Verifica se un prodotto supporta una determinata unità di misura
- * @param {string} nomeProdotto 
- * @param {string} unitaMisura 
- * @returns {boolean}
  */
 export const supportaUnitaMisura = (nomeProdotto, unitaMisura) => {
   const config = getProdottoConfig(nomeProdotto);
   
-  if (!config) return false;
+  if (!config) return true; // Permetti tutto se non configurato
   
-  return config.unitaMisuraDisponibili.includes(unitaMisura);
+  return config.unitaMisuraDisponibili?.includes(unitaMisura) ?? true;
 };
 
 /**
  * Ottiene unità di misura disponibili per un prodotto
- * @param {string} nomeProdotto 
- * @returns {Array<string>} lista unità disponibili
  */
 export const getUnitaMisuraDisponibili = (nomeProdotto) => {
   const config = getProdottoConfig(nomeProdotto);
-  return config ? config.unitaMisuraDisponibili : [];
+  return config?.unitaMisuraDisponibili || [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO];
 };
 
 /**
  * Calcola totale ordine con più prodotti
- * @param {Array} prodotti - Array di { nomeProdotto, quantita, unitaMisura }
- * @returns {Object} { totale, dettaglioProdotti }
  */
 export const calcolaTotaleOrdine = (prodotti) => {
   let totale = 0;
@@ -255,9 +344,10 @@ export const calcolaTotaleOrdine = (prodotti) => {
 
   prodotti.forEach(item => {
     const risultato = calcolaPrezzoOrdine(
-      item.nomeProdotto,
+      item.nomeProdotto || item.nome,
       item.quantita,
-      item.unitaMisura
+      item.unitaMisura || item.unita,
+      item.prezzo // Passa prezzo esistente come fallback
     );
     
     totale += risultato.prezzoTotale;
@@ -272,18 +362,13 @@ export const calcolaTotaleOrdine = (prodotti) => {
 
 /**
  * Formatta prezzo in euro
- * @param {number} prezzo 
- * @returns {string} prezzo formattato (es. "€19.50")
  */
 export const formattaPrezzo = (prezzo) => {
-  return `€${prezzo.toFixed(2)}`;
+  return `€${(prezzo || 0).toFixed(2)}`;
 };
 
 /**
  * Calcola prezzo con sconto
- * @param {number} prezzoBase 
- * @param {number} percentualeSconto 
- * @returns {Object} { prezzoScontato, importoSconto }
  */
 export const applicaSconto = (prezzoBase, percentualeSconto) => {
   const importoSconto = (prezzoBase * percentualeSconto) / 100;
