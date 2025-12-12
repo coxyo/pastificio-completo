@@ -106,7 +106,7 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'formaggio',
         label: 'Ravioli di formaggio',
-        prezzoKg: 11.00,
+        prezzoKg: 16.00,
         pezziPerKg: 30
       }
     ]
@@ -180,7 +180,7 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'nutella',
         label: 'Ciambelle con nutella',
-        prezzoKg: 18.00
+        prezzoKg: 17.00
       },
       {
         nome: 'zucchero_velo',
@@ -195,7 +195,7 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'miste_marmellata_nutella',
         label: 'Ciambelle miste: marmellata - nutella',
-        prezzoKg: 17.50
+        prezzoKg: 17.00
       },
       {
         nome: 'miste_marmellata_zucchero',
@@ -216,7 +216,7 @@ export const PRODOTTI_CONFIG = {
       {
         nome: 'classica',
         label: 'Sebadas',
-        prezzoPezzo: 2.50
+        prezzoPezzo: 2.00
       },
       {
         nome: 'mirto',
@@ -247,6 +247,24 @@ export const PRODOTTI_CONFIG = {
     categoria: 'Dolci',
     prezzoKg: 22.00,
     pezziPerKg: 30,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+  },
+  
+  // ✅ Alias per Papassinas (scritto diverso)
+  'Papassini': {
+    categoria: 'Dolci',
+    prezzoKg: 22.00,
+    pezziPerKg: 30,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+  },
+  
+  // ✅ NUOVO 12/12/2025: Zeppole
+  'Zeppole': {
+    categoria: 'Dolci',
+    prezzoKg: 21.00,
+    pezziPerKg: 24,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
@@ -394,8 +412,8 @@ export const PRODOTTI_CONFIG = {
 
   'Panadine': {
     prezzoPezzo: 0.80,
-    prezzoKg: 16.00, // ✅ AGGIUNTO: prezzo al kg per vendita a peso
-    pezziPerKg: 20,  // ✅ AGGIUNTO: per conversione pezzi/kg
+    prezzoKg: 28.00, // ✅ AGGIUNTO: prezzo al kg per vendita a peso
+    pezziPerKg: 35,  // ✅ AGGIUNTO: per conversione pezzi/kg
     modalitaVendita: MODALITA_VENDITA.MISTA, // ✅ CAMBIATO: ora supporta kg e pezzi
     categoria: 'Panadas',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
@@ -507,10 +525,13 @@ export const getProdottoConfig = (nomeProdotto) => {
     'bianchini': 'Bianchini',
     'gueffus': 'Gueffus',
     'papassinas': 'Papassinas',
+    'papassini': 'Papassinas',  // ✅ ALIAS
     'pabassine': 'Pabassine',
+    'pabassini': 'Pabassine',   // ✅ ALIAS
     'dolci misti': 'Dolci misti',
     'fregula': 'Fregula',
-    'torta': 'Torta di saba'
+    'torta': 'Torta di saba',
+    'zeppole': 'Zeppole'        // ✅ NUOVO
   };
   
   const nomeLower = nomeNormalizzato.toLowerCase();
