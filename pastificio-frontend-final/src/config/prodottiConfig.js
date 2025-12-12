@@ -1,6 +1,6 @@
 // config/prodottiConfig.js
-// ✅ VERSIONE AGGIORNATA - 19 Novembre 2025
-// Aggiunto: Ravioli di formaggio, pulizia doppioni
+// ✅ VERSIONE AGGIORNATA - 12 Dicembre 2025
+// Aggiunto: Panada Anguille, migliorata ricerca prodotti
 
 export const MODALITA_VENDITA = {
   SOLO_KG: 'solo_kg',
@@ -15,7 +15,6 @@ export const UNITA_MISURA = {
   UNITA: 'Unità',
   EURO: '€'
 };
-// Aggiungi dopo le costanti UNITA_MISURA (dopo riga 17)
 
 // ✅ ORDINE PRIORITÀ PRODOTTI (più venduti per primi)
 export const ORDINE_PRODOTTI = [
@@ -63,6 +62,7 @@ export const PRODOTTI_CONFIG = {
     categoria: 'Ravioli',
     hasVarianti: true,
     modalitaVendita: MODALITA_VENDITA.MISTA,
+    prezzoKg: 11.00, // Prezzo base
     pezziPerKg: 30,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
     supportaVassoiMultipli: true,
@@ -103,7 +103,6 @@ export const PRODOTTI_CONFIG = {
         prezzoKg: 11.00,
         pezziPerKg: 40
       },
-      // ✅ NUOVO: Ravioli di formaggio
       {
         nome: 'formaggio',
         label: 'Ravioli di formaggio',
@@ -132,7 +131,6 @@ export const PRODOTTI_CONFIG = {
     pezziPerKg: 25,
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
-    // ✅ Aggiunta opzione livello cottura
     opzioniCottura: [
       { nome: 'normale', label: 'Cottura Normale' },
       { nome: 'ben_cotte', label: 'Ben Cotte' },
@@ -169,7 +167,6 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.MISTA,
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
     varianti: [
-      // ✅ RIMOSSO "Ciambelle solo base" - duplicato inutile
       {
         nome: 'albicocca',
         label: 'Ciambelle con marmellata di albicocca',
@@ -213,8 +210,7 @@ export const PRODOTTI_CONFIG = {
     categoria: 'Dolci',
     prezzoPezzo: 2.50,
     modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
-    unitaMisuraDisponibili: [UNITA_MISURA.UNITA, UNITA_MISURA.EURO],
-    // ✅ Aggiunta variante al mirto
+    unitaMisuraDisponibili: [UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
     hasVarianti: true,
     varianti: [
       {
@@ -239,6 +235,15 @@ export const PRODOTTI_CONFIG = {
   },
 
   'Papassinas': {
+    categoria: 'Dolci',
+    prezzoKg: 22.00,
+    pezziPerKg: 30,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+  },
+  
+  // ✅ Alias per Papassine (stesso prodotto)
+  'Pabassine': {
     categoria: 'Dolci',
     prezzoKg: 22.00,
     pezziPerKg: 30,
@@ -284,6 +289,15 @@ export const PRODOTTI_CONFIG = {
   },
 
   // ========== PANADAS CON VARIANTI ==========
+  // ✅ NUOVO 12/12/2025: Panada Anguille
+  'Panada Anguille': {
+    prezzoKg: 30.00,
+    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
+    categoria: 'Panadas',
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    supportaVassoiMultipli: true
+  },
+
   'Panada di Agnello': {
     prezzoKg: 25.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
@@ -300,6 +314,15 @@ export const PRODOTTI_CONFIG = {
         { nome: 'patate_piselli', label: 'Con patate e piselli' }
       ]
     },
+    supportaVassoiMultipli: true
+  },
+  
+  // ✅ Alias con parentesi
+  'Panada di Agnello (con patate)': {
+    prezzoKg: 25.00,
+    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
+    categoria: 'Panadas',
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
     supportaVassoiMultipli: true
   },
 
@@ -319,6 +342,15 @@ export const PRODOTTI_CONFIG = {
         { nome: 'patate_piselli', label: 'Con patate e piselli' }
       ]
     },
+    supportaVassoiMultipli: true
+  },
+  
+  // ✅ Alias con parentesi
+  'Panada di Maiale (con patate)': {
+    prezzoKg: 21.00,
+    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
+    categoria: 'Panadas',
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
     supportaVassoiMultipli: true
   },
 
@@ -362,9 +394,11 @@ export const PRODOTTI_CONFIG = {
 
   'Panadine': {
     prezzoPezzo: 0.80,
-    modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
+    prezzoKg: 16.00, // ✅ AGGIUNTO: prezzo al kg per vendita a peso
+    pezziPerKg: 20,  // ✅ AGGIUNTO: per conversione pezzi/kg
+    modalitaVendita: MODALITA_VENDITA.MISTA, // ✅ CAMBIATO: ora supporta kg e pezzi
     categoria: 'Panadas',
-    unitaMisuraDisponibili: [UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
     gustiPanadine: {
       rapidi: [
         { nome: 'carne', label: 'Carne' },
@@ -387,6 +421,14 @@ export const PRODOTTI_CONFIG = {
   // ========== PASTA ==========
   'Fregula': {
     prezzoKg: 10.00,
+    modalitaVendita: MODALITA_VENDITA.SOLO_KG,
+    categoria: 'Pasta',
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
+  },
+  
+  // ✅ NUOVO: Pasta per panada
+  'Pasta per panada': {
+    prezzoKg: 5.00,
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Pasta',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO]
@@ -415,33 +457,86 @@ export const PRODOTTI_CONFIG = {
   }
 };
 
-// ✅ Funzione per ottenere config prodotto (gestisce varianti e opzioni)
+// ✅ MIGLIORATO 12/12/2025: Funzione per ottenere config prodotto
+// Ora gestisce meglio varianti, alias e nomi con parentesi
 export const getProdottoConfig = (nomeProdotto) => {
-  // Cerca prima il prodotto esatto
+  if (!nomeProdotto) return null;
+  
+  // 1. Cerca prima il prodotto esatto
   if (PRODOTTI_CONFIG[nomeProdotto]) {
     return PRODOTTI_CONFIG[nomeProdotto];
   }
 
-  // Cerca il nome base (senza opzioni tra parentesi)
-  const nomeBase = nomeProdotto.split(' (')[0];
+  // 2. Normalizza il nome (rimuovi spazi extra, lowercase per confronto)
+  const nomeNormalizzato = nomeProdotto.trim();
+  
+  // 3. Cerca case-insensitive
+  for (const [key, config] of Object.entries(PRODOTTI_CONFIG)) {
+    if (key.toLowerCase() === nomeNormalizzato.toLowerCase()) {
+      return config;
+    }
+  }
+
+  // 4. Cerca il nome base (senza opzioni tra parentesi)
+  const nomeBase = nomeProdotto.split(' (')[0].trim();
   if (PRODOTTI_CONFIG[nomeBase]) {
     return PRODOTTI_CONFIG[nomeBase];
   }
+  
+  // 5. Cerca case-insensitive sul nome base
+  for (const [key, config] of Object.entries(PRODOTTI_CONFIG)) {
+    if (key.toLowerCase() === nomeBase.toLowerCase()) {
+      return config;
+    }
+  }
 
-  // Cerca nelle varianti
+  // 6. Cerca se il nome contiene una keyword nota
+  const keywords = {
+    'anguille': 'Panada Anguille',
+    'agnello': 'Panada di Agnello',
+    'maiale': 'Panada di Maiale',
+    'vitella': 'Panada di Vitella',
+    'verdure': 'Panada di verdure',
+    'panadine': 'Panadine',
+    'pardulas': 'Pardulas',
+    'ciambelle': 'Ciambelle',
+    'ravioli': 'Ravioli',
+    'culurgiones': 'Culurgiones',
+    'sebadas': 'Sebadas',
+    'amaretti': 'Amaretti',
+    'bianchini': 'Bianchini',
+    'gueffus': 'Gueffus',
+    'papassinas': 'Papassinas',
+    'pabassine': 'Pabassine',
+    'dolci misti': 'Dolci misti',
+    'fregula': 'Fregula',
+    'torta': 'Torta di saba'
+  };
+  
+  const nomeLower = nomeNormalizzato.toLowerCase();
+  for (const [keyword, prodottoKey] of Object.entries(keywords)) {
+    if (nomeLower.includes(keyword)) {
+      if (PRODOTTI_CONFIG[prodottoKey]) {
+        return PRODOTTI_CONFIG[prodottoKey];
+      }
+    }
+  }
+
+  // 7. Cerca nelle varianti
   for (const [key, config] of Object.entries(PRODOTTI_CONFIG)) {
     if (config.hasVarianti && config.varianti) {
       const variante = config.varianti.find(v => 
-        nomeProdotto.toLowerCase().includes(v.nome.toLowerCase()) || 
-        nomeProdotto === v.label ||
-        v.label.toLowerCase().includes(nomeProdotto.toLowerCase())
+        nomeNormalizzato.toLowerCase().includes(v.nome.toLowerCase()) || 
+        nomeNormalizzato === v.label ||
+        v.label.toLowerCase().includes(nomeNormalizzato.toLowerCase()) ||
+        nomeNormalizzato.toLowerCase().includes(v.label.toLowerCase())
       );
       
       if (variante) {
         return {
           ...config,
-          prezzoKg: variante.prezzoKg,
-          prezzoPezzo: variante.prezzoPezzo,
+          prezzoKg: variante.prezzoKg || config.prezzoKg,
+          prezzoPezzo: variante.prezzoPezzo || config.prezzoPezzo,
           pezziPerKg: variante.pezziPerKg || config.pezziPerKg,
           nomeCompleto: variante.label
         };
@@ -449,6 +544,8 @@ export const getProdottoConfig = (nomeProdotto) => {
     }
   }
 
+  // 8. Non trovato
+  console.warn(`⚠️ Prodotto "${nomeProdotto}" non trovato in configurazione`);
   return null;
 };
 
