@@ -17,19 +17,20 @@ export const getChiamate = async (req, res) => {
       esito, 
       clienteId,
       numeroTelefono,
+      numero,  // ✅ FIX: accetta anche "numero"
       limit = 100,
       skip = 0,
-      sort = '-dataChiamata' // Default: più recenti prima
+      sort = '-timestamp' // ✅ FIX: usa "timestamp" (campo corretto schema)
     } = req.query;
 
     // Costruisci filtri dinamici
     const filtri = {};
 
-    // Filtro per periodo
+    // ✅ FIX: Filtro per periodo usa "timestamp" (campo schema)
     if (dataInizio || dataFine) {
-      filtri.dataChiamata = {};
-      if (dataInizio) filtri.dataChiamata.$gte = new Date(dataInizio);
-      if (dataFine) filtri.dataChiamata.$lte = new Date(dataFine);
+      filtri.timestamp = {};
+      if (dataInizio) filtri.timestamp.$gte = new Date(dataInizio);
+      if (dataFine) filtri.timestamp.$lte = new Date(dataFine);
     }
 
     // Filtro per tag
@@ -49,14 +50,14 @@ export const getChiamate = async (req, res) => {
       filtri.cliente = clienteId;
     }
 
-    // Filtro per numero di telefono
-    if (numeroTelefono) {
-      filtri.numeroTelefono = numeroTelefono;
+    // ✅ FIX: Filtro per numero usa "numero" (campo schema)
+    const numeroRicerca = numero || numeroTelefono;
+    if (numeroRicerca) {
+      filtri.numero = { $regex: numeroRicerca.replace(/[^\d]/g, ''), $options: 'i' };
     }
 
     const chiamate = await Chiamata.find(filtri)
       .populate('cliente', 'nome cognome email telefono codiceCliente')
-      .populate('ordineGenerato', 'numeroOrdine dataOrdine totale')
       .sort(sort)
       .limit(parseInt(limit))
       .skip(parseInt(skip))
@@ -427,9 +428,9 @@ export const eliminaChiamata = async (req, res) => {
   }
 };
 
-// ✅ NUOVO 10/12/2025: Endpoint pubblico per estensione Chrome
+// ✅ FIX 12/12/2025: Endpoint pubblico per estensione Chrome E frontend Pusher
 /**
- * @desc    Registra chiamata da estensione Chrome (webhook pubblico)
+ * @desc    Registra chiamata da estensione Chrome o frontend Pusher
  * @route   POST /api/chiamate/webhook
  * @access  Pubblico (con X-API-KEY header)
  */
@@ -447,53 +448,78 @@ export const webhookChiamata = async (req, res) => {
       });
     }
 
+    // ✅ FIX: Accetta sia "numero" che "numeroTelefono" dal body
     const {
+      numero,
       numeroTelefono,
-      tipo = 'in-entrata',
-      esito = 'non-risposto',
+      timestamp,
       dataChiamata,
+      cliente: clienteFromBody,
+      clienteTrovato,
+      sorgente,
+      source,
+      esito = 'in_arrivo',
       note
     } = req.body;
 
+    // Usa numero o numeroTelefono
+    const telefonoRaw = numero || numeroTelefono;
+
     // Validazione base
-    if (!numeroTelefono) {
+    if (!telefonoRaw) {
       return res.status(400).json({
         success: false,
         message: 'Numero di telefono obbligatorio'
       });
     }
 
-    // Normalizza numero (rimuovi spazi e caratteri speciali)
-    const numeroNormalizzato = numeroTelefono.replace(/\D/g, '');
+    // Normalizza numero (rimuovi spazi, mantieni + e cifre)
+    const numeroNormalizzato = telefonoRaw.replace(/[^\d+]/g, '');
 
-    // Cerca cliente per numero di telefono
-    let clienteId = null;
-    try {
-      const cliente = await Cliente.findOne({
-        $or: [
-          { telefono: numeroNormalizzato },
-          { telefono: `+39${numeroNormalizzato}` },
-          { telefono: `+${numeroNormalizzato}` },
-          { telefono: numeroTelefono }
-        ]
-      });
-      if (cliente) {
-        clienteId = cliente._id;
-        logger.info(`Webhook: Cliente trovato per ${numeroTelefono}: ${cliente.nome}`);
+    // ✅ FIX CRITICO: Genera callId univoco (REQUIRED dallo schema!)
+    const callId = `CALL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Cerca cliente per numero di telefono (se non già fornito)
+    let clienteId = clienteFromBody || null;
+    
+    if (!clienteId) {
+      try {
+        // Varianti del numero per ricerca
+        const numeroSenzaPrefisso = numeroNormalizzato.replace(/^\+?39/, '');
+        const variantiNumero = [
+          numeroNormalizzato,
+          `+39${numeroSenzaPrefisso}`,
+          `+${numeroNormalizzato.replace(/^\+/, '')}`,
+          telefonoRaw,
+          telefonoRaw.replace(/\s/g, ''),
+          numeroSenzaPrefisso,
+          `0${numeroSenzaPrefisso}`  // Per numeri fissi
+        ];
+
+        const clienteTrovatoDb = await Cliente.findOne({
+          telefono: { $in: variantiNumero }
+        });
+        
+        if (clienteTrovatoDb) {
+          clienteId = clienteTrovatoDb._id;
+          logger.info(`Webhook: Cliente trovato per ${telefonoRaw}: ${clienteTrovatoDb.nome} ${clienteTrovatoDb.cognome || ''}`);
+        }
+      } catch (err) {
+        logger.warn('Webhook: Errore ricerca cliente:', err.message);
       }
-    } catch (err) {
-      logger.warn('Webhook: Errore ricerca cliente:', err.message);
     }
 
-    // Crea la chiamata
+    // ✅ FIX: Usa i campi CORRETTI dello schema Chiamata.js
     const chiamata = await Chiamata.create({
-      numeroTelefono: numeroNormalizzato || numeroTelefono,
+      callId: callId,                                    // ✅ REQUIRED - ora generato!
+      numero: numeroNormalizzato,                        // ✅ Campo corretto (non "numeroTelefono")
+      numeroOriginale: telefonoRaw,                      // Salva anche originale
       cliente: clienteId,
-      tipo,
-      esito,
-      note: note || `Chiamata registrata da estensione 3CX`,
-      dataChiamata: dataChiamata ? new Date(dataChiamata) : new Date(),
-      durataChiamata: 0
+      timestamp: timestamp ? new Date(timestamp) : (dataChiamata ? new Date(dataChiamata) : new Date()),  // ✅ Campo corretto
+      source: sorgente || source || '3cx-extension',    // ✅ Campo corretto
+      esito: esito,
+      durata: 0,                                         // ✅ Campo corretto (non "durataChiamata")
+      note: note || ''
     });
 
     // Popola cliente se trovato
@@ -501,11 +527,13 @@ export const webhookChiamata = async (req, res) => {
       await chiamata.populate('cliente', 'nome cognome telefono codiceCliente');
     }
 
-    logger.info('Webhook: Chiamata registrata con successo:', {
+    logger.info('Webhook: Chiamata salvata con successo:', {
       id: chiamata._id,
-      numero: numeroTelefono,
-      cliente: clienteId ? 'trovato' : 'non trovato',
-      esito
+      callId: callId,
+      numero: numeroNormalizzato,
+      cliente: clienteId ? 'trovato' : 'sconosciuto',
+      esito,
+      source: sorgente || source || '3cx-extension'
     });
 
     res.status(201).json({
@@ -524,6 +552,135 @@ export const webhookChiamata = async (req, res) => {
   }
 };
 
+// ✅ NUOVO 12/12/2025: Endpoint per statistiche chiamate
+/**
+ * @desc    Ottieni statistiche chiamate
+ * @route   GET /api/chiamate/statistiche
+ * @access  Privato
+ */
+export const getStatistiche = async (req, res) => {
+  try {
+    const { dataInizio, dataFine } = req.query;
+    
+    // Date di default: ultimo mese
+    const oggi = new Date();
+    const inizioDefault = new Date(oggi);
+    inizioDefault.setMonth(oggi.getMonth() - 1);
+    
+    const filtroData = {
+      timestamp: {
+        $gte: dataInizio ? new Date(dataInizio) : inizioDefault,
+        $lte: dataFine ? new Date(dataFine) : oggi
+      }
+    };
+
+    // Statistiche aggregate
+    const [
+      totaleChiamate,
+      chiamateOggi,
+      chiamateSettimana,
+      chiamateConCliente,
+      perEsito,
+      perGiorno
+    ] = await Promise.all([
+      // Totale chiamate nel periodo
+      Chiamata.countDocuments(filtroData),
+      
+      // Chiamate oggi
+      Chiamata.countDocuments({
+        timestamp: {
+          $gte: new Date(oggi.setHours(0, 0, 0, 0)),
+          $lte: new Date()
+        }
+      }),
+      
+      // Chiamate ultima settimana
+      Chiamata.countDocuments({
+        timestamp: {
+          $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          $lte: new Date()
+        }
+      }),
+      
+      // Chiamate con cliente identificato
+      Chiamata.countDocuments({
+        ...filtroData,
+        cliente: { $ne: null }
+      }),
+      
+      // Raggruppamento per esito
+      Chiamata.aggregate([
+        { $match: filtroData },
+        { $group: { _id: '$esito', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      
+      // Chiamate per giorno (ultimi 7 giorni)
+      Chiamata.aggregate([
+        {
+          $match: {
+            timestamp: {
+              $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+            }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$timestamp' }
+            },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ])
+    ]);
+
+    // Durata media chiamate risposte
+    const durataMedia = await Chiamata.aggregate([
+      {
+        $match: {
+          ...filtroData,
+          esito: 'risposta',
+          durata: { $gt: 0 }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          media: { $avg: '$durata' },
+          totale: { $sum: '$durata' }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totale: totaleChiamate,
+        oggi: chiamateOggi,
+        settimana: chiamateSettimana,
+        conCliente: chiamateConCliente,
+        perEsito: perEsito.reduce((acc, e) => {
+          acc[e._id || 'sconosciuto'] = e.count;
+          return acc;
+        }, {}),
+        perGiorno,
+        durataMedia: durataMedia[0]?.media || 0,
+        durataTotale: durataMedia[0]?.totale || 0
+      }
+    });
+
+  } catch (error) {
+    logger.error('Errore recupero statistiche chiamate:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nel recupero delle statistiche',
+      error: error.message
+    });
+  }
+};
+
 export default {
   getChiamate,
   getChiamataById,
@@ -533,5 +690,6 @@ export default {
   rimuoviTag,
   getAllTags,
   eliminaChiamata,
-  webhookChiamata
+  webhookChiamata,
+  getStatistiche  // ✅ NUOVO
 };
