@@ -26,10 +26,18 @@ router.use(protect);
 router.get('/tags/all', chiamateController.getAllTags);
 
 /**
+ * @route   GET /api/chiamate/statistiche
+ * @desc    Ottieni statistiche chiamate
+ * @access  Privato
+ * @note    Questa route DEVE essere prima di /:id per evitare conflitti
+ */
+router.get('/statistiche', chiamateController.getStatistiche);
+
+/**
  * @route   GET /api/chiamate
  * @desc    Ottieni tutte le chiamate con filtri opzionali
  * @access  Privato
- * @query   ?dataInizio=YYYY-MM-DD&dataFine=YYYY-MM-DD&tag=tag1,tag2&esito=risposto&clienteId=xxx&numeroTelefono=xxx&limit=100&skip=0&sort=-dataChiamata
+ * @query   ?dataInizio=YYYY-MM-DD&dataFine=YYYY-MM-DD&tag=tag1,tag2&esito=risposto&clienteId=xxx&numero=xxx&limit=100&skip=0&sort=-timestamp
  */
 router.get('/', chiamateController.getChiamate);
 
