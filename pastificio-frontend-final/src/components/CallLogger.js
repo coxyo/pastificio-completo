@@ -64,47 +64,39 @@ export default function CallLogger() {
     try {
       const token = localStorage.getItem('token');
       
-      // In un'implementazione reale, avresti un endpoint dedicato
-      // Per ora simuliamo con dati di esempio
-      
-      // TODO: Implementare endpoint /api/chiamate nel backend
-      // const response = await fetch(`${API_URL}/chiamate`, {
-      //   headers: { 'Authorization': `Bearer ${token}` }
-      // });
-      
-      // Dati simulati per ora
-      const datiSimulati = [
-        {
-          _id: '1',
-          callId: 'CALL-001',
-          numero: '+393331234567',
-          cliente: {
-            _id: 'cl1',
-            nome: 'Mario',
-            cognome: 'Rossi',
-            codice: 'CL250001'
-          },
-          tipo: 'inbound',
-          stato: 'answered',
-          timestamp: new Date().toISOString(),
-          durata: 120
-        },
-        {
-          _id: '2',
-          callId: 'CALL-002',
-          numero: '+393339876543',
-          cliente: null,
-          tipo: 'inbound',
-          stato: 'missed',
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          durata: 0
+      // ✅ FIX 12/12/2025: Usa API reale invece di dati mock
+      const response = await fetch(`${API_URL}/chiamate?limit=100&sort=-timestamp`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      ];
+      });
 
-      setChiamate(datiSimulati);
+      if (!response.ok) {
+        throw new Error(`Errore API: ${response.status}`);
+      }
+
+      const result = await response.json();
       
-      // Calcola statistiche
-      calcolaStatistiche(datiSimulati);
+      if (result.success && result.data) {
+        // Mappa i dati per compatibilità con il componente
+        const chiamateMapped = result.data.map(c => ({
+          _id: c._id,
+          callId: c.callId,
+          numero: c.numero || c.numeroOriginale,
+          cliente: c.cliente,
+          tipo: c.source === '3cx-extension' ? 'inbound' : 'outbound',
+          stato: mapEsitoToStato(c.esito),
+          timestamp: c.timestamp,
+          durata: c.durata || 0
+        }));
+        
+        setChiamate(chiamateMapped);
+        calcolaStatistiche(chiamateMapped);
+      } else {
+        setChiamate([]);
+        calcolaStatistiche([]);
+      }
 
     } catch (err) {
       console.error('[CallLogger] Errore caricamento chiamate:', err);
@@ -112,6 +104,20 @@ export default function CallLogger() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ Mappa esito del backend a stato del frontend
+  const mapEsitoToStato = (esito) => {
+    const mapping = {
+      'risposta': 'answered',
+      'in_arrivo': 'ringing',
+      'non_risposta': 'missed',
+      'persa': 'missed',
+      'occupato': 'busy',
+      'completato': 'answered',
+      'sconosciuto': 'unknown'
+    };
+    return mapping[esito] || 'unknown';
   };
 
   const calcolaStatistiche = (chiamate) => {
