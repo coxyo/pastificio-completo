@@ -22,14 +22,17 @@ export function StatisticheChiamate() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
+      // ✅ FIX: Usa endpoint corretto /api/chiamate/statistiche
       const response = await axios.get(
-        `${API_URL}/statistiche/chiamate?periodo=${periodo}`,
+        `${API_URL}/chiamate/statistiche?periodo=${periodo}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setStatistiche(response.data);
+      // ✅ FIX: I dati sono in response.data.data
+      setStatistiche(response.data.data || response.data);
       console.log('📊 Statistiche caricate:', response.data);
     } catch (error) {
       console.error('Errore caricamento statistiche:', error);
+      setStatistiche(null);
     } finally {
       setLoading(false);
     }
@@ -38,8 +41,9 @@ export function StatisticheChiamate() {
   const exportStatistiche = async () => {
     try {
       const token = localStorage.getItem('token');
+      // ✅ FIX: Usa endpoint corretto
       const response = await axios.get(
-        `${API_URL}/statistiche/chiamate/export`,
+        `${API_URL}/chiamate/statistiche/export?periodo=${periodo}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'
@@ -55,6 +59,23 @@ export function StatisticheChiamate() {
       link.parentNode.removeChild(link);
     } catch (error) {
       console.error('Errore export:', error);
+      // ✅ Fallback: export locale se endpoint non disponibile
+      if (statistiche) {
+        const csv = [
+          ['Metrica', 'Valore'].join(','),
+          ['Totale Chiamate', statistiche.kpi?.totaleChiamate || 0].join(','),
+          ['Media Giornaliera', statistiche.kpi?.mediaGiornaliera || 0].join(','),
+          ['Tasso Conversione', statistiche.kpi?.tassoConversione || 0].join(','),
+          ['Chiamate con Ordine', statistiche.kpi?.chiamateConOrdine || 0].join(',')
+        ].join('\n');
+        
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `statistiche_chiamate_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+      }
     }
   };
 
