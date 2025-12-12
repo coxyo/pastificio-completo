@@ -1335,9 +1335,9 @@ useEffect(() => {
         };
       }
       
-      // ✅ PRODOTTO NORMALE: Ricalcola prezzo
+      // ✅ PRODOTTO NORMALE: Ricalcola prezzo (FIX 12/12/2025: passa prezzo esistente)
       try {
-        const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
+        const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita, p.prezzo);
         totaleOrdine += risultato.prezzoTotale;
         
         return {
@@ -1460,9 +1460,9 @@ useEffect(() => {
         };
       }
       
-      // PRODOTTO NORMALE
+      // PRODOTTO NORMALE (FIX 12/12/2025: passa prezzo esistente)
       try {
-        const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita);
+        const risultato = calcolaPrezzoOrdine(p.nome, p.quantita, p.unita, p.prezzo);
         totaleOrdine += risultato.prezzoTotale;
         
         return {
