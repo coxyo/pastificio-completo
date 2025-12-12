@@ -4,7 +4,7 @@ import { Phone, Tag as TagIcon, User, Calendar, Clock, Search, Filter, Download 
 import axios from 'axios';
 import TagManager from './TagManager';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 export function StoricoChiamate() {
   const [chiamate, setChiamate] = useState([]);
@@ -36,7 +36,7 @@ export function StoricoChiamate() {
       if (filtri.dataInizio) params.append('dataInizio', filtri.dataInizio);
       if (filtri.dataFine) params.append('dataFine', filtri.dataFine);
       params.append('limit', '100');
-      params.append('sort', '-dataChiamata');
+      params.append('sort', '-timestamp');  // ✅ FIX: usa timestamp
 
       const response = await axios.get(
         `${API_URL}/chiamate?${params.toString()}`,
@@ -45,11 +45,12 @@ export function StoricoChiamate() {
 
       let risultati = response.data.data || [];
 
-      // Filtro locale per ricerca
+      // ✅ FIX: Filtro locale per ricerca - usa "numero" invece di "numeroTelefono"
       if (filtri.cerca) {
         const cerca = filtri.cerca.toLowerCase();
         risultati = risultati.filter(c => 
-          c.numeroTelefono?.includes(cerca) ||
+          c.numero?.includes(cerca) ||
+          c.numeroOriginale?.includes(cerca) ||
           c.cliente?.nome?.toLowerCase().includes(cerca) ||
           c.cliente?.cognome?.toLowerCase().includes(cerca) ||
           c.note?.toLowerCase().includes(cerca)
@@ -68,7 +69,6 @@ export function StoricoChiamate() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/chiamate/tags/all`, {
-
         headers: { Authorization: `Bearer ${token}` }
       });
       setTuttiITags(response.data.data || []);
@@ -79,15 +79,14 @@ export function StoricoChiamate() {
 
   const exportCSV = () => {
     const csv = [
-      ['Data', 'Ora', 'Numero', 'Cliente', 'Esito', 'Tags', 'Ordine', 'Note'].join(','),
+      ['Data', 'Ora', 'Numero', 'Cliente', 'Esito', 'Tags', 'Note'].join(','),
       ...chiamate.map(c => [
-        new Date(c.dataChiamata).toLocaleDateString('it-IT'),
-        new Date(c.dataChiamata).toLocaleTimeString('it-IT'),
-        c.numeroTelefono,
+        new Date(c.timestamp).toLocaleDateString('it-IT'),
+        new Date(c.timestamp).toLocaleTimeString('it-IT'),
+        c.numero || c.numeroOriginale,  // ✅ FIX: usa numero
         c.cliente ? `${c.cliente.nome} ${c.cliente.cognome}` : 'Sconosciuto',
         c.esito,
-        c.tags.join('; '),
-        c.ordineGenerato ? 'Sì' : 'No',
+        (c.tags || []).join('; '),
         (c.note || '').replace(/,/g, ';')
       ].join(','))
     ].join('\n');
@@ -100,21 +99,34 @@ export function StoricoChiamate() {
     a.click();
   };
 
+  // ✅ FIX: Usa valori esito dallo schema
   const getEsitoColor = (esito) => {
     switch (esito) {
-      case 'risposto': return '#22c55e';
-      case 'non-risposto': return '#f59e0b';
-      case 'occupato': return '#ef4444';
-      default: return '#6b7280';
+      case 'risposta': 
+      case 'completato':
+        return '#22c55e';  // verde
+      case 'in_arrivo':
+        return '#3b82f6';  // blu
+      case 'non_risposta':
+      case 'persa':
+        return '#f59e0b';  // arancione
+      case 'occupato': 
+        return '#ef4444';  // rosso
+      default: 
+        return '#6b7280';  // grigio
     }
   };
 
   const getEsitoLabel = (esito) => {
     switch (esito) {
-      case 'risposto': return '✓ Risposto';
-      case 'non-risposto': return '✗ Non risposto';
+      case 'risposta': return '✓ Risposta';
+      case 'completato': return '✓ Completata';
+      case 'in_arrivo': return '📞 In arrivo';
+      case 'non_risposta': return '✗ Non risposta';
+      case 'persa': return '✗ Persa';
       case 'occupato': return '⊗ Occupato';
-      default: return esito;
+      case 'sconosciuto': return '? Sconosciuto';
+      default: return esito || 'N/D';
     }
   };
 
@@ -343,16 +355,16 @@ export function StoricoChiamate() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                     <div>
                       <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 4px 0', color: '#111827' }}>
-                        {chiamata.numeroTelefono}
+                        {chiamata.numero || chiamata.numeroOriginale}
                       </h3>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px', color: '#6b7280' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Calendar style={{ width: '14px', height: '14px' }} />
-                          {new Date(chiamata.dataChiamata).toLocaleDateString('it-IT')}
+                          {new Date(chiamata.timestamp).toLocaleDateString('it-IT')}
                         </span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Clock style={{ width: '14px', height: '14px' }} />
-                          {new Date(chiamata.dataChiamata).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(chiamata.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                     </div>
