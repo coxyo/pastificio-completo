@@ -1,6 +1,5 @@
 // routes/chiamate.js
 import express from 'express';
-import { protect } from '../middleware/auth.js';
 import chiamateController from '../controllers/chiamateController.js';
 
 const router = express.Router();
@@ -14,8 +13,6 @@ const router = express.Router();
  */
 router.post('/webhook', chiamateController.webhookChiamata);
 
-// Middleware di autenticazione per tutte le altre route
-router.use(protect);
 
 /**
  * @route   GET /api/chiamate/tags/all
