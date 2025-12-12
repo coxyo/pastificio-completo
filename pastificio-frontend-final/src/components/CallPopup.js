@@ -1,11 +1,12 @@
-// components/CallPopup.js - VERSIONE v3.4
+// components/CallPopup.js - VERSIONE v3.5
+// ✅ FIX 12/12/2025: Campo input nome che non risponde
 // ✅ Click singolo sui pulsanti
 // ✅ Timeout 60 secondi (pausa durante salvataggio)
 // ✅ Mini-form per salvare cliente sconosciuto
 // ✅ URL backend hardcoded
 // ✅ NOME GRANDE per clienti conosciuti, telefono piccolo
-// ✅ NUOVO: Campo unico con autocomplete clienti esistenti
-import React, { useEffect, useState, useCallback } from 'react';
+// ✅ Campo unico con autocomplete clienti esistenti
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Phone, X, User, AlertCircle, Tag as TagIcon, UserPlus, Save, Loader, Check } from 'lucide-react';
 import TagManager from './TagManager';
 
@@ -17,7 +18,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const [tags, setTags] = useState([]);
   const [countdown, setCountdown] = useState(60);
   
-  // ✅ NUOVO: Stati per mini-form salva cliente con autocomplete
+  // ✅ Stati per mini-form salva cliente con autocomplete
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [nomeCompleto, setNomeCompleto] = useState(''); // Campo unico
   const [nomeCliente, setNomeCliente] = useState('');
@@ -26,12 +27,15 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const [saveError, setSaveError] = useState(null);
   const [savedCliente, setSavedCliente] = useState(null);
   
-  // ✅ NUOVO: Stati per autocomplete clienti
+  // ✅ Stati per autocomplete clienti
   const [clientiLista, setClientiLista] = useState([]);
   const [suggerimenti, setSuggerimenti] = useState([]);
   const [clienteEsistente, setClienteEsistente] = useState(null);
+  
+  // ✅ FIX: Ref per l'input
+  const inputRef = useRef(null);
 
-  // ✅ NUOVO: Carica lista clienti quando si apre il form
+  // ✅ Carica lista clienti quando si apre il form
   useEffect(() => {
     if (showSaveForm && clientiLista.length === 0) {
       const fetchClienti = async () => {
@@ -56,7 +60,18 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     }
   }, [showSaveForm, clientiLista.length]);
 
-  // ✅ NUOVO: Cerca clienti mentre si digita
+  // ✅ FIX: Focus sull'input quando si apre il form
+  useEffect(() => {
+    if (showSaveForm && inputRef.current) {
+      // Piccolo delay per assicurarsi che il DOM sia pronto
+      setTimeout(() => {
+        inputRef.current?.focus();
+        console.log('✅ [CallPopup] Focus impostato su input nome');
+      }, 100);
+    }
+  }, [showSaveForm]);
+
+  // ✅ Cerca clienti mentre si digita
   useEffect(() => {
     if (nomeCompleto.length < 2) {
       setSuggerimenti([]);
@@ -225,6 +240,17 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
       onClose();
     }
   }, [onClose]);
+
+  // ✅ FIX: Handler per input nome
+  const handleNomeChange = useCallback((e) => {
+    const value = e.target.value;
+    console.log('📝 [CallPopup] Input nome:', value);
+    setNomeCompleto(value);
+    // Splitta automaticamente nome/cognome
+    const parti = value.trim().split(' ');
+    setNomeCliente(parti[0] || '');
+    setCognomeCliente(parti.slice(1).join(' ') || '');
+  }, []);
 
   // Se non aperto o senza dati, non renderizzare
   if (!isOpen || !callData) {
@@ -453,20 +479,24 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                   </button>
                 ) : (
                   <div>
-                    {/* ✅ CAMPO UNICO con autocomplete */}
+                    {/* ✅ FIX: CAMPO UNICO con autocomplete - attributi corretti */}
                     <div style={{ position: 'relative', marginBottom: '12px' }}>
                       <input
+                        ref={inputRef}
                         type="text"
+                        name="nuovo-cliente-nome"
+                        id="nuovo-cliente-nome"
                         placeholder="Nome e Cognome *"
                         value={nomeCompleto}
-                        onChange={(e) => {
-                          setNomeCompleto(e.target.value);
-                          // Splitta automaticamente nome/cognome
-                          const parti = e.target.value.trim().split(' ');
-                          setNomeCliente(parti[0] || '');
-                          setCognomeCliente(parti.slice(1).join(' ') || '');
-                        }}
-                        disabled={isSaving || clienteEsistente}
+                        onChange={handleNomeChange}
+                        onInput={handleNomeChange}
+                        disabled={isSaving}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="words"
+                        spellCheck="false"
+                        data-lpignore="true"
+                        data-form-type="other"
                         style={{
                           width: '100%',
                           padding: '14px 16px',
@@ -474,11 +504,27 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                           borderRadius: '8px',
                           fontSize: '18px',
                           outline: 'none',
-                          backgroundColor: clienteEsistente ? '#fef3c7' : 'white'
+                          backgroundColor: clienteEsistente ? '#fef3c7' : 'white',
+                          boxSizing: 'border-box',
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none',
+                          appearance: 'none'
                         }}
-                        onFocus={(e) => !clienteEsistente && (e.target.style.borderColor = '#3b82f6')}
-                        onBlur={(e) => !clienteEsistente && (e.target.style.borderColor = '#d1d5db')}
-                        autoFocus
+                        onFocus={(e) => {
+                          console.log('🎯 [CallPopup] Input focus');
+                          if (!clienteEsistente) {
+                            e.target.style.borderColor = '#3b82f6';
+                          }
+                        }}
+                        onBlur={(e) => {
+                          if (!clienteEsistente) {
+                            e.target.style.borderColor = '#d1d5db';
+                          }
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('🖱️ [CallPopup] Input click');
+                        }}
                       />
                       
                       {/* ✅ Lista suggerimenti */}
@@ -554,6 +600,10 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                           onClick={() => {
                             setClienteEsistente(null);
                             setNomeCompleto('');
+                            setNomeCliente('');
+                            setCognomeCliente('');
+                            // Focus sull'input dopo il reset
+                            setTimeout(() => inputRef.current?.focus(), 50);
                           }}
                           style={{
                             marginLeft: 'auto',
