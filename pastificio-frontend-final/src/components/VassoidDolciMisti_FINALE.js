@@ -589,30 +589,85 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         getVarianteLabel(item.prodotto, item.varianteSelezionata) : 
         null;
       
-      // ✅ FIX 13/12/2025: Nome completo include la variante
-      const nomeCompleto = varianteLabel 
-        ? `${item.prodotto} ${varianteLabel}` 
-        : (item.prodotto || "");
+      // ✅ FIX 13/12/2025: Evita duplicazione nome
+      // Se la variante già contiene il nome prodotto, usa solo la variante
+      let nomeCompleto;
+      if (varianteLabel) {
+        // Controlla se la variante già inizia con il nome del prodotto
+        if (varianteLabel.toLowerCase().startsWith(item.prodotto.toLowerCase())) {
+          nomeCompleto = varianteLabel;  // Es: "Ciambelle con marmellata" → usa così com'è
+        } else {
+          nomeCompleto = `${item.prodotto} ${varianteLabel}`;  // Es: "Pardulas" + "con glassa"
+        }
+      } else {
+        nomeCompleto = item.prodotto || "";
+      }
       
       return {
-        nome: nomeCompleto,  // ✅ "Ciambelle marmellata" invece di "Ciambelle"
+        nome: nomeCompleto,
         quantita: parseFloat(item.quantita) || 0,
         unita: item.unita || "Kg",
         prezzo: parseFloat(item.prezzo) || 0,
-        variante: varianteLabel || null  // Mantiene anche separato per retrocompatibilità
+        variante: varianteLabel || null
       };
     });
 
-    // ✅ FIX 13/12/2025: Stringa dettagli include la variante
+    // ✅ FIX 13/12/2025: Stringa dettagli con abbreviazioni
+    const ABBREVIAZIONI_VASSOIO = {
+      'Ciambelle con marmellata di albicocca': 'C.Albic',
+      'Ciambelle con marmellata di ciliegia': 'C.Cileg',
+      'Ciambelle con nutella': 'C.Nut',
+      'Ciambelle con zucchero a velo': 'C.Nude',
+      'Ciambelle semplici': 'C.Nude',
+      'Ciambelle miste': 'C.Miste',
+      'Ciambelle': 'C',
+      'Pardulas con glassa': 'P.Glass',
+      'Pardulas con zucchero a velo': 'P.Zucch',
+      'Pardulas (base)': 'P',
+      'Pardulas': 'P',
+      'Amaretti': 'A',
+      'Bianchini': 'B',
+      'Gueffus': 'G',
+      'Papassinas': 'PAB',
+      'Dolci misti': 'Dolci Mix'
+    };
+    
+    const abbreviaNome = (nome) => {
+      if (!nome) return '';
+      // Cerca match esatto
+      if (ABBREVIAZIONI_VASSOIO[nome]) return ABBREVIAZIONI_VASSOIO[nome];
+      // Cerca case-insensitive
+      for (const [key, abbr] of Object.entries(ABBREVIAZIONI_VASSOIO)) {
+        if (key.toLowerCase() === nome.toLowerCase()) return abbr;
+      }
+      // Cerca match parziale
+      for (const [key, abbr] of Object.entries(ABBREVIAZIONI_VASSOIO)) {
+        if (nome.toLowerCase().includes(key.toLowerCase())) return abbr;
+      }
+      return nome;
+    };
+    
     const dettagliStringa = composizione
       .map(item => {
         const varianteLabel = item.varianteSelezionata ? 
           getVarianteLabel(item.prodotto, item.varianteSelezionata) : 
           null;
-        const nomeCompleto = varianteLabel 
-          ? `${item.prodotto} ${varianteLabel}` 
-          : (item.prodotto || '');
-        return `${nomeCompleto}: ${parseFloat(item.quantita) || 0}`;
+        
+        // Costruisci nome completo senza duplicazione
+        let nomeCompleto;
+        if (varianteLabel) {
+          if (varianteLabel.toLowerCase().startsWith(item.prodotto.toLowerCase())) {
+            nomeCompleto = varianteLabel;
+          } else {
+            nomeCompleto = `${item.prodotto} ${varianteLabel}`;
+          }
+        } else {
+          nomeCompleto = item.prodotto || '';
+        }
+        
+        // Abbrevia per la stringa
+        const nomeAbbreviato = abbreviaNome(nomeCompleto);
+        return `${nomeAbbreviato}: ${parseFloat(item.quantita) || 0}`;
       })
       .join(', ');
 
