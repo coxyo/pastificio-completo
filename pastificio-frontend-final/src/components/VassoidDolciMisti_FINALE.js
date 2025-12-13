@@ -589,18 +589,31 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         getVarianteLabel(item.prodotto, item.varianteSelezionata) : 
         null;
       
+      // ✅ FIX 13/12/2025: Nome completo include la variante
+      const nomeCompleto = varianteLabel 
+        ? `${item.prodotto} ${varianteLabel}` 
+        : (item.prodotto || "");
+      
       return {
-        nome: item.prodotto || "",
+        nome: nomeCompleto,  // ✅ "Ciambelle marmellata" invece di "Ciambelle"
         quantita: parseFloat(item.quantita) || 0,
         unita: item.unita || "Kg",
         prezzo: parseFloat(item.prezzo) || 0,
-        // ✅ Aggiungi variante se presente (sempre stringa)
-        ...(varianteLabel && { variante: String(varianteLabel) })
+        variante: varianteLabel || null  // Mantiene anche separato per retrocompatibilità
       };
     });
 
+    // ✅ FIX 13/12/2025: Stringa dettagli include la variante
     const dettagliStringa = composizione
-      .map(item => `${item.prodotto || ''}: ${parseFloat(item.quantita) || 0} ${item.unita || 'Kg'}`)
+      .map(item => {
+        const varianteLabel = item.varianteSelezionata ? 
+          getVarianteLabel(item.prodotto, item.varianteSelezionata) : 
+          null;
+        const nomeCompleto = varianteLabel 
+          ? `${item.prodotto} ${varianteLabel}` 
+          : (item.prodotto || '');
+        return `${nomeCompleto}: ${parseFloat(item.quantita) || 0}`;
+      })
       .join(', ');
 
     // Note complete
