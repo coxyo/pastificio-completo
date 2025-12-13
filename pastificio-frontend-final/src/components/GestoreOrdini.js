@@ -1848,7 +1848,7 @@ useEffect(() => {
     
     syncIntervalRef.current = setInterval(() => {
       sincronizzaConMongoDB();
-    }, 30000);
+    }, 120000);  // ✅ FIX 13/12/2025: 2 minuti invece di 30 secondi (riduce carico)
     
     setCaricamento(false);
     
