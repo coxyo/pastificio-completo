@@ -604,11 +604,11 @@ Pastificio Nonna Claudia`;
                         }
                         // Priorità 3: Fallback a 0.5 kg per vassoio
                         else {
-                          pesoTotaleVassoi = 0.5 * quantitaVassoi;
+                          pesoTotaleVassoi = 0.5; // ✅ FIX: peso di UN vassoio, non moltiplicare
                         }
                         
-                        // ✅ FIX: Calcola peso per SINGOLO vassoio (peso totale / quantità vassoi)
-                        quantitaEffettiva = pesoTotaleVassoi / quantitaVassoi;
+                        // ✅ FIX: pesoTotaleVassoi è già il peso di UN singolo vassoio
+                        quantitaEffettiva = pesoTotaleVassoi;
                         unitaEffettiva = 'Kg';
                         
                         // ✅ FIX: Usa quantità vassoi come count se > 1
@@ -948,11 +948,11 @@ Pastificio Nonna Claudia`;
                         }
                         // Priorità 3: Fallback a 0.5 kg per vassoio
                         else {
-                          pesoTotaleVassoi = 0.5 * quantitaVassoi;
+                          pesoTotaleVassoi = 0.5; // ✅ FIX: peso di UN vassoio, non moltiplicare
                         }
                         
-                        // ✅ FIX: Calcola peso per SINGOLO vassoio (peso totale / quantità vassoi)
-                        quantitaEffettiva = pesoTotaleVassoi / quantitaVassoi;
+                        // ✅ FIX: pesoTotaleVassoi è già il peso di UN singolo vassoio
+                        quantitaEffettiva = pesoTotaleVassoi;
                         unitaEffettiva = 'Kg';
                         
                         // ✅ FIX: Usa quantità vassoi come count se > 1
