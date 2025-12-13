@@ -655,8 +655,15 @@ Pastificio Nonna Claudia`;
                       if (prodotto.dettagliCalcolo?.composizione) {
                         composizioneDisplay = prodotto.dettagliCalcolo.composizione
                           .map(item => {
-                            // Usa abbreviazione del nome (già include variante se presente)
-                            const nomeAbbreviato = abbreviaNome(item.nome);
+                            // ✅ FIX: Costruisci nome completo PRIMA di abbreviare
+                            // Per ordini vecchi: nome="Ciambelle", variante="con marmellata..."
+                            // Per ordini nuovi: nome="Ciambelle con marmellata...", variante=null
+                            let nomeCompleto = item.nome || '';
+                            if (item.variante && !nomeCompleto.toLowerCase().includes(item.variante.toLowerCase())) {
+                              // Aggiungi variante solo se non già inclusa nel nome
+                              nomeCompleto = `${nomeCompleto} ${item.variante}`.trim();
+                            }
+                            const nomeAbbreviato = abbreviaNome(nomeCompleto);
                             return `${nomeAbbreviato}: ${formatQuantita(item.quantita)}`;
                           })
                           .join(', ');
@@ -1033,8 +1040,12 @@ Pastificio Nonna Claudia`;
                 if (prodotto.dettagliCalcolo?.composizione) {
                   composizioneDisplay = prodotto.dettagliCalcolo.composizione
                     .map(item => {
-                      // Usa abbreviazione del nome (già include variante se presente)
-                      const nomeAbbreviato = abbreviaNome(item.nome);
+                      // ✅ FIX: Costruisci nome completo PRIMA di abbreviare
+                      let nomeCompleto = item.nome || '';
+                      if (item.variante && !nomeCompleto.toLowerCase().includes(item.variante.toLowerCase())) {
+                        nomeCompleto = `${nomeCompleto} ${item.variante}`.trim();
+                      }
+                      const nomeAbbreviato = abbreviaNome(nomeCompleto);
                       return `${nomeAbbreviato}: ${formatQuantita(item.quantita)} ${item.unita}`;
                     })
                     .join(', ');
