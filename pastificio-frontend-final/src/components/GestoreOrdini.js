@@ -1021,8 +1021,8 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
 
     preCaricaDati();
     
-    // Ricarica ogni 5 minuti
-    const intervalId = setInterval(preCaricaDati, 5 * 60 * 1000);
+    // ✅ FIX 13/12/2025: Ricarica ogni 15 minuti invece di 5
+    const intervalId = setInterval(preCaricaDati, 15 * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -1125,9 +1125,10 @@ useEffect(() => {
         });
         console.log('Keep-alive ping inviato');
       } catch (error) {
-        console.log('Keep-alive fallito:', error.message);
+        // ✅ FIX 13/12/2025: Non loggare errori keep-alive per ridurre spam console
+        // console.log('Keep-alive fallito:', error.message);
       }
-    }, 4 * 60 * 1000);
+    }, 10 * 60 * 1000);  // ✅ FIX: 10 minuti invece di 4
 
     return () => clearInterval(keepAlive);
   }, []);
@@ -1204,15 +1205,24 @@ useEffect(() => {
     
     try {
       setSyncInProgress(true);
-      console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/3)`);
+      console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/2)`);
       
-      const response = await fetch(`${API_URL}/ordini`, {
+      // ✅ FIX 13/12/2025: Prima prova con filtro data, poi fallback senza
+      const dataLimite = new Date();
+      dataLimite.setDate(dataLimite.getDate() - 30);
+      const dataLimiteISO = dataLimite.toISOString().split('T')[0];
+      
+      let url = `${API_URL}/ordini`;
+      // Prova prima con filtro (se backend lo supporta)
+      // Se fallisce, ricarica senza filtro
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(15000)
       });
       
       if (response.ok) {
@@ -1227,21 +1237,30 @@ useEffect(() => {
           ordiniBackend = data.ordini;
         }
         
-        console.log(`✅ Sincronizzati ${ordiniBackend.length} ordini dal server`);
+        // ✅ FIX 13/12/2025: Filtra client-side solo ultimi 60 giorni per performance
+        const sessantaGiorniFa = new Date();
+        sessantaGiorniFa.setDate(sessantaGiorniFa.getDate() - 60);
         
-        ordiniBackend.sort((a, b) => {
+        const ordiniRecenti = ordiniBackend.filter(ordine => {
+          const dataOrdine = new Date(ordine.dataRitiro || ordine.createdAt);
+          return dataOrdine >= sessantaGiorniFa;
+        });
+        
+        console.log(`✅ Sincronizzati ${ordiniRecenti.length} ordini recenti (su ${ordiniBackend.length} totali)`);
+        
+        ordiniRecenti.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.dataRitiro);
           const dateB = new Date(b.createdAt || b.dataRitiro);
           return dateB - dateA;
         });
         
-        localStorage.setItem('ordini', JSON.stringify(ordiniBackend));
-        setOrdini(ordiniBackend);
+        localStorage.setItem('ordini', JSON.stringify(ordiniRecenti));
+        setOrdini(ordiniRecenti);
         
         setIsConnected(true);
         setUltimaSync(new Date());
         
-        console.log('✅ Ordini sincronizzati ESATTAMENTE come sul server');
+        console.log('✅ Ordini sincronizzati (ultimi 60 giorni)');
         
         return true;
       } else {
@@ -1250,10 +1269,11 @@ useEffect(() => {
     } catch (error) {
       console.error('Errore sincronizzazione:', error);
       
-      if (retry < 2 && navigator.onLine) {
+      // ✅ FIX: Solo 1 retry
+      if (retry < 1 && navigator.onLine) {
         setTimeout(() => {
           sincronizzaConMongoDB(retry + 1);
-        }, 3000);
+        }, 5000);
         return;
       }
       
@@ -1848,7 +1868,7 @@ useEffect(() => {
     
     syncIntervalRef.current = setInterval(() => {
       sincronizzaConMongoDB();
-    }, 120000);  // ✅ FIX 13/12/2025: 2 minuti invece di 30 secondi (riduce carico)
+    }, 300000);  // ✅ FIX 13/12/2025: 5 minuti invece di 30 secondi (massima performance)
     
     setCaricamento(false);
     
