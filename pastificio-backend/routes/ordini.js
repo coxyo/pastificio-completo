@@ -1,4 +1,4 @@
-// routes/ordini.js - ✅ FIX 25/11/2025: Aggiunto 'consegnato' alla validazione stato prodotto
+// routes/ordini.js - ✅ FIX 13/12/2025: Calcolo prezzi lato backend
 import express from 'express';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
@@ -8,6 +8,197 @@ import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
+
+// ✅ NUOVO 13/12/2025: Configurazione prezzi prodotti lato backend
+const PREZZI_PRODOTTI = {
+  // PANADAS
+  'Panada Anguille': { prezzoKg: 30.00 },
+  'Panada di Agnello': { prezzoKg: 25.00 },
+  'Panada di Agnello (con patate)': { prezzoKg: 25.00 },
+  'Panada di Maiale': { prezzoKg: 21.00 },
+  'Panada di Maiale (con patate)': { prezzoKg: 21.00 },
+  'Panada di Vitella': { prezzoKg: 23.00 },
+  'Panada di verdure': { prezzoKg: 17.00 },
+  'Panadine': { prezzoKg: 28.00, prezzoPezzo: 0.80, pezziPerKg: 35 },
+  
+  // DOLCI
+  'Pardulas': { prezzoKg: 20.00, prezzoPezzo: 0.76, pezziPerKg: 25 },
+  'Ciambelle': { prezzoKg: 17.00, pezziPerKg: 30 },
+  'Amaretti': { prezzoKg: 22.00, pezziPerKg: 35 },
+  'Papassinas': { prezzoKg: 22.00, pezziPerKg: 30 },
+  'Papassini': { prezzoKg: 22.00, pezziPerKg: 30 },
+  'Pabassine': { prezzoKg: 22.00, pezziPerKg: 30 },
+  'Zeppole': { prezzoKg: 21.00, pezziPerKg: 24 },
+  'Gueffus': { prezzoKg: 22.00, pezziPerKg: 65 },
+  'Bianchini': { prezzoKg: 15.00, pezziPerKg: 100 },
+  'Sebadas': { prezzoPezzo: 2.50 },
+  'Dolci misti': { prezzoKg: 19.00 },
+  'Torta di saba': { prezzoKg: 26.00 },
+  
+  // RAVIOLI
+  'Ravioli': { prezzoKg: 11.00, pezziPerKg: 30 },
+  'Ravioli ricotta e spinaci': { prezzoKg: 11.00, pezziPerKg: 30 },
+  'Ravioli ricotta e zafferano': { prezzoKg: 11.00, pezziPerKg: 30 },
+  'Ravioli ricotta dolci': { prezzoKg: 11.00, pezziPerKg: 30 },
+  'Ravioli ricotta poco dolci': { prezzoKg: 11.00, pezziPerKg: 30 },
+  'Ravioli ricotta molto dolci': { prezzoKg: 11.00, pezziPerKg: 30 },
+  'Ravioli di formaggio': { prezzoKg: 16.00, pezziPerKg: 30 },
+  'Culurgiones': { prezzoKg: 16.00, pezziPerKg: 32 },
+  
+  // PASTA
+  'Fregula': { prezzoKg: 10.00 },
+  'Pasta per panada': { prezzoKg: 5.00 },
+  'Pasta per panada e pizza': { prezzoKg: 5.00 },
+  'Sfoglia per lasagne': { prezzoKg: 5.00 },
+  'Pizzette sfoglia': { prezzoKg: 16.00, pezziPerKg: 30 }
+};
+
+// ✅ NUOVO 13/12/2025: Trova configurazione prodotto (con ricerca fuzzy)
+const trovaProdottoConfig = (nomeProdotto) => {
+  if (!nomeProdotto) return null;
+  
+  // 1. Match esatto
+  if (PREZZI_PRODOTTI[nomeProdotto]) {
+    return PREZZI_PRODOTTI[nomeProdotto];
+  }
+  
+  // 2. Case-insensitive
+  const nomeLower = nomeProdotto.toLowerCase().trim();
+  for (const [key, config] of Object.entries(PREZZI_PRODOTTI)) {
+    if (key.toLowerCase() === nomeLower) {
+      return config;
+    }
+  }
+  
+  // 3. Nome base (senza parentesi)
+  const nomeBase = nomeProdotto.split(' (')[0].trim();
+  if (PREZZI_PRODOTTI[nomeBase]) {
+    return PREZZI_PRODOTTI[nomeBase];
+  }
+  
+  // 4. Keywords
+  const keywords = {
+    'anguille': 'Panada Anguille',
+    'agnello': 'Panada di Agnello',
+    'maiale': 'Panada di Maiale',
+    'vitella': 'Panada di Vitella',
+    'verdure': 'Panada di verdure',
+    'panadine': 'Panadine',
+    'pardulas': 'Pardulas',
+    'ciambelle': 'Ciambelle',
+    'ravioli': 'Ravioli',
+    'culurgiones': 'Culurgiones',
+    'sebadas': 'Sebadas',
+    'amaretti': 'Amaretti',
+    'bianchini': 'Bianchini',
+    'gueffus': 'Gueffus',
+    'papassinas': 'Papassinas',
+    'papassini': 'Papassinas',
+    'pabassine': 'Pabassine',
+    'dolci misti': 'Dolci misti',
+    'fregula': 'Fregula',
+    'torta': 'Torta di saba',
+    'zeppole': 'Zeppole'
+  };
+  
+  for (const [keyword, prodottoKey] of Object.entries(keywords)) {
+    if (nomeLower.includes(keyword)) {
+      if (PREZZI_PRODOTTI[prodottoKey]) {
+        return PREZZI_PRODOTTI[prodottoKey];
+      }
+    }
+  }
+  
+  return null;
+};
+
+// ✅ NUOVO 13/12/2025: Calcola prezzo singolo prodotto
+const calcolaPrezziProdotto = (prodotto) => {
+  const { nome, quantita, unita, prezzo } = prodotto;
+  
+  // Se è un vassoio, mantieni il prezzo esistente
+  if (unita === 'vassoio' || nome === 'Vassoio Dolci Misti') {
+    return prezzo || 0;
+  }
+  
+  // Cerca configurazione prodotto
+  const config = trovaProdottoConfig(nome);
+  
+  if (!config) {
+    // Prodotto non trovato - usa prezzo esistente se > 0
+    if (prezzo && prezzo > 0) {
+      logger.warn(`⚠️ Prodotto "${nome}" non in config, uso prezzo esistente: €${prezzo}`);
+      return prezzo;
+    }
+    logger.error(`❌ Prodotto "${nome}" non trovato e nessun prezzo esistente`);
+    return 0;
+  }
+  
+  const unitaLower = (unita || 'kg').toLowerCase().trim();
+  let prezzoCalcolato = 0;
+  
+  switch (unitaLower) {
+    case 'kg':
+      if (config.prezzoKg) {
+        prezzoCalcolato = quantita * config.prezzoKg;
+      }
+      break;
+      
+    case 'pezzi':
+    case 'pz':
+    case 'pezzo':
+      if (config.prezzoPezzo) {
+        prezzoCalcolato = quantita * config.prezzoPezzo;
+      } else if (config.prezzoKg && config.pezziPerKg) {
+        // Converti pezzi in kg
+        const kg = quantita / config.pezziPerKg;
+        prezzoCalcolato = kg * config.prezzoKg;
+      }
+      break;
+      
+    case '€':
+    case 'euro':
+      // L'importo È il prezzo
+      prezzoCalcolato = quantita;
+      break;
+      
+    default:
+      // Fallback: prova con prezzoKg
+      if (config.prezzoKg) {
+        prezzoCalcolato = quantita * config.prezzoKg;
+      }
+  }
+  
+  // Se calcolo ha dato 0 ma c'è prezzo esistente, usa quello
+  if (prezzoCalcolato === 0 && prezzo && prezzo > 0) {
+    logger.warn(`⚠️ Calcolo €0 per "${nome}", uso prezzo esistente: €${prezzo}`);
+    return prezzo;
+  }
+  
+  logger.info(`💰 Prezzo calcolato per ${nome}: ${quantita} ${unita} = €${prezzoCalcolato.toFixed(2)}`);
+  return Math.round(prezzoCalcolato * 100) / 100;
+};
+
+// ✅ NUOVO 13/12/2025: Calcola prezzi per tutti i prodotti dell'ordine
+const calcolaPrezziOrdine = (prodotti) => {
+  if (!prodotti || !Array.isArray(prodotti)) return { prodotti: [], totale: 0 };
+  
+  let totale = 0;
+  const prodottiConPrezzi = prodotti.map(p => {
+    const prezzoCalcolato = calcolaPrezziProdotto(p);
+    totale += prezzoCalcolato;
+    
+    return {
+      ...p,
+      prezzo: prezzoCalcolato
+    };
+  });
+  
+  return {
+    prodotti: prodottiConPrezzi,
+    totale: Math.round(totale * 100) / 100
+  };
+};
 
 /**
  * ✅ NUOVO 21/11/2025: Crea cliente automaticamente se non esiste
@@ -155,7 +346,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/ordini - Crea nuovo ordine (CON CREAZIONE AUTOMATICA CLIENTE)
+// POST /api/ordini - Crea nuovo ordine (CON CALCOLO PREZZI E CREAZIONE AUTOMATICA CLIENTE)
 router.post('/', async (req, res, next) => {
   try {
     logger.info('📥 Ricevuta richiesta creazione ordine');
@@ -238,15 +429,26 @@ router.post('/', async (req, res, next) => {
       }
     }
     
+    // ✅✅ NUOVO 13/12/2025: CALCOLA PREZZI LATO BACKEND
+    const { prodotti: prodottiConPrezzi, totale: totaleCalcolato } = calcolaPrezziOrdine(ordineData.prodotti);
+    
+    // Se il totale ricevuto è 0 o molto diverso, usa quello calcolato
+    let totaleFinale = ordineData.totale || 0;
+    if (totaleFinale === 0 || Math.abs(totaleFinale - totaleCalcolato) > 1) {
+      logger.info(`💰 Totale ricalcolato: €${totaleCalcolato} (ricevuto: €${totaleFinale})`);
+      totaleFinale = totaleCalcolato;
+    }
+    
     // ✅ Prepara dati ordine (RIMUOVI forceOverride prima di salvare)
     const { forceOverride, ...ordineDataPulito } = ordineData;
     
     const nuovoOrdineData = {
       ...ordineDataPulito,
+      prodotti: prodottiConPrezzi, // ✅ USA PRODOTTI CON PREZZI CALCOLATI
       cliente: clienteId,
       numeroOrdine: `ORD${Date.now().toString().slice(-8)}`,
       stato: ordineData.stato || 'nuovo',
-      totale: ordineData.totale || 0,
+      totale: totaleFinale, // ✅ USA TOTALE CALCOLATO
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -255,33 +457,30 @@ router.post('/', async (req, res, next) => {
     const nuovoOrdine = new Ordine(nuovoOrdineData);
     await nuovoOrdine.save();
     
-    logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - €${nuovoOrdine.totale}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
-    
-    // ✅ AGGIORNA CONTATORI LIMITI DOPO SALVATAGGIO
-    if (nuovoOrdine.dataRitiro && nuovoOrdine.prodotti && nuovoOrdine.prodotti.length > 0) {
-      try {
-        await LimiteGiornaliero.aggiornaDopoOrdine(nuovoOrdine.dataRitiro, nuovoOrdine.prodotti);
-        logger.info(`📊 Limiti aggiornati per ordine ${nuovoOrdine._id}`);
-      } catch (aggiornaError) {
-        logger.error('⚠️ Errore aggiornamento limiti:', aggiornaError.message);
-      }
-    }
-    
-    // ✅ SALVA IN res.locals PER MIDDLEWARE GIACENZE
-    res.locals.ordineCreato = nuovoOrdine;
-    
     // Popola cliente per risposta
     await nuovoOrdine.populate('cliente', 'nome cognome telefono email codiceCliente');
     
+    logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - Totale: €${totaleFinale}`);
+    
     // Notifica WebSocket
     if (global.io) {
-      global.io.emit('ordine-creato', {
+      global.io.emit('nuovo-ordine', {
         ordine: nuovoOrdine,
         timestamp: new Date()
       });
     }
     
-    // ✅ PASSA AL MIDDLEWARE GIACENZE
+    // ✅ Aggiorna limiti
+    if (ordineData.dataRitiro && prodottiConPrezzi.length > 0) {
+      try {
+        await LimiteGiornaliero.aggiornaDopoOrdine(ordineData.dataRitiro, prodottiConPrezzi);
+      } catch (limiteError) {
+        logger.warn('⚠️ Errore aggiornamento limiti:', limiteError.message);
+      }
+    }
+    
+    // Passa al middleware per aggiornamento giacenze
+    req.ordineCreato = nuovoOrdine;
     next();
     
   } catch (error) {
@@ -293,21 +492,21 @@ router.post('/', async (req, res, next) => {
     });
   }
 }, aggiornaGiacenzeOrdine, (req, res) => {
-  // ✅ RISPOSTA FINALE DOPO AGGIORNAMENTO GIACENZE
+  // Risposta finale dopo middleware
   res.status(201).json({
     success: true,
     message: 'Ordine creato con successo',
-    data: res.locals.ordineCreato
+    data: req.ordineCreato
   });
 });
 
-// PUT /api/ordini/:id - Aggiorna ordine (CON CREAZIONE AUTOMATICA CLIENTE)
+// PUT /api/ordini/:id - Aggiorna ordine (CON RICALCOLO PREZZI)
 router.put('/:id', async (req, res) => {
   try {
     const ordineData = req.body;
     
+    // Trova ordine esistente per confronto limiti
     const ordineEsistente = await Ordine.findById(req.params.id);
-    
     if (!ordineEsistente) {
       return res.status(404).json({
         success: false,
@@ -315,16 +514,16 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    // ✅ VERIFICA LIMITI (SOLO SE NON FORCE OVERRIDE)
     const skipVerificaLimiti = ordineData.forceOverride === true || ordineData.forceOverride === 'true';
     
-    if ((ordineData.dataRitiro || ordineData.prodotti) && !skipVerificaLimiti) {
-      const dataVerifica = ordineData.dataRitiro || ordineEsistente.dataRitiro;
-      const prodottiVerifica = ordineData.prodotti || ordineEsistente.prodotti;
-      
+    // ✅ VERIFICA LIMITI (se cambiano prodotti o data)
+    const dataVerifica = ordineData.dataRitiro || ordineEsistente.dataRitiro;
+    const prodottiVerifica = ordineData.prodotti || ordineEsistente.prodotti;
+    
+    if (dataVerifica && prodottiVerifica && prodottiVerifica.length > 0 && !skipVerificaLimiti) {
       try {
-        // Rimuovi quantità vecchio ordine dai contatori
-        if (ordineEsistente.prodotti && ordineEsistente.prodotti.length > 0) {
+        // Prima ripristina i limiti dell'ordine precedente
+        if (ordineEsistente.dataRitiro && ordineEsistente.prodotti) {
           await LimiteGiornaliero.aggiornaDopoOrdine(
             ordineEsistente.dataRitiro,
             ordineEsistente.prodotti.map(p => ({
@@ -336,8 +535,11 @@ router.put('/:id', async (req, res) => {
           );
         }
         
-        // Verifica con nuovo ordine
-        const verificaLimiti = await LimiteGiornaliero.verificaOrdine(dataVerifica, prodottiVerifica);
+        // Verifica nuovo ordine
+        const verificaLimiti = await LimiteGiornaliero.verificaOrdine(
+          dataVerifica,
+          prodottiVerifica
+        );
         
         if (verificaLimiti.errori && verificaLimiti.errori.length > 0) {
           const erroriBloccanti = verificaLimiti.errori.filter(e => e.superato);
@@ -388,6 +590,22 @@ router.put('/:id', async (req, res) => {
       }
     }
     
+    // ✅✅ NUOVO 13/12/2025: RICALCOLA PREZZI SE NECESSARIO
+    let prodottiFinali = ordineData.prodotti;
+    let totaleFinale = ordineData.totale;
+    
+    if (ordineData.prodotti && ordineData.prodotti.length > 0) {
+      const { prodotti: prodottiConPrezzi, totale: totaleCalcolato } = calcolaPrezziOrdine(ordineData.prodotti);
+      
+      // Se ci sono prodotti con prezzo 0, ricalcola
+      const haPrezziZero = ordineData.prodotti.some(p => !p.prezzo || p.prezzo === 0);
+      if (haPrezziZero || totaleFinale === 0) {
+        logger.info(`💰 Ricalcolo prezzi ordine: €${totaleCalcolato}`);
+        prodottiFinali = prodottiConPrezzi;
+        totaleFinale = totaleCalcolato;
+      }
+    }
+    
     // ✅ Rimuovi forceOverride prima di salvare
     const { forceOverride, ...ordineDataPulito } = ordineData;
     
@@ -395,6 +613,8 @@ router.put('/:id', async (req, res) => {
       req.params.id,
       {
         ...ordineDataPulito,
+        prodotti: prodottiFinali,
+        totale: totaleFinale,
         cliente: clienteId,
         updatedAt: new Date()
       },
@@ -408,7 +628,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    logger.info(`✅ Ordine aggiornato: ${ordineAggiornato.numeroOrdine}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
+    logger.info(`✅ Ordine aggiornato: ${ordineAggiornato.numeroOrdine} - Totale: €${totaleFinale}${forceOverride ? ' (FORCE OVERRIDE)' : ''}`);
     
     // Notifica WebSocket
     if (global.io) {
@@ -592,6 +812,100 @@ router.put('/:id/prodotto/:index/stato', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Errore aggiornamento stato prodotto',
+      error: error.message
+    });
+  }
+});
+
+// ✅ NUOVO 13/12/2025: GET /api/ordini/fix/preview - Anteprima ordini con prezzo €0
+router.get('/fix/preview', async (req, res) => {
+  try {
+    // Trova ordini con prodotti a prezzo 0
+    const ordini = await Ordine.find({
+      'prodotti.prezzo': 0
+    }).populate('cliente', 'nome cognome telefono');
+    
+    const preview = ordini.map(o => {
+      const prodottiZero = o.prodotti.filter(p => !p.prezzo || p.prezzo === 0);
+      const { totale: nuovoTotale } = calcolaPrezziOrdine(o.prodotti);
+      
+      return {
+        _id: o._id,
+        numeroOrdine: o.numeroOrdine,
+        cliente: o.nomeCliente || o.cliente?.nomeCompleto,
+        dataRitiro: o.dataRitiro,
+        totaleAttuale: o.totale,
+        totaleCalcolato: nuovoTotale,
+        differenza: nuovoTotale - (o.totale || 0),
+        prodottiDaCorreggere: prodottiZero.map(p => ({
+          nome: p.nome,
+          quantita: p.quantita,
+          unita: p.unita,
+          prezzoAttuale: p.prezzo,
+          prezzoCalcolato: calcolaPrezziProdotto(p)
+        }))
+      };
+    });
+    
+    res.json({
+      success: true,
+      count: preview.length,
+      data: preview
+    });
+  } catch (error) {
+    logger.error('❌ Errore preview fix:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore preview',
+      error: error.message
+    });
+  }
+});
+
+// ✅ NUOVO 13/12/2025: POST /api/ordini/fix/correggi - Correggi ordini con prezzo €0
+router.post('/fix/correggi', async (req, res) => {
+  try {
+    // Trova ordini con prodotti a prezzo 0
+    const ordini = await Ordine.find({
+      'prodotti.prezzo': 0
+    });
+    
+    let corretti = 0;
+    const dettagli = [];
+    
+    for (const ordine of ordini) {
+      const { prodotti: prodottiConPrezzi, totale: nuovoTotale } = calcolaPrezziOrdine(ordine.prodotti);
+      
+      // Aggiorna solo se c'è differenza
+      if (nuovoTotale > 0 && nuovoTotale !== ordine.totale) {
+        await Ordine.findByIdAndUpdate(ordine._id, {
+          prodotti: prodottiConPrezzi,
+          totale: nuovoTotale,
+          updatedAt: new Date()
+        });
+        
+        corretti++;
+        dettagli.push({
+          numeroOrdine: ordine.numeroOrdine,
+          vecchioTotale: ordine.totale,
+          nuovoTotale: nuovoTotale
+        });
+        
+        logger.info(`✅ Ordine corretto: ${ordine.numeroOrdine} - €${ordine.totale} → €${nuovoTotale}`);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Corretti ${corretti} ordini`,
+      corretti,
+      dettagli
+    });
+  } catch (error) {
+    logger.error('❌ Errore correzione:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore correzione',
       error: error.message
     });
   }
