@@ -624,7 +624,13 @@ Pastificio Nonna Claudia`;
                       let composizioneDisplay = '';
                       if (prodotto.dettagliCalcolo?.composizione) {
                         composizioneDisplay = prodotto.dettagliCalcolo.composizione
-                          .map(item => `${item.nome}: ${formatQuantita(item.quantita)}`)
+                          .map(item => {
+                            // ✅ FIX 13/12/2025: Se c'è variante e nome non la include già, aggiungila
+                            const nomeDisplay = (item.variante && !item.nome.includes(item.variante)) 
+                              ? `${item.nome} ${item.variante}` 
+                              : item.nome;
+                            return `${nomeDisplay}: ${formatQuantita(item.quantita)}`;
+                          })
                           .join(', ');
                       } else if (prodotto.dettagliCalcolo?.dettagli && 
                                  (prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio')) {
@@ -968,7 +974,13 @@ Pastificio Nonna Claudia`;
                 let composizioneDisplay = '';
                 if (prodotto.dettagliCalcolo?.composizione) {
                   composizioneDisplay = prodotto.dettagliCalcolo.composizione
-                    .map(item => `${item.nome}: ${formatQuantita(item.quantita)} ${item.unita}`)
+                    .map(item => {
+                      // ✅ FIX 13/12/2025: Se c'è variante e nome non la include già, aggiungila
+                      const nomeDisplay = (item.variante && !item.nome.includes(item.variante)) 
+                        ? `${item.nome} ${item.variante}` 
+                        : item.nome;
+                      return `${nomeDisplay}: ${formatQuantita(item.quantita)} ${item.unita}`;
+                    })
                     .join(', ');
                 } else if (prodotto.dettagliCalcolo?.dettagli) {
                   composizioneDisplay = prodotto.dettagliCalcolo.dettagli;
