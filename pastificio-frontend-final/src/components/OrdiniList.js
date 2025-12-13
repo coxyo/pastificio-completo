@@ -558,6 +558,10 @@ Pastificio Nonna Claudia`;
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: configCategoria.coloreBg }}>
+                      {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
+                      {(ricercaCliente || mostraTutteLeDate) && (
+                        <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '70px', backgroundColor: '#e3f2fd' }}>📅 DATA</TableCell>
+                      )}
                       <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '50px' }}>ORA</TableCell>
                       <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>CLIENTE</TableCell>
                       <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>PRODOTTO</TableCell>
@@ -682,6 +686,14 @@ Pastificio Nonna Claudia`;
                             textDecoration: isConsegnato ? 'line-through' : 'none'
                           }}
                         >
+                          {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
+                          {(ricercaCliente || mostraTutteLeDate) && (
+                            <TableCell sx={{ p: 0.5, backgroundColor: '#e3f2fd' }}>
+                              <Typography variant="body2" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                                {ordine.dataRitiro ? new Date(ordine.dataRitiro).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '-'}
+                              </Typography>
+                            </TableCell>
+                          )}
                           <TableCell sx={{ p: 0.5 }}>
                             <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
                               {ordine.oraRitiro || '-'}
@@ -944,6 +956,10 @@ Pastificio Nonna Claudia`;
           <Table size="medium">
             <TableHead>
               <TableRow sx={{ backgroundColor: CATEGORIE[categoriaSchermoIntero]?.coloreBg || '#f0f0f0' }}>
+                {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
+                {(ricercaCliente || mostraTutteLeDate) && (
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1rem', backgroundColor: '#e3f2fd' }}>📅 DATA</TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>ORA</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>CLIENTE</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>PRODOTTO</TableCell>
@@ -1060,6 +1076,12 @@ Pastificio Nonna Claudia`;
                     opacity: isConsegnato ? 0.6 : 1,
                     textDecoration: isConsegnato ? 'line-through' : 'none'
                   }}>
+                    {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
+                    {(ricercaCliente || mostraTutteLeDate) && (
+                      <TableCell sx={{ fontSize: '1rem', fontWeight: 'bold', backgroundColor: '#e3f2fd' }}>
+                        {ordine.dataRitiro ? new Date(ordine.dataRitiro).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '-'}
+                      </TableCell>
+                    )}
                     <TableCell sx={{ fontSize: '1rem' }}>{ordine.oraRitiro || '-'}</TableCell>
                     <TableCell sx={{ fontSize: '1rem', fontWeight: 'medium' }}>{nomeCliente}</TableCell>
                     <TableCell>
