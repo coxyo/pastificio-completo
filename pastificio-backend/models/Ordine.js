@@ -1,6 +1,133 @@
-// models/Ordine_AGGIORNATO.js - ✅ SCHEMA COMPLETO CON NUOVI CAMPI VASSOIO
+// models/Ordine.js - ✅ FIX 13/12/2025: Preserva prezzi già calcolati
 import mongoose from 'mongoose';
 import calcoliPrezzi from '../utils/calcoliPrezzi.js';
+
+// ========== CONFIGURAZIONE PREZZI BACKUP ==========
+// ✅ NUOVO 13/12/2025: Prezzi di fallback per prodotti non in calcoliPrezzi.js
+const PREZZI_BACKUP = {
+  'Panada Anguille': { prezzoKg: 30.00 },
+  'Panada di Agnello': { prezzoKg: 25.00 },
+  'Panada di Agnello (con patate)': { prezzoKg: 25.00 },
+  'Panada di Maiale': { prezzoKg: 21.00 },
+  'Panada di Maiale (con patate)': { prezzoKg: 21.00 },
+  'Panada di Vitella': { prezzoKg: 23.00 },
+  'Panada di verdure': { prezzoKg: 17.00 },
+  'Panadine': { prezzoKg: 28.00, prezzoPezzo: 0.80, pezziPerKg: 35 },
+  'Pardulas': { prezzoKg: 20.00, prezzoPezzo: 0.76, pezziPerKg: 25 },
+  'Ciambelle': { prezzoKg: 17.00, pezziPerKg: 30 },
+  'Amaretti': { prezzoKg: 22.00, pezziPerKg: 35 },
+  'Papassinas': { prezzoKg: 22.00, pezziPerKg: 30 },
+  'Papassini': { prezzoKg: 22.00, pezziPerKg: 30 },
+  'Pabassine': { prezzoKg: 22.00, pezziPerKg: 30 },
+  'Zeppole': { prezzoKg: 21.00, pezziPerKg: 24 },
+  'Gueffus': { prezzoKg: 22.00, pezziPerKg: 65 },
+  'Bianchini': { prezzoKg: 15.00, pezziPerKg: 100 },
+  'Sebadas': { prezzoPezzo: 2.50 },
+  'Dolci misti': { prezzoKg: 19.00 },
+  'Torta di saba': { prezzoKg: 26.00 },
+  'Ravioli': { prezzoKg: 11.00, pezziPerKg: 30 },
+  'Culurgiones': { prezzoKg: 16.00, pezziPerKg: 32 },
+  'Fregula': { prezzoKg: 10.00 },
+  'Pasta per panada': { prezzoKg: 5.00 },
+  'Pizzette sfoglia': { prezzoKg: 16.00, pezziPerKg: 30 }
+};
+
+// ✅ NUOVO: Funzione per calcolare prezzo con fallback
+const calcolaPrezzoConFallback = (nome, quantita, unita, prezzoEsistente) => {
+  // 1. Se c'è già un prezzo valido, usalo
+  if (prezzoEsistente && prezzoEsistente > 0) {
+    console.log(`✅ Uso prezzo esistente per ${nome}: €${prezzoEsistente}`);
+    return prezzoEsistente;
+  }
+  
+  // 2. Prova con calcoliPrezzi
+  try {
+    const risultato = calcoliPrezzi.calcolaPrezzoOrdine(nome, quantita, unita, prezzoEsistente);
+    if (risultato && risultato.prezzoTotale > 0) {
+      return risultato.prezzoTotale;
+    }
+  } catch (e) {
+    // Ignora errore, useremo fallback
+  }
+  
+  // 3. Usa PREZZI_BACKUP
+  const config = trovaProdottoBackup(nome);
+  if (config) {
+    const unitaLower = (unita || 'kg').toLowerCase();
+    let prezzo = 0;
+    
+    if (unitaLower === 'kg' && config.prezzoKg) {
+      prezzo = quantita * config.prezzoKg;
+    } else if ((unitaLower === 'pezzi' || unitaLower === 'pz') && config.prezzoPezzo) {
+      prezzo = quantita * config.prezzoPezzo;
+    } else if ((unitaLower === 'pezzi' || unitaLower === 'pz') && config.prezzoKg && config.pezziPerKg) {
+      prezzo = (quantita / config.pezziPerKg) * config.prezzoKg;
+    } else if (unitaLower === '€') {
+      prezzo = quantita;
+    } else if (config.prezzoKg) {
+      prezzo = quantita * config.prezzoKg;
+    }
+    
+    if (prezzo > 0) {
+      console.log(`✅ Prezzo calcolato da BACKUP per ${nome}: €${prezzo.toFixed(2)}`);
+      return Math.round(prezzo * 100) / 100;
+    }
+  }
+  
+  console.warn(`⚠️ Prodotto non trovato: ${nome}`);
+  return 0;
+};
+
+// ✅ Trova prodotto nel backup con ricerca fuzzy
+const trovaProdottoBackup = (nome) => {
+  if (!nome) return null;
+  
+  // Match esatto
+  if (PREZZI_BACKUP[nome]) return PREZZI_BACKUP[nome];
+  
+  // Case-insensitive
+  const nomeLower = nome.toLowerCase().trim();
+  for (const [key, config] of Object.entries(PREZZI_BACKUP)) {
+    if (key.toLowerCase() === nomeLower) return config;
+  }
+  
+  // Nome base (senza parentesi)
+  const nomeBase = nome.split(' (')[0].trim();
+  if (PREZZI_BACKUP[nomeBase]) return PREZZI_BACKUP[nomeBase];
+  
+  // Keywords
+  const keywords = {
+    'anguille': 'Panada Anguille',
+    'agnello': 'Panada di Agnello',
+    'maiale': 'Panada di Maiale',
+    'vitella': 'Panada di Vitella',
+    'verdure': 'Panada di verdure',
+    'panadine': 'Panadine',
+    'pardulas': 'Pardulas',
+    'ciambelle': 'Ciambelle',
+    'ravioli': 'Ravioli',
+    'culurgiones': 'Culurgiones',
+    'sebadas': 'Sebadas',
+    'amaretti': 'Amaretti',
+    'bianchini': 'Bianchini',
+    'gueffus': 'Gueffus',
+    'papassinas': 'Papassinas',
+    'papassini': 'Papassinas',
+    'pabassine': 'Pabassine',
+    'dolci misti': 'Dolci misti',
+    'fregula': 'Fregula',
+    'torta': 'Torta di saba',
+    'zeppole': 'Zeppole'
+  };
+  
+  for (const [keyword, prodottoKey] of Object.entries(keywords)) {
+    if (nomeLower.includes(keyword) && PREZZI_BACKUP[prodottoKey]) {
+      return PREZZI_BACKUP[prodottoKey];
+    }
+  }
+  
+  return null;
+};
 
 // ========== SCHEMA PRODOTTO EVOLUTO ==========
 const prodottoSchema = new mongoose.Schema({
@@ -18,12 +145,12 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     enum: [
       'kg', 'Kg', 'KG', 
-    'pezzi', 'Pezzi', 'PEZZI', 'pz', 'Pz',  // ✅ AGGIUNTO pz
+    'pezzi', 'Pezzi', 'PEZZI', 'pz', 'Pz',
       'unità', 'Unità', 
       '€', 'EUR', 
       'g', 'G', 
       'l', 'L',
-      'vassoio' // ✅ AGGIUNTO
+      'vassoio'
     ],
     default: 'kg'
   },
@@ -31,12 +158,12 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     enum: [
       'kg', 'Kg', 'KG', 
-    'pezzi', 'Pezzi', 'PEZZI', 'pz', 'Pz',  // ✅ AGGIUNTO pz
+    'pezzi', 'Pezzi', 'PEZZI', 'pz', 'Pz',
       'unità', 'Unità', 
       '€', 'EUR', 
       'g', 'G', 
       'l', 'L',
-      'vassoio' // ✅ AGGIUNTO
+      'vassoio'
     ],
     default: 'kg'
   },
@@ -57,54 +184,45 @@ const prodottoSchema = new mongoose.Schema({
     default: 'altro'
   },
   
-  // ✅ Varianti prodotto (array)
   varianti: [{
     type: String,
     trim: true,
     comment: 'Varianti selezionate: es. ["con_aglio", "ben_cotte"]'
   }],
   
-  // ✅ Variante singola (legacy)
   variante: {
     type: String,
     trim: true,
     comment: 'Es: ricotta, carne, verdure (campo legacy)'
   },
   
-  // ✅ Dettagli calcolo (per vassoi)
   dettagliCalcolo: {
     type: mongoose.Schema.Types.Mixed,
     comment: 'Composizione dettagliata vassoi + dati calcolo'
   },
   
-  // ✅ Note specifiche prodotto
   note: {
     type: String,
     trim: true,
     comment: 'Note specifiche per questo prodotto'
   },
   
-  // ✅ Note cottura
   noteCottura: {
     type: String,
     trim: true,
     comment: 'Es: "ben cotte", "poco dorate", etc.'
-  }
-,
+  },
   
-  // ✅ NUOVO 21/11/2025: Stato produzione per singolo prodotto
   statoProduzione: {
     type: String,
     enum: ['nuovo', 'in_lavorazione', 'completato', 'consegnato'],
     default: 'nuovo',
     comment: 'Stato di lavorazione del singolo prodotto'
-  }}, { _id: false });
+  }
+}, { _id: false });
 
 // ========== SCHEMA ORDINE PRINCIPALE ==========
 const ordineSchema = new mongoose.Schema({
-  // ==========================================
-  // DATI CLIENTE
-  // ==========================================
   nomeCliente: {
     type: String,
     required: true,
@@ -130,9 +248,6 @@ const ordineSchema = new mongoose.Schema({
     index: true
   },
   
-  // ==========================================
-  // DATI ORDINE
-  // ==========================================
   numeroOrdine: {
     type: String,
     unique: true,
@@ -154,9 +269,6 @@ const ordineSchema = new mongoose.Schema({
   
   prodotti: [prodottoSchema],
   
-  // ==========================================
-  // TOTALI
-  // ==========================================
   totale: {
     type: Number,
     default: 0,
@@ -182,9 +294,6 @@ const ordineSchema = new mongoose.Schema({
     max: 100
   },
   
-  // ==========================================
-  // STATO E GESTIONE
-  // ==========================================
   stato: {
     type: String,
     enum: [
@@ -205,7 +314,6 @@ const ordineSchema = new mongoose.Schema({
     trim: true
   },
   
-  // ✅ NUOVO: Note preparazione (specifiche dall'utente)
   notePreparazione: {
     type: String,
     trim: true,
@@ -218,18 +326,12 @@ const ordineSchema = new mongoose.Schema({
     index: true
   },
   
-  // ==========================================
-  // ✅ NUOVI CAMPI PER VASSOI PERSONALIZZATI
-  // ==========================================
-  
-  // ✅ Esclusioni prodotti (per dolci misti)
   esclusioni: [{
     type: String,
     trim: true,
     comment: 'Prodotti da escludere: es. ["ciambelle", "bianchini"]'
   }],
   
-  // ✅ Packaging ordine/vassoio
   packaging: {
     type: String,
     enum: ['vassoio_carta', 'scatola', 'busta_carta', 'altro'],
@@ -237,14 +339,12 @@ const ordineSchema = new mongoose.Schema({
     comment: 'Tipo di packaging per ordine'
   },
   
-  // ✅ Dimensione vassoio
   numeroVassoioDimensione: {
     type: Number,
     enum: [2, 4, 6, 8, 10],
     comment: 'Dimensione vassoio: 2=piccolo, 4=medio, 6=grande, 8=XL, 10=XXL'
   },
   
-  // ✅ Opzioni extra
   opzioniExtra: {
     daViaggio: {
       type: Boolean,
@@ -263,16 +363,12 @@ const ordineSchema = new mongoose.Schema({
     }
   },
   
-  // ✅ Modalità composizione vassoio
   modalitaComposizione: {
     type: String,
     enum: ['libera', 'totale_prima', 'mix_completo'],
     comment: 'Modalità usata per comporre il vassoio'
   },
   
-  // ==========================================
-  // PAGAMENTO
-  // ==========================================
   metodoPagamento: {
     type: String,
     enum: ['contanti', 'carta', 'bonifico', 'satispay', 'altro'],
@@ -289,9 +385,6 @@ const ordineSchema = new mongoose.Schema({
     type: Date
   },
   
-  // ==========================================
-  // AUDIT E TRACKING
-  // ==========================================
   creatoDa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -315,9 +408,6 @@ const ordineSchema = new mongoose.Schema({
     type: Date
   },
   
-  // ==========================================
-  // NOTIFICHE
-  // ==========================================
   whatsappInviato: {
     type: Boolean,
     default: false
@@ -352,9 +442,9 @@ ordineSchema.index({ stato: 1, dataRitiro: 1 });
 ordineSchema.index({ numeroOrdine: 1 });
 ordineSchema.index({ daViaggio: 1 });
 ordineSchema.index({ createdAt: -1 });
-ordineSchema.index({ 'opzioniExtra.etichettaIngredienti': 1 }); // ✅ NUOVO
+ordineSchema.index({ 'opzioniExtra.etichettaIngredienti': 1 });
 
-// ========== HOOK PRE-SAVE ==========
+// ========== HOOK PRE-SAVE ✅ FIX 13/12/2025 ==========
 ordineSchema.pre('save', async function(next) {
   // Genera numero ordine automatico
   if (!this.numeroOrdine && this.isNew) {
@@ -362,7 +452,7 @@ ordineSchema.pre('save', async function(next) {
     this.numeroOrdine = `ORD${String(count + 1).padStart(6, '0')}`;
   }
   
-  // ✅ Calcola totale ordine (saltando vassoi)
+  // ✅ FIX 13/12/2025: Calcola totale preservando prezzi esistenti
   let totale = 0;
   
   for (const prodotto of this.prodotti) {
@@ -372,29 +462,20 @@ ordineSchema.pre('save', async function(next) {
         prodotto.unita === 'vassoio') {
       
       console.log(`✅ Vassoio rilevato: ${prodotto.nome}, prezzo: €${prodotto.prezzo}`);
-      totale += prodotto.prezzo;
+      totale += prodotto.prezzo || 0;
       continue;
     }
     
-    // Per altri prodotti, calcola prezzo
-    try {
-      const nomeConVarianti = prodotto.varianti && prodotto.varianti.length > 0
-        ? `${prodotto.nome} ${prodotto.varianti.join(' ')}`
-        : prodotto.nome;
-      
-      const risultato = calcoliPrezzi.calcolaPrezzoOrdine(
-        nomeConVarianti,
-        prodotto.quantita,
-        prodotto.unita
-      );
-      
-      prodotto.prezzo = risultato.prezzoTotale;
-      totale += risultato.prezzoTotale;
-      
-    } catch (error) {
-      console.error(`❌ Errore calcolo prezzo per ${prodotto.nome}:`, error.message);
-      totale += prodotto.prezzo || 0;
-    }
+    // ✅ FIX: Usa funzione con fallback che preserva prezzi esistenti
+    const prezzoCalcolato = calcolaPrezzoConFallback(
+      prodotto.nome,
+      prodotto.quantita,
+      prodotto.unita,
+      prodotto.prezzo  // ✅ Passa prezzo esistente come fallback!
+    );
+    
+    prodotto.prezzo = prezzoCalcolato;
+    totale += prezzoCalcolato;
   }
   
   // Applica sconto se presente
@@ -416,9 +497,6 @@ ordineSchema.pre('save', async function(next) {
 
 // ========== METODI ==========
 
-/**
- * ✅ Ottiene composizione dettagliata vassoi
- */
 ordineSchema.methods.getComposizioneVassoi = function() {
   return this.prodotti
     .filter(p => p.dettagliCalcolo && p.dettagliCalcolo.composizione)
@@ -432,37 +510,26 @@ ordineSchema.methods.getComposizioneVassoi = function() {
     }));
 };
 
-/**
- * ✅ Verifica se ordine contiene vassoi
- */
 ordineSchema.methods.hasVassoi = function() {
   return this.prodotti.some(p => 
     p.nome.includes('Vassoio') || p.unita === 'vassoio'
   );
 };
 
-/**
- * ✅ Verifica se ordine richiede etichetta ingredienti
- */
 ordineSchema.methods.needsEtichettaIngredienti = function() {
   return this.opzioniExtra?.etichettaIngredienti === true;
 };
 
-/**
- * ✅ Ottiene note complete ordine
- */
 ordineSchema.methods.getNoteComplete = function() {
   const noteArray = [];
   
   if (this.note) noteArray.push(this.note);
   if (this.notePreparazione) noteArray.push(`Preparazione: ${this.notePreparazione}`);
   
-  // Note esclusioni
   if (this.esclusioni && this.esclusioni.length > 0) {
     noteArray.push(`Escludi: ${this.esclusioni.join(', ')}`);
   }
   
-  // Note packaging
   if (this.packaging && this.packaging !== 'vassoio_carta') {
     const packagingLabel = {
       'scatola': 'Scatola rigida',
@@ -484,7 +551,6 @@ ordineSchema.methods.getNoteComplete = function() {
     }
   }
   
-  // Note opzioni extra
   if (this.opzioniExtra) {
     if (this.opzioniExtra.daViaggio) noteArray.push('✈️ Da Viaggio (sottovuoto)');
     if (this.opzioniExtra.etichettaIngredienti) noteArray.push('⚠️ ATTACCARE ETICHETTA INGREDIENTI');
@@ -494,9 +560,6 @@ ordineSchema.methods.getNoteComplete = function() {
   return noteArray.join(' | ');
 };
 
-/**
- * ✅ Formatta ordine per WhatsApp
- */
 ordineSchema.methods.formatWhatsAppMessage = function() {
   let message = `
 🎂 *Pastificio Nonna Claudia*
@@ -506,12 +569,10 @@ ordineSchema.methods.formatWhatsAppMessage = function() {
 📅 Ritiro: ${new Date(this.dataRitiro).toLocaleDateString('it-IT')} ore ${this.oraRitiro}
 `;
 
-  // Dettaglio prodotti
   message += '\n📦 *PRODOTTI:*\n';
   this.prodotti.forEach(p => {
     message += `  • ${p.nome}: ${p.quantita} ${p.unita} - €${p.prezzo.toFixed(2)}\n`;
     
-    // Se è un vassoio, mostra composizione
     if (p.dettagliCalcolo?.composizione) {
       message += '    *Composizione:*\n';
       p.dettagliCalcolo.composizione.forEach(c => {
@@ -520,10 +581,8 @@ ordineSchema.methods.formatWhatsAppMessage = function() {
     }
   });
 
-  // Totale
   message += `\n💰 *TOTALE: €${this.totale.toFixed(2)}*`;
 
-  // Note complete
   const noteComplete = this.getNoteComplete();
   if (noteComplete) {
     message += `\n\n📝 *NOTE:*\n${noteComplete}`;
@@ -534,9 +593,6 @@ ordineSchema.methods.formatWhatsAppMessage = function() {
   return message.trim();
 };
 
-/**
- * ✅ Formatta ordine per stampa
- */
 ordineSchema.methods.formatPrintDetails = function() {
   const details = {
     ordine: this.numeroOrdine,
@@ -571,9 +627,6 @@ ordineSchema.methods.formatPrintDetails = function() {
   return details;
 };
 
-/**
- * ✅ Verifica se ordine richiede attenzioni speciali
- */
 ordineSchema.methods.hasSpecialRequirements = function() {
   return {
     daViaggio: this.daViaggio || this.opzioniExtra?.daViaggio,
@@ -582,13 +635,8 @@ ordineSchema.methods.hasSpecialRequirements = function() {
     hasVassoi: this.hasVassoi(),
     hasEsclusioni: this.esclusioni && this.esclusioni.length > 0
   };
-}; // ✅ FIX 25/11/2025: Chiusura corretta metodo
+};
 
-/**
- * ✅ NUOVO 21/11/2025: Aggiorna stato singolo prodotto
- * @param {number} indiceProdotto - Indice del prodotto nell'array
- * @param {string} nuovoStato - nuovo | in_lavorazione | completato | consegnato
- */
 ordineSchema.methods.aggiornaStatoProdotto = function(indiceProdotto, nuovoStato) {
   if (!this.prodotti[indiceProdotto]) {
     throw new Error(`Prodotto con indice ${indiceProdotto} non trovato`);
@@ -601,15 +649,14 @@ ordineSchema.methods.aggiornaStatoProdotto = function(indiceProdotto, nuovoStato
   
   this.prodotti[indiceProdotto].statoProduzione = nuovoStato;
   
-  // Aggiorna stato generale ordine in base ai prodotti
   const tuttiCompletati = this.prodotti.every(p => p.statoProduzione === 'completato');
   const tuttiConsegnati = this.prodotti.every(p => p.statoProduzione === 'consegnato');
   const almenoUnoInLavorazione = this.prodotti.some(p => p.statoProduzione === 'in_lavorazione');
   
   if (tuttiConsegnati) {
-    this.stato = 'completato'; // Tutto consegnato = ordine completato
+    this.stato = 'completato';
   } else if (tuttiCompletati) {
-    this.stato = 'pronto'; // Tutto fatto = ordine pronto per ritiro
+    this.stato = 'pronto';
   } else if (almenoUnoInLavorazione) {
     this.stato = 'in_lavorazione';
   } else {
