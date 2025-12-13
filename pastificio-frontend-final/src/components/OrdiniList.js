@@ -579,17 +579,22 @@ Pastificio Nonna Claudia`;
                       
                       let quantitaEffettiva = prodotto.quantita || 0;
                       let unitaEffettiva = prodotto.unitaMisura || prodotto.unita || 'Kg';
+                      let countDisplay = count; // ✅ FIX 13/12/2025: count per display vassoi
                       
                       // ✅ Per i vassoi, usa pesoTotale se esiste, altrimenti calcola dalla composizione
                       if (prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio') {
                         
+                        // ✅ FIX: La quantità di vassoi è prodotto.quantita
+                        const quantitaVassoi = prodotto.quantita || 1;
+                        let pesoTotaleVassoi = 0;
+                        
                         // Priorità 1: Usa pesoTotale se esiste
                         if (prodotto.dettagliCalcolo?.pesoTotale) {
-                          quantitaEffettiva = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                          pesoTotaleVassoi = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
                         }
                         // Priorità 2: Calcola dalla composizione (solo Kg)
                         else if (prodotto.dettagliCalcolo?.composizione) {
-                          quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
+                          pesoTotaleVassoi = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
                             const unitaItem = (item.unita || '').toLowerCase();
                             if (unitaItem === 'kg') {
                               return sum + (parseFloat(item.quantita) || 0);
@@ -597,16 +602,23 @@ Pastificio Nonna Claudia`;
                             return sum;
                           }, 0);
                         }
-                        // Priorità 3: Fallback a 1 kg
+                        // Priorità 3: Fallback a 0.5 kg per vassoio
                         else {
-                          quantitaEffettiva = 1;
+                          pesoTotaleVassoi = 0.5 * quantitaVassoi;
                         }
                         
+                        // ✅ FIX: Calcola peso per SINGOLO vassoio (peso totale / quantità vassoi)
+                        quantitaEffettiva = pesoTotaleVassoi / quantitaVassoi;
                         unitaEffettiva = 'Kg';
+                        
+                        // ✅ FIX: Usa quantità vassoi come count se > 1
+                        if (quantitaVassoi > 1) {
+                          countDisplay = quantitaVassoi;
+                        }
                       }
                       
-                      const qtaDisplay = count > 1 
-                        ? `${count} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
+                      const qtaDisplay = countDisplay > 1 
+                        ? `${countDisplay} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
                         : `${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}`;
 
                       let composizioneDisplay = '';
@@ -911,17 +923,22 @@ Pastificio Nonna Claudia`;
                 
                       let quantitaEffettiva = prodotto.quantita || 0;
                       let unitaEffettiva = prodotto.unitaMisura || prodotto.unita || 'Kg';
+                      let countDisplay = count; // ✅ FIX 13/12/2025: count per display vassoi
                       
                       // ✅ Per i vassoi, usa pesoTotale se esiste, altrimenti calcola dalla composizione
                       if (prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio') {
                         
+                        // ✅ FIX: La quantità di vassoi è prodotto.quantita
+                        const quantitaVassoi = prodotto.quantita || 1;
+                        let pesoTotaleVassoi = 0;
+                        
                         // Priorità 1: Usa pesoTotale se esiste
                         if (prodotto.dettagliCalcolo?.pesoTotale) {
-                          quantitaEffettiva = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
+                          pesoTotaleVassoi = parseFloat(prodotto.dettagliCalcolo.pesoTotale);
                         }
                         // Priorità 2: Calcola dalla composizione (solo Kg)
                         else if (prodotto.dettagliCalcolo?.composizione) {
-                          quantitaEffettiva = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
+                          pesoTotaleVassoi = prodotto.dettagliCalcolo.composizione.reduce((sum, item) => {
                             const unitaItem = (item.unita || '').toLowerCase();
                             if (unitaItem === 'kg') {
                               return sum + (parseFloat(item.quantita) || 0);
@@ -929,16 +946,23 @@ Pastificio Nonna Claudia`;
                             return sum;
                           }, 0);
                         }
-                        // Priorità 3: Fallback a 1 kg
+                        // Priorità 3: Fallback a 0.5 kg per vassoio
                         else {
-                          quantitaEffettiva = 1;
+                          pesoTotaleVassoi = 0.5 * quantitaVassoi;
                         }
                         
+                        // ✅ FIX: Calcola peso per SINGOLO vassoio (peso totale / quantità vassoi)
+                        quantitaEffettiva = pesoTotaleVassoi / quantitaVassoi;
                         unitaEffettiva = 'Kg';
+                        
+                        // ✅ FIX: Usa quantità vassoi come count se > 1
+                        if (quantitaVassoi > 1) {
+                          countDisplay = quantitaVassoi;
+                        }
                       }
                       
-                      const qtaDisplay = count > 1 
-                        ? `${count} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
+                      const qtaDisplay = countDisplay > 1 
+                        ? `${countDisplay} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
                         : `${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}`;
                 
                 let composizioneDisplay = '';
