@@ -621,15 +621,43 @@ Pastificio Nonna Claudia`;
                         ? `${countDisplay} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
                         : `${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}`;
 
+                      // ✅ FIX 13/12/2025: Abbreviazioni per vassoi
+                      const ABBREVIAZIONI_VASSOIO = {
+                        'Ciambelle con marmellata di albicocca': 'C.Albic',
+                        'Ciambelle con marmellata di ciliegia': 'C.Cileg',
+                        'Ciambelle con nutella': 'C.Nut',
+                        'Ciambelle con zucchero a velo': 'C.Nude',
+                        'Ciambelle semplici': 'C.Nude',
+                        'Ciambelle miste': 'C.Miste',
+                        'Ciambelle': 'C',
+                        'Pardulas con glassa': 'P.Glass',
+                        'Pardulas con zucchero a velo': 'P.Zucch',
+                        'Pardulas (base)': 'P',
+                        'Pardulas': 'P',
+                        'Amaretti': 'A',
+                        'Bianchini': 'B',
+                        'Gueffus': 'G',
+                        'Papassinas': 'PAB',
+                        'Dolci misti': 'Dolci Mix'
+                      };
+                      
+                      const abbreviaNome = (nome) => {
+                        if (!nome) return '';
+                        if (ABBREVIAZIONI_VASSOIO[nome]) return ABBREVIAZIONI_VASSOIO[nome];
+                        for (const [key, abbr] of Object.entries(ABBREVIAZIONI_VASSOIO)) {
+                          if (key.toLowerCase() === nome.toLowerCase()) return abbr;
+                          if (nome.toLowerCase().includes(key.toLowerCase())) return abbr;
+                        }
+                        return nome;
+                      };
+                      
                       let composizioneDisplay = '';
                       if (prodotto.dettagliCalcolo?.composizione) {
                         composizioneDisplay = prodotto.dettagliCalcolo.composizione
                           .map(item => {
-                            // ✅ FIX 13/12/2025: Se c'è variante e nome non la include già, aggiungila
-                            const nomeDisplay = (item.variante && !item.nome.includes(item.variante)) 
-                              ? `${item.nome} ${item.variante}` 
-                              : item.nome;
-                            return `${nomeDisplay}: ${formatQuantita(item.quantita)}`;
+                            // Usa abbreviazione del nome (già include variante se presente)
+                            const nomeAbbreviato = abbreviaNome(item.nome);
+                            return `${nomeAbbreviato}: ${formatQuantita(item.quantita)}`;
                           })
                           .join(', ');
                       } else if (prodotto.dettagliCalcolo?.dettagli && 
@@ -971,15 +999,43 @@ Pastificio Nonna Claudia`;
                         ? `${countDisplay} x ${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}` 
                         : `${formatQuantita(quantitaEffettiva)} ${unitaEffettiva}`;
                 
+                // ✅ FIX 13/12/2025: Abbreviazioni per vassoi
+                const ABBREVIAZIONI_VASSOIO = {
+                  'Ciambelle con marmellata di albicocca': 'C.Albic',
+                  'Ciambelle con marmellata di ciliegia': 'C.Cileg',
+                  'Ciambelle con nutella': 'C.Nut',
+                  'Ciambelle con zucchero a velo': 'C.Nude',
+                  'Ciambelle semplici': 'C.Nude',
+                  'Ciambelle miste': 'C.Miste',
+                  'Ciambelle': 'C',
+                  'Pardulas con glassa': 'P.Glass',
+                  'Pardulas con zucchero a velo': 'P.Zucch',
+                  'Pardulas (base)': 'P',
+                  'Pardulas': 'P',
+                  'Amaretti': 'A',
+                  'Bianchini': 'B',
+                  'Gueffus': 'G',
+                  'Papassinas': 'PAB',
+                  'Dolci misti': 'Dolci Mix'
+                };
+                
+                const abbreviaNome = (nome) => {
+                  if (!nome) return '';
+                  if (ABBREVIAZIONI_VASSOIO[nome]) return ABBREVIAZIONI_VASSOIO[nome];
+                  for (const [key, abbr] of Object.entries(ABBREVIAZIONI_VASSOIO)) {
+                    if (key.toLowerCase() === nome.toLowerCase()) return abbr;
+                    if (nome.toLowerCase().includes(key.toLowerCase())) return abbr;
+                  }
+                  return nome;
+                };
+                
                 let composizioneDisplay = '';
                 if (prodotto.dettagliCalcolo?.composizione) {
                   composizioneDisplay = prodotto.dettagliCalcolo.composizione
                     .map(item => {
-                      // ✅ FIX 13/12/2025: Se c'è variante e nome non la include già, aggiungila
-                      const nomeDisplay = (item.variante && !item.nome.includes(item.variante)) 
-                        ? `${item.nome} ${item.variante}` 
-                        : item.nome;
-                      return `${nomeDisplay}: ${formatQuantita(item.quantita)} ${item.unita}`;
+                      // Usa abbreviazione del nome (già include variante se presente)
+                      const nomeAbbreviato = abbreviaNome(item.nome);
+                      return `${nomeAbbreviato}: ${formatQuantita(item.quantita)} ${item.unita}`;
                     })
                     .join(', ');
                 } else if (prodotto.dettagliCalcolo?.dettagli) {
