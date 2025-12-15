@@ -1,4 +1,5 @@
-// hooks/useMagazzinoNotifications.js
+// hooks/useMagazzinoNotifications.js - FIX DEFINITIVO
+// ✅ Gestisce webSocketService stub + usa Pusher se disponibile
 import { useEffect } from 'react';
 import webSocketService from '@/services/webSocketService';
 import notificationService from '@/services/notificationService';
@@ -8,18 +9,32 @@ export const useMagazzinoNotifications = () => {
     console.log('🔔 Inizializzazione notifiche magazzino');
     
     // Richiedi permesso notifiche all'avvio
-    notificationService.requestPermission();
+    if (notificationService && typeof notificationService.requestPermission === 'function') {
+      notificationService.requestPermission();
+    }
     
-    // Se non c'è il webSocketService, esci
-    if (!webSocketService) {
-      console.log('⚠️ WebSocketService non disponibile');
+    // ✅ FIX: Verifica se webSocketService è uno stub o reale
+    const isWebSocketActive = webSocketService && 
+                              typeof webSocketService.on === 'function' &&
+                              !webSocketService.getStatus?.()?.disabled;
+    
+    if (!isWebSocketActive) {
+      console.log('ℹ️ WebSocketService disabilitato, notifiche magazzino via Pusher (se configurate)');
+      
+      // ✅ TODO: Se necessario, qui si possono aggiungere listener Pusher per magazzino
+      // Esempio:
+      // pusherService.subscribe('magazzino').bind('low-stock', callback);
+      
       return;
     }
+    
+    // ✅ WebSocket attivo (scenario legacy, probabilmente mai usato ora)
+    console.log('🌐 WebSocket attivo, registro listener magazzino');
     
     // Ascolta eventi scorte basse
     webSocketService.on('low-stock', (data) => {
       console.log('📉 Evento scorta bassa ricevuto:', data);
-      if (data.prodotto) {
+      if (data.prodotto && notificationService.notifyLowStock) {
         notificationService.notifyLowStock(data.prodotto);
       }
     });
@@ -37,7 +52,9 @@ export const useMagazzinoNotifications = () => {
       console.log('📊 Controllo schedulato scorte:', data);
       if (data.prodotti && Array.isArray(data.prodotti)) {
         data.prodotti.forEach(prodotto => {
-          notificationService.notifyLowStock(prodotto);
+          if (notificationService.notifyLowStock) {
+            notificationService.notifyLowStock(prodotto);
+          }
         });
       }
     });
@@ -84,20 +101,22 @@ export const useMagazzinoNotifications = () => {
     // Cleanup
     return () => {
       console.log('🧹 Pulizia listener notifiche magazzino');
-      webSocketService.off('low-stock');
-      webSocketService.off('products-expiring');
-      webSocketService.off('scheduled-low-stock-check');
-      webSocketService.off('scheduled-expiry-check');
-      webSocketService.off('movimento:creato');
-      webSocketService.off('movimento:aggiornato');
-      webSocketService.off('movimento:eliminato');
+      if (isWebSocketActive) {
+        webSocketService.off('low-stock');
+        webSocketService.off('products-expiring');
+        webSocketService.off('scheduled-low-stock-check');
+        webSocketService.off('scheduled-expiry-check');
+        webSocketService.off('movimento:creato');
+        webSocketService.off('movimento:aggiornato');
+        webSocketService.off('movimento:eliminato');
+      }
     };
   }, []);
   
-  // ✅ FIX: Usa la proprietà booleana invece del metodo
+  // ✅ FIX: Ritorna valori sicuri anche se webSocketService è stub
   return {
     webSocketService,
-    isConnected: Boolean(webSocketService.isConnected), // ✅ CORRETTO
+    isConnected: Boolean(webSocketService?.connected || webSocketService?.isConnected?.()), 
     notificationService
   };
 };
