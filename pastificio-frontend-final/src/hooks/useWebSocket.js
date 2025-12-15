@@ -1,51 +1,99 @@
-// hooks/useWebSocket.js - FIX DEFINITIVO
-// ✅ Gestisce correttamente webSocketService quando è uno stub
+// hooks/useWebSocket.js - ULTRA-SAFE VERSION
+// ✅ Non crasherà MAI, anche se chiamato con codice vecchio
 import { useEffect, useState } from 'react';
-import webSocketService from '@/services/webSocketService';
+
+// ✅ Safe import - non crasha se manca
+let webSocketService = null;
+try {
+  webSocketService = require('@/services/webSocketService').default;
+} catch (e) {
+  console.warn('⚠️ webSocketService non disponibile');
+}
 
 export function useWebSocket() {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    // ✅ FIX: Verifica se webSocketService ha i metodi prima di usarli
+    // ✅ ULTRA-SAFE: Controlla TUTTO prima di usare
+    if (!webSocketService) {
+      console.log('ℹ️ webSocketService non disponibile');
+      return;
+    }
+
+    // ✅ Controlla se è uno stub
+    const status = webSocketService.getStatus?.();
+    if (status?.disabled) {
+      console.log('ℹ️ WebSocketService è disabilitato (stub), usa Pusher');
+      setConnected(false);
+      return;
+    }
+
+    // ✅ Safe check per addConnectionListener
     if (typeof webSocketService.addConnectionListener === 'function') {
-      // WebSocket attivo (scenario vecchio, non più usato)
-      const handleConnectionChange = (isConnected) => {
-        setConnected(isConnected);
-      };
+      // WebSocket attivo (vecchio sistema)
+      try {
+        const handleConnectionChange = (isConnected) => {
+          setConnected(isConnected);
+        };
 
-      webSocketService.addConnectionListener(handleConnectionChange);
+        webSocketService.addConnectionListener(handleConnectionChange);
 
-      return () => {
-        if (typeof webSocketService.removeConnectionListener === 'function') {
-          webSocketService.removeConnectionListener(handleConnectionChange);
-        }
-      };
+        return () => {
+          try {
+            if (typeof webSocketService.removeConnectionListener === 'function') {
+              webSocketService.removeConnectionListener(handleConnectionChange);
+            }
+          } catch (error) {
+            console.warn('⚠️ Errore cleanup listener:', error);
+          }
+        };
+      } catch (error) {
+        console.warn('⚠️ Errore setup listener:', error);
+      }
     } else {
-      // ✅ WebSocket è uno stub (scenario attuale con Pusher)
-      console.log('ℹ️ WebSocketService è disabilitato, usa Pusher per real-time');
+      // WebSocket è stub, tutto OK
+      console.log('ℹ️ WebSocket stub attivo (usa Pusher)');
       setConnected(false);
     }
   }, []);
 
-  return {
-    socket: webSocketService,
-    connected: webSocketService.connected || false, // ✅ Usa proprietà se esiste
-    emit: (event, data) => {
-      if (typeof webSocketService.emit === 'function') {
+  // ✅ ULTRA-SAFE: Tutti i metodi hanno fallback
+  const safeEmit = (event, data) => {
+    try {
+      if (webSocketService && typeof webSocketService.emit === 'function') {
         webSocketService.emit(event, data);
       }
-    },
-    on: (event, callback) => {
-      if (typeof webSocketService.on === 'function') {
+    } catch (error) {
+      console.warn('⚠️ Errore emit:', error);
+    }
+  };
+
+  const safeOn = (event, callback) => {
+    try {
+      if (webSocketService && typeof webSocketService.on === 'function') {
         webSocketService.on(event, callback);
       }
-    },
-    off: (event, callback) => {
-      if (typeof webSocketService.off === 'function') {
+    } catch (error) {
+      console.warn('⚠️ Errore on:', error);
+    }
+  };
+
+  const safeOff = (event, callback) => {
+    try {
+      if (webSocketService && typeof webSocketService.off === 'function') {
         webSocketService.off(event, callback);
       }
+    } catch (error) {
+      console.warn('⚠️ Errore off:', error);
     }
+  };
+
+  return {
+    socket: webSocketService || {}, // ✅ Sempre un oggetto
+    connected: Boolean(webSocketService?.connected || webSocketService?.isConnected?.() || connected),
+    emit: safeEmit,
+    on: safeOn,
+    off: safeOff
   };
 }
 
