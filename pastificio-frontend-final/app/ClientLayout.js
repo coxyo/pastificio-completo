@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE CORRETTA v2.0
+// app/ClientLayout.js - VERSIONE CORRETTA v2.0 - PUSHER TEMPORANEAMENTE DISABILITATO
 // ✅ FIX: Popup si chiude correttamente al primo click
 'use client';
 
@@ -30,8 +30,10 @@ import {
   Notifications as NotificationsIcon,
   Phone as PhoneIcon
 } from '@mui/icons-material';
-import useIncomingCall from '@/hooks/useIncomingCall';
-import CallPopup from '@/components/CallPopup';
+
+// ⚠️ TEMPORANEAMENTE DISABILITATO PER DEBUG
+// import useIncomingCall from '@/hooks/useIncomingCall';
+// import CallPopup from '@/components/CallPopup';
 
 const drawerWidth = 240;
 
@@ -55,19 +57,26 @@ export default function ClientLayout({ children }) {
   const [mounted, setMounted] = useState(false);
   const [pusherInitialized, setPusherInitialized] = useState(false);
 
-  // ✅ FIX: Usa isPopupOpen dal hook per controllo preciso
-  const { 
-    chiamataCorrente, 
-    isPopupOpen,
-    handleClosePopup,
-    handleAcceptCall,
-    clearChiamata, 
-    connected 
-  } = useIncomingCall();
+  // ⚠️ TEMPORANEAMENTE DISABILITATO PER DEBUG
+  // const { 
+  //   chiamataCorrente, 
+  //   isPopupOpen,
+  //   handleClosePopup,
+  //   handleAcceptCall,
+  //   clearChiamata, 
+  //   connected 
+  // } = useIncomingCall();
+
+  // Valori mock per far funzionare il resto
+  const connected = false;
+  const chiamataCorrente = null;
+  const isPopupOpen = false;
 
   useEffect(() => {
     setMounted(true);
     
+    // ⚠️ PUSHER INITIALIZATION TEMPORANEAMENTE DISABILITATA
+    /*
     // Pusher initialization
     if (typeof window !== 'undefined' && !pusherInitialized) {
       console.log('🔧 [ClientLayout] Inizializzazione Pusher...');
@@ -106,6 +115,7 @@ export default function ClientLayout({ children }) {
         console.error('❌ [ClientLayout] Errore import pusherService:', error);
       });
     }
+    */
 
     // Richiedi permessi notifiche browser
     if ('Notification' in window && Notification.permission === 'default') {
@@ -129,11 +139,11 @@ export default function ClientLayout({ children }) {
     return pathname === path || pathname.startsWith(path + '/');
   };
 
-  // ✅ FIX: Handler per accettare chiamata - chiude popup PRIMA di navigare
+  // ⚠️ TEMPORANEAMENTE DISABILITATO PER DEBUG
+  /*
   const handleAcceptAndNavigate = () => {
     console.log('📞 [ClientLayout] Accetta chiamata:', chiamataCorrente);
     
-    // 1. Salva dati cliente in localStorage
     if (chiamataCorrente?.cliente) {
       localStorage.setItem('chiamataCliente', JSON.stringify({
         clienteId: chiamataCorrente.cliente._id,
@@ -156,17 +166,15 @@ export default function ClientLayout({ children }) {
       console.log('✅ Numero sconosciuto salvato:', chiamataCorrente.numero);
     }
     
-    // 2. Dispatch evento per GestoreOrdini
     window.dispatchEvent(new Event('nuova-chiamata'));
     console.log('📢 Evento nuova-chiamata dispatched');
     
-    // 3. ✅ FIX: Chiudi popup IMMEDIATAMENTE
     handleAcceptCall();
     console.log('✅ Popup chiuso');
     
-    // 4. Naviga alla pagina ordini
     router.push('/');
   };
+  */
 
   const drawer = (
     <Box>
@@ -215,7 +223,7 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* Indicatore Pusher Connection */}
+          {/* Indicatore Pusher Connection - TEMPORANEAMENTE DISABILITATO */}
           {mounted && process.env.NODE_ENV === 'development' && (
             <Box
               sx={{
@@ -223,7 +231,7 @@ export default function ClientLayout({ children }) {
                 px: 1,
                 py: 0.5,
                 borderRadius: 1,
-                bgcolor: connected ? 'success.main' : 'error.main',
+                bgcolor: 'warning.main',
                 color: 'white',
                 fontSize: 12,
                 fontWeight: 'bold',
@@ -232,7 +240,7 @@ export default function ClientLayout({ children }) {
                 gap: 0.5
               }}
             >
-              📞 {connected ? 'PUSHER ON' : 'PUSHER OFF'}
+              📞 PUSHER DISABLED (DEBUG)
             </Box>
           )}
 
@@ -285,7 +293,8 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ✅ FIX: Usa isPopupOpen per controllo preciso della visibilità */}
+      {/* ⚠️ CALL POPUP TEMPORANEAMENTE DISABILITATO PER DEBUG */}
+      {/* 
       {mounted && isPopupOpen && chiamataCorrente && (
         <CallPopup
           isOpen={isPopupOpen}
@@ -294,6 +303,7 @@ export default function ClientLayout({ children }) {
           onAccept={handleAcceptAndNavigate}
         />
       )}
+      */}
     </Box>
   );
 }
