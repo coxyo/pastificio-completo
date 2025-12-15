@@ -254,8 +254,22 @@ export default function MovimentiMagazzino() {
     }
   }, [isReady]);
 
-  // ✅ MODIFICATO: Monitora connessione WebSocket con wrapper sicuro
+  // ✅ FIX DEFINITIVO: Monitora connessione WebSocket SOLO se non è stub
   useEffect(() => {
+    // ✅ Verifica se webSocketService è uno stub o ha i metodi necessari
+    const isWebSocketActive = webSocketService && 
+                              typeof webSocketService.addConnectionListener === 'function' &&
+                              !webSocketService.getStatus?.()?.disabled;
+    
+    if (!isWebSocketActive) {
+      console.log('ℹ️ [MovimentiMagazzino] WebSocket disabilitato (stub), usa Pusher per real-time');
+      setConnectionStatus('offline');
+      return;
+    }
+
+    // ✅ WebSocket attivo (scenario legacy)
+    console.log('🌐 [MovimentiMagazzino] WebSocket attivo, registro listener connessione');
+    
     const handleConnectionChange = (connected) => {
       setConnectionStatus(connected ? 'connesso' : 'offline');
       console.log('🔌 Stato connessione magazzino:', connected ? 'connesso' : 'offline');
@@ -265,11 +279,21 @@ export default function MovimentiMagazzino() {
       }
     };
 
-    webSocketService.addConnectionListener(handleConnectionChange);
+    try {
+      webSocketService.addConnectionListener(handleConnectionChange);
 
-    return () => {
-      webSocketService.removeConnectionListener(handleConnectionChange);
-    };
+      return () => {
+        try {
+          if (typeof webSocketService.removeConnectionListener === 'function') {
+            webSocketService.removeConnectionListener(handleConnectionChange);
+          }
+        } catch (error) {
+          console.warn('⚠️ Errore cleanup listener connessione:', error);
+        }
+      };
+    } catch (error) {
+      console.error('❌ Errore setup listener connessione:', error);
+    }
   }, []);
 
   // Cleanup listeners
