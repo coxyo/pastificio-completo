@@ -41,8 +41,6 @@ import pusherRoutes from './routes/pusher.js';
 import fixPrezziRoutes from './routes/fix-prezzi-routes.js';
 
 // Import Danea Monitor
-import daneaRoutes from './routes/danea.js';
-import daneaMonitor from './services/daneaMonitor.js';
 
 
 // Import middleware
@@ -317,7 +315,6 @@ app.use('/api/pusher', pusherRoutes);
 app.use('/api/fix', fixPrezziRoutes);
 
 // Route Danea
-app.use('/api/danea', daneaRoutes);
 
 
 
@@ -954,18 +951,6 @@ const startServer = async () => {
       });
       
       
-      // ✅ DANEA MONITOR - Avvia dopo 5 secondi
-      setTimeout(() => {
-        try {
-          logger.info('🏭 [Danea] Avvio monitor import automatico fatture fornitori...')
-          daneaMonitor.start();
-          logger.info('✅ [Danea] Monitor avviato correttamente');
-        } catch (error) {
-          logger.warn('⚠️ [Danea] Monitor non disponibile:', error.message);
-        }
-      }, 5000);
-      
-      // Se WhatsApp si connette dopo, attiva lo scheduler
       if (whatsappService && !whatsappService.isReady()) {
         const checkWhatsApp = setInterval(() => {
           if (whatsappService.isReady() && schedulerWhatsApp) {
