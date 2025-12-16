@@ -237,16 +237,8 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         
         if (peso === 0) return; // Ignora € e prodotti senza peso
         
-        // ✅ CASO SPECIALE: DOLCI MIX / DOLCI MISTI - esplodi in componenti
-        if (nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti')) {
-          // Esplodi usando composizione standard
-          for (const [componente, percentuale] of Object.entries(COMPOSIZIONE_DOLCI_MISTI)) {
-            totali[componente] = (totali[componente] || 0) + (peso * percentuale);
-          }
-          return; // Non classificare ulteriormente
-        }
-        
-        // ✅ CASO SPECIALE: VASSOIO - esplodi composizione se presente
+        // ✅ FIX 15/12/2025: VASSOIO deve essere controllato PRIMA di "dolci misti"
+        // perché "Vassoio Dolci Misti" contiene "dolci misti" come sottostringa!
         if (nomeLC.includes('vassoio') && prodotto.dettagliCalcolo?.composizione) {
           prodotto.dettagliCalcolo.composizione.forEach(comp => {
             const compNome = comp.nome?.toLowerCase() || '';
@@ -272,6 +264,15 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
             else if (compNome.includes('pabassine') || compNome.includes('papassin')) totali.Pabassine += compPeso;
           });
           return; // Non classificare ulteriormente il vassoio stesso
+        }
+        
+        // ✅ CASO SPECIALE: DOLCI MIX / DOLCI MISTI generici (senza composizione vassoio)
+        if (nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti')) {
+          // Esplodi usando composizione standard
+          for (const [componente, percentuale] of Object.entries(COMPOSIZIONE_DOLCI_MISTI)) {
+            totali[componente] = (totali[componente] || 0) + (peso * percentuale);
+          }
+          return; // Non classificare ulteriormente
         }
         
         // Classifica il prodotto
