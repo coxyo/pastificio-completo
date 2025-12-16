@@ -1,0 +1,100 @@
+{
+  "fornitori": {
+    "Elledi": {
+      "nome": "Elledi",
+      "prodotti": {
+        "ricotta": {
+          "keywords": ["ricotta", "ricotte"],
+          "prodottoMagazzino": "Ricotta",
+          "unita": "Kg"
+        },
+        "farina": {
+          "keywords": ["farina", "farine"],
+          "prodottoMagazzino": "Farina",
+          "unita": "Kg"
+        }
+      }
+    },
+    "Loru": {
+      "nome": "Loru",
+      "prodotti": {
+        "semola": {
+          "keywords": ["semola", "semole"],
+          "prodottoMagazzino": "Semola",
+          "unita": "Kg"
+        },
+        "granito": {
+          "keywords": ["granito", "graniti"],
+          "prodottoMagazzino": "Granito",
+          "unita": "Kg"
+        }
+      }
+    },
+    "Valdes Formaggi": {
+      "nome": "Valdes Formaggi",
+      "alias": ["Valdes", "Valdés"],
+      "prodotti": {
+        "ricotta": {
+          "keywords": ["ricotta", "ricotte"],
+          "prodottoMagazzino": "Ricotta",
+          "unita": "Kg"
+        }
+      }
+    },
+    "Manca": {
+      "nome": "Manca",
+      "prodotti": {
+        "uova": {
+          "keywords": ["uova", "uovo"],
+          "prodottoMagazzino": "Uova",
+          "unita": "Pezzi"
+        },
+        "zucchero": {
+          "keywords": ["zucchero"],
+          "prodottoMagazzino": "Zucchero",
+          "unita": "Kg"
+        }
+      }
+    },
+    "Branca": {
+      "nome": "Branca",
+      "prodotti": {
+        "vassoi": {
+          "keywords": ["vassoio", "vassoi"],
+          "prodottoMagazzino": "Vassoi",
+          "unita": "Pezzi"
+        },
+        "strutto": {
+          "keywords": ["strutto"],
+          "prodottoMagazzino": "Strutto",
+          "unita": "Kg"
+        },
+        "margarina": {
+          "keywords": ["margarina", "margarine"],
+          "prodottoMagazzino": "Margarina",
+          "unita": "Kg"
+        }
+      }
+    }
+  },
+  
+  "matchingRules": {
+    "minSimilarity": 0.7,
+    "caseSensitive": false,
+    "fuzzyMatch": true,
+    "logUnmatched": true
+  },
+  
+  "notifications": {
+    "whatsapp": true,
+    "onMatch": true,
+    "onUnmatched": true,
+    "onError": true
+  },
+  
+  "backup": {
+    "enabled": true,
+    "xmlFolder": "processati",
+    "keepDays": 90
+  }
+}
