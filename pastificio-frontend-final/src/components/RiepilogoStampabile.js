@@ -1192,11 +1192,76 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
       const haAltriProdotti = categorieOrdine.size > 1;
 
+      
+      // ✅ NUOVO: Raggruppa prodotti PANADE identici nello stesso ordine PRIMA dello split
+      // Problema: "2 x 1.5 kg" viene salvato come 2 prodotti separati da 1.5 kg
+      // Soluzione: Somma le quantità prima di fare lo split
+      const prodottiRaggruppati = new Map();
+      
+      ordine.prodotti.forEach(prodotto => {
+        const categoria = getCategoriaProdotto(prodotto.nome);
+        
+        if (categoria === 'PANADE') {
+          // Chiave: nome prodotto (es. "Panada di Maiale (con patate)")
+          const chiave = prodotto.nome;
+          
+          if (prodottiRaggruppati.has(chiave)) {
+            // Somma quantità
+            const existing = prodottiRaggruppati.get(chiave);
+            existing.quantita += prodotto.quantita || 0;
+          } else {
+            // Primo prodotto di questo tipo
+            prodottiRaggruppati.set(chiave, { ...prodotto });
+          }
+        }
+      });
+      
+      // Processa prodotti PANADE raggruppati
+      prodottiRaggruppati.forEach((prodotto) => {
+        const categoria = 'PANADE';
+        const nomeCliente = ordine.nomeCliente || 'N/D';
+        const quantita = prodotto.quantita || 0;
+        
+        // ✅ Split: ogni kg = 1 riga
+        const qtaInt = Math.floor(quantita);
+        const qtaFrazionale = Math.round((quantita - qtaInt) * 100) / 100;
+        
+        // Crea righe per la quantità intera
+        for (let i = 0; i < qtaInt; i++) {
+          result.PANADE.push({
+            categoria,
+            oraRitiro: ordine.oraRitiro || '',
+            nomeCliente,
+            daViaggio: ordine.daViaggio || false,
+            haAltriProdotti,
+            prodotto: { ...prodotto, quantita: 1 },
+            count: 1
+          });
+        }
+        
+        // Se c'è una frazione (es. 2.5 kg), aggiungi riga con frazione
+        if (qtaFrazionale > 0.01) {
+          result.PANADE.push({
+            categoria,
+            oraRitiro: ordine.oraRitiro || '',
+            nomeCliente,
+            daViaggio: ordine.daViaggio || false,
+            haAltriProdotti,
+            prodotto: { ...prodotto, quantita: qtaFrazionale },
+            count: 1
+          });
+        }
+      });
 
 
+
+      // ✅ Processa tutti gli ALTRI prodotti (non PANADE) con logica normale
       ordine.prodotti.forEach(prodotto => {
 
         const categoria = getCategoriaProdotto(prodotto.nome);
+        
+        // Salta PANADE (già processati sopra)
+        if (categoria === 'PANADE') return;
 
         const nomeCliente = ordine.nomeCliente || 'N/D';
 
@@ -1205,39 +1270,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         const unita = prodotto.unita || 'Kg';
 
         
-
-        // ✅ CASO SPECIALE PANADE: NON RAGGRUPPARE - ogni panada = 1 riga
-        if (categoria === 'PANADE') {
-          const qtaInt = Math.floor(quantita);
-          const qtaFrazionale = quantita - qtaInt;
-          
-          // Crea righe per la quantità intera
-          for (let i = 0; i < qtaInt; i++) {
-            result.PANADE.push({
-              categoria,
-              oraRitiro: ordine.oraRitiro || '',
-              nomeCliente,
-              daViaggio: ordine.daViaggio || false,
-              haAltriProdotti,
-              prodotto: { ...prodotto, quantita: 1 },
-              count: 1
-            });
-          }
-          
-          // Se c'è una frazione (es. 2.5 kg), aggiungi riga con frazione
-          if (qtaFrazionale > 0) {
-            result.PANADE.push({
-              categoria,
-              oraRitiro: ordine.oraRitiro || '',
-              nomeCliente,
-              daViaggio: ordine.daViaggio || false,
-              haAltriProdotti,
-              prodotto: { ...prodotto, quantita: qtaFrazionale },
-              count: 1
-            });
-          }
-          return; // Non processare oltre per panade
-        }
 
         // ✅ Chiave: CLIENTE + PRODOTTO + QUANTITÀ + UNITÀ (per tutti gli altri prodotti)
 
@@ -2090,7 +2122,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         {/* ✅ Quantità sempre 1 KG o frazione per ogni riga (NO raggruppamento) */}
 
-                        <td className="right">{item.prodotto.quantita} KG</td>
+                        <td className="right">
+                          {item.prodotto.quantita === 1 
+                            ? '1 KG' 
+                            : `${item.prodotto.quantita.toFixed(2).replace(/\.?0+$/, '')} KG`
+                          }
+                        </td>
 
                         <td>{item.nomeCliente.toUpperCase()}</td>
 
