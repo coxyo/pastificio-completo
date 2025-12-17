@@ -1193,61 +1193,21 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       const haAltriProdotti = categorieOrdine.size > 1;
 
       
-      // ✅ NUOVO: Raggruppa prodotti PANADE identici nello stesso ordine PRIMA dello split
-      // Problema: "2 x 1.5 kg" viene salvato come 2 prodotti separati da 1.5 kg
-      // Soluzione: Somma le quantità prima di fare lo split
-      const prodottiRaggruppati = new Map();
-      
+      // ✅ PANADE: Ogni panada nell'ordine = 1 riga (NO raggruppamento, NO split)
+      // Se ordine ha 2 x 1.5 kg → 2 righe da 1.5 KG (non 3 righe da 1 KG)
       ordine.prodotti.forEach(prodotto => {
         const categoria = getCategoriaProdotto(prodotto.nome);
         
         if (categoria === 'PANADE') {
-          // Chiave: nome prodotto (es. "Panada di Maiale (con patate)")
-          const chiave = prodotto.nome;
+          const nomeCliente = ordine.nomeCliente || 'N/D';
           
-          if (prodottiRaggruppati.has(chiave)) {
-            // Somma quantità
-            const existing = prodottiRaggruppati.get(chiave);
-            existing.quantita += prodotto.quantita || 0;
-          } else {
-            // Primo prodotto di questo tipo
-            prodottiRaggruppati.set(chiave, { ...prodotto });
-          }
-        }
-      });
-      
-      // Processa prodotti PANADE raggruppati
-      prodottiRaggruppati.forEach((prodotto) => {
-        const categoria = 'PANADE';
-        const nomeCliente = ordine.nomeCliente || 'N/D';
-        const quantita = prodotto.quantita || 0;
-        
-        // ✅ Split: ogni kg = 1 riga
-        const qtaInt = Math.floor(quantita);
-        const qtaFrazionale = Math.round((quantita - qtaInt) * 100) / 100;
-        
-        // Crea righe per la quantità intera
-        for (let i = 0; i < qtaInt; i++) {
           result.PANADE.push({
             categoria,
             oraRitiro: ordine.oraRitiro || '',
             nomeCliente,
             daViaggio: ordine.daViaggio || false,
             haAltriProdotti,
-            prodotto: { ...prodotto, quantita: 1 },
-            count: 1
-          });
-        }
-        
-        // Se c'è una frazione (es. 2.5 kg), aggiungi riga con frazione
-        if (qtaFrazionale > 0.01) {
-          result.PANADE.push({
-            categoria,
-            oraRitiro: ordine.oraRitiro || '',
-            nomeCliente,
-            daViaggio: ordine.daViaggio || false,
-            haAltriProdotti,
-            prodotto: { ...prodotto, quantita: qtaFrazionale },
+            prodotto: { ...prodotto },
             count: 1
           });
         }
