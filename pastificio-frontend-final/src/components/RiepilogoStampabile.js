@@ -278,11 +278,21 @@ const CATEGORIE = {
 
   },
 
+  PANADE: {
+
+    nome: 'PANADE',
+
+    prodotti: ['Panada', 'Panadine'],
+
+    colore: '#FFA07A'
+
+  },
+
   ALTRI: {
 
     nome: 'ALTRI PRODOTTI',
 
-    prodotti: ['Panada', 'Panadine', 'Fregula', 'Pizzette', 'Pasta', 'Sfoglia'],
+    prodotti: ['Fregula', 'Pizzette', 'Pasta', 'Sfoglia'],
 
     colore: '#95E1D3'
 
@@ -1122,6 +1132,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
       DOLCI: [],
 
+      PANADE: [],
+
       ALTRI: []
 
     };
@@ -1180,7 +1192,40 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         
 
-        // ✅ Chiave: CLIENTE + PRODOTTO + QUANTITÀ + UNITÀ
+        // ✅ CASO SPECIALE PANADE: NON RAGGRUPPARE - ogni panada = 1 riga
+        if (categoria === 'PANADE') {
+          const qtaInt = Math.floor(quantita);
+          const qtaFrazionale = quantita - qtaInt;
+          
+          // Crea righe per la quantità intera
+          for (let i = 0; i < qtaInt; i++) {
+            result.PANADE.push({
+              categoria,
+              oraRitiro: ordine.oraRitiro || '',
+              nomeCliente,
+              daViaggio: ordine.daViaggio || false,
+              haAltriProdotti,
+              prodotto: { ...prodotto, quantita: 1 },
+              count: 1
+            });
+          }
+          
+          // Se c'è una frazione (es. 2.5 kg), aggiungi riga con frazione
+          if (qtaFrazionale > 0) {
+            result.PANADE.push({
+              categoria,
+              oraRitiro: ordine.oraRitiro || '',
+              nomeCliente,
+              daViaggio: ordine.daViaggio || false,
+              haAltriProdotti,
+              prodotto: { ...prodotto, quantita: qtaFrazionale },
+              count: 1
+            });
+          }
+          return; // Non processare oltre per panade
+        }
+
+        // ✅ Chiave: CLIENTE + PRODOTTO + QUANTITÀ + UNITÀ (per tutti gli altri prodotti)
 
         // Vassoi sono unici per prezzo (non raggruppabili se prezzi diversi)
 
@@ -1963,7 +2008,156 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
 
 
-            {/* ========== FOGLIO 4: ALTRI PRODOTTI ========== */}
+
+
+            {/* ========== PAGINA 4: PANADE (NUOVA - ogni panada = 1 riga + numerazione) ========== */}
+
+            {ordiniPerCategoria.PANADE.length > 0 && (
+
+              <div className="page" style={{ pageBreakAfter: 'always' }}>
+
+                <div className="page-header" style={{ backgroundColor: CATEGORIE.PANADE.colore }}>
+
+                  <h2>PASTIFICIO NONNA CLAUDIA</h2>
+
+                  <h3>🥟 PANADE - {formattaData(data)}</h3>
+
+                </div>
+
+
+
+                <table className="ordini-table">
+
+                  <thead>
+
+                    <tr>
+
+                      <th style={{ width: '4%' }}>N°</th>
+
+                      <th style={{ width: '8%' }}>ORA</th>
+
+                      <th style={{ width: '32%' }}>PRODOTTO</th>
+
+                      <th style={{ width: '10%' }}>QTÀ</th>
+
+                      <th style={{ width: '25%' }}>CLIENTE</th>
+
+                      <th style={{ width: '7%' }}>VIAGGIO</th>
+
+                      <th style={{ width: '7%' }}>ALTRI</th>
+
+                      <th style={{ width: '7%' }}>NOTE</th>
+
+                    </tr>
+
+                  </thead>
+
+                  <tbody>
+
+                    {ordiniPerCategoria.PANADE.map((item, index) => {
+
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome);
+
+                      return (
+
+                      <tr key={`panade-${index}`}>
+
+                        {/* ✅ NUOVO: Numerazione progressiva partendo da 1 */}
+
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '14px' }}>{index + 1}</td>
+
+                        <td className="center">{item.oraRitiro || '-'}</td>
+
+                        <td>
+
+                          {nomeProdotto}
+
+                        </td>
+
+                        {/* ✅ Quantità sempre 1 KG o frazione per ogni riga (NO raggruppamento) */}
+
+                        <td className="right">{item.prodotto.quantita} KG</td>
+
+                        <td>{item.nomeCliente.toUpperCase()}</td>
+
+                        <td className="center">{item.daViaggio ? '✓' : ''}</td>
+
+                        <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+
+                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+
+                      </tr>
+
+                      );
+
+                    })}
+
+                    {/* Righe vuote per completare foglio */}
+                    {(() => {
+                      const righeAttuali = ordiniPerCategoria.PANADE.length;
+                      const righeTarget = 25;
+                      const righeVuote = Math.max(0, righeTarget - righeAttuali);
+                      
+                      return Array.from({ length: righeVuote }, (_, i) => (
+                        <tr key={`empty-panade-${i}`} style={{ height: '30px', borderBottom: '1px solid #e0e0e0' }}>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                          <td className="right"></td>
+                          <td></td>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                        </tr>
+                      ));
+                    })()}
+
+                  </tbody>
+
+                </table>
+
+
+
+                <div className="totali">
+
+                  {(() => {
+
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('PANADE');
+
+                    return (
+
+                      <>
+
+                        <div className="totale-principale">
+
+                          <strong>TOTALE PANADE:</strong> {formattaTotaliStringa(totaleKg, totalePezziNonConvertibili, totaleEuro)}
+
+                        </div>
+
+                        <div className="dettagli-totali">
+
+                          {Object.entries(dettagliKg).map(([nome, kg]) => (
+
+                            <span key={`kg-${nome}`}>• {nome}: {kg.toFixed(1)} KG</span>
+
+                          ))}
+
+                        </div>
+
+                      </>
+
+                    );
+
+                  })()}
+
+                </div>
+
+              </div>
+
+            )}
+
+
+            {/* ========== PAGINA 5: ALTRI PRODOTTI (senza più panade) ========== */}
 
             {ordiniPerCategoria.ALTRI.length > 0 && (
 
