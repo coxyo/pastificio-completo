@@ -439,6 +439,20 @@ const getCategoriaProdotto = (nomeProdotto) => {
 
   
 
+  // ✅ CONTROLLI SPECIALI PANADE (ordine importante!)
+  
+  // 1. Pasta per panada e Panadine → ALTRI (NO split, raggruppamento normale)
+  if (nomeLC.includes('pasta per panada') || nomeLC.includes('panadine')) {
+    return 'ALTRI';
+  }
+  
+  // 2. Panade VERE (grandi) → PANADE (con split 1 riga per panada)
+  // Matcha: "Panada di Agnello", "Panada di Maiale", "Panada Anguille", etc.
+  if (nomeLC.includes('panada di') || nomeLC.includes('panada anguille')) {
+    return 'PANADE';
+  }
+
+  // 3. Logica normale per tutte le altre categorie
   for (const [key, categoria] of Object.entries(CATEGORIE)) {
 
     if (categoria.prodotti.some(p => nomeLC.includes(p.toLowerCase()))) {
