@@ -919,13 +919,15 @@ const filtraNote = (note) => {
 
 
 
-// ✅ AGGIORNATO 26/11/2025: Combina note prodotto + note cottura, filtrate e in MAIUSCOLO
+// ✅ AGGIORNATO: Combina note prodotto + note cottura + note da dettagliCalcolo + note composizione, filtrate e in MAIUSCOLO
 
 const getNoteCombinateFiltrateHelper = (prodotto) => {
 
   const note = [];
 
   
+
+  // ✅ 1. Note del prodotto
 
   if (prodotto.note) {
 
@@ -941,6 +943,8 @@ const getNoteCombinateFiltrateHelper = (prodotto) => {
 
   
 
+  // ✅ 2. Note cottura
+
   if (prodotto.noteCottura) {
 
     const noteCoFiltrate = filtraNote(prodotto.noteCottura);
@@ -952,10 +956,38 @@ const getNoteCombinateFiltrateHelper = (prodotto) => {
     }
 
   }
+  
+  // ✅ 3. Note da dettagliCalcolo (per vassoi)
+  if (prodotto.dettagliCalcolo?.note) {
+    const noteDettagliFiltrate = filtraNote(prodotto.dettagliCalcolo.note);
+    if (noteDettagliFiltrate) {
+      note.push(noteDettagliFiltrate);
+    }
+  }
+  
+  // ✅ 4. Note dalla composizione (per vassoi con componenti che hanno note)
+  if (prodotto.dettagliCalcolo?.composizione && Array.isArray(prodotto.dettagliCalcolo.composizione)) {
+    prodotto.dettagliCalcolo.composizione.forEach(comp => {
+      if (comp.note) {
+        const noteCompFiltrate = filtraNote(comp.note);
+        if (noteCompFiltrate) {
+          note.push(noteCompFiltrate);
+        }
+      }
+      if (comp.variante) {
+        // Le varianti possono essere note importanti (es: "con glassa")
+        const varianteFiltrata = filtraNote(comp.variante);
+        if (varianteFiltrata) {
+          note.push(varianteFiltrata);
+        }
+      }
+    });
+  }
 
   
-
-  return note.join(' - ');
+  // ✅ Rimuovi duplicati e unisci
+  const noteUniche = [...new Set(note)];
+  return noteUniche.join(' - ');
 
 };
 
@@ -1063,8 +1095,19 @@ const formattaQuantitaConCount = (prodotto, count) => {
   const unita = prodotto.unita || 'Kg';
   const unitaNorm = unita.toLowerCase();
 
+  // ✅ PRIORITÀ: Se l'ordine è in € o Pezzi, mantieni l'unità ORIGINALE
+  // (Non convertire automaticamente in Kg)
+  if (unita === '€' || unitaNorm === 'euro') {
+    return count > 1 ? `${count} X €${Math.round(qta)}` : `€${Math.round(qta)}`;
+  }
+  
+  if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
+    return count > 1 ? `${count} X ${Math.round(qta)} PZ` : `${Math.round(qta)} PZ`;
+  }
+
   // ✅ FIX VASSOI: Mostra moltiplicatore corretto e peso/composizione
-  if (unitaNorm === 'vassoio' || unitaNorm.includes('vass')) {
+  // SOLO se unità è Kg o vassoio (non € o Pezzi)
+  if (unitaNorm === 'vassoio' || unitaNorm.includes('vass') || unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
     const quantitaVassoi = qta > 0 ? qta : 1;
     
     // Calcola peso totale dalla composizione
@@ -1117,15 +1160,9 @@ const formattaQuantitaConCount = (prodotto, count) => {
     }
   }
   
-  // Altri tipi di unità
-  if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
-    return count > 1 ? `${count} X ${Math.round(qta)} PZ` : `${Math.round(qta)} PZ`;
-  } else if (unita === '€' || unitaNorm === 'euro') {
-    return count > 1 ? `${count} X €${qta}` : `€${qta}`;
-  } else {
-    const unitaMaiusc = unita.toUpperCase();
-    return count > 1 ? `${count} X ${qta} ${unitaMaiusc}` : `${qta} ${unitaMaiusc}`;
-  }
+  // Altri tipi di unità (fallback)
+  const unitaMaiusc = unita.toUpperCase();
+  return count > 1 ? `${count} X ${qta} ${unitaMaiusc}` : `${qta} ${unitaMaiusc}`;
 };
 
 
