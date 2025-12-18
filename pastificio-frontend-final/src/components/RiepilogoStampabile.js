@@ -99,7 +99,7 @@ const ABBREVIAZIONI = {
 
   'Ciambelle con nutella': 'C.Nut',
 
-  'Ciambelle con zucchero a velo': 'C.Nude',
+  'Ciambelle con zucchero a velo': 'C-M',
 
   'Ciambelle semplici': 'C.Nude',
 
