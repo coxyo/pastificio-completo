@@ -232,6 +232,12 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
     
     ordiniFiltrati.forEach(ordine => {
       (ordine.prodotti || []).forEach(prodotto => {
+        // ✅ FIX 19/12/2025: Escludi prodotti "Fatto" (completato) e "Consegnato" dai totali
+        if (prodotto.statoProduzione === 'completato' || 
+            prodotto.statoProduzione === 'consegnato') {
+          return; // Non contare questo prodotto nei totali
+        }
+        
         const nomeLC = prodotto.nome?.toLowerCase() || '';
         let peso = convertiInKg(prodotto);
         
