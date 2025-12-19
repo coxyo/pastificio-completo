@@ -814,6 +814,23 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [submitInCorso, setSubmitInCorso] = useState(false);
   
+  // ✅ FIX 19/12/2025: Listener per aggiornamenti localStorage da OrdiniList
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'ordini' || e.type === 'storage') {
+        console.log('🔄 Ordini aggiornati in localStorage, ricarico...');
+        const ordiniAggiornati = JSON.parse(localStorage.getItem('ordini') || '[]');
+        setOrdini(ordiniAggiornati);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+  
   const [isConnected, setIsConnected] = useState(false);
   const [ultimaSync, setUltimaSync] = useState(null);
   const [storageUsed, setStorageUsed] = useState(0);
