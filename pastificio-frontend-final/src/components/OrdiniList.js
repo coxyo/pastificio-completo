@@ -172,11 +172,12 @@ const OrdiniList = ({
     return noteManuali.length > 0 ? noteManuali.join(' | ') : '-';
   };
 
-  // ✅ FIX 19/12/2025 v2: ULTRA-VELOCE - L/F/C ISTANTANEO (NO AWAIT!)
+  // ✅ FIX 19/12/2025 v4: FINALE - Trigger storage invece di reload!
   const aggiornaStatoProdotto = (ordineId, indiceProdotto, nuovoStato) => {
-    // ✅ 1. Aggiorna SUBITO localStorage (nessun await, nessun async!)
-    const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
+    console.log(`🚀 CAMBIO STATO: ${nuovoStato}`);
     
+    // ✅ 1. Aggiorna localStorage SUBITO
+    const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
     const ordiniAggiornati = ordiniLocal.map(o => {
       if (o._id === ordineId && o.prodotti[indiceProdotto]) {
         const nuoviProdotti = [...o.prodotti];
@@ -188,11 +189,9 @@ const OrdiniList = ({
       }
       return o;
     });
-    
-    // ✅ Salva SUBITO (cambio ISTANTANEO!)
     localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
     
-    // ✅ Forza re-render IMMEDIATO (doppio trigger per sicurezza)
+    // ✅ 2. Trigger evento storage (GestoreOrdini lo ascolta!)
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'ordini',
@@ -200,10 +199,9 @@ const OrdiniList = ({
       url: window.location.href
     }));
     
-    // ✅ 2. Chiama server in BACKGROUND (non blocca, non aspetta)
+    // ✅ 3. Chiama server in background
     setTimeout(() => {
       const token = localStorage.getItem('token');
-      
       fetch(`${API_URL}/ordini/${ordineId}/prodotto/${indiceProdotto}/stato`, {
         method: 'PUT',
         headers: {
@@ -212,17 +210,9 @@ const OrdiniList = ({
         },
         body: JSON.stringify({ stato: nuovoStato })
       })
-      .then(response => {
-        if (response.ok) {
-          console.log('✅ Stato confermato dal server');
-        } else {
-          console.error('❌ Server error:', response.status);
-        }
-      })
-      .catch(error => {
-        console.error('❌ Network error:', error);
-      });
-    }, 0); // Esegui subito ma in background
+      .then(r => r.ok && console.log('✅ Stato confermato'))
+      .catch(e => console.error('❌ Errore:', e));
+    }, 0);
   };
 
   const handleInLavorazione = (ordineId, indiceProdotto, isChecked) => {
