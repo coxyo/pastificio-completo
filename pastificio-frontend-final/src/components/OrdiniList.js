@@ -172,11 +172,10 @@ const OrdiniList = ({
     return noteManuali.length > 0 ? noteManuali.join(' | ') : '-';
   };
 
-  // ✅ FIX 19/12/2025: OPTIMISTIC UPDATE - L/F/C risponde immediatamente!
-  const aggiornaStatoProdotto = async (ordineId, indiceProdotto, nuovoStato) => {
-    // ✅ 1. Aggiorna SUBITO localStorage (UI risponde istantaneamente!)
+  // ✅ FIX 19/12/2025 v2: ULTRA-VELOCE - L/F/C ISTANTANEO (NO AWAIT!)
+  const aggiornaStatoProdotto = (ordineId, indiceProdotto, nuovoStato) => {
+    // ✅ 1. Aggiorna SUBITO localStorage (nessun await, nessun async!)
     const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
-    const ordiniPrecedenti = JSON.parse(JSON.stringify(ordiniLocal)); // Backup per rollback
     
     const ordiniAggiornati = ordiniLocal.map(o => {
       if (o._id === ordineId && o.prodotti[indiceProdotto]) {
@@ -190,38 +189,40 @@ const OrdiniList = ({
       return o;
     });
     
-    // ✅ Aggiorna SUBITO (l'utente vede il cambio istantaneo!)
+    // ✅ Salva SUBITO (cambio ISTANTANEO!)
     localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-    window.dispatchEvent(new Event('storage')); // Trigger re-render
     
-    // ✅ 2. Poi chiama il server in background (senza bloccare l'UI)
-    try {
+    // ✅ Forza re-render IMMEDIATO (doppio trigger per sicurezza)
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ordini',
+      newValue: JSON.stringify(ordiniAggiornati),
+      url: window.location.href
+    }));
+    
+    // ✅ 2. Chiama server in BACKGROUND (non blocca, non aspetta)
+    setTimeout(() => {
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${API_URL}/ordini/${ordineId}/prodotto/${indiceProdotto}/stato`, {
+      fetch(`${API_URL}/ordini/${ordineId}/prodotto/${indiceProdotto}/stato`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ stato: nuovoStato })
+      })
+      .then(response => {
+        if (response.ok) {
+          console.log('✅ Stato confermato dal server');
+        } else {
+          console.error('❌ Server error:', response.status);
+        }
+      })
+      .catch(error => {
+        console.error('❌ Network error:', error);
       });
-
-      if (!response.ok) {
-        throw new Error('Errore aggiornamento stato prodotto');
-      }
-
-      console.log('✅ Stato prodotto confermato dal server');
-      
-    } catch (error) {
-      console.error('❌ Errore aggiornamento stato prodotto:', error);
-      
-      // ✅ 3. ROLLBACK: Ripristina stato precedente se fallisce
-      localStorage.setItem('ordini', JSON.stringify(ordiniPrecedenti));
-      window.dispatchEvent(new Event('storage'));
-      
-      alert('⚠️ Errore aggiornamento stato. Riprova.');
-    }
+    }, 0); // Esegui subito ma in background
   };
 
   const handleInLavorazione = (ordineId, indiceProdotto, isChecked) => {
