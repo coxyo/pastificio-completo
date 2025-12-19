@@ -106,6 +106,12 @@ const ABBREVIAZIONI = {
   'Ciambelle miste': 'C.Miste',
 
   'Sebadas': 'Sebad',
+  'Sebadas al mirto': 'Sebad.Mirt',
+  'Sebadas all\'arancia': 'Sebad.Aran',
+  'Sebadas alla ricotta': 'Sebad.Ric',
+  'Sebadas con mirto': 'Sebad.Mirt',
+  'Sebadas con arancia': 'Sebad.Aran',
+  'Sebadas con ricotta': 'Sebad.Ric',
 
   'Torta di saba': 'T.Saba',
 
@@ -1797,7 +1803,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     {ordiniPerCategoria.PARDULAS.map((item, index) => {
 
-                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                      // ✅ FIX: Includi variante nel nome per abbreviazione corretta
+                      let nomeCompleto = item.prodotto.nome;
+                      if (item.prodotto.variante) {
+                        nomeCompleto += ` ${item.prodotto.variante}`;
+                      }
+                      const nomeProdotto = abbreviaProdotto(nomeCompleto).toUpperCase();
 
                       
 
@@ -1958,7 +1969,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                       } else {
 
-                        nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                        // ✅ FIX: Includi variante nel nome per abbreviazione corretta
+                        let nomeCompleto = item.prodotto.nome;
+                        if (item.prodotto.variante) {
+                          nomeCompleto += ` ${item.prodotto.variante}`;
+                        }
+                        nomeProdotto = abbreviaProdotto(nomeCompleto).toUpperCase();
 
                       }
 
@@ -2105,7 +2121,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     {ordiniPerCategoria.PANADE.map((item, index) => {
 
-                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome);
+                      // ✅ FIX: Includi variante nel nome per abbreviazione corretta
+                      let nomeCompleto = item.prodotto.nome;
+                      if (item.prodotto.variante) {
+                        nomeCompleto += ` ${item.prodotto.variante}`;
+                      }
+                      const nomeProdotto = abbreviaProdotto(nomeCompleto);
 
                       return (
 
@@ -2253,7 +2274,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     {ordiniPerCategoria.ALTRI.map((item, index) => {
 
-                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                      // ✅ FIX: Includi variante nel nome per abbreviazione corretta
+                      let nomeCompleto = item.prodotto.nome;
+                      if (item.prodotto.variante) {
+                        nomeCompleto += ` ${item.prodotto.variante}`;
+                      }
+                      const nomeProdotto = abbreviaProdotto(nomeCompleto).toUpperCase();
 
                       
 
