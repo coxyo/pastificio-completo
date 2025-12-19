@@ -2432,7 +2432,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border-radius: 8px 8px 0 0;
 
-          color: white;
+          color: #000000;
+
+          font-weight: bold;
 
         }
 
@@ -2442,7 +2444,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           margin: 0;
 
-          font-size: 14px;
+          font-size: 18px;
 
           font-weight: bold;
 
@@ -2454,7 +2456,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           margin: 5px 0 0 0;
 
-          font-size: 16px;
+          font-size: 20px;
 
           font-weight: normal;
 
@@ -2484,7 +2486,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           text-align: center;
 
-          font-size: 12px;
+          font-size: 15px;
 
           font-weight: bold;
 
@@ -2502,7 +2504,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border: 1px solid #ddd;
 
-          font-size: 13px;
+          font-size: 16px;
 
           white-space: nowrap;
 
@@ -2572,7 +2574,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border: 1px solid #bdc3c7;
 
-          font-size: 11px;
+          font-size: 14px;
 
           color: #2c3e50;
 
@@ -2582,7 +2584,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         .totale-principale {
 
-          font-size: 14px;
+          font-size: 17px;
 
           font-weight: bold;
 
@@ -2602,7 +2604,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           gap: 10px;
 
-          font-size: 11px;
+          font-size: 14px;
 
           color: #34495e;
 
@@ -2690,7 +2692,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .page-header h2 {
 
-            font-size: 12px;
+            font-size: 16px;
 
           }
 
@@ -2698,7 +2700,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .page-header h3 {
 
-            font-size: 12px;
+            font-size: 16px;
 
           }
 
@@ -2706,7 +2708,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .ordini-table th {
 
-            font-size: 11px;
+            font-size: 14px;
 
             padding: 8px 6px;
 
@@ -2716,7 +2718,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .ordini-table td {
 
-            font-size: 11px;
+            font-size: 14px;
 
             padding: 6px 4px;
 
@@ -2736,7 +2738,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .totale-principale {
 
-            font-size: 12px;
+            font-size: 15px;
 
           }
 
@@ -2744,7 +2746,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .dettagli-totali {
 
-            font-size: 10px;
+            font-size: 13px;
 
           }
 
