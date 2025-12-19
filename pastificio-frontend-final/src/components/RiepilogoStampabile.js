@@ -1095,19 +1095,18 @@ const formattaQuantitaConCount = (prodotto, count) => {
   const unita = prodotto.unita || 'Kg';
   const unitaNorm = unita.toLowerCase();
 
-  // ✅ PRIORITÀ: Se l'ordine è in € o Pezzi, mantieni l'unità ORIGINALE
-  // (Non convertire automaticamente in Kg)
-  if (unita === '€' || unitaNorm === 'euro') {
-    return count > 1 ? `${count} X €${Math.round(qta)}` : `€${Math.round(qta)}`;
-  }
-  
+  // ✅ PEZZI: Mostra pezzi
   if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
     return count > 1 ? `${count} X ${Math.round(qta)} PZ` : `${Math.round(qta)} PZ`;
   }
 
-  // ✅ FIX VASSOI: Mostra moltiplicatore corretto e peso/composizione
-  // SOLO se unità è Kg o vassoio (non € o Pezzi)
-  if (unitaNorm === 'vassoio' || unitaNorm.includes('vass') || unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
+  // ✅ KG: Mostra kg
+  if (unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
+    return count > 1 ? `${count} X ${qta} KG` : `${qta} KG`;
+  }
+
+  // ✅ VASSOI: Calcola peso dalla composizione O mostra prezzo se non c'è composizione
+  if (unitaNorm === 'vassoio' || unitaNorm.includes('vass')) {
     const quantitaVassoi = qta > 0 ? qta : 1;
     
     // Calcola peso totale dalla composizione
@@ -1144,20 +1143,27 @@ const formattaQuantitaConCount = (prodotto, count) => {
     
     // Determina cosa mostrare
     if (pesoTotale > 0) {
-      // ✅ FIX: Il peso dalla composizione è GIÀ per singolo vassoio, NON dividere!
+      // Mostra peso dalla composizione
       const pesoDisplay = Math.round(pesoTotale * 10) / 10;
       return moltiplicatore > 1 ? `${moltiplicatore} X ${pesoDisplay} KG` : `${pesoDisplay} KG`;
     } else if (composizioneAbbr) {
       // Usa composizione abbreviata per items in pezzi
       return moltiplicatore > 1 ? `${moltiplicatore} X ${composizioneAbbr}` : composizioneAbbr;
     } else {
-      // Fallback: mostra prezzo se disponibile
+      // Fallback: mostra prezzo se disponibile (ma come info, non come quantità)
       const prezzoTotale = prodotto.prezzo || 0;
       if (prezzoTotale > 0) {
-        return moltiplicatore > 1 ? `${moltiplicatore} X €${Math.round(prezzoTotale)}` : `€${Math.round(prezzoTotale)}`;
+        return moltiplicatore > 1 ? `${moltiplicatore} VASSOIO €${Math.round(prezzoTotale)}` : `VASSOIO €${Math.round(prezzoTotale)}`;
       }
       return moltiplicatore > 1 ? `${moltiplicatore} VASSOIO` : `1 VASSOIO`;
     }
+  }
+  
+  // ✅ EURO (ordini in euro - raro ma possibile)
+  // Nota: € non è un'unità di quantità, è il prezzo!
+  // Se unita è "€", mostra comunque la quantità con €
+  if (unita === '€' || unitaNorm === 'euro') {
+    return count > 1 ? `${count} X €${Math.round(qta)}` : `€${Math.round(qta)}`;
   }
   
   // Altri tipi di unità (fallback)
