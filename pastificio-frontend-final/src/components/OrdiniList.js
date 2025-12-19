@@ -172,8 +172,29 @@ const OrdiniList = ({
     return noteManuali.length > 0 ? noteManuali.join(' | ') : '-';
   };
 
-  // ✅ FIX 25/11/2025: RIMOSSA chiamata a onEdit() - NON apre più il dialog!
+  // ✅ FIX 19/12/2025: OPTIMISTIC UPDATE - L/F/C risponde immediatamente!
   const aggiornaStatoProdotto = async (ordineId, indiceProdotto, nuovoStato) => {
+    // ✅ 1. Aggiorna SUBITO localStorage (UI risponde istantaneamente!)
+    const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
+    const ordiniPrecedenti = JSON.parse(JSON.stringify(ordiniLocal)); // Backup per rollback
+    
+    const ordiniAggiornati = ordiniLocal.map(o => {
+      if (o._id === ordineId && o.prodotti[indiceProdotto]) {
+        const nuoviProdotti = [...o.prodotti];
+        nuoviProdotti[indiceProdotto] = {
+          ...nuoviProdotti[indiceProdotto],
+          statoProduzione: nuovoStato
+        };
+        return { ...o, prodotti: nuoviProdotti };
+      }
+      return o;
+    });
+    
+    // ✅ Aggiorna SUBITO (l'utente vede il cambio istantaneo!)
+    localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+    window.dispatchEvent(new Event('storage')); // Trigger re-render
+    
+    // ✅ 2. Poi chiama il server in background (senza bloccare l'UI)
     try {
       const token = localStorage.getItem('token');
       
@@ -190,41 +211,16 @@ const OrdiniList = ({
         throw new Error('Errore aggiornamento stato prodotto');
       }
 
-      // ✅ Aggiorna localStorage - L'UI si aggiornerà tramite WebSocket/Pusher
-      const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
-      const ordiniAggiornati = ordiniLocal.map(o => {
-        if (o._id === ordineId && o.prodotti[indiceProdotto]) {
-          const nuoviProdotti = [...o.prodotti];
-          nuoviProdotti[indiceProdotto] = {
-            ...nuoviProdotti[indiceProdotto],
-            statoProduzione: nuovoStato
-          };
-          return { ...o, prodotti: nuoviProdotti };
-        }
-        return o;
-      });
-      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
-      
-      // ✅ La UI si aggiornerà automaticamente tramite sincronizzazione
-      console.log('✅ Stato prodotto aggiornato - WebSocket notificherà gli altri device');
+      console.log('✅ Stato prodotto confermato dal server');
       
     } catch (error) {
       console.error('❌ Errore aggiornamento stato prodotto:', error);
       
-      // ✅ Fallback: aggiorna comunque localStorage
-      const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
-      const ordiniAggiornati = ordiniLocal.map(o => {
-        if (o._id === ordineId && o.prodotti[indiceProdotto]) {
-          const nuoviProdotti = [...o.prodotti];
-          nuoviProdotti[indiceProdotto] = {
-            ...nuoviProdotti[indiceProdotto],
-            statoProduzione: nuovoStato
-          };
-          return { ...o, prodotti: nuoviProdotti };
-        }
-        return o;
-      });
-      localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+      // ✅ 3. ROLLBACK: Ripristina stato precedente se fallisce
+      localStorage.setItem('ordini', JSON.stringify(ordiniPrecedenti));
+      window.dispatchEvent(new Event('storage'));
+      
+      alert('⚠️ Errore aggiornamento stato. Riprova.');
     }
   };
 
