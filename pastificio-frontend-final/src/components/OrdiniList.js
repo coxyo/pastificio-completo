@@ -215,27 +215,45 @@ const OrdiniList = ({
     }, 0);
   };
 
-  const handleInLavorazione = (ordineId, indiceProdotto, isChecked) => {
-    if (isChecked) {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'in_lavorazione');
+  const handleInLavorazione = (gruppo, isChecked) => {
+    const nuovoStato = isChecked ? 'in_lavorazione' : 'nuovo';
+    
+    // ✅ FIX 19/12/2025: Se è un gruppo (count > 1), marca TUTTI gli ordini!
+    if (gruppo.count > 1 && gruppo.ordini) {
+      gruppo.ordini.forEach(({ ordine, indiceProdotto }) => {
+        aggiornaStatoProdotto(ordine._id, indiceProdotto, nuovoStato);
+      });
     } else {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'nuovo');
+      // Ordine singolo
+      aggiornaStatoProdotto(gruppo.ordine._id, gruppo.indiceProdotto, nuovoStato);
     }
   };
 
-  const handleFatto = (ordineId, indiceProdotto, isChecked) => {
-    if (isChecked) {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'completato');
+  const handleFatto = (gruppo, isChecked) => {
+    const nuovoStato = isChecked ? 'completato' : 'in_lavorazione';
+    
+    // ✅ FIX 19/12/2025: Se è un gruppo (count > 1), marca TUTTI gli ordini!
+    if (gruppo.count > 1 && gruppo.ordini) {
+      gruppo.ordini.forEach(({ ordine, indiceProdotto }) => {
+        aggiornaStatoProdotto(ordine._id, indiceProdotto, nuovoStato);
+      });
     } else {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'in_lavorazione');
+      // Ordine singolo
+      aggiornaStatoProdotto(gruppo.ordine._id, gruppo.indiceProdotto, nuovoStato);
     }
   };
 
-  const handleConsegnato = (ordineId, indiceProdotto, isChecked) => {
-    if (isChecked) {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'consegnato');
+  const handleConsegnato = (gruppo, isChecked) => {
+    const nuovoStato = isChecked ? 'consegnato' : 'completato';
+    
+    // ✅ FIX 19/12/2025: Se è un gruppo (count > 1), marca TUTTI gli ordini!
+    if (gruppo.count > 1 && gruppo.ordini) {
+      gruppo.ordini.forEach(({ ordine, indiceProdotto }) => {
+        aggiornaStatoProdotto(ordine._id, indiceProdotto, nuovoStato);
+      });
     } else {
-      aggiornaStatoProdotto(ordineId, indiceProdotto, 'completato');
+      // Ordine singolo
+      aggiornaStatoProdotto(gruppo.ordine._id, gruppo.indiceProdotto, nuovoStato);
     }
   };
 
@@ -402,6 +420,8 @@ Pastificio Nonna Claudia`;
           const gruppo = mappaRaggruppamento.get(chiave);
           gruppo.count += 1;
           gruppo.prezzoTotale += (parseFloat(prodotto.prezzo) || 0);
+          // ✅ FIX 19/12/2025: Salva TUTTI gli ordini del gruppo, non solo il primo!
+          gruppo.ordini.push({ ordine, indiceProdotto });
         } else {
           mappaRaggruppamento.set(chiave, {
             categoria,
@@ -410,8 +430,9 @@ Pastificio Nonna Claudia`;
             daViaggio: ordine.daViaggio || false,
             haAltriProdotti,
             prodotto,
-            ordine,
-            indiceProdotto,
+            ordine, // ✅ Mantieni per compatibilità (è il primo ordine)
+            indiceProdotto, // ✅ Mantieni per compatibilità (è il primo indice)
+            ordini: [{ ordine, indiceProdotto }], // ✅ NUOVO: Array di TUTTI gli ordini
             count: 1,
             prezzoTotale: parseFloat(prodotto.prezzo) || 0
           });
@@ -735,7 +756,7 @@ Pastificio Nonna Claudia`;
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
-                                      handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
+                                      handleInLavorazione(gruppo, !isInLavorazione);
                                     }}
                                     sx={{ 
                                       cursor: 'pointer', 
@@ -764,7 +785,7 @@ Pastificio Nonna Claudia`;
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
-                                      handleFatto(ordine._id, indiceProdotto, !isFatto);
+                                      handleFatto(gruppo, !isFatto);
                                     }}
                                     sx={{ 
                                       cursor: 'pointer', 
@@ -793,7 +814,7 @@ Pastificio Nonna Claudia`;
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
-                                      handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
+                                      handleConsegnato(gruppo, !isConsegnato);
                                     }}
                                     sx={{ 
                                       cursor: 'pointer', 
@@ -1100,7 +1121,7 @@ Pastificio Nonna Claudia`;
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            handleInLavorazione(ordine._id, indiceProdotto, !isInLavorazione);
+                            handleInLavorazione(gruppo, !isInLavorazione);
                           }}
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
@@ -1112,7 +1133,7 @@ Pastificio Nonna Claudia`;
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            handleFatto(ordine._id, indiceProdotto, !isFatto);
+                            handleFatto(gruppo, !isFatto);
                           }}
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
@@ -1124,7 +1145,7 @@ Pastificio Nonna Claudia`;
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            handleConsegnato(ordine._id, indiceProdotto, !isConsegnato);
+                            handleConsegnato(gruppo, !isConsegnato);
                           }}
                           sx={{ cursor: 'pointer', fontSize: '1rem', minWidth: '40px', height: '32px', pointerEvents: 'auto' }}
                         />
