@@ -40,6 +40,7 @@ import {
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
   Luggage as LuggageIcon,
   ExpandMore as ExpandMoreIcon,
   ShoppingCart as CartIcon,
@@ -996,6 +997,32 @@ clienteIdPreselezionato,
     });
   };
 
+  // ✅ FIX 20/12/2025: Funzione per MODIFICARE un prodotto nel carrello
+  const handleModificaProdotto = (index) => {
+    const prodottoDaModificare = formData.prodotti[index];
+    
+    // Rimuovi il prodotto dal carrello
+    const nuoviProdotti = formData.prodotti.filter((_, i) => i !== index);
+    
+    // Ripopola il form con i dati del prodotto
+    setProdottoSelezionato(prodottoDaModificare.nome);
+    setVarianteSelezionata(prodottoDaModificare.variante || '');
+    setQuantita(prodottoDaModificare.quantita);
+    setUnitaMisura(prodottoDaModificare.unita || 'Kg');
+    setPrezzoUnitario(prodottoDaModificare.prezzo / prodottoDaModificare.quantita);
+    setNoteCottura(prodottoDaModificare.noteCottura || '');
+    setNoteProdotto(prodottoDaModificare.note || '');
+    
+    // Aggiorna il carrello senza il prodotto
+    setFormData({
+      ...formData,
+      prodotti: nuoviProdotti
+    });
+    
+    // Torna al tab prodotti singoli
+    setTabValue(0);
+  };
+
   const aggiungiVassoioAlCarrello = (vassoio) => {
   console.log('🎂 Vassoio ricevuto:', vassoio);
   
@@ -1676,6 +1703,15 @@ clienteIdPreselezionato,
                         </TableCell>
                         <TableCell align="right">€{p.prezzo.toFixed(2)}</TableCell>
                         <TableCell align="center">
+                          {/* ✅ FIX 20/12/2025: Pulsante MODIFICA */}
+                          <IconButton 
+                            size="small" 
+                            color="primary" 
+                            onClick={() => handleModificaProdotto(index)}
+                            title="Modifica prodotto"
+                          >
+                            <EditIcon />
+                          </IconButton>
                           <IconButton size="small" color="error" onClick={() => handleRimuoviProdotto(index)}>
                             <DeleteIcon />
                           </IconButton>
