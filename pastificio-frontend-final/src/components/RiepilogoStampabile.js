@@ -99,19 +99,13 @@ const ABBREVIAZIONI = {
 
   'Ciambelle con nutella': 'C.Nut',
 
-  'Ciambelle con zucchero a velo': 'C-M',
+  'Ciambelle con zucchero a velo': 'C.Nude',
 
   'Ciambelle semplici': 'C.Nude',
 
   'Ciambelle miste': 'C.Miste',
 
   'Sebadas': 'Sebad',
-  'Sebadas al mirto': 'Sebad.Mirt',
-  'Sebadas all\'arancia': 'Sebad.Aran',
-  'Sebadas alla ricotta': 'Sebad.Ric',
-  'Sebadas con mirto': 'Sebad.Mirt',
-  'Sebadas con arancia': 'Sebad.Aran',
-  'Sebadas con ricotta': 'Sebad.Ric',
 
   'Torta di saba': 'T.Saba',
 
@@ -445,20 +439,6 @@ const getCategoriaProdotto = (nomeProdotto) => {
 
   
 
-  // ✅ CONTROLLI SPECIALI PANADE (ordine importante!)
-  
-  // 1. Pasta per panada e Panadine → ALTRI (NO split, raggruppamento normale)
-  if (nomeLC.includes('pasta per panada') || nomeLC.includes('panadine')) {
-    return 'ALTRI';
-  }
-  
-  // 2. Panade VERE (grandi) → PANADE (con split 1 riga per panada)
-  // Matcha: "Panada di Agnello", "Panada di Maiale", "Panada Anguille", etc.
-  if (nomeLC.includes('panada di') || nomeLC.includes('panada anguille')) {
-    return 'PANADE';
-  }
-
-  // 3. Logica normale per tutte le altre categorie
   for (const [key, categoria] of Object.entries(CATEGORIE)) {
 
     if (categoria.prodotti.some(p => nomeLC.includes(p.toLowerCase()))) {
@@ -925,15 +905,13 @@ const filtraNote = (note) => {
 
 
 
-// ✅ AGGIORNATO: Combina note prodotto + note cottura + note da dettagliCalcolo + note composizione, filtrate e in MAIUSCOLO
+// ✅ AGGIORNATO 26/11/2025: Combina note prodotto + note cottura, filtrate e in MAIUSCOLO
 
 const getNoteCombinateFiltrateHelper = (prodotto) => {
 
   const note = [];
 
   
-
-  // ✅ 1. Note del prodotto
 
   if (prodotto.note) {
 
@@ -949,8 +927,6 @@ const getNoteCombinateFiltrateHelper = (prodotto) => {
 
   
 
-  // ✅ 2. Note cottura
-
   if (prodotto.noteCottura) {
 
     const noteCoFiltrate = filtraNote(prodotto.noteCottura);
@@ -962,38 +938,10 @@ const getNoteCombinateFiltrateHelper = (prodotto) => {
     }
 
   }
-  
-  // ✅ 3. Note da dettagliCalcolo (per vassoi)
-  if (prodotto.dettagliCalcolo?.note) {
-    const noteDettagliFiltrate = filtraNote(prodotto.dettagliCalcolo.note);
-    if (noteDettagliFiltrate) {
-      note.push(noteDettagliFiltrate);
-    }
-  }
-  
-  // ✅ 4. Note dalla composizione (per vassoi con componenti che hanno note)
-  if (prodotto.dettagliCalcolo?.composizione && Array.isArray(prodotto.dettagliCalcolo.composizione)) {
-    prodotto.dettagliCalcolo.composizione.forEach(comp => {
-      if (comp.note) {
-        const noteCompFiltrate = filtraNote(comp.note);
-        if (noteCompFiltrate) {
-          note.push(noteCompFiltrate);
-        }
-      }
-      if (comp.variante) {
-        // Le varianti possono essere note importanti (es: "con glassa")
-        const varianteFiltrata = filtraNote(comp.variante);
-        if (varianteFiltrata) {
-          note.push(varianteFiltrata);
-        }
-      }
-    });
-  }
 
   
-  // ✅ Rimuovi duplicati e unisci
-  const noteUniche = [...new Set(note)];
-  return noteUniche.join(' - ');
+
+  return note.join(' - ');
 
 };
 
@@ -1101,17 +1049,7 @@ const formattaQuantitaConCount = (prodotto, count) => {
   const unita = prodotto.unita || 'Kg';
   const unitaNorm = unita.toLowerCase();
 
-  // ✅ PEZZI: Mostra pezzi
-  if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
-    return count > 1 ? `${count} X ${Math.round(qta)} PZ` : `${Math.round(qta)} PZ`;
-  }
-
-  // ✅ KG: Mostra kg
-  if (unitaNorm === 'kg' || unitaNorm === 'kilogrammi') {
-    return count > 1 ? `${count} X ${qta} KG` : `${qta} KG`;
-  }
-
-  // ✅ VASSOI: Calcola peso dalla composizione O mostra prezzo se non c'è composizione
+  // ✅ FIX VASSOI: Mostra moltiplicatore corretto e peso/composizione
   if (unitaNorm === 'vassoio' || unitaNorm.includes('vass')) {
     const quantitaVassoi = qta > 0 ? qta : 1;
     
@@ -1149,32 +1087,31 @@ const formattaQuantitaConCount = (prodotto, count) => {
     
     // Determina cosa mostrare
     if (pesoTotale > 0) {
-      // Mostra peso dalla composizione
+      // ✅ FIX: Il peso dalla composizione è GIÀ per singolo vassoio, NON dividere!
       const pesoDisplay = Math.round(pesoTotale * 10) / 10;
       return moltiplicatore > 1 ? `${moltiplicatore} X ${pesoDisplay} KG` : `${pesoDisplay} KG`;
     } else if (composizioneAbbr) {
       // Usa composizione abbreviata per items in pezzi
       return moltiplicatore > 1 ? `${moltiplicatore} X ${composizioneAbbr}` : composizioneAbbr;
     } else {
-      // Fallback: mostra prezzo se disponibile (ma come info, non come quantità)
+      // Fallback: mostra prezzo se disponibile
       const prezzoTotale = prodotto.prezzo || 0;
       if (prezzoTotale > 0) {
-        return moltiplicatore > 1 ? `${moltiplicatore} VASSOIO €${Math.round(prezzoTotale)}` : `VASSOIO €${Math.round(prezzoTotale)}`;
+        return moltiplicatore > 1 ? `${moltiplicatore} X €${Math.round(prezzoTotale)}` : `€${Math.round(prezzoTotale)}`;
       }
       return moltiplicatore > 1 ? `${moltiplicatore} VASSOIO` : `1 VASSOIO`;
     }
   }
   
-  // ✅ EURO (ordini in euro - raro ma possibile)
-  // Nota: € non è un'unità di quantità, è il prezzo!
-  // Se unita è "€", mostra comunque la quantità con €
-  if (unita === '€' || unitaNorm === 'euro') {
-    return count > 1 ? `${count} X €${Math.round(qta)}` : `€${Math.round(qta)}`;
+  // Altri tipi di unità
+  if (unitaNorm === 'pezzi' || unitaNorm === 'pz') {
+    return count > 1 ? `${count} X ${Math.round(qta)} PZ` : `${Math.round(qta)} PZ`;
+  } else if (unita === '€' || unitaNorm === 'euro') {
+    return count > 1 ? `${count} X €${qta}` : `€${qta}`;
+  } else {
+    const unitaMaiusc = unita.toUpperCase();
+    return count > 1 ? `${count} X ${qta} ${unitaMaiusc}` : `${qta} ${unitaMaiusc}`;
   }
-  
-  // Altri tipi di unità (fallback)
-  const unitaMaiusc = unita.toUpperCase();
-  return count > 1 ? `${count} X ${qta} ${unitaMaiusc}` : `${qta} ${unitaMaiusc}`;
 };
 
 
@@ -1241,36 +1178,11 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
       const haAltriProdotti = categorieOrdine.size > 1;
 
-      
-      // ✅ PANADE: Ogni panada nell'ordine = 1 riga (NO raggruppamento, NO split)
-      // Se ordine ha 2 x 1.5 kg → 2 righe da 1.5 KG (non 3 righe da 1 KG)
-      ordine.prodotti.forEach(prodotto => {
-        const categoria = getCategoriaProdotto(prodotto.nome);
-        
-        if (categoria === 'PANADE') {
-          const nomeCliente = ordine.nomeCliente || 'N/D';
-          
-          result.PANADE.push({
-            categoria,
-            oraRitiro: ordine.oraRitiro || '',
-            nomeCliente,
-            daViaggio: ordine.daViaggio || false,
-            haAltriProdotti,
-            prodotto: { ...prodotto },
-            count: 1
-          });
-        }
-      });
 
 
-
-      // ✅ Processa tutti gli ALTRI prodotti (non PANADE) con logica normale
       ordine.prodotti.forEach(prodotto => {
 
         const categoria = getCategoriaProdotto(prodotto.nome);
-        
-        // Salta PANADE (già processati sopra)
-        if (categoria === 'PANADE') return;
 
         const nomeCliente = ordine.nomeCliente || 'N/D';
 
@@ -1279,6 +1191,39 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         const unita = prodotto.unita || 'Kg';
 
         
+
+        // ✅ CASO SPECIALE PANADE: NON RAGGRUPPARE - ogni panada = 1 riga
+        if (categoria === 'PANADE') {
+          const qtaInt = Math.floor(quantita);
+          const qtaFrazionale = quantita - qtaInt;
+          
+          // Crea righe per la quantità intera
+          for (let i = 0; i < qtaInt; i++) {
+            result.PANADE.push({
+              categoria,
+              oraRitiro: ordine.oraRitiro || '',
+              nomeCliente,
+              daViaggio: ordine.daViaggio || false,
+              haAltriProdotti,
+              prodotto: { ...prodotto, quantita: 1 },
+              count: 1
+            });
+          }
+          
+          // Se c'è una frazione (es. 2.5 kg), aggiungi riga con frazione
+          if (qtaFrazionale > 0) {
+            result.PANADE.push({
+              categoria,
+              oraRitiro: ordine.oraRitiro || '',
+              nomeCliente,
+              daViaggio: ordine.daViaggio || false,
+              haAltriProdotti,
+              prodotto: { ...prodotto, quantita: qtaFrazionale },
+              count: 1
+            });
+          }
+          return; // Non processare oltre per panade
+        }
 
         // ✅ Chiave: CLIENTE + PRODOTTO + QUANTITÀ + UNITÀ (per tutti gli altri prodotti)
 
@@ -1689,13 +1634,13 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                           </td>
 
-                          <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                          <td className="center">{item.daViaggio ? '✈️' : ''}</td>
 
                           <td>{item.nomeCliente.toUpperCase()}</td>
 
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
 
-                          <td style={{ fontSize: '10px' }}>{noteRavioli}</td>
+                          <td style={{ fontSize: '12px' }}>{noteRavioli}</td>
 
                         </tr>
 
@@ -1803,12 +1748,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     {ordiniPerCategoria.PARDULAS.map((item, index) => {
 
-                      // ✅ FIX: Includi variante nel nome per abbreviazione corretta
-                      let nomeCompleto = item.prodotto.nome;
-                      if (item.prodotto.variante) {
-                        nomeCompleto += ` ${item.prodotto.variante}`;
-                      }
-                      const nomeProdotto = abbreviaProdotto(nomeCompleto).toUpperCase();
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
 
                       
 
@@ -1830,13 +1770,13 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         <td>{item.nomeCliente.toUpperCase()}</td>
 
-                        <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                        <td className="center">{item.daViaggio ? '✈️' : ''}</td>
 
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
 
                         {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
 
-                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
 
                       </tr>
 
@@ -1969,12 +1909,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                       } else {
 
-                        // ✅ FIX: Includi variante nel nome per abbreviazione corretta
-                        let nomeCompleto = item.prodotto.nome;
-                        if (item.prodotto.variante) {
-                          nomeCompleto += ` ${item.prodotto.variante}`;
-                        }
-                        nomeProdotto = abbreviaProdotto(nomeCompleto).toUpperCase();
+                        nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
 
                       }
 
@@ -2002,13 +1937,13 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         <td>{item.nomeCliente.toUpperCase()}</td>
 
-                        <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                        <td className="center">{item.daViaggio ? '✈️' : ''}</td>
 
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
 
                         {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
 
-                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
 
                       </tr>
 
@@ -2121,12 +2056,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     {ordiniPerCategoria.PANADE.map((item, index) => {
 
-                      // ✅ FIX: Includi variante nel nome per abbreviazione corretta
-                      let nomeCompleto = item.prodotto.nome;
-                      if (item.prodotto.variante) {
-                        nomeCompleto += ` ${item.prodotto.variante}`;
-                      }
-                      const nomeProdotto = abbreviaProdotto(nomeCompleto);
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome);
 
                       return (
 
@@ -2134,7 +2064,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         {/* ✅ NUOVO: Numerazione progressiva partendo da 1 */}
 
-                        <td className="center" style={{ fontWeight: 'bold', fontSize: '14px' }}>{index + 1}</td>
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '16px' }}>{index + 1}</td>
 
                         <td className="center">{item.oraRitiro || '-'}</td>
 
@@ -2146,20 +2076,15 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         {/* ✅ Quantità sempre 1 KG o frazione per ogni riga (NO raggruppamento) */}
 
-                        <td className="right">
-                          {item.prodotto.quantita === 1 
-                            ? '1 KG' 
-                            : `${item.prodotto.quantita.toFixed(2).replace(/\.?0+$/, '')} KG`
-                          }
-                        </td>
+                        <td className="right">{item.prodotto.quantita} KG</td>
 
                         <td>{item.nomeCliente.toUpperCase()}</td>
 
-                        <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                        <td className="center">{item.daViaggio ? '✈️' : ''}</td>
 
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
 
-                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
 
                       </tr>
 
@@ -2274,12 +2199,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                     {ordiniPerCategoria.ALTRI.map((item, index) => {
 
-                      // ✅ FIX: Includi variante nel nome per abbreviazione corretta
-                      let nomeCompleto = item.prodotto.nome;
-                      if (item.prodotto.variante) {
-                        nomeCompleto += ` ${item.prodotto.variante}`;
-                      }
-                      const nomeProdotto = abbreviaProdotto(nomeCompleto).toUpperCase();
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
 
                       
 
@@ -2305,13 +2225,13 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         <td>{item.nomeCliente.toUpperCase()}</td>
 
-                        <td className="center">{item.daViaggio ? '✓' : ''}</td>
+                        <td className="center">{item.daViaggio ? '✈️' : ''}</td>
 
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
 
                         {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
 
-                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
 
                       </tr>
 
@@ -2458,9 +2378,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border-radius: 8px 8px 0 0;
 
-          color: #000000;
-
-          font-weight: bold;
+          color: white;
 
         }
 
@@ -2470,7 +2388,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           margin: 0;
 
-          font-size: 18px;
+          font-size: 16px;
 
           font-weight: bold;
 
@@ -2482,7 +2400,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           margin: 5px 0 0 0;
 
-          font-size: 20px;
+          font-size: 18px;
 
           font-weight: normal;
 
@@ -2512,7 +2430,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           text-align: center;
 
-          font-size: 15px;
+          font-size: 14px;
 
           font-weight: bold;
 
@@ -2530,7 +2448,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border: 1px solid #ddd;
 
-          font-size: 16px;
+          font-size: 15px;
 
           white-space: nowrap;
 
@@ -2600,7 +2518,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border: 1px solid #bdc3c7;
 
-          font-size: 14px;
+          font-size: 13px;
 
           color: #2c3e50;
 
@@ -2610,7 +2528,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         .totale-principale {
 
-          font-size: 17px;
+          font-size: 16px;
 
           font-weight: bold;
 
@@ -2630,7 +2548,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           gap: 10px;
 
-          font-size: 14px;
+          font-size: 13px;
 
           color: #34495e;
 
@@ -2718,7 +2636,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .page-header h2 {
 
-            font-size: 16px;
+            font-size: 14px;
 
           }
 
@@ -2726,7 +2644,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .page-header h3 {
 
-            font-size: 16px;
+            font-size: 14px;
 
           }
 
@@ -2734,7 +2652,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .ordini-table th {
 
-            font-size: 14px;
+            font-size: 13px;
 
             padding: 8px 6px;
 
@@ -2744,7 +2662,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .ordini-table td {
 
-            font-size: 14px;
+            font-size: 13px;
 
             padding: 6px 4px;
 
@@ -2764,7 +2682,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .totale-principale {
 
-            font-size: 15px;
+            font-size: 14px;
 
           }
 
@@ -2772,7 +2690,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .dettagli-totali {
 
-            font-size: 13px;
+            font-size: 12px;
 
           }
 
