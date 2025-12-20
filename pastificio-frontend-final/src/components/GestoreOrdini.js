@@ -204,8 +204,13 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
   // ✅ Calcola totali DETTAGLIATI per ogni tipo di prodotto
   const calcolaTotaliDettagliati = () => {
     const totali = {
-      // Ravioli
-      Ravioli: 0,
+      // ✅ FIX 19/12/2025: Ravioli DETTAGLIATI per variante!
+      RavioliZafferano: 0,
+      RavioliSpinaciZafferano: 0,
+      RavioliSpinaci: 0,
+      RavioliDolci: 0,
+      RavioliFormaggio: 0,
+      RavioliAltri: 0, // Per ravioli senza variante specifica
       Culurgiones: 0,
       // Pardulas
       Pardulas: 0,
@@ -281,8 +286,24 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
           return; // Non classificare ulteriormente
         }
         
-        // Classifica il prodotto
-        if (nomeLC.includes('ravioli')) totali.Ravioli += peso;
+        // ✅ FIX 19/12/2025: Classifica prodotto (RAVIOLI per variante!)
+        if (nomeLC.includes('ravioli')) {
+          // Controlla variante ravioli per classificare correttamente
+          if (nomeLC.includes('zafferano') && nomeLC.includes('spinaci')) {
+            totali.RavioliSpinaciZafferano += peso;
+          } else if (nomeLC.includes('zafferano')) {
+            totali.RavioliZafferano += peso;
+          } else if (nomeLC.includes('spinaci')) {
+            totali.RavioliSpinaci += peso;
+          } else if (nomeLC.includes('dolci') || nomeLC.includes('dolce')) {
+            totali.RavioliDolci += peso;
+          } else if (nomeLC.includes('formaggio') || nomeLC.includes('ricotta')) {
+            totali.RavioliFormaggio += peso;
+          } else {
+            // Ravioli generici o altre varianti
+            totali.RavioliAltri += peso;
+          }
+        }
         else if (nomeLC.includes('culurgion')) totali.Culurgiones += peso;
         else if (nomeLC.includes('pardula')) totali.Pardulas += peso;
         else if (nomeLC.includes('ciambelle') || nomeLC.includes('ciambella')) totali.Ciambelle += peso;
@@ -318,8 +339,8 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
     return calcolaTotaliDettagliati();
   }, [ordini, dataSelezionata]); // Ricalcola quando ordini o data cambiano
   
-  // Raggruppa per macro-categoria
-  const totaleRavioli = totali.Ravioli + totali.Culurgiones;
+  // ✅ FIX 19/12/2025: Raggruppa per macro-categoria (RAVIOLI dettagliati!)
+  const totaleRavioli = totali.RavioliZafferano + totali.RavioliSpinaciZafferano + totali.RavioliSpinaci + totali.RavioliDolci + totali.RavioliFormaggio + totali.RavioliAltri + totali.Culurgiones;
   const totalePardulas = totali.Pardulas;
   const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine + totali.Zeppole;
   // ✅ FIX: Panadas farcite separate
@@ -365,6 +386,20 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         )}
         <Chip label={`TOTALE: ${totaleGenerale.toFixed(1)} KG`} color="primary" sx={{ fontWeight: 'bold', ml: 'auto' }} />
       </Box>
+      
+      {/* ✅ FIX 19/12/2025: Riga dettaglio RAVIOLI per variante! */}
+      {totaleRavioli > 0 && (
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #f44336' }}>
+          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5, fontWeight: 'bold' }}>Dettaglio Ravioli:</Typography>
+          <ChipDettaglio label="R.Zaff" value={totali.RavioliZafferano} color="error" />
+          <ChipDettaglio label="R.Spin+Zaff" value={totali.RavioliSpinaciZafferano} color="error" />
+          <ChipDettaglio label="R.Spin" value={totali.RavioliSpinaci} color="error" />
+          <ChipDettaglio label="R.Dolci" value={totali.RavioliDolci} color="error" />
+          <ChipDettaglio label="R.Formagg" value={totali.RavioliFormaggio} color="error" />
+          <ChipDettaglio label="R.Altri" value={totali.RavioliAltri} color="error" />
+          <ChipDettaglio label="Culurg" value={totali.Culurgiones} color="error" />
+        </Box>
+      )}
       
       {/* Riga dettaglio dolci */}
       {totaleDolci > 0 && (
@@ -528,7 +563,13 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   // Calcola totali per categoria
   const calcolaTotali = () => {
     const totali = {
-      Ravioli: 0,
+      // ✅ FIX 19/12/2025: Ravioli DETTAGLIATI
+      RavioliZafferano: 0,
+      RavioliSpinaciZafferano: 0,
+      RavioliSpinaci: 0,
+      RavioliDolci: 0,
+      RavioliFormaggio: 0,
+      RavioliAltri: 0,
       Culurgiones: 0,
       Pardulas: 0,
       Ciambelle: 0,
@@ -582,8 +623,23 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
           return;
         }
         
-        // Classifica il prodotto
-        if (nomeLC.includes('ravioli')) totali.Ravioli += peso;
+        // ✅ FIX 19/12/2025: Classifica prodotto (RAVIOLI per variante!)
+        if (nomeLC.includes('ravioli')) {
+          // Controlla variante ravioli
+          if (nomeLC.includes('zafferano') && nomeLC.includes('spinaci')) {
+            totali.RavioliSpinaciZafferano += peso;
+          } else if (nomeLC.includes('zafferano')) {
+            totali.RavioliZafferano += peso;
+          } else if (nomeLC.includes('spinaci')) {
+            totali.RavioliSpinaci += peso;
+          } else if (nomeLC.includes('dolci') || nomeLC.includes('dolce')) {
+            totali.RavioliDolci += peso;
+          } else if (nomeLC.includes('formaggio') || nomeLC.includes('ricotta')) {
+            totali.RavioliFormaggio += peso;
+          } else {
+            totali.RavioliAltri += peso;
+          }
+        }
         else if (nomeLC.includes('culurgion')) totali.Culurgiones += peso;
         else if (nomeLC.includes('pardula')) totali.Pardulas += peso;
         else if (nomeLC.includes('ciambelle')) totali.Ciambelle += peso;
