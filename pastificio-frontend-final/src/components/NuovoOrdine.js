@@ -1865,6 +1865,17 @@ clienteIdPreselezionato,
                 />
               )}
             />
+            
+            {/* ✅ FIX 20/12/2025: Campo TELEFONO sempre visibile */}
+            <TextField
+              fullWidth
+              label="Telefono"
+              placeholder="Inserisci numero di telefono..."
+              value={formData.telefono}
+              onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+              sx={{ mt: 2 }}
+              helperText="Opzionale - utile per contattare il cliente"
+            />
           </Paper>
 
           {/* Data e Ora */}
