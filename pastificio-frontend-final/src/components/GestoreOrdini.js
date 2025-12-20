@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Box, Container, Grid, Paper, Typography, 
   Snackbar, Alert, CircularProgress, IconButton, Chip, Button,
@@ -312,7 +312,11 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
     return totali;
   };
 
-  const totali = calcolaTotaliDettagliati();
+  // ✅ FIX 19/12/2025 v2: useMemo per ricalcolare totali quando ordini cambiano!
+  const totali = useMemo(() => {
+    console.log('🔄 Ricalcolo totali produzione...');
+    return calcolaTotaliDettagliati();
+  }, [ordini, dataSelezionata]); // Ricalcola quando ordini o data cambiano
   
   // Raggruppa per macro-categoria
   const totaleRavioli = totali.Ravioli + totali.Culurgiones;
