@@ -997,30 +997,40 @@ clienteIdPreselezionato,
     });
   };
 
-  // ✅ FIX 20/12/2025: Funzione per MODIFICARE un prodotto nel carrello
+  // ✅ FIX 20/12/2025 v3: Funzione per MODIFICARE un prodotto nel carrello
   const handleModificaProdotto = (index) => {
     const prodottoDaModificare = formData.prodotti[index];
     
-    // Rimuovi il prodotto dal carrello
+    console.log('✏️ Modifica prodotto:', prodottoDaModificare);
+    
+    // 1. Trova configurazione prodotto da PRODOTTI_CONFIG
+    const configProdotto = PRODOTTI_CONFIG[prodottoDaModificare.nome];
+    
+    // 2. Rimuovi il prodotto dal carrello
     const nuoviProdotti = formData.prodotti.filter((_, i) => i !== index);
     
-    // Ripopola il form con i dati del prodotto
-    setProdottoSelezionato(prodottoDaModificare.nome);
-    setVarianteSelezionata(prodottoDaModificare.variante || '');
-    setQuantita(prodottoDaModificare.quantita);
-    setUnitaMisura(prodottoDaModificare.unita || 'Kg');
-    setPrezzoUnitario(prodottoDaModificare.prezzo / prodottoDaModificare.quantita);
-    setNoteCottura(prodottoDaModificare.noteCottura || '');
-    setNoteProdotto(prodottoDaModificare.note || '');
+    // 3. Ripopola prodottoCorrente con tutti i dati
+    setProdottoCorrente({
+      nome: prodottoDaModificare.nome || '',
+      variante: prodottoDaModificare.variante || '',
+      quantita: prodottoDaModificare.quantita || '',
+      unita: prodottoDaModificare.unita || configProdotto?.unitaMisuraDisponibili?.[0] || 'Kg',
+      prezzo: prodottoDaModificare.prezzo || 0,
+      varianti: prodottoDaModificare.varianti || [],
+      opzioniExtra: prodottoDaModificare.opzioniExtra || [],
+      noteCottura: prodottoDaModificare.noteCottura || ''
+    });
     
-    // Aggiorna il carrello senza il prodotto
+    // 4. Aggiorna il carrello senza il prodotto
     setFormData({
       ...formData,
       prodotti: nuoviProdotti
     });
     
-    // Torna al tab prodotti singoli
+    // 5. Torna al tab "Prodotti Singoli"
     setTabValue(0);
+    
+    console.log('✅ Prodotto caricato nel form per modifica');
   };
 
   const aggiungiVassoioAlCarrello = (vassoio) => {
