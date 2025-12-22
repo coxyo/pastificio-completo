@@ -778,7 +778,16 @@ const getComposizioneProdotto = (prodotto) => {
         if (varianteLower.includes('albicocca')) abbr = 'C.Albic';
         else if (varianteLower.includes('nutella')) abbr = 'C.Nut';
         else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
-        else abbr = `C.${item.variante.substring(0, 3)}`;
+        else if (varianteLower.includes('base') || varianteLower === '' || varianteLower === 'nessuna') {
+          // ✅ FIX 22/12/2025: Ciambelle nude (senza ripieno) = solo "C"
+          abbr = 'C';
+        }
+        else {
+          // Variante sconosciuta - prendi prime 3 lettere solo se sensato
+          const varShort = item.variante.substring(0, 3);
+          // Se la variante è solo spazi o caratteri strani, lascia "C"
+          abbr = varShort.trim() ? `C.${varShort}` : 'C';
+        }
       }
       
       // Pardulas con varianti
@@ -787,11 +796,10 @@ const getComposizioneProdotto = (prodotto) => {
         else abbr = 'P';
       }
       
-      // Sebadas con varianti
+      // Sebadas con varianti (dolci)
       else if (item.nome.toLowerCase().includes('sebadas') || item.nome.toLowerCase().includes('sebada')) {
-        if (varianteLower.includes('form')) abbr = 'Seb.Form';
-        else if (varianteLower.includes('carne')) abbr = 'Seb.Carn';
-        else if (varianteLower.includes('verd')) abbr = 'Seb.Verd';
+        if (varianteLower.includes('aran') || varianteLower.includes('arancio')) abbr = 'Seb.Aran';
+        else if (varianteLower.includes('mirt') || varianteLower.includes('mirto')) abbr = 'Seb.Mirt';
         else abbr = `Seb.${item.variante.substring(0, 4)}`;
       }
     }
@@ -1947,9 +1955,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         
                         if (item.prodotto.variante && (abbr === 'SEBAD' || item.prodotto.nome.toLowerCase().includes('sebadas'))) {
                           const varLower = item.prodotto.variante.toLowerCase();
-                          if (varLower.includes('form')) abbr = 'SEBAD FORM';
-                          else if (varLower.includes('carne')) abbr = 'SEBAD CARN';
-                          else if (varLower.includes('verd')) abbr = 'SEBAD VERD';
+                          if (varLower.includes('aran') || varLower.includes('arancio')) abbr = 'SEBAD ARAN';
+                          else if (varLower.includes('mirt') || varLower.includes('mirto')) abbr = 'SEBAD MIRT';
                           else abbr = `SEBAD ${item.prodotto.variante.substring(0, 4).toUpperCase()}`;
                         }
                         
