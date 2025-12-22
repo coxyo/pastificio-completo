@@ -1258,9 +1258,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           }
           return; // Non processare oltre per panade grosse
         }
-          }
-          return; // Non processare oltre per panade
-        }
 
         // ✅ Chiave: CLIENTE + PRODOTTO + QUANTITÀ + UNITÀ (per tutti gli altri prodotti)
 
