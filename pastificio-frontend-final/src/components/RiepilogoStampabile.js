@@ -764,12 +764,39 @@ const getComposizioneProdotto = (prodotto) => {
   }
 
   
-
+  // ✅ FIX 22/12/2025: Includi varianti nelle abbreviazioni
   const items = prodotto.dettagliCalcolo.composizione.map(item => {
 
-    const abbr = abbreviaProdotto(item.nome);
+    let abbr = abbreviaProdotto(item.nome);
+    
+    // Se c'è una variante, aggiungila all'abbreviazione
+    if (item.variante) {
+      const varianteLower = item.variante.toLowerCase();
+      
+      // Ciambelle con varianti
+      if (abbr === 'C' || item.nome.toLowerCase().includes('ciambelle')) {
+        if (varianteLower.includes('albicocca')) abbr = 'C.Albic';
+        else if (varianteLower.includes('nutella')) abbr = 'C.Nut';
+        else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
+        else abbr = `C.${item.variante.substring(0, 3)}`;
+      }
+      
+      // Pardulas con varianti
+      else if (abbr === 'P' || item.nome.toLowerCase().includes('pardulas')) {
+        if (varianteLower.includes('glassa')) abbr = 'P.Glass';
+        else abbr = 'P';
+      }
+      
+      // Sebadas con varianti
+      else if (item.nome.toLowerCase().includes('sebadas') || item.nome.toLowerCase().includes('sebada')) {
+        if (varianteLower.includes('form')) abbr = 'Seb.Form';
+        else if (varianteLower.includes('carne')) abbr = 'Seb.Carn';
+        else if (varianteLower.includes('verd')) abbr = 'Seb.Verd';
+        else abbr = `Seb.${item.variante.substring(0, 4)}`;
+      }
+    }
 
-    const qta = Math.round(parseFloat(item.quantita) * 100) / 100; // ✅ FIX: Arrotonda a 2 decimali
+    const qta = Math.round(parseFloat(item.quantita) * 100) / 100;
 
     return { abbr, qta };
 
@@ -1192,8 +1219,15 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         
 
-        // ✅ CASO SPECIALE PANADE: NON RAGGRUPPARE - ogni panada = 1 riga
-        if (categoria === 'PANADE') {
+        // ✅ FIX 22/12/2025: Distingui PANADE (grosse) vs PANADINE (piccole)
+        // - PANADE (con patate, grosse): NON raggruppare - ogni panada = 1 riga
+        // - PANADINE (piccole): RAGGRUPPARE normalmente
+        const nomeLower = prodotto.nome.toLowerCase();
+        const isPanadaGrossa = categoria === 'PANADE' && 
+                               nomeLower.includes('panada') && 
+                               !nomeLower.includes('panadine');
+        
+        if (isPanadaGrossa) {
           const qtaInt = Math.floor(quantita);
           const qtaFrazionale = quantita - qtaInt;
           
@@ -1221,6 +1255,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
               prodotto: { ...prodotto, quantita: qtaFrazionale },
               count: 1
             });
+          }
+          return; // Non processare oltre per panade grosse
+        }
           }
           return; // Non processare oltre per panade
         }
@@ -1908,8 +1945,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         }
 
                       } else {
-
-                        nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                        // ✅ FIX 22/12/2025: Aggiungi variante per sebadas
+                        let abbr = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                        
+                        if (item.prodotto.variante && (abbr === 'SEBAD' || item.prodotto.nome.toLowerCase().includes('sebadas'))) {
+                          const varLower = item.prodotto.variante.toLowerCase();
+                          if (varLower.includes('form')) abbr = 'SEBAD FORM';
+                          else if (varLower.includes('carne')) abbr = 'SEBAD CARN';
+                          else if (varLower.includes('verd')) abbr = 'SEBAD VERD';
+                          else abbr = `SEBAD ${item.prodotto.variante.substring(0, 4).toUpperCase()}`;
+                        }
+                        
+                        nomeProdotto = abbr;
 
                       }
 
