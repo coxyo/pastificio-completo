@@ -1436,6 +1436,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           dettagliPezzi[nomeNorm] = (dettagliPezzi[nomeNorm] || 0) + prodotto.quantita * moltiplicatore;
 
+        }
 
       } else if (unitaNorm === '€' || unitaNorm === 'euro') {
         // ✅ € NON è peso! Teniamo traccia ma non aggiungiamo a totaleKg
