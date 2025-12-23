@@ -764,12 +764,12 @@ const getComposizioneProdotto = (prodotto) => {
   }
 
   
-  // ✅ FIX 22/12/2025: Includi varianti nelle abbreviazioni
+
   const items = prodotto.dettagliCalcolo.composizione.map(item => {
 
     let abbr = abbreviaProdotto(item.nome);
     
-    // Se c'è una variante, aggiungila all'abbreviazione
+    // ✅ FIX 22/12/2025: Includi varianti nelle abbreviazioni
     if (item.variante) {
       const varianteLower = item.variante.toLowerCase();
       
@@ -779,13 +779,10 @@ const getComposizioneProdotto = (prodotto) => {
         else if (varianteLower.includes('nutella')) abbr = 'C.Nut';
         else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
         else if (varianteLower.includes('base') || varianteLower === '' || varianteLower === 'nessuna') {
-          // ✅ FIX 22/12/2025: Ciambelle nude (senza ripieno) = solo "C"
-          abbr = 'C';
+          abbr = 'C'; // Ciambelle nude
         }
         else {
-          // Variante sconosciuta - prendi prime 3 lettere solo se sensato
           const varShort = item.variante.substring(0, 3);
-          // Se la variante è solo spazi o caratteri strani, lascia "C"
           abbr = varShort.trim() ? `C.${varShort}` : 'C';
         }
       }
@@ -796,7 +793,7 @@ const getComposizioneProdotto = (prodotto) => {
         else abbr = 'P';
       }
       
-      // Sebadas con varianti (dolci)
+      // Sebadas con varianti (dolci - arancio/mirto)
       else if (item.nome.toLowerCase().includes('sebadas') || item.nome.toLowerCase().includes('sebada')) {
         if (varianteLower.includes('aran') || varianteLower.includes('arancio')) abbr = 'Seb.Aran';
         else if (varianteLower.includes('mirt') || varianteLower.includes('mirto')) abbr = 'Seb.Mirt';
@@ -1227,44 +1224,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         
 
-        // ✅ FIX 22/12/2025: Distingui PANADE (grosse) vs PANADINE (piccole)
-        // - PANADE (con patate, grosse): NON raggruppare - ogni panada = 1 riga
-        // - PANADINE (piccole): RAGGRUPPARE normalmente
-        const nomeLower = prodotto.nome.toLowerCase();
-        const isPanadaGrossa = categoria === 'PANADE' && 
-                               nomeLower.includes('panada') && 
-                               !nomeLower.includes('panadine');
-        
-        if (isPanadaGrossa) {
-          const qtaInt = Math.floor(quantita);
-          const qtaFrazionale = quantita - qtaInt;
-          
-          // Crea righe per la quantità intera
-          for (let i = 0; i < qtaInt; i++) {
-            result.PANADE.push({
-              categoria,
-              oraRitiro: ordine.oraRitiro || '',
-              nomeCliente,
-              daViaggio: ordine.daViaggio || false,
-              haAltriProdotti,
-              prodotto: { ...prodotto, quantita: 1 },
-              count: 1
-            });
-          }
-          
-          // Se c'è una frazione (es. 2.5 kg), aggiungi riga con frazione
-          if (qtaFrazionale > 0) {
-            result.PANADE.push({
-              categoria,
-              oraRitiro: ordine.oraRitiro || '',
-              nomeCliente,
-              daViaggio: ordine.daViaggio || false,
-              haAltriProdotti,
-              prodotto: { ...prodotto, quantita: qtaFrazionale },
-              count: 1
-            });
-          }
-          return; // Non processare oltre per panade grosse
         }
 
         // ✅ Chiave: CLIENTE + PRODOTTO + QUANTITÀ + UNITÀ (per tutti gli altri prodotti)
@@ -1682,7 +1641,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
 
-                          <td style={{ fontSize: '12px' }}>{noteRavioli}</td>
+                          <td style={{ fontSize: '10px' }}>{noteRavioli}</td>
 
                         </tr>
 
@@ -1818,7 +1777,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
 
-                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
 
                       </tr>
 
@@ -1950,7 +1909,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         }
 
                       } else {
-                        // ✅ FIX 22/12/2025: Aggiungi variante per sebadas
+                        // ✅ FIX 22/12/2025: Aggiungi variante per sebadas (arancio/mirto)
                         let abbr = abbreviaProdotto(item.prodotto.nome).toUpperCase();
                         
                         if (item.prodotto.variante && (abbr === 'SEBAD' || item.prodotto.nome.toLowerCase().includes('sebadas'))) {
@@ -1994,7 +1953,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
 
-                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
 
                       </tr>
 
@@ -2115,7 +2074,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         {/* ✅ NUOVO: Numerazione progressiva partendo da 1 */}
 
-                        <td className="center" style={{ fontWeight: 'bold', fontSize: '16px' }}>{index + 1}</td>
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '14px' }}>{index + 1}</td>
 
                         <td className="center">{item.oraRitiro || '-'}</td>
 
@@ -2135,7 +2094,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
 
-                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
 
                       </tr>
 
@@ -2282,7 +2241,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
                         {/* ✅ AGGIORNATO 20/11/2025: Usa note combinate */}
 
-                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '10px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
 
                       </tr>
 
@@ -2429,7 +2388,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border-radius: 8px 8px 0 0;
 
-          color: white;
+          color: #000000;
 
         }
 
@@ -2475,7 +2434,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           background: #2c3e50;
 
-          color: white;
+          color: #000000;
 
           padding: 12px 8px;
 
@@ -2499,7 +2458,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border: 1px solid #ddd;
 
-          font-size: 15px;
+          font-size: 13px;
 
           white-space: nowrap;
 
@@ -2569,7 +2528,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border: 1px solid #bdc3c7;
 
-          font-size: 13px;
+          font-size: 11px;
 
           color: #2c3e50;
 
@@ -2599,7 +2558,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           gap: 10px;
 
-          font-size: 13px;
+          font-size: 11px;
 
           color: #34495e;
 
@@ -2703,7 +2662,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .ordini-table th {
 
-            font-size: 13px;
+            font-size: 11px;
 
             padding: 8px 6px;
 
@@ -2713,7 +2672,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           .ordini-table td {
 
-            font-size: 13px;
+            font-size: 11px;
 
             padding: 6px 4px;
 
