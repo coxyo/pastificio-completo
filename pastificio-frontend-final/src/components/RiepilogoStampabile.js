@@ -780,11 +780,9 @@ const getComposizioneProdotto = (prodotto) => {
         else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
         else if (varianteLower.includes('base') || varianteLower === '' || varianteLower === 'nessuna') {
           abbr = 'C'; // Ciambelle nude
-        }
         else {
           const varShort = item.variante.substring(0, 3);
           abbr = varShort.trim() ? `C.${varShort}` : 'C';
-        }
       }
       
       // Pardulas con varianti
@@ -1001,7 +999,6 @@ const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
 
           return acc + Math.round((comp.quantita / pezziPerKg) * 100) / 100; // ✅ FIX precisione
 
-        }
 
       }
 
@@ -1099,7 +1096,6 @@ const formattaQuantitaConCount = (prodotto, count) => {
           if (pezziPerKg && !isSoloPezzo(comp.nome)) {
             pesoTotale += Math.round((comp.quantita / pezziPerKg) * 100) / 100;
           }
-        }
       });
       
       // Crea abbreviazione per items in Pezzi (es. "P10 C10")
@@ -1222,9 +1218,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         const unita = prodotto.unita || 'Kg';
 
-        
-
-        }
 
         // ✅ Chiave: CLIENTE + PRODOTTO + QUANTITÀ + UNITÀ (per tutti gli altri prodotti)
 
@@ -1240,7 +1233,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           chiave = `${categoria}-${nomeCliente}-${prodotto.nome}-${quantita}-${unita}`;
 
-        }
 
 
 
@@ -1278,7 +1270,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           });
 
-        }
 
       });
 
@@ -1362,7 +1353,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           totaleKg += pesoComponente;
           const nomeNorm = normalizzaNomeProdotto(componente);
           dettagliKg[nomeNorm] = (dettagliKg[nomeNorm] || 0) + pesoComponente;
-        }
         return; // Non processare ulteriormente
       }
 
@@ -1441,7 +1431,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           dettagliPezzi[nomeNorm] = (dettagliPezzi[nomeNorm] || 0) + prodotto.quantita * moltiplicatore;
 
-        }
 
       } else if (unitaNorm === '€' || unitaNorm === 'euro') {
         // ✅ € NON è peso! Teniamo traccia ma non aggiungiamo a totaleKg
@@ -2358,7 +2347,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           background: #f5f5f5;
 
-        }
 
 
 
@@ -2374,7 +2362,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border-radius: 8px;
 
-        }
 
 
 
@@ -2390,7 +2377,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           color: #000000;
 
-        }
 
 
 
@@ -2402,7 +2388,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           font-weight: bold;
 
-        }
 
 
 
@@ -2414,7 +2399,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           font-weight: normal;
 
-        }
 
 
 
@@ -2426,7 +2410,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           margin-top: 20px;
 
-        }
 
 
 
@@ -2448,7 +2431,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           white-space: nowrap;
 
-        }
 
 
 
@@ -2462,7 +2444,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           white-space: nowrap;
 
-        }
 
 
 
@@ -2470,7 +2451,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           background: #f9f9f9;
 
-        }
 
 
 
@@ -2478,7 +2458,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           background: #e3f2fd;
 
-        }
 
 
 
@@ -2486,7 +2465,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           text-align: center !important;
 
-        }
 
 
 
@@ -2496,7 +2474,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           font-weight: bold;
 
-        }
 
 
 
@@ -2512,7 +2489,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           border: 2px solid #bdc3c7;
 
-        }
 
 
 
@@ -2532,7 +2508,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           color: #2c3e50;
 
-        }
 
 
 
@@ -2546,7 +2521,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           color: #2c3e50;
 
-        }
 
 
 
@@ -2562,7 +2536,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           color: #34495e;
 
-        }
 
 
 
@@ -2704,7 +2677,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           }
 
-        }
 
       `}</style>
 
