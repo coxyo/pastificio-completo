@@ -1,4 +1,4 @@
-// components/RiepilogoStampabile.js
+/ components/RiepilogoStampabile.js
 
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 
