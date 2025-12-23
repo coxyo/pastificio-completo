@@ -1098,6 +1098,7 @@ const formattaQuantitaConCount = (prodotto, count) => {
           if (pezziPerKg && !isSoloPezzo(comp.nome)) {
             pesoTotale += Math.round((comp.quantita / pezziPerKg) * 100) / 100;
           }
+        }
       });
       
       // Crea abbreviazione per items in Pezzi (es. "P10 C10")
