@@ -1273,6 +1273,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
           });
 
+        }
+      }
 
       });
 
