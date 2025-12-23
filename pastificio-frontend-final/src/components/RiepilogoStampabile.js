@@ -780,9 +780,11 @@ const getComposizioneProdotto = (prodotto) => {
         else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
         else if (varianteLower.includes('base') || varianteLower === '' || varianteLower === 'nessuna') {
           abbr = 'C'; // Ciambelle nude
+        }
         else {
           const varShort = item.variante.substring(0, 3);
           abbr = varShort.trim() ? `C.${varShort}` : 'C';
+        }
       }
       
       // Pardulas con varianti
