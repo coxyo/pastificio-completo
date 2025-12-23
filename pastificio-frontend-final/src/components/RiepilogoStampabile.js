@@ -1001,7 +1001,7 @@ const formattaQuantita = (quantita, unita, dettagliCalcolo = null) => {
 
           return acc + Math.round((comp.quantita / pezziPerKg) * 100) / 100; // ✅ FIX precisione
 
-
+        }
       }
 
       return acc;
