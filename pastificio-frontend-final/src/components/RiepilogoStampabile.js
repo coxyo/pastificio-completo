@@ -508,18 +508,28 @@ const filtraNote = (note) => {
 const getNoteCombinateFiltrateHelper = (prodotto) => {
   const note = [];
   
+  // ✅ FIX 27/12: NON filtrare le note, mostrare TUTTO
   if (prodotto.note) {
-    const noteFiltrate = filtraNote(prodotto.note);
-    if (noteFiltrate) {
-      note.push(noteFiltrate);
-    }
+    note.push(prodotto.note.toUpperCase());
   }
   
-  if (prodotto.noteCottura) {
-    const noteCoFiltrate = filtraNote(prodotto.noteCottura);
-    if (noteCoFiltrate) {
-      note.push(noteCoFiltrate);
-    }
+  if (prodotto.noteCottura && prodotto.noteCottura !== prodotto.note) {
+    note.push(prodotto.noteCottura.toUpperCase());
+  }
+  
+  return note.join(' - ');
+};
+
+// ✅ FIX 27/12: Funzione per mostrare TUTTE le note senza filtrare
+const getNoteTutte = (prodotto) => {
+  const note = [];
+  
+  if (prodotto.note) {
+    note.push(prodotto.note.toUpperCase());
+  }
+  
+  if (prodotto.noteCottura && prodotto.noteCottura !== prodotto.note) {
+    note.push(prodotto.noteCottura.toUpperCase());
   }
   
   return note.join(' - ');
@@ -1077,7 +1087,18 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             )}
 
             {/* ========== PAGINA 4: PANADE ========== */}
-            {ordiniPerCategoria.PANADE.length > 0 && (
+            {(() => {
+              // ✅ FIX 27/12: Filtra solo le 4 panade vere (esclude Panadine e Anguille)
+              const soloPanade = ordiniPerCategoria.PANADE.filter(item => {
+                const nomeLower = item.prodotto.nome.toLowerCase();
+                return (nomeLower.includes('agnello') || 
+                        nomeLower.includes('maiale') || 
+                        nomeLower.includes('vitella') || 
+                        nomeLower.includes('verdure')) &&
+                       !nomeLower.includes('panadine');
+              });
+              
+              return soloPanade.length > 0 ? (
               <div className="page" style={{ pageBreakAfter: 'always' }}>
                 <div className="page-header" style={{ backgroundColor: CATEGORIE.PANADE.colore }}>
                   <h2>PASTIFICIO NONNA CLAUDIA</h2>
@@ -1098,8 +1119,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {ordiniPerCategoria.PANADE.map((item, index) => {
+                    {soloPanade.map((item, index) => {
                       const nomeProdotto = abbreviaProdotto(item.prodotto.nome);
+                      
                       return (
                       <tr key={`panade-${index}`}>
                         <td className="center" style={{ fontWeight: 'bold', fontSize: '18px' }}>{index + 1}</td>
@@ -1111,12 +1133,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteTutte(item.prodotto)}</td>
                       </tr>
                       );
                     })}
                     {(() => {
-                      const righeAttuali = ordiniPerCategoria.PANADE.length;
+                      const righeAttuali = soloPanade.length;
                       const righeTarget = 25;
                       const righeVuote = Math.max(0, righeTarget - righeAttuali);
                       
@@ -1154,7 +1176,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   })()}
                 </div>
               </div>
-            )}
+              ) : null;
+            })()}
 
             {/* ========== PAGINA 5: ALTRI PRODOTTI ========== */}
             {ordiniPerCategoria.ALTRI.length > 0 && (
