@@ -324,11 +324,6 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
             totali.RavioliAltri += peso;
           }
         }
-          } else {
-            // Ravioli generici o altre varianti
-            totali.RavioliAltri += peso;
-          }
-        }
         else if (nomeLC.includes('culurgion')) totali.Culurgiones += peso;
         else if (nomeLC.includes('pardula')) totali.Pardulas += peso;
         else if (nomeLC.includes('ciambelle') || nomeLC.includes('ciambella')) totali.Ciambelle += peso;
