@@ -508,16 +508,40 @@ const filtraNote = (note) => {
 const getNoteCombinateFiltrateHelper = (prodotto) => {
   const note = [];
   
-  // ✅ FIX 27/12: NON filtrare le note, mostrare TUTTO
+  // ✅ FIX 27/12: Filtra SOLO packaging/vassoio, mostra tutto il resto
   if (prodotto.note) {
-    note.push(prodotto.note.toUpperCase());
+    const noteFiltered = filtraNoteSelettivo(prodotto.note);
+    if (noteFiltered) {
+      note.push(noteFiltered);
+    }
   }
   
   if (prodotto.noteCottura && prodotto.noteCottura !== prodotto.note) {
-    note.push(prodotto.noteCottura.toUpperCase());
+    const noteCoFiltered = filtraNoteSelettivo(prodotto.noteCottura);
+    if (noteCoFiltered) {
+      note.push(noteCoFiltered);
+    }
   }
   
   return note.join(' - ');
+};
+
+// ✅ FIX 27/12: Filtra SOLO packaging/vassoio/dimensione vassoio
+const filtraNoteSelettivo = (note) => {
+  if (!note) return '';
+  
+  const noteLC = note.toLowerCase();
+  
+  // Filtra SOLO queste parole chiave
+  if (noteLC.includes('packaging') || 
+      noteLC.includes('dimensione vassoio') || 
+      noteLC.includes('dim. vassoio') ||
+      noteLC.includes('vassoio')) {
+    return '';
+  }
+  
+  // Mostra tutto il resto in maiuscolo
+  return note.toUpperCase();
 };
 
 // ✅ FIX 27/12: Funzione per mostrare TUTTE le note senza filtrare
