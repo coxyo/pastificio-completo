@@ -206,8 +206,14 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
     const totali = {
       // ✅ FIX 19/12/2025: Ravioli DETTAGLIATI per variante!
       RavioliZafferano: 0,
+      RavioliZafferanoDolci: 0,
+      RavioliZafferanoPocoDolci: 0,
+      RavioliZafferanoMoltoDolci: 0,
       RavioliSpinaciZafferano: 0,
       RavioliSpinaci: 0,
+      RavioliSpinaciDolci: 0,
+      RavioliSpinaciPocoDolci: 0,
+      RavioliSpinaciMoltoDolci: 0,
       RavioliDolci: 0,
       RavioliFormaggio: 0,
       RavioliAltri: 0, // Per ravioli senza variante specifica
@@ -286,12 +292,26 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
           return; // Non classificare ulteriormente
         }
         
-        // ✅ FIX 19/12/2025: Classifica prodotto (RAVIOLI per variante!)
+        // ✅ FIX 27/12/2025: Classifica prodotto (RAVIOLI per TUTTE le varianti, combinazioni PRIMA!)
         if (nomeLC.includes('ravioli')) {
-          // Controlla variante ravioli per classificare correttamente
-          if (nomeLC.includes('zafferano') && nomeLC.includes('spinaci')) {
+          // ⭐ IMPORTANTE: Controllare COMBINAZIONI PRIMA (zafferano + dolci, spinaci + dolci, etc.)
+          if (nomeLC.includes('zafferano') && nomeLC.includes('molto dolci')) {
+            totali.RavioliZafferanoMoltoDolci += peso;
+          } else if (nomeLC.includes('zafferano') && nomeLC.includes('poco dolci')) {
+            totali.RavioliZafferanoPocoDolci += peso;
+          } else if (nomeLC.includes('zafferano') && nomeLC.includes('dolci')) {
+            totali.RavioliZafferanoDolci += peso; // ⭐ "Ravioli zafferano dolci" → QUI!
+          } else if (nomeLC.includes('spinaci') && nomeLC.includes('molto dolci')) {
+            totali.RavioliSpinaciMoltoDolci += peso;
+          } else if (nomeLC.includes('spinaci') && nomeLC.includes('poco dolci')) {
+            totali.RavioliSpinaciPocoDolci += peso;
+          } else if (nomeLC.includes('spinaci') && nomeLC.includes('dolci')) {
+            totali.RavioliSpinaciDolci += peso;
+          } else if (nomeLC.includes('zafferano') && nomeLC.includes('spinaci')) {
             totali.RavioliSpinaciZafferano += peso;
-          } else if (nomeLC.includes('zafferano')) {
+          }
+          // POI: Singole varianti
+          else if (nomeLC.includes('zafferano')) {
             totali.RavioliZafferano += peso;
           } else if (nomeLC.includes('spinaci')) {
             totali.RavioliSpinaci += peso;
@@ -299,6 +319,11 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
             totali.RavioliDolci += peso;
           } else if (nomeLC.includes('formaggio') || nomeLC.includes('ricotta')) {
             totali.RavioliFormaggio += peso;
+          } else {
+            // Ravioli generici o altre varianti
+            totali.RavioliAltri += peso;
+          }
+        }
           } else {
             // Ravioli generici o altre varianti
             totali.RavioliAltri += peso;
@@ -340,7 +365,7 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
   }, [ordini, dataSelezionata]); // Ricalcola quando ordini o data cambiano
   
   // ✅ FIX 19/12/2025: Raggruppa per macro-categoria (RAVIOLI dettagliati!)
-  const totaleRavioli = totali.RavioliZafferano + totali.RavioliSpinaciZafferano + totali.RavioliSpinaci + totali.RavioliDolci + totali.RavioliFormaggio + totali.RavioliAltri + totali.Culurgiones;
+  const totaleRavioli = totali.RavioliZafferano + totali.RavioliZafferanoDolci + totali.RavioliZafferanoPocoDolci + totali.RavioliZafferanoMoltoDolci + totali.RavioliSpinaciZafferano + totali.RavioliSpinaci + totali.RavioliSpinaciDolci + totali.RavioliSpinaciPocoDolci + totali.RavioliSpinaciMoltoDolci + totali.RavioliDolci + totali.RavioliFormaggio + totali.RavioliAltri + totali.Culurgiones;
   const totalePardulas = totali.Pardulas;
   const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine + totali.Zeppole;
   // ✅ FIX: Panadas farcite separate
@@ -392,8 +417,14 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #f44336' }}>
           <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5, fontWeight: 'bold' }}>Dettaglio Ravioli:</Typography>
           <ChipDettaglio label="R.Zaff" value={totali.RavioliZafferano} color="error" />
+          <ChipDettaglio label="R.Zaff.Dolci" value={totali.RavioliZafferanoDolci} color="error" />
+          <ChipDettaglio label="R.Zaff.PocoDolci" value={totali.RavioliZafferanoPocoDolci} color="error" />
+          <ChipDettaglio label="R.Zaff.MoltoDolci" value={totali.RavioliZafferanoMoltoDolci} color="error" />
           <ChipDettaglio label="R.Spin+Zaff" value={totali.RavioliSpinaciZafferano} color="error" />
           <ChipDettaglio label="R.Spin" value={totali.RavioliSpinaci} color="error" />
+          <ChipDettaglio label="R.Spin.Dolci" value={totali.RavioliSpinaciDolci} color="error" />
+          <ChipDettaglio label="R.Spin.PocoDolci" value={totali.RavioliSpinaciPocoDolci} color="error" />
+          <ChipDettaglio label="R.Spin.MoltoDolci" value={totali.RavioliSpinaciMoltoDolci} color="error" />
           <ChipDettaglio label="R.Dolci" value={totali.RavioliDolci} color="error" />
           <ChipDettaglio label="R.Formagg" value={totali.RavioliFormaggio} color="error" />
           <ChipDettaglio label="R.Altri" value={totali.RavioliAltri} color="error" />
