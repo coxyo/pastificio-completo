@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
-// Fogli separati: Ravioli, Pardulas, Dolci, Altri
-// ✅ AGGIORNATO 23/12/2025: Font +2px, Titolo nero, Aereo, Panade fix, Sebadas/Ciambelle varianti
+// Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
+// ✅ AGGIORNATO 27/12/2025: Font grandi + Varianti ravioli distinte + Panade numerata
 
 import React, { useMemo } from 'react';
 import {
@@ -210,10 +210,40 @@ const abbreviaProdotto = (nome) => {
   return nome;
 };
 
+// ✅ FIX 27/12/2025: Distingui varianti ravioli nei totali
 const normalizzaNomeProdotto = (nome) => {
   const nomeLC = nome.toLowerCase();
   
   if (nomeLC.includes('ravioli') && !nomeLC.includes('culurgiones')) {
+    // Controllo combinazioni specifiche PRIMA
+    if (nomeLC.includes('zafferano') && nomeLC.includes('molto dolci')) {
+      return 'Ravioli zafferano molto dolci';
+    }
+    if (nomeLC.includes('zafferano') && nomeLC.includes('poco dolci')) {
+      return 'Ravioli zafferano poco dolci';
+    }
+    if (nomeLC.includes('zafferano') && nomeLC.includes('dolci')) {
+      return 'Ravioli zafferano dolci';
+    }
+    if (nomeLC.includes('spinaci') && nomeLC.includes('molto dolci')) {
+      return 'Ravioli spinaci molto dolci';
+    }
+    if (nomeLC.includes('spinaci') && nomeLC.includes('poco dolci')) {
+      return 'Ravioli spinaci poco dolci';
+    }
+    if (nomeLC.includes('spinaci') && nomeLC.includes('dolci')) {
+      return 'Ravioli spinaci dolci';
+    }
+    
+    // Poi singole varianti
+    if (nomeLC.includes('spinaci')) return 'Ravioli spinaci';
+    if (nomeLC.includes('zafferano')) return 'Ravioli zafferano';
+    if (nomeLC.includes('formaggio')) return 'Ravioli formaggio';
+    if (nomeLC.includes('molto dolci')) return 'Ravioli molto dolci';
+    if (nomeLC.includes('poco dolci')) return 'Ravioli poco dolci';
+    if (nomeLC.includes('dolci')) return 'Ravioli dolci';
+    if (nomeLC.includes('piccoli')) return 'Ravioli piccoli';
+    
     return 'Ravioli';
   }
   
@@ -639,7 +669,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           chiave = `${categoria}-${nomeCliente}-${prodotto.nome}-${prodotto.prezzo}`;
         } else {
           chiave = `${categoria}-${nomeCliente}-${prodotto.nome}-${quantita}-${unita}`;
-        }  // ⬅️ AGGIUNGI QUESTA RIGA
+        }
 
         if (mappaRaggruppamento.has(chiave)) {
           const gruppo = mappaRaggruppamento.get(chiave);
@@ -834,7 +864,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                           <td>{item.nomeCliente.toUpperCase()}</td>
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                          <td style={{ fontSize: '12px' }}>{noteRavioli}</td>
+                          <td style={{ fontSize: '14px' }}>{noteRavioli}</td>
                         </tr>
                       );
                     })}
@@ -909,7 +939,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
                       </tr>
                       );
                     })}
@@ -1006,7 +1036,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
                       </tr>
                       );
                     })}
@@ -1072,7 +1102,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       const nomeProdotto = abbreviaProdotto(item.prodotto.nome);
                       return (
                       <tr key={`panade-${index}`}>
-                        <td className="center" style={{ fontWeight: 'bold', fontSize: '16px' }}>{index + 1}</td>
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '18px' }}>{index + 1}</td>
                         <td className="center">{item.oraRitiro || '-'}</td>
                         <td>
                           {nomeProdotto}
@@ -1081,7 +1111,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
                       </tr>
                       );
                     })}
@@ -1161,7 +1191,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '12px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
                       </tr>
                       );
                     })}
@@ -1246,13 +1276,13 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         .page-header h2 {
           margin: 0;
-          font-size: 18px;
+          font-size: 22px;
           font-weight: bold;
         }
 
         .page-header h3 {
           margin: 5px 0 0 0;
-          font-size: 20px;
+          font-size: 24px;
           font-weight: normal;
         }
 
@@ -1267,7 +1297,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           color: #000000;
           padding: 14px 8px;
           text-align: center;
-          font-size: 16px;
+          font-size: 18px;
           font-weight: bold;
           border: 1px solid #34495e;
           white-space: nowrap;
@@ -1276,7 +1306,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         .ordini-table td {
           padding: 12px 8px;
           border: 1px solid #ddd;
-          font-size: 15px;
+          font-size: 17px;
           white-space: nowrap;
         }
 
@@ -1311,7 +1341,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           background: #ecf0f1;
           border-radius: 4px;
           border: 1px solid #bdc3c7;
-          font-size: 13px;
+          font-size: 16px;
           color: #2c3e50;
         }
 
@@ -1326,7 +1356,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
-          font-size: 13px;
+          font-size: 15px;
           color: #34495e;
         }
 
@@ -1369,20 +1399,20 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           }
 
           .page-header h2 {
-            font-size: 16px;
+            font-size: 18px;
           }
 
           .page-header h3 {
-            font-size: 16px;
+            font-size: 18px;
           }
 
           .ordini-table th {
-            font-size: 13px;
+            font-size: 15px;
             padding: 8px 6px;
           }
 
           .ordini-table td {
-            font-size: 13px;
+            font-size: 15px;
             padding: 6px 4px;
           }
 
