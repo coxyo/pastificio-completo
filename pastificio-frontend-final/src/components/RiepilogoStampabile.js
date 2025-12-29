@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
-// ✅ AGGIORNATO 29/12/2025: Panada Verdure in PANADE
+// ✅ AGGIORNATO 29/12/2025: Font grandi + tutto MAIUSCOLO
 
 import React, { useMemo } from 'react';
 import {
@@ -945,7 +945,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                           <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                           <td>{item.nomeCliente.toUpperCase()}</td>
                           <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                          <td style={{ fontSize: '14px' }}>{noteRavioli}</td>
+                          <td style={{ fontSize: '22px' }}>{noteRavioli}</td>
                         </tr>
                       );
                     })}
@@ -1020,7 +1020,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
+                        <td style={{ fontSize: '22px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
                       </tr>
                       );
                     })}
@@ -1117,7 +1117,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
+                        <td style={{ fontSize: '22px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
                       </tr>
                       );
                     })}
@@ -1185,11 +1185,11 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                   </thead>
                   <tbody>
                     {soloPanade.map((item, index) => {
-                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome);
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
                       
                       return (
                       <tr key={`panade-${index}`}>
-                        <td className="center" style={{ fontWeight: 'bold', fontSize: '18px' }}>{index + 1}</td>
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '22px' }}>{index + 1}</td>
                         <td className="center">{item.oraRitiro || '-'}</td>
                         <td>
                           {nomeProdotto}
@@ -1198,7 +1198,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteTutte(item.prodotto, item.noteOrdine)}</td>
+                        <td style={{ fontSize: '22px' }}>{getNoteTutte(item.prodotto, item.noteOrdine)}</td>
                       </tr>
                       );
                     })}
@@ -1279,7 +1279,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
+                        <td style={{ fontSize: '22px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
                       </tr>
                       );
                     })}
@@ -1364,13 +1364,15 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
         .page-header h2 {
           margin: 0;
-          font-size: 22px;
+          font-size: 28px;
           font-weight: bold;
+          text-transform: uppercase;
         }
 
         .page-header h3 {
           margin: 5px 0 0 0;
-          font-size: 24px;
+          font-size: 30px;
+          text-transform: uppercase;
           font-weight: normal;
         }
 
@@ -1385,8 +1387,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           color: #000000;
           padding: 14px 8px;
           text-align: center;
-          font-size: 18px;
+          font-size: 22px;
           font-weight: bold;
+          text-transform: uppercase;
           border: 1px solid #34495e;
           white-space: nowrap;
         }
@@ -1394,7 +1397,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         .ordini-table td {
           padding: 12px 8px;
           border: 1px solid #ddd;
-          font-size: 17px;
+          font-size: 20px;
+          text-transform: uppercase;
           white-space: nowrap;
         }
 
@@ -1429,12 +1433,12 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           background: #ecf0f1;
           border-radius: 4px;
           border: 1px solid #bdc3c7;
-          font-size: 16px;
+          font-size: 18px;
           color: #2c3e50;
         }
 
         .totale-principale {
-          font-size: 18px;
+          font-size: 22px;
           font-weight: bold;
           margin-bottom: 8px;
           color: #2c3e50;
@@ -1444,7 +1448,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           display: flex;
           flex-wrap: wrap;
           gap: 10px;
-          font-size: 15px;
+          font-size: 18px;
           color: #34495e;
         }
 
@@ -1487,21 +1491,25 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           }
 
           .page-header h2 {
-            font-size: 18px;
+            font-size: 22px;
+            text-transform: uppercase;
           }
 
           .page-header h3 {
-            font-size: 18px;
+            text-transform: uppercase;
+            font-size: 22px;
           }
 
           .ordini-table th {
-            font-size: 15px;
+            text-transform: uppercase;
+            font-size: 18px;
             padding: 8px 6px;
           }
 
           .ordini-table td {
-            font-size: 15px;
+            font-size: 18px;
             padding: 6px 4px;
+            text-transform: uppercase;
           }
 
           .totali {
@@ -1510,11 +1518,11 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           }
 
           .totale-principale {
-            font-size: 16px;
+            font-size: 20px;
           }
 
           .dettagli-totali {
-            font-size: 14px;
+            font-size: 16px;
           }
         }
       `}</style>
