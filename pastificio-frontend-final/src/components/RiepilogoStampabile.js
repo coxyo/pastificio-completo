@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
-// ✅ AGGIORNATO 29/12/2025: Panade count semplice + C-M (trattino)
+// ✅ AGGIORNATO 29/12/2025: Pasta panada+Panadine in ALTRI
 
 import React, { useMemo } from 'react';
 import {
@@ -149,12 +149,12 @@ const CATEGORIE = {
   },
   PANADE: {
     nome: 'PANADE',
-    prodotti: ['Panada', 'Panadine'],
+    prodotti: ['Panada di Agnello', 'Panada di Vitella', 'Panada Anguille', 'Panada di Maiale', 'Panada Verdure'],
     colore: '#FFA07A'
   },
   ALTRI: {
     nome: 'ALTRI PRODOTTI',
-    prodotti: ['Fregula', 'Pizzette', 'Pasta', 'Sfoglia'],
+    prodotti: ['Pasta per panada', 'Panadine', 'Fregula', 'Pizzette', 'Sfoglia'],
     colore: '#95E1D3'
   }
 };
@@ -265,6 +265,18 @@ const normalizzaNomeProdotto = (nome) => {
 const getCategoriaProdotto = (nomeProdotto) => {
   const nomeLC = nomeProdotto.toLowerCase();
   
+  // ✅ FIX 29/12: Casi speciali PRIMA del controllo generico
+  // ALTRI - Prodotti che contengono "pasta" o "panadine" o "pizzette"
+  if (nomeLC.includes('pasta per panada') || 
+      nomeLC.includes('panadine') ||
+      nomeLC.includes('pizzette') ||
+      nomeLC.includes('fregula') ||
+      nomeLC.includes('fregola') ||
+      nomeLC.includes('sfoglia')) {
+    return 'ALTRI';
+  }
+  
+  // Controllo normale su tutte le categorie
   for (const [key, categoria] of Object.entries(CATEGORIE)) {
     if (categoria.prodotti.some(p => nomeLC.includes(p.toLowerCase()))) {
       return key;
