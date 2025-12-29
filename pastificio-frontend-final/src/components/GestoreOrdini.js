@@ -2035,7 +2035,7 @@ return (
       `}</style>
       
       <Container maxWidth="xl">
-        <StatisticheWidget ordini={ordini} />
+        <StatisticheWidget ordini={ordini} dataSelezionata={dataSelezionata} />
         
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
