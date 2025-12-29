@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
-// ✅ AGGIORNATO 27/12/2025: Font grandi + Varianti ravioli distinte + Panade numerata
+// ✅ AGGIORNATO 29/12/2025: Font grandi + Fix Panade complete + Ciambelle zucchero
 
 import React, { useMemo } from 'react';
 import {
@@ -420,6 +420,7 @@ const getComposizioneProdotto = (prodotto) => {
         if (varianteLower.includes('albicocca')) abbr = 'C.Albic';
         else if (varianteLower.includes('nutella')) abbr = 'C.Nut';
         else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
+        else if (varianteLower.includes('zucchero')) abbr = 'C'; // ✅ FIX 29/12: Ciambelle con zucchero a velo
         else if (varianteLower.includes('base') || varianteLower === '' || varianteLower === 'nessuna') {
           abbr = 'C'; // ✅ FIX: Ciambelle nude
         }
@@ -1112,15 +1113,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
             {/* ========== PAGINA 4: PANADE ========== */}
             {(() => {
-              // ✅ FIX 27/12: Filtra solo le 4 panade vere (esclude Panadine e Anguille)
-              const soloPanade = ordiniPerCategoria.PANADE.filter(item => {
-                const nomeLower = item.prodotto.nome.toLowerCase();
-                return (nomeLower.includes('agnello') || 
-                        nomeLower.includes('maiale') || 
-                        nomeLower.includes('vitella') || 
-                        nomeLower.includes('verdure')) &&
-                       !nomeLower.includes('panadine');
-              });
+              // ✅ FIX 29/12: NON FILTRARE - Mostra TUTTE le panade (inclusi Anguille, Pasta per panada)
+              const soloPanade = ordiniPerCategoria.PANADE;
               
               return soloPanade.length > 0 ? (
               <div className="page" style={{ pageBreakAfter: 'always' }}>
