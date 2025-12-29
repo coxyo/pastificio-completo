@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
-// ✅ AGGIORNATO 29/12/2025: Panade espanse (3x1Kg → 3 righe) + Ciambelle zucchero C.M
+// ✅ AGGIORNATO 29/12/2025: Panade espanse + Ciambelle zucchero C.M
 
 import React, { useMemo } from 'react';
 import {
@@ -49,7 +49,7 @@ const ABBREVIAZIONI = {
   'Ciambelle con marmellata di albicocca': 'C.Albic',
   'Ciambelle con marmellata di ciliegia': 'C.Cileg',
   'Ciambelle con nutella': 'C.Nut',
-  'Ciambelle con zucchero a velo': 'C.M',
+  'Ciambelle con zucchero a velo': 'C.Nude',
   'Ciambelle semplici': 'C.Nude',
   'Ciambelle miste': 'C.Miste',
   'Sebadas': 'Sebad',
@@ -420,7 +420,7 @@ const getComposizioneProdotto = (prodotto) => {
         if (varianteLower.includes('albicocca')) abbr = 'C.Albic';
         else if (varianteLower.includes('nutella')) abbr = 'C.Nut';
         else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
-        else if (varianteLower.includes('zucchero')) abbr = 'C.M'; // ✅ FIX 29/12: Ciambelle con zucchero a velo
+        else if (varianteLower.includes('zucchero')) abbr = 'C'; // ✅ FIX 29/12: Ciambelle con zucchero a velo
         else if (varianteLower.includes('base') || varianteLower === '' || varianteLower === 'nessuna') {
           abbr = 'C'; // ✅ FIX: Ciambelle nude
         }
@@ -684,7 +684,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     console.log(`📋 RiepilogoStampabile: ${ordiniFiltrati.length} ordini per ${data} (su ${ordini.length} totali)`);
 
     const mappaRaggruppamento = new Map();
-    let contatorePanade = 0;  // ✅ FIX 29/12: Counter per panade uniche
 
     ordiniFiltrati.forEach(ordine => {
       if (!ordine.prodotti || ordine.prodotti.length === 0) return;
@@ -701,29 +700,6 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         const unita = prodotto.unita || 'Kg';
 
         let chiave;
-        // ✅ FIX 29/12: PANADE - NON raggruppare mai (ogni ordine = righe separate)
-        if (categoria === 'PANADE') {
-          // Usa counter univoco per ogni panada
-          const numRighe = Math.max(1, Math.round(quantita));
-          for (let i = 0; i < numRighe; i++) {
-            chiave = `PANADE-${contatorePanade++}`;
-            mappaRaggruppamento.set(chiave, {
-              categoria,
-              oraRitiro: ordine.oraRitiro || '',
-              nomeCliente,
-              daViaggio: ordine.daViaggio || false,
-              haAltriProdotti,
-              prodotto: {
-                ...prodotto,
-                quantita: 1  // Ogni riga mostra 1 Kg
-              },
-              count: 1
-            });
-          }
-          return;  // Skip il resto della logica
-        }
-        
-        // Logica normale per altri prodotti
         if (prodotto.nome === 'Vassoio Dolci Misti' || unita === 'vassoio') {
           chiave = `${categoria}-${nomeCliente}-${prodotto.nome}-${prodotto.prezzo}`;
         } else {
@@ -747,10 +723,27 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
           });
         }
       });
+    });
 
     mappaRaggruppamento.forEach((gruppo) => {
-      result[gruppo.categoria].push(gruppo);
+      // ✅ FIX 29/12: PANADE - Espandi ogni Kg in una riga separata
+      if (gruppo.categoria === 'PANADE') {
+        const numRighe = Math.max(1, Math.round(gruppo.prodotto.quantita));
+        for (let i = 0; i < numRighe; i++) {
+          result[gruppo.categoria].push({
+            ...gruppo,
+            prodotto: {
+              ...gruppo.prodotto,
+              quantita: 1  // Ogni riga mostra 1 Kg
+            },
+            count: 1
+          });
+        }
+      } else {
+        result[gruppo.categoria].push(gruppo);
+      }
     });
+
     Object.keys(result).forEach(cat => {
       result[cat].sort((a, b) => {
         if (!a.oraRitiro) return 1;
