@@ -6,7 +6,13 @@ import { TrendingUp, Euro, Schedule, CheckCircle } from '@mui/icons-material';
 const StatisticheWidget = ({ ordini }) => {
   // Calcola statistiche
   const oggi = new Date().toDateString();
-  const ordiniOggi = ordini.filter(o => new Date(o.dataRitiro).toDateString() === oggi);
+  
+  // ✅ FIX 29/12: Usa dataRitiro con fallback su createdAt
+  const ordiniOggi = ordini.filter(o => {
+    const dataOrdine = new Date(o.dataRitiro || o.createdAt).toDateString();
+    return dataOrdine === oggi;
+  });
+  
   const totaleOggi = ordiniOggi.reduce((sum, o) => sum + (o.totale || 0), 0);
   const completati = ordiniOggi.filter(o => o.stato === 'completato').length;
   const percentualeCompletamento = ordiniOggi.length > 0 ? (completati / ordiniOggi.length) * 100 : 0;
