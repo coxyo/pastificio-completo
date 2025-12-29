@@ -1,16 +1,26 @@
 // components/ordini/StatisticheWidget.js
+// ✅ FIX 29/12/2025 v2 - Confronto date più robusto
 import React from 'react';
 import { Box, Paper, Grid, Typography, LinearProgress } from '@mui/material';
 import { TrendingUp, Euro, Schedule, CheckCircle } from '@mui/icons-material';
 
 const StatisticheWidget = ({ ordini }) => {
-  // Calcola statistiche
-  const oggi = new Date().toDateString();
+  // ✅ Calcola statistiche con confronto date migliorato
+  const oggi = new Date();
+  const annoOggi = oggi.getFullYear();
+  const meseOggi = oggi.getMonth();
+  const giornoOggi = oggi.getDate();
   
-  // ✅ FIX 29/12: Usa dataRitiro con fallback su createdAt
   const ordiniOggi = ordini.filter(o => {
-    const dataOrdine = new Date(o.dataRitiro || o.createdAt).toDateString();
-    return dataOrdine === oggi;
+    // Usa dataRitiro con fallback su createdAt
+    const dataOrdine = new Date(o.dataRitiro || o.createdAt);
+    
+    // Confronta anno, mese e giorno separatamente
+    return (
+      dataOrdine.getFullYear() === annoOggi &&
+      dataOrdine.getMonth() === meseOggi &&
+      dataOrdine.getDate() === giornoOggi
+    );
   });
   
   const totaleOggi = ordiniOggi.reduce((sum, o) => sum + (o.totale || 0), 0);
