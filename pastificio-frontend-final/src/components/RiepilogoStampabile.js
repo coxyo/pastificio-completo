@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
-// ✅ AGGIORNATO 29/12/2025: Panade espanse + Ciambelle zucchero C.M
+// ✅ AGGIORNATO 29/12/2025: Panade count*quantita + C.M zucchero
 
 import React, { useMemo } from 'react';
 import {
@@ -49,7 +49,7 @@ const ABBREVIAZIONI = {
   'Ciambelle con marmellata di albicocca': 'C.Albic',
   'Ciambelle con marmellata di ciliegia': 'C.Cileg',
   'Ciambelle con nutella': 'C.Nut',
-  'Ciambelle con zucchero a velo': 'C.Nude',
+  'Ciambelle con zucchero a velo': 'C.M',
   'Ciambelle semplici': 'C.Nude',
   'Ciambelle miste': 'C.Miste',
   'Sebadas': 'Sebad',
@@ -420,7 +420,7 @@ const getComposizioneProdotto = (prodotto) => {
         if (varianteLower.includes('albicocca')) abbr = 'C.Albic';
         else if (varianteLower.includes('nutella')) abbr = 'C.Nut';
         else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
-        else if (varianteLower.includes('zucchero')) abbr = 'C'; // ✅ FIX 29/12: Ciambelle con zucchero a velo
+        else if (varianteLower.includes('zucchero')) abbr = 'C.M'; // ✅ FIX 29/12: Zucchero a velo
         else if (varianteLower.includes('base') || varianteLower === '' || varianteLower === 'nessuna') {
           abbr = 'C'; // ✅ FIX: Ciambelle nude
         }
@@ -726,9 +726,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     });
 
     mappaRaggruppamento.forEach((gruppo) => {
-      // ✅ FIX 29/12: PANADE - Espandi ogni Kg in una riga separata
+      // ✅ FIX 29/12: PANADE - Espandi con count * quantita (2 ordini da 1Kg → 2 righe)
       if (gruppo.categoria === 'PANADE') {
-        const numRighe = Math.max(1, Math.round(gruppo.prodotto.quantita));
+        const numRighe = Math.max(1, Math.round(gruppo.prodotto.quantita * gruppo.count));
         for (let i = 0; i < numRighe; i++) {
           result[gruppo.categoria].push({
             ...gruppo,
@@ -1128,7 +1128,8 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
 
             {/* ========== PAGINA 4: PANADE ========== */}
             {(() => {
-              // ✅ FIX 29/12: NON FILTRARE - Mostra TUTTE le panade (inclusi Anguille, Pasta per panada)
+              // ✅ FIX 27/12: Filtra solo le 4 panade vere (esclude Panadine e Anguille)
+              // ✅ FIX 29/12: NON FILTRARE - Mostra TUTTE le panade
               const soloPanade = ordiniPerCategoria.PANADE;
               
               return soloPanade.length > 0 ? (
