@@ -1,31 +1,35 @@
 // components/ordini/StatisticheWidget.js
-// ✅ FIX 29/12/2025 v2 - Confronto date più robusto
+// 🐛 VERSIONE DEBUG - 29/12/2025
 import React from 'react';
 import { Box, Paper, Grid, Typography, LinearProgress } from '@mui/material';
 import { TrendingUp, Euro, Schedule, CheckCircle } from '@mui/icons-material';
 
 const StatisticheWidget = ({ ordini }) => {
-  // ✅ Calcola statistiche con confronto date migliorato
-  const oggi = new Date();
-  const annoOggi = oggi.getFullYear();
-  const meseOggi = oggi.getMonth();
-  const giornoOggi = oggi.getDate();
+  // 🐛 DEBUG: Log per controllare cosa arriva
+  console.log('🔍 StatisticheWidget - Ordini ricevuti:', ordini?.length || 0);
+  console.log('🔍 StatisticheWidget - Primi 3 ordini:', ordini?.slice(0, 3));
   
+  // Calcola statistiche
+  const oggi = new Date().toDateString();
+  console.log('🔍 StatisticheWidget - Data oggi:', oggi);
+  
+  // ✅ FIX 29/12: Usa dataRitiro con fallback su createdAt
   const ordiniOggi = ordini.filter(o => {
-    // Usa dataRitiro con fallback su createdAt
-    const dataOrdine = new Date(o.dataRitiro || o.createdAt);
-    
-    // Confronta anno, mese e giorno separatamente
-    return (
-      dataOrdine.getFullYear() === annoOggi &&
-      dataOrdine.getMonth() === meseOggi &&
-      dataOrdine.getDate() === giornoOggi
-    );
+    const dataOrdine = new Date(o.dataRitiro || o.createdAt).toDateString();
+    console.log('🔍 Confronto:', dataOrdine, '===', oggi, '?', dataOrdine === oggi);
+    return dataOrdine === oggi;
   });
+  
+  console.log('🔍 StatisticheWidget - Ordini oggi trovati:', ordiniOggi.length);
+  console.log('🔍 StatisticheWidget - Ordini oggi dettaglio:', ordiniOggi);
   
   const totaleOggi = ordiniOggi.reduce((sum, o) => sum + (o.totale || 0), 0);
   const completati = ordiniOggi.filter(o => o.stato === 'completato').length;
   const percentualeCompletamento = ordiniOggi.length > 0 ? (completati / ordiniOggi.length) * 100 : 0;
+
+  console.log('🔍 StatisticheWidget - Totale oggi:', totaleOggi);
+  console.log('🔍 StatisticheWidget - Completati:', completati);
+  console.log('🔍 StatisticheWidget - Percentuale:', percentualeCompletamento);
 
   const stats = [
     {
