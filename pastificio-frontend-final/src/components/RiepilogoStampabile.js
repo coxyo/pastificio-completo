@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
-// ✅ AGGIORNATO 29/12/2025: Note ordine visibili in tutte le sezioni
+// ✅ AGGIORNATO 29/12/2025: Panada Verdure in PANADE
 
 import React, { useMemo } from 'react';
 import {
@@ -149,7 +149,8 @@ const CATEGORIE = {
   },
   PANADE: {
     nome: 'PANADE',
-    prodotti: ['Panada di Agnello', 'Panada di Vitella', 'Panada Anguille', 'Panada di Maiale', 'Panada Verdure'],
+    prodotti: ['Panada di Agnello', 'Panada di Vitella', 'Panada Anguille', 
+               'Panada di Maiale', 'Panada di Verdure', 'Panada Verdure'],
     colore: '#FFA07A'
   },
   ALTRI: {
