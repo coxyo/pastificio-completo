@@ -1,47 +1,34 @@
 // components/ordini/StatisticheWidget.js
-// 🐛 VERSIONE DEBUG - 29/12/2025
+// ✅ FIX 29/12/2025 v3 - Usa DATA SELEZIONATA invece di oggi
 import React from 'react';
 import { Box, Paper, Grid, Typography, LinearProgress } from '@mui/material';
 import { TrendingUp, Euro, Schedule, CheckCircle } from '@mui/icons-material';
 
-const StatisticheWidget = ({ ordini }) => {
-  // 🐛 DEBUG: Log per controllare cosa arriva
-  console.log('🔍 StatisticheWidget - Ordini ricevuti:', ordini?.length || 0);
-  console.log('🔍 StatisticheWidget - Primi 3 ordini:', ordini?.slice(0, 3));
+const StatisticheWidget = ({ ordini, dataSelezionata }) => {
+  // ✅ Usa dataSelezionata prop oppure fallback su oggi
+  const dataTarget = dataSelezionata || new Date().toISOString().split('T')[0];
   
-  // Calcola statistiche
-  const oggi = new Date().toDateString();
-  console.log('🔍 StatisticheWidget - Data oggi:', oggi);
-  
-  // ✅ FIX 29/12: Usa dataRitiro con fallback su createdAt
-  const ordiniOggi = ordini.filter(o => {
-    const dataOrdine = new Date(o.dataRitiro || o.createdAt).toDateString();
-    console.log('🔍 Confronto:', dataOrdine, '===', oggi, '?', dataOrdine === oggi);
-    return dataOrdine === oggi;
+  // Filtra ordini per la data selezionata
+  const ordiniGiorno = ordini.filter(o => {
+    const dataOrdine = (o.dataRitiro || o.createdAt || '').split('T')[0];
+    return dataOrdine === dataTarget;
   });
   
-  console.log('🔍 StatisticheWidget - Ordini oggi trovati:', ordiniOggi.length);
-  console.log('🔍 StatisticheWidget - Ordini oggi dettaglio:', ordiniOggi);
-  
-  const totaleOggi = ordiniOggi.reduce((sum, o) => sum + (o.totale || 0), 0);
-  const completati = ordiniOggi.filter(o => o.stato === 'completato').length;
-  const percentualeCompletamento = ordiniOggi.length > 0 ? (completati / ordiniOggi.length) * 100 : 0;
-
-  console.log('🔍 StatisticheWidget - Totale oggi:', totaleOggi);
-  console.log('🔍 StatisticheWidget - Completati:', completati);
-  console.log('🔍 StatisticheWidget - Percentuale:', percentualeCompletamento);
+  const totaleGiorno = ordiniGiorno.reduce((sum, o) => sum + (o.totale || 0), 0);
+  const completati = ordiniGiorno.filter(o => o.stato === 'completato').length;
+  const percentualeCompletamento = ordiniGiorno.length > 0 ? (completati / ordiniGiorno.length) * 100 : 0;
 
   const stats = [
     {
       title: 'Ordini Oggi',
-      value: ordiniOggi.length,
+      value: ordiniGiorno.length,
       icon: <Schedule />,
       color: '#667eea',
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     },
     {
       title: 'Incasso Oggi',
-      value: `€${totaleOggi.toFixed(2)}`,
+      value: `€${totaleGiorno.toFixed(2)}`,
       icon: <Euro />,
       color: '#84fab0',
       gradient: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)'
@@ -56,7 +43,7 @@ const StatisticheWidget = ({ ordini }) => {
     },
     {
       title: 'Media Ordine',
-      value: ordiniOggi.length > 0 ? `€${(totaleOggi / ordiniOggi.length).toFixed(2)}` : '€0',
+      value: ordiniGiorno.length > 0 ? `€${(totaleGiorno / ordiniGiorno.length).toFixed(2)}` : '€0',
       icon: <TrendingUp />,
       color: '#fa709a',
       gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
