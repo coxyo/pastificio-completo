@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
-// ✅ AGGIORNATO 29/12/2025: Pasta panada+Panadine in ALTRI
+// ✅ AGGIORNATO 29/12/2025: Note ordine visibili in tutte le sezioni
 
 import React, { useMemo } from 'react';
 import {
@@ -518,8 +518,16 @@ const filtraNote = (note) => {
   return note.toUpperCase();
 };
 
-const getNoteCombinateFiltrateHelper = (prodotto) => {
+const getNoteCombinateFiltrateHelper = (prodotto, noteOrdine = '') => {
   const note = [];
+  
+  // ✅ FIX 29/12: Aggiungi note ordine per prime
+  if (noteOrdine && noteOrdine.trim()) {
+    const noteOrdFiltered = filtraNoteSelettivo(noteOrdine);
+    if (noteOrdFiltered) {
+      note.push(noteOrdFiltered);
+    }
+  }
   
   // ✅ FIX 27/12: Filtra SOLO packaging/vassoio, mostra tutto il resto
   if (prodotto.note) {
@@ -558,8 +566,13 @@ const filtraNoteSelettivo = (note) => {
 };
 
 // ✅ FIX 27/12: Funzione per mostrare TUTTE le note senza filtrare
-const getNoteTutte = (prodotto) => {
+const getNoteTutte = (prodotto, noteOrdine = '') => {
   const note = [];
+  
+  // ✅ FIX 29/12: Aggiungi note ordine per prime
+  if (noteOrdine && noteOrdine.trim()) {
+    note.push(noteOrdine.toUpperCase());
+  }
   
   if (prodotto.note) {
     note.push(prodotto.note.toUpperCase());
@@ -712,10 +725,13 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         const unita = prodotto.unita || 'Kg';
 
         let chiave;
+        // ✅ FIX 29/12: Includi note ordine nella chiave per NON raggruppare ordini con note diverse
+        const noteOrdine = ordine.note || '';
+        
         if (prodotto.nome === 'Vassoio Dolci Misti' || unita === 'vassoio') {
-          chiave = `${categoria}-${nomeCliente}-${prodotto.nome}-${prodotto.prezzo}`;
+          chiave = `${categoria}-${nomeCliente}-${prodotto.nome}-${prodotto.prezzo}-${noteOrdine}`;
         } else {
-          chiave = `${categoria}-${nomeCliente}-${prodotto.nome}-${quantita}-${unita}`;
+          chiave = `${categoria}-${nomeCliente}-${prodotto.nome}-${quantita}-${unita}-${noteOrdine}`;
         }
 
         if (mappaRaggruppamento.has(chiave)) {
@@ -731,6 +747,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
             daViaggio: ordine.daViaggio || false,
             haAltriProdotti,
             prodotto,
+            noteOrdine,  // ✅ FIX 29/12: Salva note ordine
             count: 1
           });
         }
@@ -910,7 +927,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       const varianti = getVariantiRavioli(item.prodotto.nome);
                       const noteRavioli = getNoteRavioli(
                         item.prodotto.nome, 
-                        item.prodotto.noteCottura || item.prodotto.note
+                        item.noteOrdine || item.prodotto.noteCottura || item.prodotto.note
                       );
                       
                       return (
@@ -1002,7 +1019,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
                       </tr>
                       );
                     })}
@@ -1099,7 +1116,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
                       </tr>
                       );
                     })}
@@ -1180,7 +1197,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteTutte(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteTutte(item.prodotto, item.noteOrdine)}</td>
                       </tr>
                       );
                     })}
@@ -1261,7 +1278,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                         <td>{item.nomeCliente.toUpperCase()}</td>
                         <td className="center">{item.daViaggio ? '✈️' : ''}</td>
                         <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
-                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto)}</td>
+                        <td style={{ fontSize: '14px' }}>{getNoteCombinateFiltrateHelper(item.prodotto, item.noteOrdine)}</td>
                       </tr>
                       );
                     })}
