@@ -961,7 +961,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                       </Typography>
 
                       {/* Dropdown Varianti */}
-                      {config?.varianti && config.varianti.length > 0 && modalita !== MODALITA.TOTALE_PRIMA && (
+                      {config?.varianti && config.varianti.length > 0 &&  (
                         <FormControl size="small" sx={{ minWidth: 150 }}>
                           <Select
                             value={item.varianteSelezionata || (config.varianti[0]?.nome || config.varianti[0])}
