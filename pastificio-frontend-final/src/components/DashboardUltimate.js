@@ -1,8 +1,7 @@
 // src/components/DashboardUltimate.js
 import React, { useState, useEffect, useRef } from 'react';
-// Import per analytics e AI
+// Import per analytics
 import DashboardAnalytics from './Dashboard/DashboardAnalytics';
-import aiService from '../services/ai/aiService';
 // Import per fidelizzazione
 import FidelizzazioneClienti from './Fidelizzazione/FidelizzazioneClienti';
 
@@ -22,10 +21,8 @@ function DashboardUltimate() {
   const [exportFormat, setExportFormat] = useState('excel');
   const chartCanvasRef = useRef(null);
   
-  // Stati per analytics, AI e fidelizzazione
+  // Stati per analytics e fidelizzazione
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [predictions, setPredictions] = useState(null);
-  const [clientAnalysis, setClientAnalysis] = useState(null);
   const [showFidelity, setShowFidelity] = useState(false);
 
   // NUOVO: Stati multi-utente
@@ -53,25 +50,6 @@ function DashboardUltimate() {
     filterOrders();
   }, [orders, searchTerm]);
 
-  // useEffect per AI predictions
-  useEffect(() => {
-    if (orders.length > 0) {
-      const pred = aiService.predizioneVendite(orders);
-      setPredictions(pred);
-      
-      // Analizza clienti per suggerimenti
-      if (searchTerm && orders.length > 0) {
-        const clientOrder = orders.find(o => 
-          (o.nomeCliente || o.cliente || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          o.telefono?.includes(searchTerm)
-        );
-        if (clientOrder) {
-          const analysis = aiService.suggerimentiCliente(clientOrder.telefono, orders);
-          setClientAnalysis(analysis);
-        }
-      }
-    }
-  }, [orders, searchTerm]);
 
   const setupNotifications = () => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -809,71 +787,6 @@ function DashboardUltimate() {
         ) : (
           <>
             {/* AI Predictions Section */}
-            {predictions && (
-              <div style={{ 
-                marginBottom: '32px',
-                padding: '20px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: '16px',
-                color: 'white',
-                boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
-              }}>
-                <h3 style={{ fontSize: '20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  🤖 Previsioni AI per Oggi
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{predictions.ordiniPrevisti || 1}</div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Ordini Previsti</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
-                      €{(predictions.fatturatoAtteso || 0).toFixed(2)}
-                    </div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Fatturato Atteso</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '28px', fontWeight: 'bold' }}>10:00</div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>Ora di Punta (100.0%)</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                      Focaccia
-                    </div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>
-                      Prodotto più probabile (Q.tà: 4)
-                    </div>
-                  </div>
-                </div>
-                
-                <div style={{ 
-                  marginTop: '16px', 
-                  padding: '12px', 
-                  backgroundColor: 'rgba(255,255,255,0.1)', 
-                  borderRadius: '8px' 
-                }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>💡 Suggerimenti AI:</div>
-                  <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                    • 🍞 Prodotto star: Focaccia → Assicurati di avere scorte sufficienti!
-                  </div>
-                </div>
-
-                <div style={{ 
-                  marginTop: '12px', 
-                  padding: '12px', 
-                  backgroundColor: 'rgba(255,100,100,0.2)', 
-                  borderRadius: '8px' 
-                }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚠️ Alert Scorte:</div>
-                  <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                    • Papassino: 3 giorni rimanenti
-                  </div>
-                  <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                    • Seadas: 5 giorni rimanenti
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* KPI Cards */}
             <div style={{ 
@@ -1029,11 +942,6 @@ function DashboardUltimate() {
         }}>
           📄 <strong>Auto-aggiornamento:</strong> Il dashboard si aggiorna automaticamente quando ricevi nuovi ordini. 
           Le notifiche push ti avviseranno in tempo reale!
-          {predictions && (
-            <span style={{ display: 'block', marginTop: '8px' }}>
-              🤖 <strong>AI Attiva:</strong> Le previsioni vengono aggiornate ogni ora basandosi sui pattern storici.
-            </span>
-          )}
         </div>
       </div>
 
@@ -1074,4 +982,3 @@ function DashboardUltimate() {
 }
 
 export default DashboardUltimate;
-
