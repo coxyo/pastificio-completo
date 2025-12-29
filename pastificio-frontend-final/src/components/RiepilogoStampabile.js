@@ -1,7 +1,7 @@
 // components/RiepilogoStampabile.js
 // 🖨️ RIEPILOGO GIORNALIERO STAMPABILE - A4 LANDSCAPE
 // Fogli separati: Ravioli, Pardulas, Dolci, Panade, Altri
-// ✅ AGGIORNATO 29/12/2025: Panade count*quantita + C.M zucchero
+// ✅ AGGIORNATO 29/12/2025: Panade count semplice + C-M (trattino)
 
 import React, { useMemo } from 'react';
 import {
@@ -49,7 +49,7 @@ const ABBREVIAZIONI = {
   'Ciambelle con marmellata di albicocca': 'C.Albic',
   'Ciambelle con marmellata di ciliegia': 'C.Cileg',
   'Ciambelle con nutella': 'C.Nut',
-  'Ciambelle con zucchero a velo': 'C.M',
+  'Ciambelle con zucchero a velo': 'C-M',
   'Ciambelle semplici': 'C.Nude',
   'Ciambelle miste': 'C.Miste',
   'Sebadas': 'Sebad',
@@ -420,7 +420,7 @@ const getComposizioneProdotto = (prodotto) => {
         if (varianteLower.includes('albicocca')) abbr = 'C.Albic';
         else if (varianteLower.includes('nutella')) abbr = 'C.Nut';
         else if (varianteLower.includes('ciliegia') || varianteLower.includes('cilieg')) abbr = 'C.Cileg';
-        else if (varianteLower.includes('zucchero')) abbr = 'C.M'; // ✅ FIX 29/12: Zucchero a velo
+        else if (varianteLower.includes('zucchero')) abbr = 'C-M'; // ✅ FIX 29/12: Zucchero a velo
         else if (varianteLower.includes('base') || varianteLower === '' || varianteLower === 'nessuna') {
           abbr = 'C'; // ✅ FIX: Ciambelle nude
         }
@@ -726,15 +726,16 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
     });
 
     mappaRaggruppamento.forEach((gruppo) => {
-      // ✅ FIX 29/12: PANADE - Espandi con count * quantita (2 ordini da 1Kg → 2 righe)
+      // ✅ FIX 29/12: PANADE - Espandi solo per count, mantieni quantità originale
       if (gruppo.categoria === 'PANADE') {
-        const numRighe = Math.max(1, Math.round(gruppo.prodotto.quantita * gruppo.count));
+        // Ogni ordine = 1 riga, indipendentemente dalla quantità
+        const numRighe = gruppo.count;
         for (let i = 0; i < numRighe; i++) {
           result[gruppo.categoria].push({
             ...gruppo,
             prodotto: {
               ...gruppo.prodotto,
-              quantita: 1  // Ogni riga mostra 1 Kg
+              quantita: gruppo.prodotto.quantita  // ✅ Mantieni quantità originale (1.5 Kg, 1 Kg, etc.)
             },
             count: 1
           });
