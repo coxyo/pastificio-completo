@@ -56,6 +56,12 @@ const CATEGORIE = {
     colore: '#AA96DA',
     coloreBg: 'rgba(170, 150, 218, 0.1)'
   },
+  ZEPPOLE: {
+    nome: 'ZEPPOLE',
+    prodotti: ['Zeppole'],
+    colore: '#FCCD90',
+    coloreBg: 'rgba(252, 205, 144, 0.1)'
+  },
   PANADINE: {
     nome: 'PANADINE',
     prodotti: ['Panadine'],
@@ -103,6 +109,7 @@ const OrdiniList = ({
     DOLCI: true,
     PANADAS: true,
     SEABADAS: true,
+    ZEPPOLE: true,
     PANADINE: true,
     ALTRI: true
   });
@@ -401,6 +408,7 @@ Pastificio Nonna Claudia`;
       DOLCI: [],
       PANADAS: [],
       SEABADAS: [],
+      ZEPPOLE: [],
       PANADINE: [],
       ALTRI: []
     };
