@@ -362,11 +362,15 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
   // ✅ FIX 19/12/2025: Raggruppa per macro-categoria (RAVIOLI dettagliati!)
   const totaleRavioli = totali.RavioliZafferano + totali.RavioliZafferanoDolci + totali.RavioliZafferanoPocoDolci + totali.RavioliZafferanoMoltoDolci + totali.RavioliSpinaciZafferano + totali.RavioliSpinaci + totali.RavioliSpinaciDolci + totali.RavioliSpinaciPocoDolci + totali.RavioliSpinaciMoltoDolci + totali.RavioliDolci + totali.RavioliFormaggio + totali.RavioliAltri + totali.Culurgiones;
   const totalePardulas = totali.Pardulas;
-  const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine + totali.Zeppole;
+  const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine; // ✅ RIMOSSO Zeppole
   // ✅ FIX: Panadas farcite separate
   const totalePanadas = totali.PanadaAgnello + totali.PanadaMaiale + totali.PanadaVitella + totali.PanadaVerdure + totali.PanadaAnguille;
-  const totaleAltri = totali.PastaPerPanada + totali.Panadine + totali.Sebadas + totali.Pizzette + totali.Fregula;
-  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleAltri;
+  // ✅ NUOVO 30/12/2025: Gruppi separati per Seabadas, Zeppole, Panadine
+  const totaleSebadas = totali.Sebadas;
+  const totaleZeppole = totali.Zeppole;
+  const totalePanadine = totali.Panadine;
+  const totaleAltri = totali.PastaPerPanada + totali.Pizzette + totali.Fregula; // ✅ RIMOSSO Panadine e Sebadas
+  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleSebadas + totaleZeppole + totalePanadine + totaleAltri;
 
   if (totaleGenerale === 0) return null;
 
@@ -390,19 +394,64 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
       {/* Riga principale con macro-totali */}
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 1 }}>
         {totaleRavioli > 0 && (
-          <Chip label={`🥟 Ravioli: ${totaleRavioli.toFixed(1)} KG`} color="error" sx={{ fontWeight: 'bold' }} />
+          <Chip 
+            label={`🥟 Ravioli: ${totaleRavioli.toFixed(1)} KG`} 
+            color="error" 
+            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('RAVIOLI')}
+          />
         )}
         {totalePardulas > 0 && (
-          <Chip label={`🟡 Pardulas: ${totalePardulas.toFixed(1)} KG`} color="warning" sx={{ fontWeight: 'bold' }} />
+          <Chip 
+            label={`🟡 Pardulas: ${totalePardulas.toFixed(1)} KG`} 
+            color="warning" 
+            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('PARDULAS')}
+          />
         )}
         {totaleDolci > 0 && (
-          <Chip label={`🍪 Dolci: ${totaleDolci.toFixed(1)} KG`} color="success" sx={{ fontWeight: 'bold' }} />
+          <Chip 
+            label={`🍪 Dolci: ${totaleDolci.toFixed(1)} KG`} 
+            color="success" 
+            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('DOLCI')}
+          />
         )}
         {totalePanadas > 0 && (
-          <Chip label={`🥧 Panadas: ${totalePanadas.toFixed(1)} KG`} sx={{ fontWeight: 'bold', backgroundColor: '#ff9800', color: 'white' }} />
+          <Chip 
+            label={`🥧 Panadas: ${totalePanadas.toFixed(1)} KG`} 
+            sx={{ fontWeight: 'bold', backgroundColor: '#ff9800', color: 'white', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('PANADAS')}
+          />
+        )}
+        {totaleSebadas > 0 && (
+          <Chip 
+            label={`🍪 Seabadas: ${totaleSebadas.toFixed(1)} KG`} 
+            sx={{ fontWeight: 'bold', backgroundColor: '#AA96DA', color: 'white', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('SEABADAS')}
+          />
+        )}
+        {totaleZeppole > 0 && (
+          <Chip 
+            label={`🍩 Zeppole: ${totaleZeppole.toFixed(1)} KG`} 
+            sx={{ fontWeight: 'bold', backgroundColor: '#FCCD90', color: 'white', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('ZEPPOLE')}
+          />
+        )}
+        {totalePanadine > 0 && (
+          <Chip 
+            label={`🥐 Panadine: ${totalePanadine.toFixed(1)} KG`} 
+            sx={{ fontWeight: 'bold', backgroundColor: '#FCBAD3', color: 'white', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('PANADINE')}
+          />
         )}
         {totaleAltri > 0 && (
-          <Chip label={`📦 Altri: ${totaleAltri.toFixed(1)} KG`} color="info" sx={{ fontWeight: 'bold' }} />
+          <Chip 
+            label={`📦 Altri: ${totaleAltri.toFixed(1)} KG`} 
+            color="info" 
+            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('ALTRI')}
+          />
         )}
         <Chip label={`TOTALE: ${totaleGenerale.toFixed(1)} KG`} color="primary" sx={{ fontWeight: 'bold', ml: 'auto' }} />
       </Box>
@@ -436,8 +485,7 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
           <ChipDettaglio label="Gueffus" value={totali.Gueffus} color="success" />
           <ChipDettaglio label="Bianchini" value={totali.Bianchini} color="success" />
           <ChipDettaglio label="Pabassine" value={totali.Pabassine} color="success" />
-          <ChipDettaglio label="Zeppole" value={totali.Zeppole} color="success" />
-        </Box>
+          </Box>
       )}
       
       {/* ✅ Riga dettaglio panadas farcite */}
@@ -457,8 +505,6 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #2196f3' }}>
           <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Altri:</Typography>
           <ChipDettaglio label="Pasta Panada" value={totali.PastaPerPanada} color="info" />
-          <ChipDettaglio label="Panadine" value={totali.Panadine} color="info" />
-          <ChipDettaglio label="Sebadas" value={totali.Sebadas} color="info" />
           <ChipDettaglio label="Pizzette" value={totali.Pizzette} color="info" />
           <ChipDettaglio label="Fregula" value={totali.Fregula} color="info" />
         </Box>
@@ -695,10 +741,14 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   // Raggruppa per macro-categoria
   const totaleRavioli = totali.Ravioli + totali.Culurgiones;
   const totalePardulas = totali.Pardulas;
-  const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine + totali.Zeppole;
+  const totaleDolci = totali.Ciambelle + totali.Amaretti + totali.Gueffus + totali.Bianchini + totali.Pabassine; // ✅ RIMOSSO Zeppole
   const totalePanadas = totali.PanadaAgnello + totali.PanadaMaiale + totali.PanadaVitella + totali.PanadaVerdure + totali.PanadaAnguille;
-  const totaleAltri = totali.PastaPerPanada + totali.Panadine + totali.Sebadas + totali.Pizzette + totali.Fregula;
-  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleAltri;
+  // ✅ NUOVO 30/12/2025: Gruppi separati per Seabadas, Zeppole, Panadine
+  const totaleSebadas = totali.Sebadas;
+  const totaleZeppole = totali.Zeppole;
+  const totalePanadine = totali.Panadine;
+  const totaleAltri = totali.PastaPerPanada + totali.Pizzette + totali.Fregula; // ✅ RIMOSSO Panadine e Sebadas
+  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleSebadas + totaleZeppole + totalePanadine + totaleAltri;
 
   // Calcola incasso totale
   const incassoTotale = ordiniFiltrati.reduce((sum, o) => sum + (o.totale || 0), 0);
@@ -982,6 +1032,47 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const syncIntervalRef = useRef(null);
+  
+  // ----------------------------------------------------------------
+  // FUNZIONE: Scroll alla categoria
+  // ----------------------------------------------------------------
+  const scrollToCategoria = useCallback((nomeCategoria) => {
+    console.log(`📜 Scroll verso categoria: ${nomeCategoria}`);
+    
+    // Cerca l'elemento con data-categoria
+    const elemento = document.querySelector(`[data-categoria="${nomeCategoria}"]`);
+    
+    if (elemento) {
+      // Scroll smooth
+      elemento.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start',
+        inline: 'nearest'
+      });
+      
+      // Highlight temporaneo
+      const bgOriginal = elemento.style.backgroundColor;
+      elemento.style.backgroundColor = 'rgba(33, 150, 243, 0.15)';
+      elemento.style.transition = 'background-color 0.3s ease';
+      
+      setTimeout(() => {
+        elemento.style.backgroundColor = bgOriginal;
+        setTimeout(() => {
+          elemento.style.transition = '';
+        }, 300);
+      }, 2000);
+    } else {
+      console.warn(`⚠️ Elemento categoria ${nomeCategoria} non trovato`);
+    }
+  }, []);
+  
+  // Rendi la funzione disponibile globalmente per i chip
+  useEffect(() => {
+    window.scrollToCategoria = scrollToCategoria;
+    return () => {
+      delete window.scrollToCategoria;
+    };
+  }, [scrollToCategoria]);
   
   // ----------------------------------------------------------------
   // EFFETTO 1: Pusher Listener per Chiamate
