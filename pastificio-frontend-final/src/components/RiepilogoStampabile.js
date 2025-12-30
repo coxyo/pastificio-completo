@@ -287,11 +287,23 @@ const normalizzaNomeProdotto = (nome) => {
 const getCategoriaProdotto = (nomeProdotto) => {
   const nomeLC = nomeProdotto.toLowerCase();
   
-  // ✅ FIX 29/12: Casi speciali PRIMA del controllo generico
-  // ALTRI - Prodotti che contengono "pasta" o "panadine" o "pizzette"
-  if (nomeLC.includes('pasta per panada') || 
-      nomeLC.includes('panadine') ||
-      nomeLC.includes('pizzette') ||
+  // ✅ FIX 30/12: PASTA - Controllo PRIMA di PANADE
+  if (nomeLC.includes('pasta per panada') || nomeLC.includes('pasta panada') ||
+      (nomeLC.includes('pasta') && !nomeLC.includes('panada'))) {
+    return 'PASTA';
+  }
+  
+  // ✅ Casi speciali altri prodotti
+  if (nomeLC.includes('panadine')) {
+    return 'PANADINE';
+  }
+  if (nomeLC.includes('sebada')) {
+    return 'SEABADAS';
+  }
+  if (nomeLC.includes('zeppol')) {
+    return 'ZEPPOLE';
+  }
+  if (nomeLC.includes('pizzette') || 
       nomeLC.includes('fregula') ||
       nomeLC.includes('fregola') ||
       nomeLC.includes('sfoglia')) {
