@@ -86,10 +86,49 @@ const getCategoriaProdotto = (nomeProdotto) => {
   if (!nomeProdotto) return 'ALTRI';
   const nomeLC = nomeProdotto.toLowerCase();
   
-  for (const [key, categoria] of Object.entries(CATEGORIE)) {
-    if (categoria.prodotti.some(p => nomeLC.includes(p.toLowerCase()))) {
-      return key;
-    }
+  // ✅ PRIORITÀ 1: Controlla PASTA prima di PANADAS (evita falsi positivi)
+  if (nomeLC.includes('pasta per panada') || nomeLC.includes('pasta panada') || 
+      (nomeLC.includes('pasta') && !nomeLC.includes('panada'))) {
+    return 'PASTA';
+  }
+  
+  // ✅ PRIORITÀ 2: Controlla altre categorie con ordine specifico
+  // Ravioli
+  if (nomeLC.includes('ravioli') || nomeLC.includes('culurgion')) {
+    return 'RAVIOLI';
+  }
+  // Pardulas
+  if (nomeLC.includes('pardula')) {
+    return 'PARDULAS';
+  }
+  // Dolci
+  if (nomeLC.includes('ciambelle') || nomeLC.includes('amaretti') || 
+      nomeLC.includes('bianchini') || nomeLC.includes('papassin') || 
+      nomeLC.includes('pabassine') || nomeLC.includes('gueff') ||
+      nomeLC.includes('torta') || nomeLC.includes('vassoio') || 
+      nomeLC.includes('dolci misti')) {
+    return 'DOLCI';
+  }
+  // Panadas (dopo aver già escluso Pasta)
+  if (nomeLC.includes('panada')) {
+    return 'PANADAS';
+  }
+  // Seabadas
+  if (nomeLC.includes('sebada')) {
+    return 'SEABADAS';
+  }
+  // Zeppole
+  if (nomeLC.includes('zeppol')) {
+    return 'ZEPPOLE';
+  }
+  // Panadine
+  if (nomeLC.includes('panadine')) {
+    return 'PANADINE';
+  }
+  // Altri
+  if (nomeLC.includes('fregula') || nomeLC.includes('pizzette') || 
+      nomeLC.includes('sfoglia')) {
+    return 'ALTRI';
   }
   
   return 'ALTRI';
