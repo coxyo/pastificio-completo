@@ -399,6 +399,9 @@ Pastificio Nonna Claudia`;
       RAVIOLI: [],
       PARDULAS: [],
       DOLCI: [],
+      PANADAS: [],
+      SEABADAS: [],
+      PANADINE: [],
       ALTRI: []
     };
 
