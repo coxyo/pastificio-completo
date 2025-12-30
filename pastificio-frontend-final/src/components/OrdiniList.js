@@ -40,13 +40,31 @@ const CATEGORIE = {
   DOLCI: {
     nome: 'DOLCI',
     prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Gueffus', 'Ciambelle', 
-               'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti', 'Pabassine'],
+               'Torta di saba', 'Vassoio', 'Dolci misti', 'Pabassine'],
     colore: '#FFE66D',
     coloreBg: 'rgba(255, 230, 109, 0.1)'
   },
+  PANADAS: {
+    nome: 'PANADAS',
+    prodotti: ['Panada'],
+    colore: '#F38181',
+    coloreBg: 'rgba(243, 129, 129, 0.1)'
+  },
+  SEABADAS: {
+    nome: 'SEABADAS',
+    prodotti: ['Sebadas'],
+    colore: '#AA96DA',
+    coloreBg: 'rgba(170, 150, 218, 0.1)'
+  },
+  PANADINE: {
+    nome: 'PANADINE',
+    prodotti: ['Panadine'],
+    colore: '#FCBAD3',
+    coloreBg: 'rgba(252, 186, 211, 0.1)'
+  },
   ALTRI: {
     nome: 'ALTRI',
-    prodotti: ['Panada', 'Panadine', 'Fregula', 'Pizzette', 'Pasta', 'Sfoglia'],
+    prodotti: ['Fregula', 'Pizzette', 'Pasta', 'Sfoglia'],
     colore: '#95E1D3',
     coloreBg: 'rgba(149, 225, 211, 0.1)'
   }
@@ -83,6 +101,9 @@ const OrdiniList = ({
     RAVIOLI: true,
     PARDULAS: true,
     DOLCI: true,
+    PANADAS: true,
+    SEABADAS: true,
+    PANADINE: true,
     ALTRI: true
   });
   const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
