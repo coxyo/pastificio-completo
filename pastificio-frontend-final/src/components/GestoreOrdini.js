@@ -369,8 +369,9 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
   const totaleSebadas = totali.Sebadas;
   const totaleZeppole = totali.Zeppole;
   const totalePanadine = totali.Panadine;
-  const totaleAltri = totali.PastaPerPanada + totali.Pizzette + totali.Fregula; // ✅ RIMOSSO Panadine e Sebadas
-  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleSebadas + totaleZeppole + totalePanadine + totaleAltri;
+  const totalePasta = totali.PastaPerPanada; // ✅ NUOVO 30/12/2025: Pasta separata
+  const totaleAltri = totali.Pizzette + totali.Fregula; // ✅ RIMOSSO Panadine, Sebadas e Pasta
+  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleSebadas + totaleZeppole + totalePanadine + totalePasta + totaleAltri;
 
   if (totaleGenerale === 0) return null;
 
@@ -443,6 +444,13 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
             label={`🥐 Panadine: ${totalePanadine.toFixed(1)} KG`} 
             sx={{ fontWeight: 'bold', backgroundColor: '#FCBAD3', color: 'white', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('PANADINE')}
+          />
+        )}
+        {totalePasta > 0 && (
+          <Chip 
+            label={`🍝 Pasta: ${totalePasta.toFixed(1)} KG`} 
+            sx={{ fontWeight: 'bold', backgroundColor: '#B0BEC5', color: 'white', cursor: 'pointer' }}
+            onClick={() => window.scrollToCategoria && window.scrollToCategoria('PASTA')}
           />
         )}
         {totaleAltri > 0 && (
@@ -747,8 +755,9 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const totaleSebadas = totali.Sebadas;
   const totaleZeppole = totali.Zeppole;
   const totalePanadine = totali.Panadine;
-  const totaleAltri = totali.PastaPerPanada + totali.Pizzette + totali.Fregula; // ✅ RIMOSSO Panadine e Sebadas
-  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleSebadas + totaleZeppole + totalePanadine + totaleAltri;
+  const totalePasta = totali.PastaPerPanada; // ✅ NUOVO 30/12/2025: Pasta separata
+  const totaleAltri = totali.Pizzette + totali.Fregula; // ✅ RIMOSSO Panadine, Sebadas e Pasta
+  const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleSebadas + totaleZeppole + totalePanadine + totalePasta + totaleAltri;
 
   // Calcola incasso totale
   const incassoTotale = ordiniFiltrati.reduce((sum, o) => sum + (o.totale || 0), 0);
