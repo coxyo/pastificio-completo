@@ -715,6 +715,9 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       PARDULAS: [],
       DOLCI: [],
       PANADE: [],
+      SEABADAS: [],
+      ZEPPOLE: [],
+      PANADINE: [],
       ALTRI: []
     };
 
