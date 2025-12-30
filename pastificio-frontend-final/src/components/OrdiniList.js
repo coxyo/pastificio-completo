@@ -68,9 +68,15 @@ const CATEGORIE = {
     colore: '#FCBAD3',
     coloreBg: 'rgba(252, 186, 211, 0.1)'
   },
+  PASTA: {
+    nome: 'PASTA',
+    prodotti: ['Pasta per panada', 'Pasta'],
+    colore: '#B0BEC5',
+    coloreBg: 'rgba(176, 190, 197, 0.1)'
+  },
   ALTRI: {
     nome: 'ALTRI',
-    prodotti: ['Fregula', 'Pizzette', 'Pasta', 'Sfoglia'],
+    prodotti: ['Fregula', 'Pizzette', 'Sfoglia'],
     colore: '#95E1D3',
     coloreBg: 'rgba(149, 225, 211, 0.1)'
   }
@@ -111,6 +117,7 @@ const OrdiniList = ({
     SEABADAS: true,
     ZEPPOLE: true,
     PANADINE: true,
+    PASTA: true,
     ALTRI: true
   });
   const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
@@ -410,6 +417,7 @@ Pastificio Nonna Claudia`;
       SEABADAS: [],
       ZEPPOLE: [],
       PANADINE: [],
+      PASTA: [],
       ALTRI: []
     };
 
