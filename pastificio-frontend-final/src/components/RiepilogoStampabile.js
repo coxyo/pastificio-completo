@@ -53,6 +53,7 @@ const ABBREVIAZIONI = {
   'Ciambelle semplici': 'C.Nude',
   'Ciambelle miste': 'C.Miste',
   'Sebadas': 'Sebad',
+  'Zeppole': 'Zepp',
   'Torta di saba': 'T.Saba',
   'Vassoio Dolci Misti': 'Vass.Mix',
   'Dolci misti': 'Dolci Mix',
@@ -144,18 +145,33 @@ const CATEGORIE = {
   DOLCI: {
     nome: 'DOLCI',
     prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Papassine', 'Pabassine', 'Pabassinas', 
-               'Gueffus', 'Ciambelle', 'Sebadas', 'Torta di saba', 'Vassoio', 'Dolci misti'],
+               'Gueffus', 'Ciambelle', 'Torta di saba', 'Vassoio', 'Dolci misti'],
     colore: '#FFE66D'
   },
   PANADE: {
     nome: 'PANADE',
     prodotti: ['Panada di Agnello', 'Panada di Vitella', 'Panada Anguille', 
                'Panada di Maiale', 'Panada di Verdure', 'Panada Verdure'],
-    colore: '#FFA07A'
+    colore: '#F38181'
+  },
+  SEABADAS: {
+    nome: 'SEABADAS',
+    prodotti: ['Sebadas'],
+    colore: '#AA96DA'
+  },
+  ZEPPOLE: {
+    nome: 'ZEPPOLE',
+    prodotti: ['Zeppole'],
+    colore: '#FCCD90'
+  },
+  PANADINE: {
+    nome: 'PANADINE',
+    prodotti: ['Panadine'],
+    colore: '#FCBAD3'
   },
   ALTRI: {
     nome: 'ALTRI PRODOTTI',
-    prodotti: ['Pasta per panada', 'Panadine', 'Fregula', 'Pizzette', 'Sfoglia'],
+    prodotti: ['Pasta per panada', 'Fregula', 'Pizzette', 'Sfoglia'],
     colore: '#95E1D3'
   }
 };
@@ -1230,6 +1246,261 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
                       <>
                         <div className="totale-principale">
                           <strong>TOTALE PANADE:</strong> {formattaTotaliStringa(totaleKg, totalePezziNonConvertibili, totaleEuro)}
+                        </div>
+                        <div className="dettagli-totali">
+                          {Object.entries(dettagliKg).map(([nome, kg]) => (
+                            <span key={`kg-${nome}`}>• {nome}: {kg.toFixed(1)} KG</span>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+              ) : null;
+            })()}
+
+            {/* ========== PAGINA: SEABADAS ========== */}
+            {(() => {
+              const soloSeabadas = ordiniPerCategoria.SEABADAS;
+              
+              return soloSeabadas.length > 0 ? (
+              <div className="page" style={{ pageBreakAfter: 'always' }}>
+                <div className="page-header" style={{ backgroundColor: CATEGORIE.SEABADAS.colore }}>
+                  <h2>PASTIFICIO NONNA CLAUDIA</h2>
+                  <h3>🍪 SEABADAS - {formattaData(data)}</h3>
+                </div>
+
+                <table className="ordini-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '4%' }}>N°</th>
+                      <th style={{ width: '8%' }}>ORA</th>
+                      <th style={{ width: '32%' }}>PRODOTTO</th>
+                      <th style={{ width: '10%' }}>QTÀ</th>
+                      <th style={{ width: '25%' }}>CLIENTE</th>
+                      <th style={{ width: '7%' }}>VIAGGIO</th>
+                      <th style={{ width: '7%' }}>ALTRI</th>
+                      <th style={{ width: '7%' }}>NOTE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {soloSeabadas.map((item, index) => {
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                      
+                      return (
+                      <tr key={`seabadas-${index}`}>
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '22px' }}>{index + 1}</td>
+                        <td className="center">{item.oraRitiro || '-'}</td>
+                        <td>
+                          {nomeProdotto}
+                        </td>
+                        <td className="right">{item.prodotto.quantita} {item.prodotto.unitaMisura || 'Kg'}</td>
+                        <td>{item.nomeCliente.toUpperCase()}</td>
+                        <td className="center">{item.daViaggio ? '✈️' : ''}</td>
+                        <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+                        <td style={{ fontSize: '22px' }}>{getNoteTutte(item.prodotto, item.noteOrdine)}</td>
+                      </tr>
+                      );
+                    })}
+                    {(() => {
+                      const righeAttuali = soloSeabadas.length;
+                      const righeTarget = 25;
+                      const righeVuote = Math.max(0, righeTarget - righeAttuali);
+                      
+                      return Array.from({ length: righeVuote }, (_, i) => (
+                        <tr key={`empty-seabadas-${i}`} style={{ height: '30px', borderBottom: '1px solid #e0e0e0' }}>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                          <td className="right"></td>
+                          <td></td>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+
+                <div className="totali">
+                  {(() => {
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('SEABADAS');
+                    return (
+                      <>
+                        <div className="totale-principale">
+                          <strong>TOTALE SEABADAS:</strong> {formattaTotaliStringa(totaleKg, totalePezziNonConvertibili, totaleEuro)}
+                        </div>
+                        <div className="dettagli-totali">
+                          {Object.entries(dettagliKg).map(([nome, kg]) => (
+                            <span key={`kg-${nome}`}>• {nome}: {kg.toFixed(1)} KG</span>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+              ) : null;
+            })()}
+
+            {/* ========== PAGINA: ZEPPOLE ========== */}
+            {(() => {
+              const soloZeppole = ordiniPerCategoria.ZEPPOLE;
+              
+              return soloZeppole.length > 0 ? (
+              <div className="page" style={{ pageBreakAfter: 'always' }}>
+                <div className="page-header" style={{ backgroundColor: CATEGORIE.ZEPPOLE.colore }}>
+                  <h2>PASTIFICIO NONNA CLAUDIA</h2>
+                  <h3>🍩 ZEPPOLE - {formattaData(data)}</h3>
+                </div>
+
+                <table className="ordini-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '4%' }}>N°</th>
+                      <th style={{ width: '8%' }}>ORA</th>
+                      <th style={{ width: '32%' }}>PRODOTTO</th>
+                      <th style={{ width: '10%' }}>QTÀ</th>
+                      <th style={{ width: '25%' }}>CLIENTE</th>
+                      <th style={{ width: '7%' }}>VIAGGIO</th>
+                      <th style={{ width: '7%' }}>ALTRI</th>
+                      <th style={{ width: '7%' }}>NOTE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {soloZeppole.map((item, index) => {
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                      
+                      return (
+                      <tr key={`zeppole-${index}`}>
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '22px' }}>{index + 1}</td>
+                        <td className="center">{item.oraRitiro || '-'}</td>
+                        <td>
+                          {nomeProdotto}
+                        </td>
+                        <td className="right">{item.prodotto.quantita} {item.prodotto.unitaMisura || 'Kg'}</td>
+                        <td>{item.nomeCliente.toUpperCase()}</td>
+                        <td className="center">{item.daViaggio ? '✈️' : ''}</td>
+                        <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+                        <td style={{ fontSize: '22px' }}>{getNoteTutte(item.prodotto, item.noteOrdine)}</td>
+                      </tr>
+                      );
+                    })}
+                    {(() => {
+                      const righeAttuali = soloZeppole.length;
+                      const righeTarget = 25;
+                      const righeVuote = Math.max(0, righeTarget - righeAttuali);
+                      
+                      return Array.from({ length: righeVuote }, (_, i) => (
+                        <tr key={`empty-zeppole-${i}`} style={{ height: '30px', borderBottom: '1px solid #e0e0e0' }}>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                          <td className="right"></td>
+                          <td></td>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+
+                <div className="totali">
+                  {(() => {
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('ZEPPOLE');
+                    return (
+                      <>
+                        <div className="totale-principale">
+                          <strong>TOTALE ZEPPOLE:</strong> {formattaTotaliStringa(totaleKg, totalePezziNonConvertibili, totaleEuro)}
+                        </div>
+                        <div className="dettagli-totali">
+                          {Object.entries(dettagliKg).map(([nome, kg]) => (
+                            <span key={`kg-${nome}`}>• {nome}: {kg.toFixed(1)} KG</span>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+              ) : null;
+            })()}
+
+            {/* ========== PAGINA: PANADINE ========== */}
+            {(() => {
+              const soloPanadine = ordiniPerCategoria.PANADINE;
+              
+              return soloPanadine.length > 0 ? (
+              <div className="page" style={{ pageBreakAfter: 'always' }}>
+                <div className="page-header" style={{ backgroundColor: CATEGORIE.PANADINE.colore }}>
+                  <h2>PASTIFICIO NONNA CLAUDIA</h2>
+                  <h3>🥐 PANADINE - {formattaData(data)}</h3>
+                </div>
+
+                <table className="ordini-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '4%' }}>N°</th>
+                      <th style={{ width: '8%' }}>ORA</th>
+                      <th style={{ width: '32%' }}>PRODOTTO</th>
+                      <th style={{ width: '10%' }}>QTÀ</th>
+                      <th style={{ width: '25%' }}>CLIENTE</th>
+                      <th style={{ width: '7%' }}>VIAGGIO</th>
+                      <th style={{ width: '7%' }}>ALTRI</th>
+                      <th style={{ width: '7%' }}>NOTE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {soloPanadine.map((item, index) => {
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                      
+                      return (
+                      <tr key={`panadine-${index}`}>
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '22px' }}>{index + 1}</td>
+                        <td className="center">{item.oraRitiro || '-'}</td>
+                        <td>
+                          {nomeProdotto}
+                        </td>
+                        <td className="right">{item.prodotto.quantita} {item.prodotto.unitaMisura || 'Kg'}</td>
+                        <td>{item.nomeCliente.toUpperCase()}</td>
+                        <td className="center">{item.daViaggio ? '✈️' : ''}</td>
+                        <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+                        <td style={{ fontSize: '22px' }}>{getNoteTutte(item.prodotto, item.noteOrdine)}</td>
+                      </tr>
+                      );
+                    })}
+                    {(() => {
+                      const righeAttuali = soloPanadine.length;
+                      const righeTarget = 25;
+                      const righeVuote = Math.max(0, righeTarget - righeAttuali);
+                      
+                      return Array.from({ length: righeVuote }, (_, i) => (
+                        <tr key={`empty-panadine-${i}`} style={{ height: '30px', borderBottom: '1px solid #e0e0e0' }}>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                          <td className="right"></td>
+                          <td></td>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+
+                <div className="totali">
+                  {(() => {
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('PANADINE');
+                    return (
+                      <>
+                        <div className="totale-principale">
+                          <strong>TOTALE PANADINE:</strong> {formattaTotaliStringa(totaleKg, totalePezziNonConvertibili, totaleEuro)}
                         </div>
                         <div className="dettagli-totali">
                           {Object.entries(dettagliKg).map(([nome, kg]) => (
