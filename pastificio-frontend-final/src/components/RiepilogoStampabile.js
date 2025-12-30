@@ -169,9 +169,14 @@ const CATEGORIE = {
     prodotti: ['Panadine'],
     colore: '#FCBAD3'
   },
+  PASTA: {
+    nome: 'PASTA',
+    prodotti: ['Pasta per panada', 'Pasta'],
+    colore: '#B0BEC5'
+  },
   ALTRI: {
     nome: 'ALTRI PRODOTTI',
-    prodotti: ['Pasta per panada', 'Fregula', 'Pizzette', 'Sfoglia'],
+    prodotti: ['Fregula', 'Pizzette', 'Sfoglia'],
     colore: '#95E1D3'
   }
 };
@@ -718,6 +723,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
       SEABADAS: [],
       ZEPPOLE: [],
       PANADINE: [],
+      PASTA: [],
       ALTRI: []
     };
 
@@ -1518,6 +1524,91 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
               ) : null;
             })()}
 
+            {/* ========== PAGINA: PASTA ========== */}
+            {(() => {
+              const soloPasta = ordiniPerCategoria.PASTA;
+              
+              return soloPasta.length > 0 ? (
+              <div className="page" style={{ pageBreakAfter: 'always' }}>
+                <div className="page-header" style={{ backgroundColor: CATEGORIE.PASTA.colore }}>
+                  <h2>PASTIFICIO NONNA CLAUDIA</h2>
+                  <h3>🍝 PASTA - {formattaData(data)}</h3>
+                </div>
+
+                <table className="ordini-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '4%' }}>N°</th>
+                      <th style={{ width: '8%' }}>ORA</th>
+                      <th style={{ width: '32%' }}>PRODOTTO</th>
+                      <th style={{ width: '10%' }}>QTÀ</th>
+                      <th style={{ width: '25%' }}>CLIENTE</th>
+                      <th style={{ width: '7%' }}>VIAGGIO</th>
+                      <th style={{ width: '7%' }}>ALTRI</th>
+                      <th style={{ width: '7%' }}>NOTE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {soloPasta.map((item, index) => {
+                      const nomeProdotto = abbreviaProdotto(item.prodotto.nome).toUpperCase();
+                      
+                      return (
+                      <tr key={`pasta-${index}`}>
+                        <td className="center" style={{ fontWeight: 'bold', fontSize: '22px' }}>{index + 1}</td>
+                        <td className="center">{item.oraRitiro || '-'}</td>
+                        <td>
+                          {nomeProdotto}
+                        </td>
+                        <td className="right">{item.prodotto.quantita} {item.prodotto.unitaMisura || 'Kg'}</td>
+                        <td>{item.nomeCliente.toUpperCase()}</td>
+                        <td className="center">{item.daViaggio ? '✈️' : ''}</td>
+                        <td className="center">{item.haAltriProdotti ? '✓' : ''}</td>
+                        <td style={{ fontSize: '22px' }}>{getNoteTutte(item.prodotto, item.noteOrdine)}</td>
+                      </tr>
+                      );
+                    })}
+                    {(() => {
+                      const righeAttuali = soloPasta.length;
+                      const righeTarget = 25;
+                      const righeVuote = Math.max(0, righeTarget - righeAttuali);
+                      
+                      return Array.from({ length: righeVuote }, (_, i) => (
+                        <tr key={`empty-pasta-${i}`} style={{ height: '30px', borderBottom: '1px solid #e0e0e0' }}>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                          <td className="right"></td>
+                          <td></td>
+                          <td className="center"></td>
+                          <td className="center"></td>
+                          <td></td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+
+                <div className="totali">
+                  {(() => {
+                    const { totaleKg, totalePezziNonConvertibili, totaleEuro, dettagliKg } = calcolaTotali('PASTA');
+                    return (
+                      <>
+                        <div className="totale-principale">
+                          <strong>TOTALE PASTA:</strong> {formattaTotaliStringa(totaleKg, totalePezziNonConvertibili, totaleEuro)}
+                        </div>
+                        <div className="dettagli-totali">
+                          {Object.entries(dettagliKg).map(([nome, kg]) => (
+                            <span key={`kg-${nome}`}>• {nome}: {kg.toFixed(1)} KG</span>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+              ) : null;
+            })()}
+
             {/* ========== PAGINA 5: ALTRI PRODOTTI ========== */}
             {ordiniPerCategoria.ALTRI.length > 0 && (
               <div className="page">
@@ -1657,7 +1748,7 @@ export default function RiepilogoStampabile({ ordini, data, onClose }) {
         }
 
         .ordini-table th {
-          background: #2c3e50;
+          background: transparent;
           color: #000000;
           padding: 14px 8px;
           text-align: center;
