@@ -544,7 +544,7 @@ Pastificio Nonna Claudia`;
         if (prodottiCategoria.length === 0) return null;
 
         return (
-          <Box key={chiaveCategoria} sx={{ mb: 2 }}>
+          <Box key={chiaveCategoria} data-categoria={chiaveCategoria} sx={{ mb: 2 }}>
             <Box
               onClick={() => toggleCategoria(chiaveCategoria)}
               sx={{
