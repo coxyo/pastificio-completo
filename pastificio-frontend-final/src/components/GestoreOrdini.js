@@ -1795,7 +1795,118 @@ useEffect(() => {
       mostraNotifica('Errore eliminazione', 'error');
     }
   };
-  
+
+  // ----------------------------------------------------------------
+  // ✅ NUOVO 08/01/2026: Funzione per inviare WhatsApp con auto-send
+  // ----------------------------------------------------------------
+  const inviaWhatsAppPronto = async (ordine, autoSend = false) => {
+    try {
+      console.log('📱 Invio WhatsApp per ordine:', ordine._id, 'autoSend:', autoSend);
+      
+      // Chiamata API per generare link WhatsApp
+      const response = await fetch(`${API_URL}/whatsapp/send`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        },
+        body: JSON.stringify({
+          numero: ordine.telefono,
+          template: 'ordine_pronto',
+          variabili: {
+            nome: ordine.nomeCliente,
+            numeroOrdine: ordine.numeroOrdine
+          },
+          autoSend: autoSend  // ✅ PARAMETRO AUTO-SEND
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Errore generazione link WhatsApp');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.whatsappUrl) {
+        console.log('✅ Link WhatsApp generato:', data.whatsappUrl);
+        
+        // Apri WhatsApp in nuova tab
+        const whatsappTab = window.open(data.whatsappUrl, '_blank');
+        
+        if (!whatsappTab) {
+          throw new Error('Popup bloccato dal browser. Abilita i popup per questo sito.');
+        }
+        
+        // Aggiorna ordine con flag WhatsApp inviato
+        const updateResponse = await fetch(`${API_URL}/ordini/${ordine._id}`, {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+          },
+          body: JSON.stringify({ 
+            whatsappInviato: true,
+            dataInvioWhatsapp: new Date().toISOString()
+          })
+        });
+        
+        if (updateResponse.ok) {
+          console.log('✅ Flag WhatsApp aggiornato nel database');
+        }
+        
+        return true;
+      } else {
+        throw new Error('Link WhatsApp non generato');
+      }
+      
+    } catch (error) {
+      console.error('❌ Errore invio WhatsApp:', error);
+      mostraNotifica(`Errore WhatsApp: ${error.message}`, 'error');
+      throw error;
+    }
+  };
+
+  // ----------------------------------------------------------------
+  // ✅ NUOVO 08/01/2026: Funzione per segnare ordine come pronto + auto-send WhatsApp
+  // ----------------------------------------------------------------
+  const segnaComePronto = async (ordine) => {
+    try {
+      console.log('🟢 Segno ordine come pronto:', ordine._id);
+      
+      // Aggiorna stato ordine
+      const response = await fetch(`${API_URL}/ordini/${ordine._id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        },
+        body: JSON.stringify({ 
+          stato: 'pronto',
+          whatsappInviato: false // Reset flag per nuovo invio
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Errore aggiornamento ordine');
+      }
+      
+      console.log('✅ Ordine aggiornato a "pronto"');
+      
+      // ✅ NUOVO: Invia WhatsApp con auto-send
+      await inviaWhatsAppPronto(ordine, true); // true = auto-send attivo
+      
+      // Ricarica ordini
+      await sincronizzaConMongoDB();
+      
+      mostraNotifica('✅ Ordine segnato come pronto e WhatsApp inviato automaticamente!', 'success');
+      
+    } catch (error) {
+      console.error('❌ Errore segna come pronto:', error);
+      mostraNotifica(`Errore: ${error.message}`, 'error');
+    }
+  };
   const salvaOrdine = async (nuovoOrdine) => {
     if (submitInCorso) return;
     
@@ -2407,6 +2518,7 @@ return (
                   setOrdineSelezionato(null);
                   setDialogoNuovoOrdineAperto(true);
                 }}
+                onSegnaComePronto={segnaComePronto}  // ✅ NUOVO 08/01/2026: Passa funzione auto-send WhatsApp
                 dataSelezionata={ricercaCliente ? null : dataSelezionata}  // ✅ FIX: null quando ricerca attiva
                 isConnected={isConnected}
                 ricercaCliente={ricercaCliente}  // ✅ NUOVO: passa ricerca
