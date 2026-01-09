@@ -3,7 +3,7 @@ import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 import emailService from '../services/emailService.js';
 import smsService from '../services/smsService.js';
-import whatsappService from '../services/whatsappService.js';
+import * as whatsappService from '../services/whatsappService.js';
 import ComunicazioneLog from '../models/ComunicazioneLog.js';
 
 export const inviaEmail = async (req, res) => {
