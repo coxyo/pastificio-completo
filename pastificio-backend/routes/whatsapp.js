@@ -1,6 +1,6 @@
 // routes/whatsapp.js
 import express from 'express';
-import whatsappService from '../services/whatsappService.js';
+import * as whatsappService from '../services/whatsappService.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
