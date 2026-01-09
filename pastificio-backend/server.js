@@ -39,6 +39,9 @@ import chiamateRoutes from './routes/chiamate.js'; // ✅ NUOVO - Gestione chiam
 import statisticheRoutes from './routes/statistiche.js'; // ✅ NUOVO - Statistiche chiamate (incluso /api/statistiche/chiamate)
 import pusherRoutes from './routes/pusher.js';
 import fixPrezziRoutes from './routes/fix-prezzi-routes.js';
+import corrispettiviRoutes from './routes/corrispettivi.js';
+import emailRoutes from './routes/email.js';
+import haccpRoutes from './routes/haccp.js';
 
 // Import Danea Monitor
 
@@ -63,6 +66,9 @@ import * as whatsappService from './services/whatsappService.js';
 import schedulerService from './services/schedulerService.js';
 import schedulerWhatsApp from './services/schedulerWhatsApp.js';
 import pusherService from './services/pusherService.js'; // ✅ PUSHER
+import schedulerEmail from './services/schedulerEmail.js';
+import schedulerCorrespettivi from './services/schedulerCorrespettivi.js';
+import schedulerHACCP from './services/schedulerHACCP.js';
 
 
 // Configurazione path
@@ -159,7 +165,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-KEY', 'X-Extension-Version'],
+allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-KEY', 'X-Extension-Version', 'x-corrispettivi-password'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400 // Cache preflight per 24 ore
 };
@@ -311,8 +317,11 @@ app.use('/api/prodotti', prodottiRoutes);
 app.use('/api/cx3', cx3Routes);
 app.use('/api/chiamate', chiamateRoutes); // ✅ NUOVO - Gestione chiamate e tag
 app.use('/api/statistiche', statisticheRoutes); // ✅ NUOVO - Statistiche chiamate
-app.use('/api/pusher', pusherRoutes);
+app.use('/api/corrispettivi', corrispettiviRoutes);
+app.use('/api/email', emailRoutes);
+app.use('/api/haccp', haccpRoutes);
 app.use('/api/fix', fixPrezziRoutes);
+app.use('/api/corrispettivi', corrispettiviRoutes);app.use('/api/email', emailRoutes);app.use('/api/haccp', haccpRoutes);
 
 // Route Danea
 
@@ -936,6 +945,36 @@ const startServer = async () => {
         schedulerService.inizializza();
         logger.info('Scheduler generale caricato');
       }
+    
+    // Inizializza scheduler email
+    try {
+      if (schedulerEmail && schedulerEmail.start) {
+        schedulerEmail.start();
+        logger.info('✅ Scheduler Email attivato');
+      }
+    } catch (emailError) {
+      logger.warn('⚠️ Scheduler Email non disponibile:', emailError.message);
+    }
+    
+    // Inizializza scheduler corrispettivi
+    try {
+      if (schedulerCorrespettivi && schedulerCorrespettivi.start) {
+        schedulerCorrespettivi.start();
+        logger.info('✅ Scheduler Corrispettivi attivato');
+      }
+    } catch (corrispettiviError) {
+      logger.warn('⚠️ Scheduler Corrispettivi non disponibile:', corrispettiviError.message);
+    }
+    
+    // Inizializza scheduler HACCP
+    try {
+      if (schedulerHACCP && schedulerHACCP.start) {
+        schedulerHACCP.start();
+        logger.info('✅ Scheduler HACCP attivato');
+      }
+    } catch (haccpError) {
+      logger.warn('⚠️ Scheduler HACCP non disponibile:', haccpError.message);
+    }
     } catch (schedulerError) {
       logger.warn('Scheduler generale non disponibile:', schedulerError.message);
     }
@@ -992,6 +1031,18 @@ const gracefulShutdown = () => {
     if (schedulerService && schedulerService.ferma) {
       schedulerService.ferma();
       logger.info('Scheduler generale fermato');
+    }
+    if (schedulerEmail && schedulerEmail.stop) {
+      schedulerEmail.stop();
+      logger.info('✅ Scheduler Email fermato');
+    }
+    if (schedulerCorrespettivi && schedulerCorrespettivi.stop) {
+      schedulerCorrespettivi.stop();
+      logger.info('✅ Scheduler Corrispettivi fermato');
+    }
+    if (schedulerHACCP && schedulerHACCP.stop) {
+      schedulerHACCP.stop();
+      logger.info('✅ Scheduler HACCP fermato');
     }
   } catch (error) {
     logger.error('Errore fermando scheduler generale:', error);
