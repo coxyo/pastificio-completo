@@ -1,4 +1,4 @@
-// routes/whatsapp.js - VERSIONE COMPLETA CON TUTTE LE ROUTE
+// routes/whatsapp.js - VERSIONE FINALE CON SUPPORTO TEMPLATE
 import express from 'express';
 import * as whatsappService from '../services/whatsappService.js';
 import logger from '../config/logger.js';
@@ -59,32 +59,79 @@ router.get('/qr', async (req, res) => {
   }
 });
 
-// POST /api/whatsapp/send - Endpoint generico invio messaggio
+// POST /api/whatsapp/send - Endpoint UNIVERSALE con supporto template
 router.post('/send', async (req, res) => {
   try {
-    const { numero, messaggio, to, message } = req.body;
+    logger.info('📱 WhatsApp /send chiamato');
     
-    // Supporta sia {numero, messaggio} che {to, message}
-    const numeroFinale = numero || to;
-    const messaggioFinale = messaggio || message;
+    const { numero, messaggio, to, message, template, variabili, autoSend } = req.body;
     
-    if (!numeroFinale || !messaggioFinale) {
+    let numeroFinale, messaggioFinale;
+    
+    // Formato 1: {numero, messaggio}
+    if (numero && messaggio) {
+      numeroFinale = numero;
+      messaggioFinale = messaggio;
+      logger.info('✅ Formato 1 rilevato: {numero, messaggio}');
+    }
+    // Formato 2: {to, message}
+    else if (to && message) {
+      numeroFinale = to;
+      messaggioFinale = message;
+      logger.info('✅ Formato 2 rilevato: {to, message}');
+    }
+    // Formato 3: {numero, template, variabili} ← SUPPORTO FRONTEND!
+    else if (numero && template) {
+      numeroFinale = numero;
+      
+      logger.info(`✅ Formato 3 rilevato: {numero, template="${template}", variabili}`);
+      
+      // Genera messaggio da template
+      const templates = {
+        'ordine_pronto': `✅ *ORDINE PRONTO!*\n\n${variabili?.nome || 'Cliente'}, il tuo ordine ${variabili?.numeroOrdine || ''} è pronto!\n\n⏰ Ti aspettiamo entro le ore di chiusura\n📍 Via Carmine 20/B, Assemini\n\nA presto! 😊`,
+        
+        'conferma_ordine': `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n✅ ORDINE CONFERMATO\n\nGrazie ${variabili?.nome || 'Cliente'}!\nIl tuo ordine ${variabili?.numeroOrdine || ''} è stato confermato.\n\nTi aspettiamo! 😊`,
+        
+        'promemoria': `🔔 *PROMEMORIA RITIRO*\n\nCiao ${variabili?.nome || 'Cliente'}!\n\nTi ricordiamo il ritiro del tuo ordine ${variabili?.numeroOrdine || ''}.\n\nA presto! 😊`
+      };
+      
+      messaggioFinale = templates[template] || templates['ordine_pronto'];
+    }
+    else {
+      logger.error('❌ Formato parametri non valido:', req.body);
       return res.status(400).json({
         success: false,
-        error: 'Numero e messaggio sono obbligatori'
+        error: 'Parametri mancanti',
+        hint: 'Invia: {numero, messaggio} oppure {numero, template, variabili}',
+        received: Object.keys(req.body)
       });
     }
     
+    if (!numeroFinale) {
+      logger.error('❌ Numero telefono mancante');
+      return res.status(400).json({
+        success: false,
+        error: 'Numero telefono mancante'
+      });
+    }
+    
+    logger.info(`📤 Generazione link WhatsApp per ${numeroFinale}`);
+    
+    // Genera link WhatsApp
     const result = await whatsappService.inviaMessaggio(numeroFinale, messaggioFinale);
     
+    logger.info(`✅ Link WhatsApp generato: ${result.whatsappUrl}`);
+    
     res.json({
-      success: result.success || true,
+      success: true,
       whatsappUrl: result.whatsappUrl,
       messageId: result.messageId,
+      numero: numeroFinale,
+      autoSend: autoSend || false,
       data: result
     });
   } catch (error) {
-    logger.error('Errore invio messaggio WhatsApp:', error);
+    logger.error('❌ Errore invio messaggio WhatsApp:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -133,7 +180,6 @@ router.post('/invia-conferma-ordine', async (req, res) => {
       });
     }
     
-    // Estrai numero telefono (supporta vari formati)
     const telefono = ordine.telefono || ordine.cliente?.telefono;
     
     if (!telefono) {
@@ -143,7 +189,6 @@ router.post('/invia-conferma-ordine', async (req, res) => {
       });
     }
     
-    // Prepara dettagli ordine
     const prodottiDettaglio = (ordine.prodotti || [])
       .map(p => `• ${p.nome}: ${p.quantita} ${p.unita || 'pz'}`)
       .join('\n');
@@ -184,7 +229,6 @@ router.post('/invia-ordine-pronto/:ordineId', async (req, res) => {
     const { ordineId } = req.params;
     let ordine = req.body;
     
-    // Se non hanno passato i dati, carica l'ordine dal DB
     if (!ordine || !ordine.telefono) {
       ordine = await Ordine.findById(ordineId);
       if (!ordine) {
