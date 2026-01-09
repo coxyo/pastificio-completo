@@ -1,108 +1,125 @@
-// services/whatsappService.js - ✅ VERSIONE COMPLETA CON AUTO-SEND (ES MODULES)
-import axios from 'axios';
-import Cliente from '../models/Cliente.js';
+// services/whatsappService.js - VERSIONE ES MODULES NAMED EXPORTS
 import logger from '../config/logger.js';
 
-/**
- * ✅ NUOVA FUNZIONE: Genera link WhatsApp
- * Crea un link wa.me con numero e messaggio preformattato
- */
-const generaLinkWhatsApp = (numero, messaggio) => {
-  if (!numero) {
-    throw new Error('Numero di telefono mancante');
+class WhatsAppService {
+  constructor() {
+    this.ready = true;
+    this.numeroAziendale = '3898879833';
   }
-  
-  // Rimuovi tutti i caratteri non numerici
-  const numeroSanitized = numero.replace(/[^0-9]/g, '');
-  
-  // Verifica che sia un numero valido italiano (inizia con 39)
-  if (!numeroSanitized.startsWith('39')) {
-    throw new Error('Numero di telefono non valido (deve iniziare con +39)');
-  }
-  
-  // Encode del messaggio per URL
-  const messaggioEncoded = encodeURIComponent(messaggio);
-  
-  // Genera link wa.me
-  const link = `https://wa.me/${numeroSanitized}?text=${messaggioEncoded}`;
-  
-  logger.info(`Link WhatsApp generato per ${numeroSanitized}`);
-  return link;
-};
 
-/**
- * ✅ FUNZIONE ESISTENTE: Invia messaggio WhatsApp
- * Trova il cliente, genera il messaggio e restituisce il link
- */
-const inviaMessaggio = async (ordine, tipo = 'promemoria', autoSend = false) => {
-  try {
-    logger.info(`Invio WhatsApp ${tipo} per ordine ${ordine.numeroOrdine || ordine._id}`);
-    
-    // Trova cliente
-    const cliente = await Cliente.findById(ordine.cliente);
-    if (!cliente) {
-      throw new Error('Cliente non trovato');
+  isReady() { 
+    return true; 
+  }
+  
+  async inviaMessaggio(numero, messaggio) {
+    try {
+      const numeroClean = numero.replace(/\D/g, '');
+      const numeroWhatsApp = numeroClean.startsWith('39') ? numeroClean : '39' + numeroClean;
+      const testoEncoded = encodeURIComponent(messaggio);
+      const whatsappUrl = `https://wa.me/${numeroWhatsApp}?text=${testoEncoded}`;
+      
+      logger.info(`WhatsApp link generato per ${numero}`);
+      
+      return { 
+        success: true, 
+        whatsappUrl: whatsappUrl,
+        messageId: 'manual-' + Date.now(),
+        numero: numeroWhatsApp,
+        messaggio: messaggio
+      };
+    } catch (error) {
+      logger.error('Errore invio messaggio WhatsApp:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
-    
-    if (!cliente.telefono) {
-      throw new Error('Cliente senza numero di telefono');
-    }
-    
-    // Genera messaggio in base al tipo
+  }
+  
+  async inviaMessaggioConTemplate(numero, template, variabili = {}) {
+    const messaggio = this.generaMessaggioDaTemplate(template, variabili);
+    return this.inviaMessaggio(numero, messaggio);
+  }
+  
+  generaMessaggioDaTemplate(template, variabili) {
     let messaggio = '';
     
-    if (tipo === 'promemoria') {
-      const dataRitiro = new Date(ordine.dataRitiro).toLocaleDateString('it-IT');
-      messaggio = `Ciao ${cliente.nome}! 🍝\n\nTi ricordiamo che il tuo ordine sarà pronto per il ${dataRitiro} alle ${ordine.oraRitiro}.\n\nGrazie!\nPastificio Nonna Claudia`;
-    } else if (tipo === 'pronto') {
-      messaggio = `Ciao ${cliente.nome}! ✅\n\nIl tuo ordine è pronto per il ritiro!\n\nTi aspettiamo.\nPastificio Nonna Claudia`;
-    } else if (tipo === 'conferma') {
-      const dataRitiro = new Date(ordine.dataRitiro).toLocaleDateString('it-IT');
-      messaggio = `Ciao ${cliente.nome}! ✅\n\nAbbiamo ricevuto il tuo ordine per il ${dataRitiro} alle ${ordine.oraRitiro}.\n\nGrazie!\nPastificio Nonna Claudia`;
+    switch(template) {
+      case 'conferma_ordine':
+        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n` +
+                   `✅ ORDINE CONFERMATO\n` +
+                   `📅 Ritiro: ${variabili.dataRitiro || 'da definire'}\n` +
+                   `⏰ Ora: ${variabili.oraRitiro || 'da definire'}\n\n` +
+                   `📦 *DETTAGLI ORDINE:*\n${variabili.dettagliOrdine || ''}\n\n` +
+                   `💰 Totale: €${variabili.totale || '0.00'}\n\n` +
+                   `📍 Via Garibaldi 123, Milano\n` +
+                   `📞 389 887 9833\n\n` +
+                   `Grazie per averci scelto! 🙏`;
+        break;
+        
+      case 'promemoria_ritiro':
+        messaggio = `🔔 PROMEMORIA RITIRO\n\n` +
+                   `Il suo ordine sarà pronto domani alle ${variabili.ora || '10:00'}\n` +
+                   `📍 Pastificio Nonna Claudia`;
+        break;
+        
+      case 'ordine_pronto':
+        messaggio = `✅ Il suo ordine è PRONTO per il ritiro!\n` +
+                   `📍 Vi aspettiamo in Via Garibaldi 123`;
+        break;
+        
+      default:
+        messaggio = variabili.messaggio || 'Messaggio dal Pastificio Nonna Claudia';
     }
     
-    // Genera link WhatsApp
-    const link = generaLinkWhatsApp(cliente.telefono, messaggio);
-    
-    logger.info(`✅ Link WhatsApp generato: ${link.substring(0, 50)}...`);
-    
-    return {
-      success: true,
-      link,
-      messaggio,
-      numeroDestinatario: cliente.telefono,
-      autoSend  // ✅ NUOVO: indica se deve aprire automaticamente
-    };
-    
-  } catch (error) {
-    logger.error('Errore invio WhatsApp:', error);
-    throw error;
+    return messaggio;
   }
-};
-
-/**
- * ✅ NUOVA FUNZIONE: Invia WhatsApp quando ordine è pronto
- * Questa funzione viene chiamata automaticamente da GestoreOrdini
- */
-const inviaWhatsAppPronto = async (ordine) => {
-  try {
-    logger.info(`📱 Invio WhatsApp automatico per ordine pronto: ${ordine.numeroOrdine || ordine._id}`);
-    
-    // Usa la funzione esistente con tipo 'pronto' e autoSend=true
-    const risultato = await inviaMessaggio(ordine, 'pronto', true);
-    
-    logger.info(`✅ WhatsApp pronto inviato con successo`);
-    return risultato;
-    
-  } catch (error) {
-    logger.error('❌ Errore invio WhatsApp pronto:', error);
-    throw error;
+  
+  getStatus() { 
+    return { 
+      connected: true, 
+      status: 'manual-mode',
+      numero: this.numeroAziendale 
+    }; 
   }
-};
+  
+  getInfo() { 
+    return { 
+      connected: true, 
+      mode: 'manual', 
+      numero: this.numeroAziendale,
+      description: 'Modalità link WhatsApp - Click per aprire WhatsApp Web/App'
+    }; 
+  }
+  
+  async initialize() { 
+    logger.info('✅ WhatsApp Service inizializzato in modalità manuale + auto-send');
+    return true; 
+  }
+  
+  disconnect() {
+    logger.info('WhatsApp Service disconnesso');
+  }
+  
+  restart() { 
+    logger.info('WhatsApp Service riavviato');
+    return Promise.resolve(true); 
+  }
+}
 
-// ✅ ES Modules export (per compatibility con backend)
-export {
-  inviaMessaggio,
-  generaLinkWhatsApp,
-  inviaWhatsAppPronto
-};
+// ✅ ESPORTA ISTANZA SINGLETON
+const instance = new WhatsAppService();
+
+// ✅ NAMED EXPORTS (compatibile con import * as)
+export const isReady = () => instance.isReady();
+export const inviaMessaggio = (numero, messaggio) => instance.inviaMessaggio(numero, messaggio);
+export const inviaMessaggioConTemplate = (numero, template, variabili) => instance.inviaMessaggioConTemplate(numero, template, variabili);
+export const generaMessaggioDaTemplate = (template, variabili) => instance.generaMessaggioDaTemplate(template, variabili);
+export const getStatus = () => instance.getStatus();
+export const getInfo = () => instance.getInfo();
+export const initialize = () => instance.initialize();
+export const disconnect = () => instance.disconnect();
+export const restart = () => instance.restart();
+
+// ✅ EXPORT DEFAULT per retrocompatibilità
+export default instance;
