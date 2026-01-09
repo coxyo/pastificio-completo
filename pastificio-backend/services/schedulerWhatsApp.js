@@ -1,7 +1,7 @@
 // services/schedulerWhatsApp.js
 import cron from 'node-cron';
 import Ordine from '../models/Ordine.js';
-import whatsappService from './whatsappService.js';
+import * as whatsappService from './whatsappService.js';
 import logger from '../config/logger.js';
 
 class SchedulerWhatsApp {
