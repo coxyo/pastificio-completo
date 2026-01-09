@@ -12,7 +12,7 @@ import path from 'path';
 import { promisify } from 'util';
 import Movimento from '../models/Movimento.js';
 import Prodotto from '../models/Prodotto.js';
-import whatsappService from './whatsappService.js';
+import * as whatsappService from './whatsappService.js';
 
 const parseXML = promisify(parseString);
 
