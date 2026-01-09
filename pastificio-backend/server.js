@@ -1012,10 +1012,9 @@ const gracefulShutdown = () => {
     logger.info('Server HTTP chiuso');
     
     // Chiudi connessione MongoDB
-    mongoose.connection.close(false, () => {
-      logger.info('Connessione MongoDB chiusa');
-      process.exit(0);
-    });
+  mongoose.connection.close().then(() => {
+  process.exit(0);
+});
   });
   
   // Force exit dopo 10 secondi
