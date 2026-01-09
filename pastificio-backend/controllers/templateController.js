@@ -1,6 +1,6 @@
 // controllers/templateController.js
 import TemplateMessaggio from '../models/templateMessaggio.js';
-import whatsappService from '../services/whatsappService.js';
+import * as whatsappService from '../services/whatsappService.js';
 import logger from '../config/logger.js';
 
 export const getTemplates = async (req, res) => {
