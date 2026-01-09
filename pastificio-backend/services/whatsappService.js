@@ -1,4 +1,4 @@
-// services/whatsappService.js - VERSIONE SEMPLIFICATA E FUNZIONANTE
+// services/whatsappService.js - ✅ AGGIORNATO con auto-send
 import logger from '../config/logger.js';
 
 class WhatsAppService {
@@ -11,25 +11,40 @@ class WhatsAppService {
     return true; 
   }
   
-  async inviaMessaggio(numero, messaggio) {
+  /**
+   * Invia messaggio WhatsApp (genera link wa.me)
+   * @param {string} numero - Numero telefono destinatario
+   * @param {string} messaggio - Testo messaggio
+   * @param {boolean} autoSend - Se true, aggiunge parametro per invio automatico
+   */
+  async inviaMessaggio(numero, messaggio, autoSend = false) {
     try {
-      // Sistema semplificato - genera solo il link WhatsApp
+      // Pulisci numero
       const numeroClean = numero.replace(/\D/g, '');
       const numeroWhatsApp = numeroClean.startsWith('39') ? numeroClean : '39' + numeroClean;
       const testoEncoded = encodeURIComponent(messaggio);
-      const whatsappUrl = `https://wa.me/${numeroWhatsApp}?text=${testoEncoded}`;
       
-      logger.info(`WhatsApp link generato per ${numero}`);
+      // Genera URL base
+      let whatsappUrl = `https://wa.me/${numeroWhatsApp}?text=${testoEncoded}`;
+      
+      // ✅ NUOVO: Aggiungi parametro auto_send per estensione Chrome
+      if (autoSend) {
+        whatsappUrl += '&app_absent=1&auto_send=true';
+        logger.info(`📱 WhatsApp link con AUTO-SEND generato per ${numero}`);
+      } else {
+        logger.info(`📱 WhatsApp link generato per ${numero}`);
+      }
       
       return { 
         success: true, 
         whatsappUrl: whatsappUrl,
         messageId: 'manual-' + Date.now(),
         numero: numeroWhatsApp,
-        messaggio: messaggio
+        messaggio: messaggio,
+        autoSend: autoSend
       };
     } catch (error) {
-      logger.error('Errore invio messaggio WhatsApp:', error);
+      logger.error('❌ Errore invio messaggio WhatsApp:', error);
       return {
         success: false,
         error: error.message
@@ -37,36 +52,55 @@ class WhatsAppService {
     }
   }
   
-  async inviaMessaggioConTemplate(numero, template, variabili = {}) {
+  /**
+   * Invia messaggio usando template predefinito
+   * @param {string} numero - Numero telefono
+   * @param {string} template - Nome template
+   * @param {object} variabili - Variabili per template
+   * @param {boolean} autoSend - Auto-invio (default: false)
+   */
+  async inviaMessaggioConTemplate(numero, template, variabili = {}, autoSend = false) {
     const messaggio = this.generaMessaggioDaTemplate(template, variabili);
-    return this.inviaMessaggio(numero, messaggio);
+    return this.inviaMessaggio(numero, messaggio, autoSend);
   }
   
+  /**
+   * Genera messaggio da template
+   */
   generaMessaggioDaTemplate(template, variabili) {
     let messaggio = '';
     
     switch(template) {
       case 'conferma_ordine':
-        messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝\n\n` +
+        messaggio = `🎂 *PASTIFICIO NONNA CLAUDIA* 🎂\n\n` +
                    `✅ ORDINE CONFERMATO\n` +
                    `📅 Ritiro: ${variabili.dataRitiro || 'da definire'}\n` +
                    `⏰ Ora: ${variabili.oraRitiro || 'da definire'}\n\n` +
                    `📦 *DETTAGLI ORDINE:*\n${variabili.dettagliOrdine || ''}\n\n` +
                    `💰 Totale: €${variabili.totale || '0.00'}\n\n` +
-                   `📍 Via Garibaldi 123, Milano\n` +
+                   `📍 Via Carmine 20/B, Assemini (CA)\n` +
                    `📞 389 887 9833\n\n` +
                    `Grazie per averci scelto! 🙏`;
         break;
         
       case 'promemoria_ritiro':
-        messaggio = `🔔 PROMEMORIA RITIRO\n\n` +
-                   `Il suo ordine sarà pronto domani alle ${variabili.ora || '10:00'}\n` +
-                   `📍 Pastificio Nonna Claudia`;
+        messaggio = `📢 *PROMEMORIA RITIRO*\n\n` +
+                   `Ciao ${variabili.nome || 'cliente'},\n\n` +
+                   `Ti ricordiamo che il tuo ordine sarà pronto domani alle ore ${variabili.ora || '10:00'}\n\n` +
+                   `📍 *Pastificio Nonna Claudia*\n` +
+                   `Via Carmine 20/B, Assemini (CA)\n` +
+                   `📞 389 887 9833\n\n` +
+                   `Ci vediamo domani! 😊`;
         break;
         
       case 'ordine_pronto':
-        messaggio = `✅ Il suo ordine è PRONTO per il ritiro!\n` +
-                   `📍 Vi aspettiamo in Via Garibaldi 123`;
+        messaggio = `✅ *ORDINE PRONTO!*\n\n` +
+                   `Ciao ${variabili.nome || 'cliente'},\n\n` +
+                   `Il tuo ordine ${variabili.numeroOrdine ? '#' + variabili.numeroOrdine : ''} è pronto per il ritiro! 🎉\n\n` +
+                   `📍 Vi aspettiamo al Pastificio Nonna Claudia\n` +
+                   `Via Carmine 20/B, Assemini (CA)\n` +
+                   `📞 389 887 9833\n\n` +
+                   `A presto! 😊`;
         break;
         
       default:
@@ -80,7 +114,8 @@ class WhatsAppService {
     return { 
       connected: true, 
       status: 'manual-mode',
-      numero: this.numeroAziendale 
+      numero: this.numeroAziendale,
+      autoSendSupported: true
     }; 
   }
   
@@ -89,21 +124,22 @@ class WhatsAppService {
       connected: true, 
       mode: 'manual', 
       numero: this.numeroAziendale,
-      description: 'Modalità link WhatsApp - Click per aprire WhatsApp Web/App'
+      description: 'Modalità link WhatsApp con supporto auto-send',
+      autoSendSupported: true
     }; 
   }
   
   async initialize() { 
-    logger.info('WhatsApp Service inizializzato in modalità manuale');
+    logger.info('✅ WhatsApp Service inizializzato in modalità manuale + auto-send');
     return true; 
   }
   
   disconnect() {
-    logger.info('WhatsApp Service disconnesso');
+    logger.info('🔌 WhatsApp Service disconnesso');
   }
   
   restart() { 
-    logger.info('WhatsApp Service riavviato');
+    logger.info('🔄 WhatsApp Service riavviato');
     return Promise.resolve(true); 
   }
 }
