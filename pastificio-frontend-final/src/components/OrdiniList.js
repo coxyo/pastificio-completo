@@ -142,6 +142,7 @@ const OrdiniList = ({
   onEdit, 
   onDateChange, 
   onNuovoOrdine,
+  onSegnaComePronto,  // ✅ WHATSAPP AUTO-SEND: callback per segnare ordine pronto
   ricercaCliente,  // ✅ NUOVO: ricerca cliente attiva
   mostraTutteLeDate,  // ✅ NUOVO: flag per mostrare tutte le date
 }) => {
@@ -406,7 +407,11 @@ Pastificio Nonna Claudia`;
 
   const segnaComePronto = async (ordineId) => {
     const ordine = ordini.find(o => o._id === ordineId);
-    if (ordine) {
+    if (ordine && onSegnaComePronto) {
+      // ✅ WHATSAPP AUTO-SEND: usa callback da GestoreOrdini
+      await onSegnaComePronto(ordine);
+    } else if (ordine) {
+      // ✅ FALLBACK: comportamento vecchio se callback non presente
       for (let i = 0; i < ordine.prodotti.length; i++) {
         await aggiornaStatoProdotto(ordineId, i, 'completato');
       }
