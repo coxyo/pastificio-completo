@@ -1,7 +1,7 @@
-// services/whatsappService.js - ✅ VERSIONE COMPLETA CON AUTO-SEND
-const axios = require('axios');
-const Cliente = require('../models/Cliente');
-const logger = require('../config/logger');
+// services/whatsappService.js - ✅ VERSIONE COMPLETA CON AUTO-SEND (ES MODULES)
+import axios from 'axios';
+import Cliente from '../models/Cliente.js';
+import logger from '../config/logger.js';
 
 /**
  * ✅ NUOVA FUNZIONE: Genera link WhatsApp
@@ -100,8 +100,9 @@ const inviaWhatsAppPronto = async (ordine) => {
   }
 };
 
-module.exports = {
+// ✅ ES Modules export (per compatibility con backend)
+export {
   inviaMessaggio,
-  generaLinkWhatsApp,  // ✅ NUOVA EXPORT
-  inviaWhatsAppPronto  // ✅ NUOVA EXPORT
+  generaLinkWhatsApp,
+  inviaWhatsAppPronto
 };
