@@ -1,6 +1,6 @@
 // In routes/test.js (crea il file)
 import express from 'express';
-import whatsappService from '../services/whatsappService.js';
+import * as whatsappService from '../services/whatsappService.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
