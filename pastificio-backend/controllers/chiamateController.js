@@ -428,27 +428,22 @@ export const eliminaChiamata = async (req, res) => {
   }
 };
 
-// ✅ FIX 12/12/2025: Endpoint pubblico per estensione Chrome E frontend Pusher
-/**
- * @desc    Registra chiamata da estensione Chrome o frontend Pusher
- * @route   POST /api/chiamate/webhook
- * @access  Pubblico (con X-API-KEY header)
- */
+// ESTRATTO chiamateController.js - SOLO PARTE DA MODIFICARE
+// Sostituire righe 446-553
+
+// Webhook endpoint per estensione Chrome
 export const webhookChiamata = async (req, res) => {
   try {
-    // Verifica API key (opzionale - per sicurezza base)
+    // Verifica API key
     const apiKey = req.headers['x-api-key'];
-    const expectedKey = process.env.WEBHOOK_API_KEY || 'pastificio-chiamate-2025';
     
-    if (apiKey && apiKey !== expectedKey) {
-      logger.warn('Webhook chiamata: API key non valida');
+    if (apiKey !== 'pastificio-chiamate-2025') {
       return res.status(401).json({
         success: false,
         message: 'API key non valida'
       });
     }
 
-    // ✅ FIX: Accetta sia "numero" che "numeroTelefono" dal body
     const {
       numero,
       numeroTelefono,
@@ -462,10 +457,8 @@ export const webhookChiamata = async (req, res) => {
       note
     } = req.body;
 
-    // Usa numero o numeroTelefono
     const telefonoRaw = numero || numeroTelefono;
 
-    // Validazione base
     if (!telefonoRaw) {
       return res.status(400).json({
         success: false,
@@ -473,18 +466,14 @@ export const webhookChiamata = async (req, res) => {
       });
     }
 
-    // Normalizza numero (rimuovi spazi, mantieni + e cifre)
     const numeroNormalizzato = telefonoRaw.replace(/[^\d+]/g, '');
-
-    // ✅ FIX CRITICO: Genera callId univoco (REQUIRED dallo schema!)
     const callId = `CALL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Cerca cliente per numero di telefono (se non già fornito)
+    // Cerca cliente
     let clienteId = clienteFromBody || null;
     
     if (!clienteId) {
       try {
-        // Varianti del numero per ricerca
         const numeroSenzaPrefisso = numeroNormalizzato.replace(/^\+?39/, '');
         const variantiNumero = [
           numeroNormalizzato,
@@ -493,7 +482,7 @@ export const webhookChiamata = async (req, res) => {
           telefonoRaw,
           telefonoRaw.replace(/\s/g, ''),
           numeroSenzaPrefisso,
-          `0${numeroSenzaPrefisso}`  // Per numeri fissi
+          `0${numeroSenzaPrefisso}`
         ];
 
         const clienteTrovatoDb = await Cliente.findOne({
@@ -509,16 +498,21 @@ export const webhookChiamata = async (req, res) => {
       }
     }
 
-    // ✅ FIX: Usa i campi CORRETTI dello schema Chiamata.js
+    // ✅ FIX: Valida source PRIMA di passarlo a MongoDB
+    const sourceValidi = ['3cx-extension', '3cx-webhook', 'test-manual', 'manual'];
+    const sourceRaw = sorgente || source;
+    const sourceValidato = sourceValidi.includes(sourceRaw) ? sourceRaw : '3cx-extension';
+
+    // Crea chiamata con source validato
     const chiamata = await Chiamata.create({
-      callId: callId,                                    // ✅ REQUIRED - ora generato!
-      numero: numeroNormalizzato,                        // ✅ Campo corretto (non "numeroTelefono")
-      numeroOriginale: telefonoRaw,                      // Salva anche originale
+      callId: callId,
+      numero: numeroNormalizzato,
+      numeroOriginale: telefonoRaw,
       cliente: clienteId,
-      timestamp: timestamp ? new Date(timestamp) : (dataChiamata ? new Date(dataChiamata) : new Date()),  // ✅ Campo corretto
-      source: sorgente || source || '3cx-extension',    // ✅ Campo corretto
+      timestamp: timestamp ? new Date(timestamp) : (dataChiamata ? new Date(dataChiamata) : new Date()),
+      source: sourceValidato,  // ✅ VALIDATO - usa sempre un valore dell'enum o default
       esito: esito,
-      durata: 0,                                         // ✅ Campo corretto (non "durataChiamata")
+      durata: 0,
       note: note || ''
     });
 
@@ -533,8 +527,33 @@ export const webhookChiamata = async (req, res) => {
       numero: numeroNormalizzato,
       cliente: clienteId ? 'trovato' : 'sconosciuto',
       esito,
-      source: sorgente || source || '3cx-extension'
+      source: sourceValidato
     });
+
+    // ✅ INVIA EVENTO PUSHER (questo è il pezzo critico!)
+    try {
+      await pusher.trigger('chiamate', 'nuova-chiamata', {
+        _id: chiamata._id.toString(),
+        callId: chiamata.callId,
+        numero: chiamata.numero,
+        timestamp: chiamata.timestamp.toISOString(),
+        cliente: chiamata.cliente ? {
+          _id: chiamata.cliente._id.toString(),
+          nome: chiamata.cliente.nome,
+          cognome: chiamata.cliente.cognome || '',
+          telefono: chiamata.cliente.telefono,
+          codiceCliente: chiamata.cliente.codiceCliente
+        } : null
+      });
+      
+      logger.info('✅ Pusher: Evento nuova-chiamata inviato', {
+        callId: chiamata.callId,
+        numero: chiamata.numero
+      });
+    } catch (pusherError) {
+      logger.error('❌ Pusher: Errore invio evento:', pusherError);
+      // Non bloccare la response anche se Pusher fallisce
+    }
 
     res.status(201).json({
       success: true,
