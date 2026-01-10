@@ -580,7 +580,7 @@ export const getStatistiche = async (req, res) => {
         risposte,
         perse,
         durataTotale: durataTotale[0]?.durata || 0,
-        durataMed ia: totale > 0 ? Math.round((durataTotale[0]?.durata || 0) / totale) : 0,
+        durataMedia: totale > 0 ? Math.round((durataTotale[0]?.durata || 0) / totale) : 0,
         perCliente
       }
     });
