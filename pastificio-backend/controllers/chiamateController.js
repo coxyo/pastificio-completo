@@ -2,6 +2,7 @@
 import Chiamata from '../models/Chiamata.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
+import pusher from '../services/pusherService.js';
 
 /**
  * @desc    Ottieni tutte le chiamate con filtri opzionali
@@ -516,7 +517,7 @@ export const webhookChiamata = async (req, res) => {
       note: note || ''
     });
 
-    // Popola cliente se trovato
+     // Popola cliente se trovato
     if (clienteId) {
       await chiamata.populate('cliente', 'nome cognome telefono codiceCliente');
     }
@@ -530,7 +531,7 @@ export const webhookChiamata = async (req, res) => {
       source: sourceValidato
     });
 
-    // ✅ INVIA EVENTO PUSHER (questo è il pezzo critico!)
+    // ✅ INVIA EVENTO PUSHER (CRITICO!)
     try {
       await pusher.trigger('chiamate', 'nuova-chiamata', {
         _id: chiamata._id.toString(),
@@ -548,7 +549,8 @@ export const webhookChiamata = async (req, res) => {
       
       logger.info('✅ Pusher: Evento nuova-chiamata inviato', {
         callId: chiamata.callId,
-        numero: chiamata.numero
+        numero: chiamata.numero,
+        cliente: chiamata.cliente ? `${chiamata.cliente.nome} ${chiamata.cliente.cognome || ''}`.trim() : 'sconosciuto'
       });
     } catch (pusherError) {
       logger.error('❌ Pusher: Errore invio evento:', pusherError);
