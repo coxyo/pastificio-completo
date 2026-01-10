@@ -594,3 +594,17 @@ export const getStatistiche = async (req, res) => {
     });
   }
 };
+
+// ✅ Default export per compatibilità con routes
+export default {
+  getChiamate,
+  getChiamata,
+  creaChiamata,
+  aggiornaChiamata,
+  eliminaChiamata,
+  aggiungiNota,
+  aggiungiTag,
+  rimuoviTag,
+  webhookChiamata,
+  getStatistiche
+};
