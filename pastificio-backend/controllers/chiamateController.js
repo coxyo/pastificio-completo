@@ -594,17 +594,3 @@ export const getStatistiche = async (req, res) => {
     });
   }
 };
-
-// Export controllers
-export default {
-  getChiamate,
-  getChiamata,
-  creaChiamata,
-  aggiornaChiamata,
-  eliminaChiamata,
-  aggiungiNota,
-  aggiungiTag,
-  rimuoviTag,
-  webhookChiamata,
-  getStatistiche
-};
