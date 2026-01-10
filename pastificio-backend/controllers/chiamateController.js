@@ -109,6 +109,9 @@ export const getChiamata = async (req, res) => {
   }
 };
 
+// Alias per compatibilità con routes
+export const getChiamataById = getChiamata;
+
 /**
  * @desc    Crea nuova chiamata
  * @route   POST /api/chiamate
@@ -530,6 +533,30 @@ export const webhookChiamata = async (req, res) => {
 };
 
 /**
+ * @desc    Ottieni tutti i tag unici
+ * @route   GET /api/chiamate/tags/all
+ * @access  Privato
+ */
+export const getAllTags = async (req, res) => {
+  try {
+    const tags = await Chiamata.distinct('tags');
+    
+    res.json({
+      success: true,
+      count: tags.length,
+      data: tags.sort()
+    });
+  } catch (error) {
+    logger.error('Errore recupero tags:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nel recupero dei tags',
+      error: error.message
+    });
+  }
+};
+
+/**
  * @desc    Ottieni statistiche chiamate
  * @route   GET /api/chiamate/statistiche
  * @access  Privato
@@ -597,8 +624,10 @@ export const getStatistiche = async (req, res) => {
 
 // ✅ Default export per compatibilità con routes
 export default {
+  getAllTags,
   getChiamate,
   getChiamata,
+  getChiamataById,
   creaChiamata,
   aggiornaChiamata,
   eliminaChiamata,
