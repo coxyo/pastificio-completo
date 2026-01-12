@@ -1,7 +1,8 @@
-// controllers/chiamateController.js
+// controllers/chiamateController.js - VERSIONE FINAL CON PUSHER
 import Chiamata from '../models/Chiamata.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
+import pusher from '../services/pusherService.js';  // ✅ AGGIUNTO
 
 /**
  * @desc    Ottieni tutte le chiamate con filtri opzionali
@@ -33,52 +34,37 @@ export const getChiamate = async (req, res) => {
       if (dataFine) filtri.timestamp.$lte = new Date(dataFine);
     }
 
-    // Filtro per tag
     if (tag) {
-      // Supporta tag multipli separati da virgola
-      const tagsArray = tag.split(',').map(t => t.trim());
-      filtri.tags = { $in: tagsArray };
+      filtri.tags = tag;
     }
 
-    // Filtro per esito
     if (esito) {
       filtri.esito = esito;
     }
 
-    // Filtro per cliente
     if (clienteId) {
       filtri.cliente = clienteId;
     }
 
-    // ✅ FIX: Filtro per numero usa "numero" (campo schema)
+    // ✅ FIX: Accetta sia "numero" che "numeroTelefono"
     const numeroRicerca = numero || numeroTelefono;
     if (numeroRicerca) {
-      filtri.numero = { $regex: numeroRicerca.replace(/[^\d]/g, ''), $options: 'i' };
+      filtri.numero = { $regex: numeroRicerca.replace(/[^\d+]/g, ''), $options: 'i' };
     }
 
     const chiamate = await Chiamata.find(filtri)
-      .populate('cliente', 'nome cognome email telefono codiceCliente')
+      .populate('cliente', 'nome cognome telefono codiceCliente email')
       .sort(sort)
       .limit(parseInt(limit))
-      .skip(parseInt(skip))
-      .lean();
+      .skip(parseInt(skip));
 
     const totale = await Chiamata.countDocuments(filtri);
 
-    logger.info(`Chiamate recuperate: ${chiamate.length}/${totale}`, {
-      filtri,
-      user: req.user?._id
-    });
-
     res.json({
       success: true,
-      data: chiamate,
-      pagination: {
-        totale,
-        corrente: chiamate.length,
-        skip: parseInt(skip),
-        limit: parseInt(limit)
-      }
+      count: chiamate.length,
+      total: totale,
+      data: chiamate
     });
 
   } catch (error) {
@@ -92,15 +78,14 @@ export const getChiamate = async (req, res) => {
 };
 
 /**
- * @desc    Ottieni una singola chiamata per ID
+ * @desc    Ottieni singola chiamata
  * @route   GET /api/chiamate/:id
  * @access  Privato
  */
-export const getChiamataById = async (req, res) => {
+export const getChiamata = async (req, res) => {
   try {
     const chiamata = await Chiamata.findById(req.params.id)
-      .populate('cliente', 'nome cognome email telefono codiceCliente')
-      .populate('ordineGenerato', 'numeroOrdine dataOrdine totale prodotti');
+      .populate('cliente', 'nome cognome telefono email codiceCliente');
 
     if (!chiamata) {
       return res.status(404).json({
@@ -124,65 +109,67 @@ export const getChiamataById = async (req, res) => {
   }
 };
 
+// Alias per compatibilità con routes
+export const getChiamataById = getChiamata;
+
 /**
- * @desc    Crea una nuova chiamata
+ * @desc    Crea nuova chiamata
  * @route   POST /api/chiamate
  * @access  Privato
  */
 export const creaChiamata = async (req, res) => {
   try {
     const {
-      numeroTelefono,
+      numero,
+      numeroTelefono,  // ✅ FIX: supporta anche questo
       cliente,
-      esito,
+      timestamp,
+      source = 'manual',
+      esito = 'in_arrivo',
+      durata,
       note,
-      tags = [],
-      ordineGenerato
+      tags
     } = req.body;
 
-    // Validazione base
-    if (!numeroTelefono) {
+    // ✅ FIX: Accetta sia "numero" che "numeroTelefono"
+    const telefonoRaw = numero || numeroTelefono;
+
+    // Validazione
+    if (!telefonoRaw) {
       return res.status(400).json({
         success: false,
         message: 'Numero di telefono obbligatorio'
       });
     }
 
-    // Se cliente ID fornito, verifica esistenza
-    if (cliente) {
-      const clienteEsiste = await Cliente.findById(cliente);
-      if (!clienteEsiste) {
-        return res.status(404).json({
-          success: false,
-          message: 'Cliente non trovato'
-        });
-      }
-    }
+    // Normalizza numero
+    const numeroNormalizzato = telefonoRaw.replace(/[^\d+]/g, '');
 
+    // ✅ FIX: Genera callId univoco
+    const callId = `CALL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // ✅ FIX: Usa campi corretti schema
     const chiamata = await Chiamata.create({
-      numeroTelefono,
+      callId,
+      numero: numeroNormalizzato,
+      numeroOriginale: telefonoRaw,
       cliente,
-      esito: esito || 'non-risposto',
-      note,
-      tags,
-      ordineGenerato,
-      dataChiamata: new Date(),
-      durataChiamata: 0 // Verrà aggiornata se necessario
-    });
-
-    // Popola i dati per la risposta
-    await chiamata.populate('cliente', 'nome cognome email telefono');
-
-    logger.info('Chiamata creata:', {
-      id: chiamata._id,
-      numero: numeroTelefono,
+      timestamp: timestamp ? new Date(timestamp) : new Date(),
+      source,
       esito,
-      user: req.user?._id
+      durata: durata || 0,
+      note: note || '',
+      tags: tags || []
     });
+
+    // Popola cliente
+    await chiamata.populate('cliente', 'nome cognome telefono codiceCliente');
+
+    logger.info('Chiamata creata:', { id: chiamata._id, numero: numeroNormalizzato });
 
     res.status(201).json({
       success: true,
-      message: 'Chiamata registrata con successo',
+      message: 'Chiamata creata con successo',
       data: chiamata
     });
 
@@ -197,21 +184,17 @@ export const creaChiamata = async (req, res) => {
 };
 
 /**
- * @desc    Aggiorna una chiamata esistente
+ * @desc    Aggiorna chiamata
  * @route   PUT /api/chiamate/:id
  * @access  Privato
  */
 export const aggiornaChiamata = async (req, res) => {
   try {
-    const {
-      esito,
-      note,
-      tags,
-      durataChiamata,
-      ordineGenerato
-    } = req.body;
-
-    const chiamata = await Chiamata.findById(req.params.id);
+    const chiamata = await Chiamata.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('cliente', 'nome cognome telefono');
 
     if (!chiamata) {
       return res.status(404).json({
@@ -220,25 +203,11 @@ export const aggiornaChiamata = async (req, res) => {
       });
     }
 
-    // Aggiorna solo i campi forniti
-    if (esito) chiamata.esito = esito;
-    if (note !== undefined) chiamata.note = note;
-    if (tags) chiamata.tags = tags;
-    if (durataChiamata) chiamata.durataChiamata = durataChiamata;
-    if (ordineGenerato) chiamata.ordineGenerato = ordineGenerato;
-
-    await chiamata.save();
-    await chiamata.populate('cliente', 'nome cognome email telefono');
-
-    logger.info('Chiamata aggiornata:', {
-      id: chiamata._id,
-      esito,
-      user: req.user?._id
-    });
+    logger.info('Chiamata aggiornata:', { id: chiamata._id });
 
     res.json({
       success: true,
-      message: 'Chiamata aggiornata con successo',
+      message: 'Chiamata aggiornata',
       data: chiamata
     });
 
@@ -253,151 +222,13 @@ export const aggiornaChiamata = async (req, res) => {
 };
 
 /**
- * @desc    Aggiungi tag a una chiamata
- * @route   POST /api/chiamate/:id/tags
- * @access  Privato
- */
-export const aggiungiTag = async (req, res) => {
-  try {
-    const { tags } = req.body;
-
-    if (!tags || !Array.isArray(tags) || tags.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Fornire almeno un tag'
-      });
-    }
-
-    const chiamata = await Chiamata.findById(req.params.id);
-
-    if (!chiamata) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chiamata non trovata'
-      });
-    }
-
-    // Aggiungi solo tag nuovi (evita duplicati)
-    tags.forEach(tag => {
-      if (!chiamata.tags.includes(tag)) {
-        chiamata.tags.push(tag);
-      }
-    });
-
-    await chiamata.save();
-
-    logger.info('Tag aggiunti a chiamata:', {
-      id: chiamata._id,
-      tags,
-      user: req.user?._id
-    });
-
-    res.json({
-      success: true,
-      message: 'Tag aggiunti con successo',
-      data: chiamata
-    });
-
-  } catch (error) {
-    logger.error('Errore aggiunta tag:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nell\'aggiunta dei tag',
-      error: error.message
-    });
-  }
-};
-
-/**
- * @desc    Rimuovi tag da una chiamata
- * @route   DELETE /api/chiamate/:id/tags
- * @access  Privato
- */
-export const rimuoviTag = async (req, res) => {
-  try {
-    const { tags } = req.body;
-
-    if (!tags || !Array.isArray(tags) || tags.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Fornire almeno un tag da rimuovere'
-      });
-    }
-
-    const chiamata = await Chiamata.findById(req.params.id);
-
-    if (!chiamata) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chiamata non trovata'
-      });
-    }
-
-    // Rimuovi i tag specificati
-    chiamata.tags = chiamata.tags.filter(tag => !tags.includes(tag));
-
-    await chiamata.save();
-
-    logger.info('Tag rimossi da chiamata:', {
-      id: chiamata._id,
-      tags,
-      user: req.user?._id
-    });
-
-    res.json({
-      success: true,
-      message: 'Tag rimossi con successo',
-      data: chiamata
-    });
-
-  } catch (error) {
-    logger.error('Errore rimozione tag:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nella rimozione dei tag',
-      error: error.message
-    });
-  }
-};
-
-/**
- * @desc    Ottieni tutti i tag unici utilizzati
- * @route   GET /api/chiamate/tags/all
- * @access  Privato
- */
-export const getAllTags = async (req, res) => {
-  try {
-    // Aggregazione per ottenere tutti i tag unici
-    const tagsAggregation = await Chiamata.aggregate([
-      { $unwind: '$tags' },
-      { $group: { _id: '$tags', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $project: { tag: '$_id', count: 1, _id: 0 } }
-    ]);
-
-    res.json({
-      success: true,
-      data: tagsAggregation
-    });
-
-  } catch (error) {
-    logger.error('Errore recupero tag:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nel recupero dei tag',
-      error: error.message
-    });
-  }
-};
-
-/**
- * @desc    Elimina una chiamata
+ * @desc    Elimina chiamata
  * @route   DELETE /api/chiamate/:id
  * @access  Privato
  */
 export const eliminaChiamata = async (req, res) => {
   try {
-    const chiamata = await Chiamata.findById(req.params.id);
+    const chiamata = await Chiamata.findByIdAndDelete(req.params.id);
 
     if (!chiamata) {
       return res.status(404).json({
@@ -406,16 +237,11 @@ export const eliminaChiamata = async (req, res) => {
       });
     }
 
-    await chiamata.deleteOne();
-
-    logger.info('Chiamata eliminata:', {
-      id: req.params.id,
-      user: req.user?._id
-    });
+    logger.info('Chiamata eliminata:', { id: req.params.id });
 
     res.json({
       success: true,
-      message: 'Chiamata eliminata con successo'
+      message: 'Chiamata eliminata'
     });
 
   } catch (error) {
@@ -428,7 +254,133 @@ export const eliminaChiamata = async (req, res) => {
   }
 };
 
-// ✅ FIX 12/12/2025: Endpoint pubblico per estensione Chrome E frontend Pusher
+/**
+ * @desc    Aggiungi nota a chiamata
+ * @route   POST /api/chiamate/:id/note
+ * @access  Privato
+ */
+export const aggiungiNota = async (req, res) => {
+  try {
+    const { testo } = req.body;
+
+    if (!testo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Testo della nota obbligatorio'
+      });
+    }
+
+    const chiamata = await Chiamata.findByIdAndUpdate(
+      req.params.id,
+      { $push: { note: testo } },
+      { new: true }
+    ).populate('cliente');
+
+    if (!chiamata) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chiamata non trovata'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Nota aggiunta',
+      data: chiamata
+    });
+
+  } catch (error) {
+    logger.error('Errore aggiunta nota:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nell\'aggiunta della nota',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Aggiungi tag a chiamata
+ * @route   POST /api/chiamate/:id/tags
+ * @access  Privato
+ */
+export const aggiungiTag = async (req, res) => {
+  try {
+    const { tag } = req.body;
+
+    if (!tag) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tag obbligatorio'
+      });
+    }
+
+    const chiamata = await Chiamata.findByIdAndUpdate(
+      req.params.id,
+      { $addToSet: { tags: tag } },
+      { new: true }
+    ).populate('cliente');
+
+    if (!chiamata) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chiamata non trovata'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Tag aggiunto',
+      data: chiamata
+    });
+
+  } catch (error) {
+    logger.error('Errore aggiunta tag:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nell\'aggiunta del tag',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Rimuovi tag da chiamata
+ * @route   DELETE /api/chiamate/:id/tags/:tag
+ * @access  Privato
+ */
+export const rimuoviTag = async (req, res) => {
+  try {
+    const chiamata = await Chiamata.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { tags: req.params.tag } },
+      { new: true }
+    ).populate('cliente');
+
+    if (!chiamata) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chiamata non trovata'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Tag rimosso',
+      data: chiamata
+    });
+
+  } catch (error) {
+    logger.error('Errore rimozione tag:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nella rimozione del tag',
+      error: error.message
+    });
+  }
+};
+
+// ✅ WEBHOOK ENDPOINT CON PUSHER!
 /**
  * @desc    Registra chiamata da estensione Chrome o frontend Pusher
  * @route   POST /api/chiamate/webhook
@@ -436,7 +388,7 @@ export const eliminaChiamata = async (req, res) => {
  */
 export const webhookChiamata = async (req, res) => {
   try {
-    // Verifica API key (opzionale - per sicurezza base)
+    // Verifica API key (opzionale)
     const apiKey = req.headers['x-api-key'];
     const expectedKey = process.env.WEBHOOK_API_KEY || 'pastificio-chiamate-2025';
     
@@ -448,7 +400,6 @@ export const webhookChiamata = async (req, res) => {
       });
     }
 
-    // ✅ FIX: Accetta sia "numero" che "numeroTelefono" dal body
     const {
       numero,
       numeroTelefono,
@@ -462,10 +413,8 @@ export const webhookChiamata = async (req, res) => {
       note
     } = req.body;
 
-    // Usa numero o numeroTelefono
     const telefonoRaw = numero || numeroTelefono;
 
-    // Validazione base
     if (!telefonoRaw) {
       return res.status(400).json({
         success: false,
@@ -473,18 +422,14 @@ export const webhookChiamata = async (req, res) => {
       });
     }
 
-    // Normalizza numero (rimuovi spazi, mantieni + e cifre)
     const numeroNormalizzato = telefonoRaw.replace(/[^\d+]/g, '');
-
-    // ✅ FIX CRITICO: Genera callId univoco (REQUIRED dallo schema!)
     const callId = `CALL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Cerca cliente per numero di telefono (se non già fornito)
+    // Cerca cliente
     let clienteId = clienteFromBody || null;
     
     if (!clienteId) {
       try {
-        // Varianti del numero per ricerca
         const numeroSenzaPrefisso = numeroNormalizzato.replace(/^\+?39/, '');
         const variantiNumero = [
           numeroNormalizzato,
@@ -493,7 +438,7 @@ export const webhookChiamata = async (req, res) => {
           telefonoRaw,
           telefonoRaw.replace(/\s/g, ''),
           numeroSenzaPrefisso,
-          `0${numeroSenzaPrefisso}`  // Per numeri fissi
+          `0${numeroSenzaPrefisso}`
         ];
 
         const clienteTrovatoDb = await Cliente.findOne({
@@ -509,22 +454,27 @@ export const webhookChiamata = async (req, res) => {
       }
     }
 
-    // ✅ FIX: Usa i campi CORRETTI dello schema Chiamata.js
+    // ✅ Valida source
+    const sourceValidi = ['3cx-extension', '3cx-webhook', 'test-manual', 'manual'];
+    const sourceRaw = sorgente || source;
+    const sourceValidato = sourceValidi.includes(sourceRaw) ? sourceRaw : '3cx-extension';
+
+    // Crea chiamata
     const chiamata = await Chiamata.create({
-      callId: callId,                                    // ✅ REQUIRED - ora generato!
-      numero: numeroNormalizzato,                        // ✅ Campo corretto (non "numeroTelefono")
-      numeroOriginale: telefonoRaw,                      // Salva anche originale
+      callId: callId,
+      numero: numeroNormalizzato,
+      numeroOriginale: telefonoRaw,
       cliente: clienteId,
-      timestamp: timestamp ? new Date(timestamp) : (dataChiamata ? new Date(dataChiamata) : new Date()),  // ✅ Campo corretto
-      source: sorgente || source || '3cx-extension',    // ✅ Campo corretto
+      timestamp: timestamp ? new Date(timestamp) : (dataChiamata ? new Date(dataChiamata) : new Date()),
+      source: sourceValidato,
       esito: esito,
-      durata: 0,                                         // ✅ Campo corretto (non "durataChiamata")
+      durata: 0,
       note: note || ''
     });
 
-    // Popola cliente se trovato
+    // Popola cliente
     if (clienteId) {
-      await chiamata.populate('cliente', 'nome cognome telefono codiceCliente');
+      await chiamata.populate('cliente', 'nome cognome telefono codiceCliente email citta provincia');
     }
 
     logger.info('Webhook: Chiamata salvata con successo:', {
@@ -533,8 +483,38 @@ export const webhookChiamata = async (req, res) => {
       numero: numeroNormalizzato,
       cliente: clienteId ? 'trovato' : 'sconosciuto',
       esito,
-      source: sorgente || source || '3cx-extension'
+      source: sourceValidato
     });
+
+    // ✅ ✅ ✅ INVIA EVENTO PUSHER ✅ ✅ ✅
+    try {
+      const pusherData = {
+        _id: chiamata._id.toString(),
+        callId: chiamata.callId,
+        numero: chiamata.numero,
+        timestamp: chiamata.timestamp.toISOString(),
+        cliente: chiamata.cliente ? {
+          _id: chiamata.cliente._id.toString(),
+          nome: chiamata.cliente.nome,
+          cognome: chiamata.cliente.cognome || '',
+          telefono: chiamata.cliente.telefono,
+          codiceCliente: chiamata.cliente.codiceCliente,
+          email: chiamata.cliente.email || '',
+          citta: chiamata.cliente.citta || '',
+          provincia: chiamata.cliente.provincia || ''
+        } : null
+      };
+
+      await pusher.trigger('chiamate', 'nuova-chiamata', pusherData);
+      
+      logger.info('✅ Pusher: Evento nuova-chiamata inviato', {
+        callId: chiamata.callId,
+        numero: chiamata.numero,
+        cliente: chiamata.cliente ? `${chiamata.cliente.nome} ${chiamata.cliente.cognome || ''}`.trim() : 'sconosciuto'
+      });
+    } catch (pusherError) {
+      logger.error('❌ Pusher: Errore invio evento:', pusherError);
+    }
 
     res.status(201).json({
       success: true,
@@ -552,7 +532,30 @@ export const webhookChiamata = async (req, res) => {
   }
 };
 
-// ✅ NUOVO 12/12/2025: Endpoint per statistiche chiamate
+/**
+ * @desc    Ottieni tutti i tag unici
+ * @route   GET /api/chiamate/tags/all
+ * @access  Privato
+ */
+export const getAllTags = async (req, res) => {
+  try {
+    const tags = await Chiamata.distinct('tags');
+    
+    res.json({
+      success: true,
+      count: tags.length,
+      data: tags.sort()
+    });
+  } catch (error) {
+    logger.error('Errore recupero tags:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore nel recupero dei tags',
+      error: error.message
+    });
+  }
+};
+
 /**
  * @desc    Ottieni statistiche chiamate
  * @route   GET /api/chiamate/statistiche
@@ -561,135 +564,76 @@ export const webhookChiamata = async (req, res) => {
 export const getStatistiche = async (req, res) => {
   try {
     const { dataInizio, dataFine } = req.query;
-    
-    // Date di default: ultimo mese
-    const oggi = new Date();
-    const inizioDefault = new Date(oggi);
-    inizioDefault.setMonth(oggi.getMonth() - 1);
-    
-    const filtroData = {
-      timestamp: {
-        $gte: dataInizio ? new Date(dataInizio) : inizioDefault,
-        $lte: dataFine ? new Date(dataFine) : oggi
-      }
-    };
 
-    // Statistiche aggregate
+    const filtri = {};
+    if (dataInizio || dataFine) {
+      filtri.timestamp = {};
+      if (dataInizio) filtri.timestamp.$gte = new Date(dataInizio);
+      if (dataFine) filtri.timestamp.$lte = new Date(dataFine);
+    }
+
     const [
-      totaleChiamate,
-      chiamateOggi,
-      chiamateSettimana,
-      chiamateConCliente,
-      perEsito,
-      perGiorno
+      totale,
+      risposte,
+      perse,
+      durataTotale,
+      perCliente
     ] = await Promise.all([
-      // Totale chiamate nel periodo
-      Chiamata.countDocuments(filtroData),
-      
-      // Chiamate oggi
-      Chiamata.countDocuments({
-        timestamp: {
-          $gte: new Date(oggi.setHours(0, 0, 0, 0)),
-          $lte: new Date()
-        }
-      }),
-      
-      // Chiamate ultima settimana
-      Chiamata.countDocuments({
-        timestamp: {
-          $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-          $lte: new Date()
-        }
-      }),
-      
-      // Chiamate con cliente identificato
-      Chiamata.countDocuments({
-        ...filtroData,
-        cliente: { $ne: null }
-      }),
-      
-      // Raggruppamento per esito
+      Chiamata.countDocuments(filtri),
+      Chiamata.countDocuments({ ...filtri, esito: 'risposta' }),
+      Chiamata.countDocuments({ ...filtri, esito: 'persa' }),
       Chiamata.aggregate([
-        { $match: filtroData },
-        { $group: { _id: '$esito', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
+        { $match: filtri },
+        { $group: { _id: null, durata: { $sum: '$durata' } } }
       ]),
-      
-      // Chiamate per giorno (ultimi 7 giorni)
       Chiamata.aggregate([
-        {
-          $match: {
-            timestamp: {
-              $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-            }
-          }
-        },
+        { $match: filtri },
         {
           $group: {
-            _id: {
-              $dateToString: { format: '%Y-%m-%d', date: '$timestamp' }
-            },
-            count: { $sum: 1 }
+            _id: '$cliente',
+            count: { $sum: 1 },
+            durataTotale: { $sum: '$durata' }
           }
         },
-        { $sort: { _id: 1 } }
+        { $sort: { count: -1 } },
+        { $limit: 10 }
       ])
-    ]);
-
-    // Durata media chiamate risposte
-    const durataMedia = await Chiamata.aggregate([
-      {
-        $match: {
-          ...filtroData,
-          esito: 'risposta',
-          durata: { $gt: 0 }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          media: { $avg: '$durata' },
-          totale: { $sum: '$durata' }
-        }
-      }
     ]);
 
     res.json({
       success: true,
       data: {
-        totale: totaleChiamate,
-        oggi: chiamateOggi,
-        settimana: chiamateSettimana,
-        conCliente: chiamateConCliente,
-        perEsito: perEsito.reduce((acc, e) => {
-          acc[e._id || 'sconosciuto'] = e.count;
-          return acc;
-        }, {}),
-        perGiorno,
-        durataMedia: durataMedia[0]?.media || 0,
-        durataTotale: durataMedia[0]?.totale || 0
+        totale,
+        risposte,
+        perse,
+        durataTotale: durataTotale[0]?.durata || 0,
+        durataMedia: totale > 0 ? Math.round((durataTotale[0]?.durata || 0) / totale) : 0,
+        perCliente
       }
     });
 
   } catch (error) {
-    logger.error('Errore recupero statistiche chiamate:', error);
+    logger.error('Errore statistiche chiamate:', error);
     res.status(500).json({
       success: false,
-      message: 'Errore nel recupero delle statistiche',
+      message: 'Errore nel calcolo delle statistiche',
       error: error.message
     });
   }
 };
 
+// ✅ Default export per compatibilità con routes
 export default {
+  getAllTags,
   getChiamate,
+  getChiamata,
   getChiamataById,
   creaChiamata,
   aggiornaChiamata,
+  eliminaChiamata,
+  aggiungiNota,
   aggiungiTag,
   rimuoviTag,
-  getAllTags,
-  eliminaChiamata,
   webhookChiamata,
-  getStatistiche  // ✅ NUOVO
+  getStatistiche
 };
