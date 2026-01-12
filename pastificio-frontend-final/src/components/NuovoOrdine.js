@@ -100,7 +100,9 @@ clienteIdPreselezionato,
 
   const [formData, setFormData] = useState({
     cliente: null,
-    nomeCliente: '',
+    nome: '',           // ✅ Campo nome separato
+    cognome: '',        // ✅ Campo cognome separato
+    nomeCliente: '',    // Per backward compatibility
     telefono: '',
     dataRitiro: new Date().toISOString().split('T')[0],
     oraRitiro: '',
@@ -402,6 +404,8 @@ clienteIdPreselezionato,
     } else {
       setFormData({
         cliente: null,
+        nome: '',
+        cognome: '',
         nomeCliente: '',
         telefono: '',
         dataRitiro: new Date().toISOString().split('T')[0],
@@ -527,6 +531,8 @@ clienteIdPreselezionato,
         setFormData(prev => ({
           ...prev,
           cliente: clienteTrovato,
+          nome: clienteTrovato.nome || '',
+          cognome: clienteTrovato.cognome || '',
           nomeCliente: `${clienteTrovato.nome} ${clienteTrovato.cognome || ''}`.trim(),
           telefono: clienteTrovato.telefono || ''
         }));
@@ -542,6 +548,8 @@ clienteIdPreselezionato,
       setFormData({
         ...formData,
         cliente: cliente,
+        nome: cliente.nome || '',
+        cognome: cliente.cognome || '',
         nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
         telefono: cliente.telefono || ''
       });
@@ -549,6 +557,8 @@ clienteIdPreselezionato,
       setFormData({
         ...formData,
         cliente: null,
+        nome: '',
+        cognome: '',
         nomeCliente: '',
         telefono: ''
       });
@@ -1086,8 +1096,12 @@ clienteIdPreselezionato,
   };
 
   const handleSalva = async () => {
-    if (!formData.nomeCliente || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
-      alert('Compila tutti i campi obbligatori: cliente, data ritiro, ora ritiro e almeno un prodotto');
+    // ✅ Validazione con supporto nome/cognome separati
+    const nomeClienteCompleto = formData.nomeCliente || 
+      `${formData.nome || ''} ${formData.cognome || ''}`.trim();
+    
+    if (!nomeClienteCompleto || !formData.dataRitiro || !formData.oraRitiro || formData.prodotti.length === 0) {
+      alert('Compila tutti i campi obbligatori: nome cliente, data ritiro, ora ritiro e almeno un prodotto');
       return;
     }
 
@@ -1112,6 +1126,7 @@ clienteIdPreselezionato,
 
     const ordineData = {
       ...formData,
+      nomeCliente: nomeClienteCompleto,  // ✅ Usa nome completo calcolato
       cliente: formData.cliente?._id || null,
       totale: calcolaTotale(),
       daViaggio: formData.daViaggio,
@@ -1756,126 +1771,159 @@ clienteIdPreselezionato,
         {/* SEZIONI COMUNI */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
           
-          {/* SEZIONE CLIENTE - SEMPLIFICATA */}
+          {/* SEZIONE CLIENTE - ✅ CON NOME E COGNOME SEPARATI */}
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <PersonIcon /> Dati Cliente
             </Typography>
             
-            {/* ✅ CAMPO UNICO: Autocomplete freeSolo - digiti nome e suggerisce se esiste */}
-            <Autocomplete
-              freeSolo
-              options={clienti}
-              getOptionLabel={(option) => {
-                // Se è una stringa (digitata a mano), ritorna la stringa
-                if (typeof option === 'string') return option;
-                // Se è un oggetto cliente, mostra nome completo
-                return `${option.nome} ${option.cognome || ''}`.trim();
-              }}
-              filterOptions={(options, { inputValue }) => {
-                const input = inputValue.toLowerCase().trim();
-                if (!input) return options.slice(0, 10); // Mostra primi 10 se vuoto
-                return options.filter(opt => {
-                  const nomeCompleto = `${opt.nome} ${opt.cognome || ''}`.toLowerCase();
-                  const telefono = (opt.telefono || '').toLowerCase();
-                  return nomeCompleto.includes(input) || telefono.includes(input);
-                }).slice(0, 10);
-              }}
-              value={formData.cliente || formData.nomeCliente}
-              inputValue={formData.nomeCliente}
-              onInputChange={(event, newInputValue) => {
-                // Aggiorna il nome mentre digiti
-                setFormData(prev => ({
-                  ...prev,
-                  nomeCliente: newInputValue
-                }));
-              }}
-              onChange={(event, newValue) => {
-                if (newValue && typeof newValue === 'object') {
-                  // Selezionato un cliente esistente dal dropdown
-                  setFormData(prev => ({
-                    ...prev,
-                    cliente: newValue,
-                    nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
-                    telefono: newValue.telefono || ''
-                  }));
-                } else if (typeof newValue === 'string') {
-                  // Digitato un nome nuovo (premuto Enter)
-                  setFormData(prev => ({
-                    ...prev,
-                    cliente: null,
-                    nomeCliente: newValue,
-                    telefono: ''
-                  }));
-                } else {
-                  // Cancellato
-                  setFormData(prev => ({
-                    ...prev,
-                    cliente: null,
-                    nomeCliente: '',
-                    telefono: ''
-                  }));
-                }
-              }}
-              loading={loadingClienti}
-              loadingText="Caricamento clienti..."
-              renderOption={(props, option) => (
-                <li {...props} key={option._id || option.nome}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="body1" fontWeight="bold">
-                      {option.nome} {option.cognome || ''}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      📞 {option.telefono || 'N/D'}
-                    </Typography>
-                  </Box>
-                </li>
-              )}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Nome Cliente *"
-                  placeholder="Digita nome o cerca cliente esistente..."
-                  helperText={
-                    formData.cliente 
-                      ? `✅ Cliente esistente: ${formData.cliente.telefono || 'tel. non disponibile'}`
-                      : formData.nomeCliente && clienti.some(c => 
-                          `${c.nome} ${c.cognome || ''}`.toLowerCase().includes(formData.nomeCliente.toLowerCase())
-                        )
-                        ? '💡 Esistono clienti con nome simile - seleziona dal menu o continua per nuovo'
-                        : ''
-                  }
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingClienti ? <CircularProgress color="inherit" size={20} /> : null}
-                        {formData.cliente && (
-                          <Chip 
-                            size="small" 
-                            label="Cliente esistente" 
-                            color="success" 
-                            sx={{ mr: 1 }}
-                          />
-                        )}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
+            <Grid container spacing={2}>
+              {/* ✅ CAMPO NOME con Autocomplete */}
+              <Grid item xs={12} sm={6}>
+                <Autocomplete
+                  freeSolo
+                  options={clienti}
+                  getOptionLabel={(option) => {
+                    if (typeof option === 'string') return option;
+                    return option.nome || '';
                   }}
+                  filterOptions={(options, { inputValue }) => {
+                    const input = inputValue.toLowerCase().trim();
+                    if (!input) return [];
+                    return options.filter(opt => {
+                      const nome = (opt.nome || '').toLowerCase();
+                      const cognome = (opt.cognome || '').toLowerCase();
+                      const nomeCompleto = `${nome} ${cognome}`;
+                      const cognomeNome = `${cognome} ${nome}`;
+                      const telefono = (opt.telefono || '').toLowerCase();
+                      return nome.includes(input) || 
+                             cognome.includes(input) || 
+                             nomeCompleto.includes(input) ||
+                             cognomeNome.includes(input) ||
+                             telefono.includes(input);
+                    }).slice(0, 10);
+                  }}
+                  value={formData.cliente || formData.nome}
+                  inputValue={formData.nome}
+                  onInputChange={(event, newInputValue) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      nome: newInputValue,
+                      nomeCliente: `${newInputValue} ${prev.cognome || ''}`.trim(),
+                      cliente: null
+                    }));
+                  }}
+                  onChange={(event, newValue) => {
+                    if (newValue && typeof newValue === 'object') {
+                      setFormData(prev => ({
+                        ...prev,
+                        cliente: newValue,
+                        nome: newValue.nome || '',
+                        cognome: newValue.cognome || '',
+                        nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
+                        telefono: newValue.telefono || ''
+                      }));
+                    } else if (typeof newValue === 'string') {
+                      setFormData(prev => ({
+                        ...prev,
+                        cliente: null,
+                        nome: newValue,
+                        nomeCliente: `${newValue} ${prev.cognome || ''}`.trim()
+                      }));
+                    }
+                  }}
+                  loading={loadingClienti}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option._id}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                        <Typography variant="body1" fontWeight="bold">
+                          {option.nome} {option.cognome || ''}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          📞 {option.telefono || 'N/D'} 
+                          {option.codiceCliente && ` • ${option.codiceCliente}`}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Nome *"
+                      placeholder="Cerca o inserisci nome..."
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingClienti ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
                 />
+              </Grid>
+
+              {/* ✅ CAMPO COGNOME */}
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Cognome"
+                  placeholder="Inserisci cognome..."
+                  value={formData.cognome}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    cognome: e.target.value,
+                    nomeCliente: `${prev.nome || ''} ${e.target.value}`.trim(),
+                    cliente: null
+                  }))}
+                  disabled={formData.cliente !== null}
+                  helperText={formData.cliente ? "Cognome da anagrafica" : ""}
+                />
+              </Grid>
+
+              {/* ✅ INDICATORE CLIENTE ESISTENTE */}
+              {formData.cliente && (
+                <Grid item xs={12}>
+                  <Alert 
+                    severity="success" 
+                    sx={{ py: 0.5 }}
+                    action={
+                      <Button 
+                        size="small" 
+                        color="inherit"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          cliente: null
+                        }))}
+                      >
+                        Modifica
+                      </Button>
+                    }
+                  >
+                    <Typography variant="body2">
+                      ✅ <strong>{formData.nome} {formData.cognome}</strong> - Cliente esistente
+                      {formData.cliente.codiceCliente && ` (${formData.cliente.codiceCliente})`}
+                      {formData.cliente.livelloFedelta && ` • ${formData.cliente.livelloFedelta}`}
+                    </Typography>
+                  </Alert>
+                </Grid>
               )}
-            />
-            
-            {/* ✅ FIX 20/12/2025: Campo TELEFONO sempre visibile */}
-            <TextField
-              fullWidth
-              label="Telefono"
-              placeholder="Inserisci numero di telefono..."
-              value={formData.telefono}
-              onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-              sx={{ mt: 2 }}
-              helperText="Opzionale - utile per contattare il cliente"
-            />
+
+              {/* ✅ CAMPO TELEFONO */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Telefono"
+                  placeholder="Es: 3331234567"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
+                  disabled={formData.cliente !== null}
+                  helperText={formData.cliente ? "Telefono da anagrafica" : "Opzionale"}
+                />
+              </Grid>
+            </Grid>
           </Paper>
 
           {/* Data e Ora */}

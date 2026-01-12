@@ -120,7 +120,7 @@ export default function RegistroCorrespettivi() {
       
       setCorrespettivi(resMese.data.corrispettivi || []);
       setStatisticheMese({
-        totaleCorresp ettivi: resMese.data.totaleCorrispettivi,
+        totaleCorrispettivi: resMese.data.totaleCorrispettivi,
         imponibile10: resMese.data.imponibile10,
         iva10: resMese.data.iva10,
         giorni: resMese.data.giorni

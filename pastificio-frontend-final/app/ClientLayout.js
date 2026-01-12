@@ -1,5 +1,6 @@
-// app/ClientLayout.js - VERSIONE CORRETTA v2.0 - PUSHER TEMPORANEAMENTE DISABILITATO
-// ✅ FIX: Popup si chiude correttamente al primo click
+// app/ClientLayout.js - VERSIONE FIXED v3.0 - PUSHER ATTIVO
+// ✅ CallPopup riattivato
+// ✅ useIncomingCall riattivato
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -31,9 +32,9 @@ import {
   Phone as PhoneIcon
 } from '@mui/icons-material';
 
-// ⚠️ TEMPORANEAMENTE DISABILITATO PER DEBUG
-// import useIncomingCall from '@/hooks/useIncomingCall';
-// import CallPopup from '@/components/CallPopup';
+// ✅ RIATTIVATO
+import useIncomingCall from '@/hooks/useIncomingCall';
+import CallPopup from '@/components/CallPopup';
 
 const drawerWidth = 240;
 
@@ -42,6 +43,8 @@ const menuItems = [
   { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/' },
   { id: 'clienti', title: 'Clienti', icon: <People />, path: '/clienti' },
   { id: 'magazzino', title: 'Magazzino', icon: <Inventory />, path: '/magazzino' },
+  { id: 'corrispettivi', title: '💰 Corrispettivi', icon: <Receipt />, path: '/corrispettivi' },
+  { id: 'haccp', title: '🌡️ HACCP', icon: <Assessment />, path: '/haccp' },
   { id: 'report', title: 'Report', icon: <Assessment />, path: '/report' },
   { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
   { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
@@ -55,67 +58,19 @@ export default function ClientLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
-  const [pusherInitialized, setPusherInitialized] = useState(false);
 
-  // ⚠️ TEMPORANEAMENTE DISABILITATO PER DEBUG
-  // const { 
-  //   chiamataCorrente, 
-  //   isPopupOpen,
-  //   handleClosePopup,
-  //   handleAcceptCall,
-  //   clearChiamata, 
-  //   connected 
-  // } = useIncomingCall();
-
-  // Valori mock per far funzionare il resto
-  const connected = false;
-  const chiamataCorrente = null;
-  const isPopupOpen = false;
+  // ✅ RIATTIVATO useIncomingCall
+  const { 
+    chiamataCorrente, 
+    isPopupOpen,
+    handleClosePopup,
+    handleAcceptCall,
+    clearChiamata, 
+    connected 
+  } = useIncomingCall();
 
   useEffect(() => {
     setMounted(true);
-    
-    // ⚠️ PUSHER INITIALIZATION TEMPORANEAMENTE DISABILITATA
-    /*
-    // Pusher initialization
-    if (typeof window !== 'undefined' && !pusherInitialized) {
-      console.log('🔧 [ClientLayout] Inizializzazione Pusher...');
-      
-      import('@/services/pusherService').then((module) => {
-        const pusherService = module.default;
-        
-        console.log('✅ [ClientLayout] pusherService importato:', pusherService);
-
-        const status = pusherService.getStatus();
-        console.log('📊 [ClientLayout] Status iniziale:', status);
-
-        if (!status.initialized) {
-          console.log('🚀 [ClientLayout] Inizializzazione in corso...');
-          
-          pusherService.initialize()
-            .then(() => {
-              console.log('✅ [ClientLayout] Pusher inizializzato con successo!');
-              setPusherInitialized(true);
-              
-              if (!window.pusherDebug) {
-                window.pusherDebug = {
-                  service: pusherService,
-                  status: () => pusherService.getStatus()
-                };
-              }
-            })
-            .catch((error) => {
-              console.error('❌ [ClientLayout] Errore inizializzazione:', error);
-            });
-        } else {
-          console.log('✅ [ClientLayout] Pusher già inizializzato');
-          setPusherInitialized(true);
-        }
-      }).catch((error) => {
-        console.error('❌ [ClientLayout] Errore import pusherService:', error);
-      });
-    }
-    */
 
     // Richiedi permessi notifiche browser
     if ('Notification' in window && Notification.permission === 'default') {
@@ -123,7 +78,7 @@ export default function ClientLayout({ children }) {
         console.log('🔔 [ClientLayout] Permesso notifiche:', permission);
       });
     }
-  }, [pusherInitialized]);
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -139,8 +94,7 @@ export default function ClientLayout({ children }) {
     return pathname === path || pathname.startsWith(path + '/');
   };
 
-  // ⚠️ TEMPORANEAMENTE DISABILITATO PER DEBUG
-  /*
+  // ✅ RIATTIVATO handler accettazione chiamata
   const handleAcceptAndNavigate = () => {
     console.log('📞 [ClientLayout] Accetta chiamata:', chiamataCorrente);
     
@@ -174,7 +128,6 @@ export default function ClientLayout({ children }) {
     
     router.push('/');
   };
-  */
 
   const drawer = (
     <Box>
@@ -223,15 +176,15 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* Indicatore Pusher Connection - TEMPORANEAMENTE DISABILITATO */}
-          {mounted && process.env.NODE_ENV === 'development' && (
+          {/* Indicatore Pusher Connection */}
+          {mounted && (
             <Box
               sx={{
                 mr: 2,
                 px: 1,
                 py: 0.5,
                 borderRadius: 1,
-                bgcolor: 'warning.main',
+                bgcolor: connected ? 'success.main' : 'error.main',
                 color: 'white',
                 fontSize: 12,
                 fontWeight: 'bold',
@@ -240,7 +193,7 @@ export default function ClientLayout({ children }) {
                 gap: 0.5
               }}
             >
-              📞 PUSHER DISABLED (DEBUG)
+              📞 {connected ? 'CONNECTED' : 'OFFLINE'}
             </Box>
           )}
 
@@ -293,8 +246,7 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ⚠️ CALL POPUP TEMPORANEAMENTE DISABILITATO PER DEBUG */}
-      {/* 
+      {/* ✅ CALL POPUP RIATTIVATO */}
       {mounted && isPopupOpen && chiamataCorrente && (
         <CallPopup
           isOpen={isPopupOpen}
@@ -303,7 +255,6 @@ export default function ClientLayout({ children }) {
           onAccept={handleAcceptAndNavigate}
         />
       )}
-      */}
     </Box>
   );
 }
