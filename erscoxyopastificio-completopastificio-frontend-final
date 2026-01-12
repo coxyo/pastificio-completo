@@ -1,0 +1,171 @@
+[33mb54a226[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Update whatsapp.js
+[33mb70d415[m Update whatsapp.js
+[33me1c652f[m Update whatsappService.js
+[33mb361042[m Update test.js
+[33m29d8cdc[m Update templateController.js
+[33m6eba1e8[m Update schedulerWhatsApp.js
+[33m6c53c9b[m Change import of whatsappService to namespace import
+[33ma5bf681[m Change whatsappService import to namespace import
+[33m15e5081[m Fix missing newline at end of comunicazioniController.js
+[33md2b63a5[m Change import to use namespace for whatsappService
+[33mf973560[m Change whatsappService import to named import
+[33m5bedcd7[m Convert whatsappService.js to ES Modules syntax
+[33m4869c69[m Simplify MongoDB connection closure on server exit
+[33meffbbf7[m Enhance WhatsApp service with auto-send features
+[33m2a2490c[m Add auto-send feature to WhatsApp messaging service
+[33m5914ed4[m Implement callback for marking orders as ready
+[33m27b110f[m Implement WhatsApp auto-send for order updates
+[33ma175f52[m Remove WhatsApp sending functions from GestoreOrdini
+[33m56fb63f[m Implement WhatsApp auto-send for order readiness
+[33m55be7f9[m Refactor getCategoriaProdotto for special cases
+[33m850b2f7[m Refactor getCategoriaProdotto for better categorization
+[33m0242c2b[m Fix formatting issue in RiepilogoStampabile.js
+[33mb144b42[m Add PASTA category to RiepilogoStampabile
+[33m45eb678[m Add PASTA category to OrdiniList component
+[33mfd30e6f[m Refactor totals calculation for Pasta and Altri
+[33m6d2b82d[m Fix formatting issue in RiepilogoStampabile.js
+[33m5460b37[m Add data attribute to Box component in OrdiniList
+[33m683b5a8[m Refactor totals and enhance UI for order management
+[33m2e719a4[m Add new categories to RiepilogoStampabile
+[33m32bcfb6[m Add new dessert categories and update properties
+[33mf5b75d6[m Add ZEPPOLE category to OrdiniList component
+[33m780c718[m Add new categories to result object in OrdiniList
+[33m513b6db[m Add new product categories to OrdiniList
+[33md90b8c3[m Remove AI predictions and related states
+[33m393d070[m Refactor Dashboard component for improved stats handling
+[33mb77c130[m Pass dataSelezionata to StatisticheWidget component
+[33mb7f8366[m Refactor StatisticheWidget to use selected date
+[33md62aa1b[m Enhance StatisticheWidget with debug logging
+[33m959e2dd[m Enhance date comparison in StatisticheWidget
+[33m386fe3f[m Fix ordiniOggi calculation with fallback date
+[33m45f013e[m Fix JSX syntax in VassoidDolciMisti_FINALE.js
+[33mb69e11a[m Increase font sizes for print layout
+[33m8b16827[m Update RiepilogoStampabile with new Panada Verdure
+[33m0674ab4[m Include order notes in summary functions
+[33m218f518[m Update product categories and add special cases
+[33m351d7e1[m Refactor 'RiepilogoStampabile' for clarity and accuracy
+[33mc24a873[m Fix Panade expansion and ciambelle abbreviations
+[33mebefa1d[m Fix ciambelle abbreviation and panade grouping
+[33m3db02f0[m Fix ciambelle sugar abbreviation and panade logic
+[33mc4b0a73[m Fix Panade filtering and update comments
+[33mdb2accf[m Fix formatting issue in RiepilogoStampabile.js
+[33maf68761[m Refactor order handling in GestoreOrdini.js
+[33maffc7f7[m Enhance Ravioli classification and totals
+[33mcf51338[m Refactor note filtering logic in RiepilogoStampabile
+[33m8a3d076[m Refactor note display and panade filtering logic
+[33mdab480a[m Refactor RiepilogoStampabile for better layout and variants
+[33m2a7096c[m Update RiepilogoStampabile.js
+[33mcea0047[m Update RiepilogoStampabile.js
+[33mf3b1cb5[m Update RiepilogoStampabile.js
+[33ma9ea580[m Update RiepilogoStampabile.js
+[33md81655f[m Update RiepilogoStampabile.js
+[33mece677c[m Update RiepilogoStampabile.js
+[33m7363491[m Update RiepilogoStampabile.js
+[33m252227e[m Update RiepilogoStampabile.js
+[33m754ee40[m Update RiepilogoStampabile.js
+[33m75d23f0[m Update RiepilogoStampabile.js
+[33m4039097[m Update RiepilogoStampabile.js
+[33m489a0f8[m Update RiepilogoStampabile.js
+[33m6a4261b[m Update RiepilogoStampabile.js
+[33mcc727dd[m Update RiepilogoStampabile.js
+[33mc937732[m Update NuovoOrdine.js
+[33mcb78e29[m Update RiepilogoStampabile.js
+[33m31f239c[m Update NuovoOrdine.js
+[33m2bc2305[m Update NuovoOrdine.js
+[33m5a2f2e2[m Update GestoreOrdini.js
+[33m6bb2d8d[m Update OrdiniList.js
+[33m5c4b2eb[m Update GestoreOrdini.js
+[33m1dae121[m Update GestoreOrdini.js
+[33mb1753c0[m Update GestoreOrdini.js
+[33mc730495[m Update OrdiniList.js
+[33m4779f2d[m Update OrdiniList.js
+[33m953e3db[m Update GestoreOrdini.js
+[33m6791e9a[m Update OrdiniList.js
+[33m9d8cd19[m Update RiepilogoStampabile.js
+[33mc552270[m Update RiepilogoStampabile.js
+[33m5333a21[m Update RiepilogoStampabile.js
+[33m32f843d[m Update RiepilogoStampabile.js
+[33m2e2874e[m Update RiepilogoStampabile.js
+[33ma523c05[m Update RiepilogoStampabile.js
+[33m1bf0c8f[m Update RiepilogoStampabile.js
+[33m40d4e40[m Update RiepilogoStampabile.js
+[33md48d11d[m Update RiepilogoStampabile.js
+[33m86ac730[m Update RiepilogoStampabile.js
+[33m5743499[m Update server.js
+[33me998faa[m Update server.js
+[33mbda47fe[m Create danea-config.json
+[33mde101cd[m Create danea.js
+[33m9bb9586[m Create daneaMonitor.js
+[33m900c61c[m Create DaneaMonitor.js
+[33me6b92bc[m Update GestoreOrdini.js
+[33m9324ed3[m Update MovimentiMagazzino.js
+[33m912df3d[m Update useWebSocket.js
+[33m9ebf31e[m Update useMagazzinoNotifications.js
+[33mcda4338[m Update useWebSocket.js
+[33m65c0b48[m Update ClientLayout.js
+[33ma3568a3[m Update VassoidDolciMisti_FINALE.js
+[33m7e986fc[m Update GestoreOrdini.js
+[33m49274f2[m Update OrdiniList.js
+[33m153e26d[m Update VassoidDolciMisti_FINALE.js
+[33m73a95c3[m Update OrdiniList.js
+[33m6361030[m Update GestoreOrdini.js
+[33m73701e8[m Update GestoreOrdini.js
+[33m1b7c0db[m Update OrdiniList.js
+[33m201cb98[m Update VassoidDolciMisti_FINALE.js
+[33m62c49b0[m Update GestoreOrdini.js
+[33med70dbb[m Update OrdiniList.js
+[33m18053f1[m Update VassoidDolciMisti_FINALE.js
+[33mf6f34aa[m Update Ordine.js
+[33ma1bacba[m Update ordini.js
+[33m9e4ae24[m Update OrdiniList.js
+[33m7b5043f[m Update fix-prezzi-routes.js
+[33m21346ba[m Update server.js
+[33ma2e5b58[m Update OrdiniList.js
+[33m89378a4[m Update server.js
+[33md6a1c50[m Create fix-prezzi-routes.js
+[33m3db5572[m Update server.js
+[33m5d17ea7[m Create fix-prezzi.js
+[33mf318da6[m Update calcoliPrezzi.js
+[33m703d9c0[m Update prodottiConfig.js
+[33m9e5dbc6[m Update GestoreOrdini.js
+[33m179ad55[m Update calcoliPrezzi.js
+[33m9072348[m Update prodottiConfig.js
+[33m61f1d2d[m Update CallPopup.js
+[33mf550247[m Update chiamate.js
+[33me0f1e68[m Update StatisticheChiamate.js
+[33ma902e6a[m Update StoricoChiamate.js
+[33mb62332e[m Update chiamate.js
+[33md8d5861[m Update chiamateController.js
+[33m3afd702[m Update CallLogger.js
+[33mfc41327[m Update chiamate.js
+[33ma07c277[m Update chiamateController.js
+[33mc7742d3[m Update OrdiniList.js
+[33m352a1ab[m Update GestoreOrdini.js
+[33m77eda77[m Update GestoreOrdini.js
+[33md727786[m Update useIncomingCall.js
+[33m9c17857[m Update GestoreOrdini.js
+[33m9e967d6[m Update NuovoOrdine.js
+[33mf8b41ea[m Update OrdiniList.js
+[33m476f12f[m Update RiepilogoStampabile.js
+[33mbeb7730[m Update RiepilogoStampabile.js
+[33m734264f[m Update OrdiniList.js
+[33m35b6ae7[m Update RiepilogoStampabile.js
+[33me3de227[m Update RiepilogoStampabile.js
+[33m7263a8f[m Update OrdiniList.js
+[33mb474c07[m Update server.js
+[33mcd81ff7[m Update OrdiniList.js
+[33m519e36c[m Update pusher.js
+[33m121eba5[m Update GestoreOrdini.js
+[33m2d4d27a[m Update pusher.js
+[33mbedebc7[m Update server.js
+[33m611162f[m Update RiepilogoStampabile.js
+[33m2e518c8[m Update GestoreOrdini.js
+[33m3fc483f[m Create pusher.js
+[33m078f94a[m Update chiamateController.js
+[33m005c256[m Update chiamate.js
+[33m359bccf[m Update RiepilogoStampabile.js
+[33ma0f764d[m Update GestoreOrdini.js
+[33m74fadee[m Update chiamateController.js
+[33m8505d54[m Update chiamate.js
+[33mbad6234[m Update CallPopup.js
+[33mc4e5fcc[m Update

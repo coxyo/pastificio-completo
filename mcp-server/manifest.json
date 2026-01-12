@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Pastificio WhatsApp Auto-Send",
+  "version": "1.0.0",
+  "description": "Invia automaticamente messaggi WhatsApp dal Pastificio Nonna Claudia",
+  "permissions": [
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://web.whatsapp.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": "icon.png",
+    "default_title": "Pastificio WhatsApp Auto-Send"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

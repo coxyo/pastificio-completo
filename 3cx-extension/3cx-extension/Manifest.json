@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "3CX Call Detector - Pastificio Nonna Claudia",
+  "version": "3.7.0",
+  "description": "Preferenza numeri +39. Content scripts automatico.",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "notifications",
+    "tabs"
+  ],
+  
+  "host_permissions": [
+    "https://pastificio-completo-production.up.railway.app/*",
+    "*://*.3cx.cloud/*",
+    "*://*.3cx.com/*",
+    "<all_urls>"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [{
+    "matches": [
+      "*://*.3cx.cloud/*",
+      "*://*.3cx.com/*"
+    ],
+    "js": ["content.js"],
+    "run_at": "document_idle",
+    "all_frames": true
+  }],
+  
+  "web_accessible_resources": [{
+    "resources": ["icon*.png"],
+    "matches": ["<all_urls>"]
+  }],
+  
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

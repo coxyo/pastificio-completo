@@ -1,0 +1,29 @@
+# Dipendenze
+node_modules/
+package-lock.json
+yarn.lock
+
+# Variabili ambiente (IMPORTANTE!)
+.env
+.env.local
+.env.production
+
+# Log
+logs/
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup
+*.backup
+*.bak

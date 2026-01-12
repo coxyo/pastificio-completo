@@ -1,0 +1,24 @@
+{
+  "name": "pastificio-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server per Pastificio Nonna Claudia - Accesso diretto al gestionale da Claude",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": [
+    "mcp",
+    "pastificio",
+    "automation",
+    "claude"
+  ],
+  "author": "Maurizio Mameli",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.6.1",
+    "mongoose": "^8.0.0"
+  }
+}
