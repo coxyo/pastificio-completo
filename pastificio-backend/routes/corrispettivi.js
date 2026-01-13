@@ -1,5 +1,5 @@
 // routes/corrispettivi.js
-// ✅ ROUTES COMPLETE PER CORRISPETTIVI
+// ✅ ROUTES COMPLETE PER CORRISPETTIVI CON IMPORT BULK
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import corrispettiviController from '../controllers/corrispettiviController.js';
@@ -51,5 +51,12 @@ router.get('/report/:anno', corrispettiviController.reportAnnuale);
  * @access  Privato
  */
 router.get('/statistiche', corrispettiviController.getStatistiche);
+
+/**
+ * @route   POST /api/corrispettivi/import-bulk
+ * @desc    Import massivo dati storici
+ * @access  Privato
+ */
+router.post('/import-bulk', corrispettiviController.importBulk);
 
 export default router;
