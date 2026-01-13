@@ -231,7 +231,7 @@ export default function GestioneHACCP() {
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                <FridgeIcon sx={{ fontSize: 40, mr: 2, color: 'primary.main' }} />
+                <FridgeIcon />
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary">
                     Frigo Principale
@@ -253,7 +253,7 @@ export default function GestioneHACCP() {
 
             <Grid item xs={12} md={6}>
               <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                <AcUnit sx={{ fontSize: 40, mr: 2, color: 'info.main' }} />
+                <FridgeIcon />
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary">
                     Congelatore Principale
