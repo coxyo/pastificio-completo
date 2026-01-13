@@ -1,37 +1,53 @@
 // controllers/haccpController.js
+// ✅ VERSIONE COMPLETA CON TUTTE LE SCHEDE DEL MANUALE HACCP
+// Pastificio Nonna Claudia di Mameli Maurizio
+
 import RegistrazioneHACCP from '../models/RegistrazioneHACCP.js';
 import logger from '../config/logger.js';
-import emailService from '../services/emailService.js';
 
 /**
- * CONTROLLER HACCP
- * Gestisce tutte le operazioni HACCP
+ * CONTROLLER HACCP COMPLETO
+ * Gestisce tutte le operazioni HACCP secondo il manuale
  */
 
-/**
- * @route   POST /api/haccp/temperatura
- * @desc    Registra temperatura frigorifero/congelatore
- */
+// ============================================
+// LIMITI DAL MANUALE HACCP
+// ============================================
+
+const LIMITI_TEMPERATURA = {
+  temperatura_frigo: { min: 0, max: 4, descrizione: 'Frigorifero' },
+  temperatura_congelatore: { min: -25, max: -18, descrizione: 'Congelatore' },
+  abbattitore: { min: null, max: 10, descrizione: 'Abbattitore (target finale)' },
+  cottura: { min: 75, max: null, descrizione: 'Cottura (al cuore)' }
+};
+
+// ============================================
+// REGISTRAZIONE TEMPERATURA (CCP1, CCP2, CCP5)
+// ============================================
+
 export const registraTemperatura = async (req, res) => {
   try {
     const {
-      dispositivo, // "Frigo 1", "Congelatore principale"
+      dispositivo,
       temperatura,
-      tipo = 'temperatura_frigo'
+      tipo = 'temperatura_frigo',
+      note
     } = req.body;
 
-    // Limiti standard HACCP
-    const limiti = {
-      temperatura_frigo: { min: 0, max: 4 },
-      temperatura_congelatore: { min: -25, max: -18 }
-    };
+    const limite = LIMITI_TEMPERATURA[tipo];
+    let conforme = true;
 
-    const limite = limiti[tipo];
-    const conforme = temperatura >= limite.min && temperatura <= limite.max;
+    // Verifica conformità
+    if (limite.min !== null && temperatura < limite.min) {
+      conforme = false;
+    }
+    if (limite.max !== null && temperatura > limite.max) {
+      conforme = false;
+    }
 
     const registrazione = new RegistrazioneHACCP({
       tipo,
-      operatore: req.user?.nome || 'Sistema Automatico',
+      operatore: req.user?.nome || 'Maurizio Mameli',
       temperatura: {
         valore: temperatura,
         unitaMisura: '°C',
@@ -41,30 +57,30 @@ export const registraTemperatura = async (req, res) => {
         limiteMax: limite.max
       },
       conforme,
-      richiedeAttenzione: !conforme
+      richiedeAttenzione: !conforme,
+      note
     });
 
     await registrazione.save();
 
-    // Se non conforme, invia alert
+    // Log e alert se non conforme
     if (!conforme) {
-      logger.warn(`⚠️ TEMPERATURA NON CONFORME: ${dispositivo} = ${temperatura}°C`);
-      await inviaAlertTemperatura(registrazione);
+      logger.warn(`⚠️ HACCP - TEMPERATURA NON CONFORME: ${dispositivo} = ${temperatura}°C (limite: ${limite.min}°C - ${limite.max}°C)`);
+    } else {
+      logger.info(`✅ HACCP - Temperatura registrata: ${dispositivo} = ${temperatura}°C`);
     }
 
-    logger.info(`✅ Temperatura registrata: ${dispositivo} = ${temperatura}°C`);
-    
     res.status(201).json({
       success: true,
       data: registrazione,
       conforme,
-      messaggio: conforme 
-        ? 'Temperatura nei limiti' 
+      messaggio: conforme
+        ? '✅ Temperatura nei limiti'
         : `⚠️ ATTENZIONE: Temperatura fuori range (${limite.min}°C - ${limite.max}°C)`
     });
 
   } catch (error) {
-    logger.error('❌ Errore registrazione temperatura:', error);
+    logger.error('❌ HACCP - Errore registrazione temperatura:', error);
     res.status(500).json({
       success: false,
       error: 'Errore registrazione temperatura',
@@ -73,44 +89,47 @@ export const registraTemperatura = async (req, res) => {
   }
 };
 
-/**
- * @route   POST /api/haccp/controllo-igienico
- * @desc    Registra controllo igienico
- */
+// ============================================
+// CONTROLLO IGIENICO / PULIZIA
+// ============================================
+
 export const registraControlloIgienico = async (req, res) => {
   try {
-    const { area, elementi, azioneCorrettiva } = req.body;
+    const { area, elementi, operatore, note } = req.body;
 
-    const tuttiConformi = elementi.every(el => el.conforme);
+    const tuttiConformi = elementi.every(el => el.conforme !== false);
 
     const registrazione = new RegistrazioneHACCP({
       tipo: 'controllo_igienico',
-      operatore: req.user?.nome || 'Maurizio Mameli',
+      operatore: operatore || req.user?.nome || 'Maurizio Mameli',
       controlloIgienico: {
         area,
         elementi,
-        azioneCorrettiva: tuttiConformi ? null : azioneCorrettiva
+        azioneCorrettiva: tuttiConformi ? null : 'Richiesta pulizia aggiuntiva'
       },
       conforme: tuttiConformi,
-      richiedeAttenzione: !tuttiConformi
+      richiedeAttenzione: !tuttiConformi,
+      note
     });
 
     await registrazione.save();
 
     if (!tuttiConformi) {
-      logger.warn(`⚠️ CONTROLLO IGIENICO NON CONFORME: ${area}`);
+      logger.warn(`⚠️ HACCP - Controllo igienico NON CONFORME: ${area}`);
+    } else {
+      logger.info(`✅ HACCP - Controllo igienico registrato: ${area} (${elementi.length} aree)`);
     }
 
     res.status(201).json({
       success: true,
       data: registrazione,
-      messaggio: tuttiConformi 
-        ? 'Controllo igienico conforme' 
-        : 'Registrate non conformità, richieste azioni correttive'
+      messaggio: tuttiConformi
+        ? '✅ Controllo igienico conforme'
+        : '⚠️ Registrate non conformità, richieste azioni correttive'
     });
 
   } catch (error) {
-    logger.error('❌ Errore registrazione controllo igienico:', error);
+    logger.error('❌ HACCP - Errore registrazione controllo igienico:', error);
     res.status(500).json({
       success: false,
       error: 'Errore registrazione controllo igienico'
@@ -118,10 +137,143 @@ export const registraControlloIgienico = async (req, res) => {
   }
 };
 
-/**
- * @route   POST /api/haccp/scadenza-prodotto
- * @desc    Registra controllo scadenze
- */
+// ============================================
+// ABBATTIMENTO TEMPERATURA (CCP4)
+// ============================================
+
+export const registraAbbattimento = async (req, res) => {
+  try {
+    const {
+      prodotto,
+      lotto,
+      oraInizio,
+      oraFine,
+      temperaturaIniziale,
+      temperaturaFinale,
+      note
+    } = req.body;
+
+    // Calcola durata abbattimento
+    let durataMinuti = null;
+    if (oraInizio && oraFine) {
+      const [hI, mI] = oraInizio.split(':').map(Number);
+      const [hF, mF] = oraFine.split(':').map(Number);
+      durataMinuti = (hF * 60 + mF) - (hI * 60 + mI);
+    }
+
+    // CCP4: Da 60°C a 10°C in max 2 ore (120 minuti)
+    const conforme = temperaturaFinale <= 10 && (durataMinuti === null || durataMinuti <= 120);
+
+    const registrazione = new RegistrazioneHACCP({
+      tipo: 'abbattimento',
+      operatore: req.user?.nome || 'Maurizio Mameli',
+      abbattimento: {
+        prodotto,
+        lotto,
+        oraInizio,
+        oraFine,
+        temperaturaIniziale,
+        temperaturaFinale,
+        durataMinuti
+      },
+      conforme,
+      richiedeAttenzione: !conforme,
+      note
+    });
+
+    await registrazione.save();
+
+    if (!conforme) {
+      logger.warn(`⚠️ HACCP CCP4 - Abbattimento NON CONFORME: ${prodotto} - Temp finale: ${temperaturaFinale}°C, Durata: ${durataMinuti} min`);
+    } else {
+      logger.info(`✅ HACCP - Abbattimento registrato: ${prodotto} - ${temperaturaFinale}°C in ${durataMinuti} min`);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: registrazione,
+      conforme,
+      messaggio: conforme
+        ? '✅ Abbattimento conforme (≤10°C entro 2h)'
+        : '⚠️ ATTENZIONE: Abbattimento fuori parametri CCP4'
+    });
+
+  } catch (error) {
+    logger.error('❌ HACCP - Errore registrazione abbattimento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore registrazione abbattimento'
+    });
+  }
+};
+
+// ============================================
+// CONTROLLO MATERIE PRIME (CCP1)
+// ============================================
+
+export const registraMateriePrime = async (req, res) => {
+  try {
+    const {
+      fornitore,
+      prodotto,
+      lotto,
+      dataScadenza,
+      temperatura,
+      conforme,
+      note
+    } = req.body;
+
+    // CCP1: Temperatura materie prime deperibili ≤ 4°C
+    const temperaturaConforme = temperatura === undefined || temperatura === null || temperatura <= 4;
+    const conformeFinale = conforme && temperaturaConforme;
+
+    const registrazione = new RegistrazioneHACCP({
+      tipo: 'materie_prime',
+      operatore: req.user?.nome || 'Maurizio Mameli',
+      materiePrime: {
+        fornitore,
+        prodotto,
+        lotto,
+        dataScadenza: dataScadenza ? new Date(dataScadenza) : null,
+        temperatura,
+        integritaConfezioni: conforme,
+        azione: conformeFinale ? 'accettato' : 'rifiutato'
+      },
+      conforme: conformeFinale,
+      richiedeAttenzione: !conformeFinale,
+      note
+    });
+
+    await registrazione.save();
+
+    if (!conformeFinale) {
+      logger.warn(`⚠️ HACCP CCP1 - Materie prime RIFIUTATE: ${prodotto} da ${fornitore} - Temp: ${temperatura}°C`);
+    } else {
+      logger.info(`✅ HACCP - Materie prime accettate: ${prodotto} da ${fornitore}`);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: registrazione,
+      conforme: conformeFinale,
+      messaggio: conformeFinale
+        ? '✅ Materie prime accettate'
+        : '❌ Materie prime RIFIUTATE - Non conformi'
+    });
+
+  } catch (error) {
+    logger.error('❌ HACCP - Errore registrazione materie prime:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore registrazione materie prime'
+    });
+  }
+};
+
+// ============================================
+// CONTROLLO SCADENZE PRODOTTI
+// ============================================
+
 export const registraScadenzaProdotto = async (req, res) => {
   try {
     const { nomeProdotto, lotto, dataScadenza, quantita, unitaMisura } = req.body;
@@ -138,12 +290,12 @@ export const registraScadenzaProdotto = async (req, res) => {
       conforme = false;
     } else if (giorniMancanti <= 7) {
       azione = 'prossimo_scadenza';
-      conforme = true; // Tecnicamente conforme ma va monitorato
+      conforme = true;
     }
 
     const registrazione = new RegistrazioneHACCP({
       tipo: 'scadenza_prodotto',
-      operatore: req.user?.nome || 'Sistema Automatico',
+      operatore: req.user?.nome || 'Maurizio Mameli',
       scadenzaProdotto: {
         nomeProdotto,
         lotto,
@@ -160,15 +312,14 @@ export const registraScadenzaProdotto = async (req, res) => {
     await registrazione.save();
 
     if (azione === 'scaduto') {
-      logger.warn(`⚠️ PRODOTTO SCADUTO: ${nomeProdotto} (Lotto: ${lotto})`);
-      await inviaAlertScadenza(registrazione);
+      logger.warn(`⚠️ HACCP - PRODOTTO SCADUTO: ${nomeProdotto} (Lotto: ${lotto})`);
     }
 
     res.status(201).json({
       success: true,
       data: registrazione,
       giorniMancanti,
-      messaggio: azione === 'scaduto' 
+      messaggio: azione === 'scaduto'
         ? '❌ PRODOTTO SCADUTO - Procedere con smaltimento'
         : azione === 'prossimo_scadenza'
         ? `⚠️ In scadenza tra ${giorniMancanti} giorni`
@@ -176,7 +327,7 @@ export const registraScadenzaProdotto = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('❌ Errore registrazione scadenza:', error);
+    logger.error('❌ HACCP - Errore registrazione scadenza:', error);
     res.status(500).json({
       success: false,
       error: 'Errore registrazione scadenza'
@@ -184,120 +335,57 @@ export const registraScadenzaProdotto = async (req, res) => {
   }
 };
 
-/**
- * @route   GET /api/haccp/temperature/:dispositivo
- * @desc    Ottieni storico temperature dispositivo
- */
-export const getStoricoTemperature = async (req, res) => {
+// ============================================
+// REGISTRA NON CONFORMITÀ
+// ============================================
+
+export const registraNonConformita = async (req, res) => {
   try {
-    const { dispositivo } = req.params;
-    const { limit = 30 } = req.query;
+    const {
+      tipo,
+      descrizione,
+      azioneCorrettiva,
+      responsabile
+    } = req.body;
 
-    const registrazioni = await RegistrazioneHACCP.getUltimeTemperature(
-      dispositivo,
-      parseInt(limit)
-    );
-
-    // Calcola statistiche
-    const temperature = registrazioni
-      .map(r => r.temperatura.valore)
-      .filter(t => t !== undefined);
-
-    const stats = {
-      media: temperature.reduce((a, b) => a + b, 0) / temperature.length,
-      min: Math.min(...temperature),
-      max: Math.max(...temperature),
-      conformi: registrazioni.filter(r => r.conforme).length,
-      nonConformi: registrazioni.filter(r => !r.conforme).length
-    };
-
-    res.json({
-      success: true,
-      dispositivo,
-      totaleRegistrazioni: registrazioni.length,
-      statistiche: stats,
-      registrazioni
-    });
-
-  } catch (error) {
-    logger.error('❌ Errore recupero storico temperature:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore recupero storico'
-    });
-  }
-};
-
-/**
- * @route   GET /api/haccp/dashboard
- * @desc    Dashboard HACCP con tutte le statistiche
- */
-export const getDashboardHACCP = async (req, res) => {
-  try {
-    const oggi = new Date();
-    const setteGiorniFa = new Date(oggi);
-    setteGiorniFa.setDate(setteGiorniFa.getDate() - 7);
-
-    // Registrazioni ultimi 7 giorni
-    const registrazioniRecenti = await RegistrazioneHACCP.find({
-      dataOra: { $gte: setteGiorniFa }
-    }).sort({ dataOra: -1 });
-
-    // Non conformità
-    const nonConformita = await RegistrazioneHACCP.getNonConformi(7);
-
-    // Registrazioni che richiedono attenzione
-    const richiedonoAttenzione = await RegistrazioneHACCP.find({
+    const registrazione = new RegistrazioneHACCP({
+      tipo: 'non_conformita',
+      operatore: responsabile || req.user?.nome || 'Maurizio Mameli',
+      nonConformita: {
+        tipoNC: tipo,
+        descrizione,
+        azioneCorrettiva,
+        dataRilevazione: new Date(),
+        risolto: false
+      },
+      conforme: false,
       richiedeAttenzione: true,
-      dataOra: { $gte: setteGiorniFa }
-    }).sort({ dataOra: -1 });
+      note: descrizione
+    });
 
-    // Statistiche mensili
-    const statsMensili = await RegistrazioneHACCP.getStatisticheMensili(
-      oggi.getFullYear(),
-      oggi.getMonth() + 1
-    );
+    await registrazione.save();
 
-    // Ultime temperature frigoriferi
-    const frigoPrincipale = await RegistrazioneHACCP.getUltimeTemperature('Frigo 1', 1);
-    const congelatorePrincipale = await RegistrazioneHACCP.getUltimeTemperature('Congelatore principale', 1);
+    logger.warn(`⚠️ HACCP - NON CONFORMITÀ REGISTRATA: ${tipo} - ${descrizione}`);
 
-    res.json({
+    res.status(201).json({
       success: true,
-      dashboard: {
-        periodo: {
-          da: setteGiorniFa,
-          a: oggi
-        },
-        riepilogo: {
-          totaleRegistrazioni: registrazioniRecenti.length,
-          conformi: registrazioniRecenti.filter(r => r.conforme).length,
-          nonConformi: nonConformita.length,
-          richiedonoAttenzione: richiedonoAttenzione.length
-        },
-        temperatureAttuali: {
-          frigo: frigoPrincipale[0]?.temperatura || null,
-          congelatore: congelatorePrincipale[0]?.temperatura || null
-        },
-        statisticheMensili: statsMensili,
-        nonConformita: nonConformita.slice(0, 10),
-        richiedonoAttenzione: richiedonoAttenzione.slice(0, 10)
-      }
+      data: registrazione,
+      messaggio: '⚠️ Non conformità registrata - Azione correttiva richiesta'
     });
 
   } catch (error) {
-    logger.error('❌ Errore dashboard HACCP:', error);
+    logger.error('❌ HACCP - Errore registrazione non conformità:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore caricamento dashboard'
+      error: 'Errore registrazione non conformità'
     });
   }
 };
 
-/**
- * @route   POST /api/haccp/sanificazione
- * @desc    Registra sanificazione
- */
+// ============================================
+// SANIFICAZIONE
+// ============================================
+
 export const registraSanificazione = async (req, res) => {
   try {
     const { area, prodottoUsato, concentrazione, durata, verificaEfficacia } = req.body;
@@ -317,14 +405,16 @@ export const registraSanificazione = async (req, res) => {
 
     await registrazione.save();
 
+    logger.info(`✅ HACCP - Sanificazione registrata: ${area}`);
+
     res.status(201).json({
       success: true,
       data: registrazione,
-      messaggio: 'Sanificazione registrata correttamente'
+      messaggio: '✅ Sanificazione registrata correttamente'
     });
 
   } catch (error) {
-    logger.error('❌ Errore registrazione sanificazione:', error);
+    logger.error('❌ HACCP - Errore registrazione sanificazione:', error);
     res.status(500).json({
       success: false,
       error: 'Errore registrazione sanificazione'
@@ -332,55 +422,182 @@ export const registraSanificazione = async (req, res) => {
   }
 };
 
-/**
- * UTILITY: Invia alert temperatura
- */
-async function inviaAlertTemperatura(registrazione) {
+// ============================================
+// DASHBOARD HACCP
+// ============================================
+
+export const getDashboardHACCP = async (req, res) => {
   try {
-    const messaggio = `⚠️ ALERT HACCP - Temperatura Fuori Range
+    const oggi = new Date();
+    const setteGiorniFa = new Date(oggi);
+    setteGiorniFa.setDate(setteGiorniFa.getDate() - 7);
 
-Dispositivo: ${registrazione.temperatura.dispositivo}
-Temperatura: ${registrazione.temperatura.valore}°C
-Limiti: ${registrazione.temperatura.limiteMin}°C - ${registrazione.temperatura.limiteMax}°C
-Data/Ora: ${registrazione.dataOra.toLocaleString('it-IT')}
+    const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1);
 
-⚠️ AZIONE RICHIESTA: Verificare il dispositivo immediatamente!`;
+    // Registrazioni ultimi 7 giorni
+    const registrazioniRecenti = await RegistrazioneHACCP.find({
+      dataOra: { $gte: setteGiorniFa }
+    }).sort({ dataOra: -1 });
 
-    // TODO: Inviare via WhatsApp, Email, Push Notification
-    logger.warn(messaggio);
+    // Non conformità
+    const nonConformita = await RegistrazioneHACCP.find({
+      conforme: false,
+      dataOra: { $gte: setteGiorniFa }
+    }).sort({ dataOra: -1 });
+
+    // Richiedono attenzione
+    const richiedonoAttenzione = await RegistrazioneHACCP.find({
+      richiedeAttenzione: true,
+      dataOra: { $gte: setteGiorniFa }
+    }).sort({ dataOra: -1 });
+
+    // Statistiche mensili
+    const registrazioniMese = await RegistrazioneHACCP.find({
+      dataOra: { $gte: inizioMese }
+    });
+
+    const statsMensili = {
+      totale: registrazioniMese.length,
+      conformi: registrazioniMese.filter(r => r.conforme).length,
+      nonConformi: registrazioniMese.filter(r => !r.conforme).length
+    };
+
+    // Ultime temperature per dispositivo
+    const temperatureAttuali = {};
+    const dispositivi = ['Frigorifero 1 (Principale)', 'Frigorifero 2', 'Frigorifero 3', 'Congelatore Principale'];
+    
+    for (const disp of dispositivi) {
+      const ultimaTemp = await RegistrazioneHACCP.findOne({
+        tipo: { $in: ['temperatura_frigo', 'temperatura_congelatore'] },
+        'temperatura.dispositivo': disp
+      }).sort({ dataOra: -1 });
+
+      if (ultimaTemp) {
+        const id = disp.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10);
+        temperatureAttuali[id] = ultimaTemp.temperatura;
+      }
+    }
+
+    res.json({
+      success: true,
+      dashboard: {
+        periodo: {
+          da: setteGiorniFa,
+          a: oggi
+        },
+        riepilogo: {
+          totaleRegistrazioni: registrazioniRecenti.length,
+          conformi: registrazioniRecenti.filter(r => r.conforme).length,
+          nonConformi: nonConformita.length,
+          richiedonoAttenzione: richiedonoAttenzione.length
+        },
+        temperatureAttuali,
+        statisticheMensili: statsMensili,
+        nonConformita: nonConformita.slice(0, 10),
+        richiedonoAttenzione: richiedonoAttenzione.slice(0, 10)
+      }
+    });
 
   } catch (error) {
-    logger.error('❌ Errore invio alert temperatura:', error);
+    logger.error('❌ HACCP - Errore dashboard:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore caricamento dashboard'
+    });
   }
-}
+};
 
-/**
- * UTILITY: Invia alert scadenza
- */
-async function inviaAlertScadenza(registrazione) {
+// ============================================
+// GET REGISTRAZIONI
+// ============================================
+
+export const getRegistrazioni = async (req, res) => {
   try {
-    const messaggio = `⚠️ ALERT HACCP - Prodotto Scaduto
+    const { limit = 50, tipo } = req.query;
+    
+    const query = {};
+    if (tipo) {
+      query.tipo = tipo;
+    }
 
-Prodotto: ${registrazione.scadenzaProdotto.nomeProdotto}
-Lotto: ${registrazione.scadenzaProdotto.lotto}
-Scadenza: ${registrazione.scadenzaProdotto.dataScadenza.toLocaleDateString('it-IT')}
-Quantità: ${registrazione.scadenzaProdotto.quantita} ${registrazione.scadenzaProdotto.unitaMisura}
+    const registrazioni = await RegistrazioneHACCP.find(query)
+      .sort({ dataOra: -1 })
+      .limit(parseInt(limit));
 
-❌ AZIONE RICHIESTA: Smaltire immediatamente il prodotto!`;
-
-    // TODO: Inviare via WhatsApp, Email
-    logger.warn(messaggio);
+    res.json({
+      success: true,
+      registrazioni,
+      totale: registrazioni.length
+    });
 
   } catch (error) {
-    logger.error('❌ Errore invio alert scadenza:', error);
+    logger.error('❌ HACCP - Errore recupero registrazioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore recupero registrazioni'
+    });
   }
-}
+};
+
+// ============================================
+// GET STORICO TEMPERATURE
+// ============================================
+
+export const getStoricoTemperature = async (req, res) => {
+  try {
+    const { dispositivo } = req.params;
+    const { limit = 30 } = req.query;
+
+    const registrazioni = await RegistrazioneHACCP.find({
+      tipo: { $in: ['temperatura_frigo', 'temperatura_congelatore'] },
+      'temperatura.dispositivo': { $regex: dispositivo, $options: 'i' }
+    })
+    .sort({ dataOra: -1 })
+    .limit(parseInt(limit));
+
+    // Calcola statistiche
+    const temperature = registrazioni
+      .map(r => r.temperatura?.valore)
+      .filter(t => t !== undefined);
+
+    const stats = temperature.length > 0 ? {
+      media: (temperature.reduce((a, b) => a + b, 0) / temperature.length).toFixed(1),
+      min: Math.min(...temperature),
+      max: Math.max(...temperature),
+      conformi: registrazioni.filter(r => r.conforme).length,
+      nonConformi: registrazioni.filter(r => !r.conforme).length
+    } : null;
+
+    res.json({
+      success: true,
+      dispositivo,
+      totaleRegistrazioni: registrazioni.length,
+      statistiche: stats,
+      registrazioni
+    });
+
+  } catch (error) {
+    logger.error('❌ HACCP - Errore recupero storico temperature:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore recupero storico'
+    });
+  }
+};
+
+// ============================================
+// EXPORT
+// ============================================
 
 export default {
   registraTemperatura,
   registraControlloIgienico,
+  registraAbbattimento,
+  registraMateriePrime,
   registraScadenzaProdotto,
-  getStoricoTemperature,
+  registraNonConformita,
+  registraSanificazione,
   getDashboardHACCP,
-  registraSanificazione
+  getRegistrazioni,
+  getStoricoTemperature
 };

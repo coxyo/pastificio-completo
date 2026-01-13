@@ -1,6 +1,6 @@
-// content.js - 3CX Call Detector v3.6.2
-// Data: 12/01/2026 ore 08:15
-// Fallback REGEX universale per estrazione numero
+// content.js - 3CX Call Detector v3.6.7
+// Data: 13/01/2026 ore 10:45
+// FIX: Blocco webhook multipli durante stessa sessione chiamata
 
 (function() {
     'use strict';
@@ -10,7 +10,7 @@
         COOLDOWN_MS: 90000,
         MAX_HISTORY: 50,
         DEBUG: true,
-        VERSION: '3.6.6'  // Fix chiamate fantasma
+        VERSION: '3.6.7'  // Fix invii multipli
     };
 
     const STATE = {
@@ -19,7 +19,9 @@
         lastWebhookTime: 0,
         callsProcessed: new Set(),
         isInitialized: false,
-        lastCallState: false
+        lastCallState: false,
+        webhookSentThisSession: false,  // ✅ NUOVO: Blocca invii multipli per sessione
+        currentCallId: null              // ✅ NUOVO: ID sessione chiamata
     };
 
     function log(message, data = null) {
@@ -35,53 +37,41 @@
     }
 
     log('AVVIATO - Fix chiamate fantasma');
+    log('Init v3.6.7 - Fix invii multipli');
+    log('Cooldown: ' + (CONFIG.COOLDOWN_MS/1000) + 's');
 
+    // ✅ NUOVO: Verifica SOLO .callNumber con numero
     function isCallActive() {
-        // FASE 1: Verifica indicatori forti
+        // FASE 1: Verifica .callNumber SOLO se contiene numero valido
+        const callNumbers = document.querySelectorAll('.callNumber');
+        for (const el of callNumbers) {
+            const text = el.textContent.trim();
+            // DEVE contenere almeno 10 digit consecutivi
+            if (/\d{10,}/.test(text) || /\+\d{9,}/.test(text)) {
+                log('CHIAMATA ATTIVA rilevata da: .callNumber con numero');
+                return true;
+            }
+        }
+
+        // FASE 2: Verifica indicatori forti con numero
         const strongIndicators = [
             '.call-popup:not([style*="display: none"])',
-            '.incoming-call-dialog:not([style*="display: none"])',
-            '[role="dialog"][class*="call"]',
             '[data-call-state="ringing"]',
             '[data-call-state="incoming"]',
-            'button[class*="answer"]',
-            'button[class*="accept"]'
+            'button[class*="answer"]'
         ];
         
         for (const selector of strongIndicators) {
             const el = document.querySelector(selector);
             if (el) {
                 const style = window.getComputedStyle(el);
-                if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
-                    log('CHIAMATA ATTIVA rilevata da:', selector);
-                    return true;
-                }
-            }
-        }
-        
-        // FASE 2: Verifica .callNumber SOLO se contiene numero valido
-        const callNumbers = document.querySelectorAll('.callNumber');
-        for (const el of callNumbers) {
-            const style = window.getComputedStyle(el);
-            if (style.display !== 'none' && style.visibility !== 'hidden') {
-                const text = el.textContent.trim();
-                // DEVE contenere almeno 10 digit consecutivi
-                if (/\d{10,}/.test(text)) {
-                    log('CHIAMATA ATTIVA rilevata da: .callNumber con numero');
-                    return true;
-                }
-            }
-        }
-        
-        // FASE 3: Verifica classi ringing
-        const ringingElements = document.querySelectorAll('[class*="ringing"]');
-        for (const el of ringingElements) {
-            const style = window.getComputedStyle(el);
-            if (style.display !== 'none' && style.visibility !== 'hidden') {
-                // Verifica se c'è anche un numero visibile
-                if (el.textContent.match(/\+?\d{10,}/)) {
-                    log('CHIAMATA ATTIVA rilevata da: ringing con numero');
-                    return true;
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                    // Verifica che ci sia un numero nel contesto
+                    const parent = el.closest('.call-popup, .incoming-call, [class*="call"]');
+                    if (parent && /\d{10,}/.test(parent.textContent)) {
+                        log('CHIAMATA ATTIVA rilevata da:', selector);
+                        return true;
+                    }
                 }
             }
         }
@@ -95,11 +85,7 @@
             '[data-qa="call-status"]',
             'caller-info .callNumber',
             'call-view .callNumber',
-            'active-call [data-qa="call-status"]',
-            'app-call-control .callNumber',
-            '.call-popup .caller-number',
-            '.incoming-call .call-number',
-            '[role="dialog"] [data-number]'
+            'app-call-control .callNumber'
         ]
     };
 
@@ -122,14 +108,6 @@
                         continue;
                     }
                     
-                    if (el.dataset && el.dataset.number) {
-                        const numero = cleanNumber(el.dataset.number);
-                        if (isValidNumber(numero)) {
-                            log('NUMERO (dataset):', numero);
-                            return numero;
-                        }
-                    }
-                    
                     if (el.textContent) {
                         const numero = cleanNumber(el.textContent);
                         if (isValidNumber(numero)) {
@@ -140,37 +118,32 @@
                 }
             }
 
-            // FASE 2: FALLBACK REGEX
+            // FASE 2: FALLBACK REGEX con preferenza +39
             log('Fallback: Ricerca universale...');
             
-            // Pattern aggressivo: cattura QUALSIASI sequenza 10-15 digit
             const phonePattern = /(\+?\d{10,15})/g;
             const allElements = document.querySelectorAll('*');
-            
-            let attempts = 0;
-            let candidates = []; // Salva tutti i candidati
+            let candidates = [];
             
             for (const el of allElements) {
-                attempts++;
-                
                 const style = window.getComputedStyle(el);
                 if (style.display === 'none' || style.visibility === 'hidden') {
                     continue;
                 }
                 
-                const text = el.textContent.trim();
+                if (el.children.length > 0) continue;
                 
-                // Cerca pattern telefono
+                const text = el.textContent.trim();
                 if (text.length > 0) {
                     const matches = text.match(phonePattern);
-                    if (matches && matches.length > 0) {
+                    if (matches) {
                         for (const match of matches) {
                             const numero = cleanNumber(match);
                             if (isValidNumber(numero)) {
                                 candidates.push({
                                     numero: numero,
-                                    element: el,
-                                    text: text.substring(0, 50)
+                                    element: el.tagName,
+                                    hasPlus39: numero.startsWith('+39')
                                 });
                             }
                         }
@@ -178,25 +151,22 @@
                 }
             }
             
-            // Preferisci numeri con +39
-            const italian = candidates.find(c => c.numero.startsWith('+39'));
+            // Preferisci numeri italiani +39
+            const italian = candidates.find(c => c.hasPlus39);
             if (italian) {
                 log('NUMERO (REGEX +39):', italian.numero);
-                log('Elemento:', italian.element.tagName);
                 log('Candidati totali:', candidates.length);
                 return italian.numero;
             }
             
-            // Altrimenti prendi il primo valido
+            // Fallback su primo valido
             if (candidates.length > 0) {
                 log('NUMERO (REGEX fallback):', candidates[0].numero);
                 log('WARNING: Numero senza +39!');
-                log('Candidati totali:', candidates.length);
                 return candidates[0].numero;
             }
-            
-            log('REGEX fallito dopo', attempts, 'tentativi');
 
+            log('REGEX fallito - nessun numero trovato');
             return null;
 
         } catch (error) {
@@ -215,28 +185,33 @@
     }
 
     function isValidNumber(numero) {
-        if (!numero || numero.length < 8) return false;
+        if (!numero || numero.length < 10) return false;
         
-        // SOLO numeri italiani con +39
+        // Numeri italiani con +39
         if (numero.startsWith('+39')) {
-            // +39 seguito da 9-10 digit
-            const pattern = /^\+39\d{9,10}$/;
-            return pattern.test(numero);
+            return /^\+39\d{9,10}$/.test(numero);
         }
         
-        // Accetta anche numeri senza +39 ma con 10+ digit
-        if (numero.length >= 10) {
-            const pattern = /^\d{10,15}$/;
-            return pattern.test(numero);
+        // Numeri con prefisso internazionale
+        if (numero.startsWith('+')) {
+            return /^\+\d{10,14}$/.test(numero);
         }
         
-        return false;
+        // Numeri senza prefisso (10+ cifre)
+        return /^\d{10,15}$/.test(numero);
     }
 
     async function sendWebhook(numero) {
         try {
             const now = Date.now();
             
+            // ✅ NUOVO: Blocca se già inviato in questa sessione
+            if (STATE.webhookSentThisSession) {
+                log('SKIP - Webhook già inviato in questa sessione');
+                return;
+            }
+            
+            // Cooldown per stesso numero
             if (STATE.lastNumber === numero) {
                 const timeSince = now - STATE.lastWebhookTime;
                 if (timeSince < CONFIG.COOLDOWN_MS) {
@@ -245,15 +220,18 @@
                 }
             }
             
+            // ✅ IMPORTANTE: Aggiorna STATE PRIMA di inviare
             STATE.lastNumber = numero;
             STATE.lastWebhookTime = now;
+            STATE.webhookSentThisSession = true;  // ✅ Blocca invii successivi
+            STATE.currentCallId = 'CALL-' + now + '-' + Math.random().toString(36).substr(2, 9);
 
             log('INVIO webhook per:', numero);
 
             const payload = {
                 numero: numero,
                 timestamp: new Date().toISOString(),
-                callId: 'CALL-' + now + '-' + Math.random().toString(36).substr(2, 9)
+                callId: STATE.currentCallId
             };
 
             chrome.runtime.sendMessage(
@@ -261,6 +239,8 @@
                 function(response) {
                     if (chrome.runtime.lastError) {
                         log('ERROR:', chrome.runtime.lastError.message);
+                        // Reset flag per permettere retry
+                        STATE.webhookSentThisSession = false;
                         return;
                     }
 
@@ -274,12 +254,15 @@
                         });
                     } else {
                         log('ERROR webhook:', response ? response.error : 'unknown');
+                        // Reset flag per permettere retry
+                        STATE.webhookSentThisSession = false;
                     }
                 }
             );
 
         } catch (error) {
             log('ERROR sendWebhook:', error);
+            STATE.webhookSentThisSession = false;
         }
     }
 
@@ -287,9 +270,11 @@
         try {
             const callActive = isCallActive();
             
+            // CHIAMATA INIZIATA
             if (callActive && !STATE.lastCallState) {
                 log('=== CHIAMATA INIZIATA ===');
                 STATE.lastCallState = true;
+                STATE.webhookSentThisSession = false;  // ✅ Reset per nuova chiamata
                 
                 const numero = extractCallerNumber();
                 if (numero) {
@@ -298,11 +283,17 @@
                 } else {
                     log('WARNING: Chiamata attiva ma numero non trovato');
                 }
-                
-            } else if (!callActive && STATE.lastCallState) {
+            }
+            // CHIAMATA IN CORSO - Non inviare altri webhook
+            else if (callActive && STATE.lastCallState) {
+                // Non fare nulla, webhook già inviato
+            }
+            // CHIAMATA TERMINATA
+            else if (!callActive && STATE.lastCallState) {
                 log('=== CHIAMATA TERMINATA ===');
                 STATE.lastCallState = false;
-                STATE.lastNumber = null;
+                STATE.webhookSentThisSession = false;  // ✅ Reset per prossima chiamata
+                STATE.currentCallId = null;
             }
 
         } catch (error) {
@@ -315,6 +306,11 @@
             let timeoutId = null;
             
             const observer = new MutationObserver(function(mutations) {
+                // ✅ IMPORTANTE: Non triggerare se già in chiamata e webhook inviato
+                if (STATE.lastCallState && STATE.webhookSentThisSession) {
+                    return;
+                }
+                
                 clearTimeout(timeoutId);
                 timeoutId = setTimeout(checkNewCalls, 500);
             });
@@ -345,6 +341,7 @@
         if (message.type === 'test-call') {
             const testNum = message.number || '+393271234567';
             log('TEST manuale:', testNum);
+            STATE.webhookSentThisSession = false;  // Reset per test
             sendWebhook(testNum);
             sendResponse({ success: true });
             return true;
@@ -354,6 +351,8 @@
             STATE.lastWebhookTime = 0;
             STATE.lastNumber = null;
             STATE.lastCallState = false;
+            STATE.webhookSentThisSession = false;
+            STATE.currentCallId = null;
             log('RESET completo');
             sendResponse({ success: true });
         }
@@ -362,10 +361,6 @@
     });
 
     function init() {
-        log('Init v3.6.6 - Fix chiamate fantasma');
-        log('Check ogni ' + (CONFIG.CHECK_INTERVAL/1000) + 's');
-        log('Cooldown: ' + (CONFIG.COOLDOWN_MS/1000) + 's');
-
         chrome.storage.local.get(['lastNumber', 'lastWebhookTime'], function(result) {
             if (result.lastNumber) STATE.lastNumber = result.lastNumber;
             if (result.lastWebhookTime) STATE.lastWebhookTime = result.lastWebhookTime;
@@ -386,6 +381,7 @@
     window._3cxDetector = {
         version: CONFIG.VERSION,
         test: function(n) { 
+            STATE.webhookSentThisSession = false;
             sendWebhook(n || '+393271234567'); 
         },
         extract: extractCallerNumber,
@@ -394,38 +390,22 @@
             STATE.lastNumber = null; 
             STATE.lastWebhookTime = 0;
             STATE.lastCallState = false;
-            log('Reset completo OK');
+            STATE.webhookSentThisSession = false;
+            STATE.currentCallId = null;
+            log('🔄 Reset completo OK');
         },
         state: function() {
             return {
                 lastNumber: STATE.lastNumber,
                 callActive: isCallActive(),
                 lastCallState: STATE.lastCallState,
+                webhookSentThisSession: STATE.webhookSentThisSession,
+                currentCallId: STATE.currentCallId,
                 cooldownRemaining: Math.max(0, CONFIG.COOLDOWN_MS - (Date.now() - STATE.lastWebhookTime))
             };
-        },
-        debug: function() {
-            log('=== DEBUG INFO ===');
-            log('isCallActive:', isCallActive());
-            log('lastCallState:', STATE.lastCallState);
-            log('lastNumber:', STATE.lastNumber);
-            log('Cooldown remaining:', Math.round((CONFIG.COOLDOWN_MS - (Date.now() - STATE.lastWebhookTime))/1000) + 's');
-            
-            log('Selettori testati:');
-            SELECTORS.callerNumber.forEach(sel => {
-                const found = document.querySelectorAll(sel);
-                if (found.length > 0) {
-                    log(' OK', sel, ':', found.length, 'elementi');
-                    found.forEach(el => {
-                        if (el.textContent.match(/\d{8,}/)) {
-                            log('    -> Contiene numero:', el.textContent.trim());
-                        }
-                    });
-                }
-            });
         }
     };
 
-    log('Helper: window._3cxDetector pronto');
+    log('✅ Helper: window._3cxDetector pronto');
 
 })();

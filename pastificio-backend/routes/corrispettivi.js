@@ -1,75 +1,55 @@
 // routes/corrispettivi.js
+// ✅ ROUTES COMPLETE PER CORRISPETTIVI
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import corrispettiviController from '../controllers/corrispettiviController.js';
-import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// PASSWORD DEDICATA CORRISPETTIVI
-const PASSWORD_CORRISPETTIVI = 'corrispettivi2025';
-
-/**
- * Middleware per verifica password corrispettivi
- */
-const verificaPasswordCorrespettivi = (req, res, next) => {
-  const passwordFornita = req.headers['x-corrispettivi-password'] || req.body.password;
-
-  if (passwordFornita !== PASSWORD_CORRISPETTIVI) {
-    logger.warn('⚠️ Tentativo accesso corrispettivi con password errata');
-    return res.status(401).json({
-      success: false,
-      error: 'Password corrispettivi non valida'
-    });
-  }
-
-  next();
-};
-
-// Tutte le route richiedono autenticazione base + password corrispettivi
+// Middleware di autenticazione per tutte le route
 router.use(protect);
-router.use(verificaPasswordCorrespettivi);
 
 /**
- * @route   POST /api/corrispettivi/registra
- * @desc    Registra corrispettivo giornaliero
- * @access  Privato + Password
+ * @route   GET /api/corrispettivi
+ * @desc    Ottiene corrispettivi per mese/anno
+ * @query   anno, mese
+ * @access  Privato
  */
-router.post('/registra', corrispettiviController.registraCorrespettivo);
+router.get('/', corrispettiviController.getCorrispettivi);
 
 /**
- * @route   PUT /api/corrispettivi/:id
- * @desc    Modifica corrispettivo
- * @access  Privato + Password
+ * @route   POST /api/corrispettivi
+ * @desc    Crea/aggiorna corrispettivo giornaliero
+ * @access  Privato
  */
-router.put('/:id', corrispettiviController.modificaCorrespettivo);
+router.post('/', corrispettiviController.creaCorrispettivo);
 
 /**
- * @route   GET /api/corrispettivi/mese/:anno/:mese
- * @desc    Ottieni corrispettivi di un mese
- * @access  Privato + Password
+ * @route   DELETE /api/corrispettivi/:id
+ * @desc    Elimina un corrispettivo
+ * @access  Privato
  */
-router.get('/mese/:anno/:mese', corrispettiviController.getCorrespettiviMese);
+router.delete('/:id', corrispettiviController.eliminaCorrispettivo);
 
 /**
- * @route   GET /api/corrispettivi/anno/:anno
- * @desc    Ottieni statistiche anno
- * @access  Privato + Password
+ * @route   POST /api/corrispettivi/chiusura-mensile
+ * @desc    Chiude il mese e genera report
+ * @access  Privato
  */
-router.get('/anno/:anno', corrispettiviController.getStatisticheAnno);
+router.post('/chiusura-mensile', corrispettiviController.chiusuraMensile);
 
 /**
- * @route   POST /api/corrispettivi/chiusura-mensile/:anno/:mese
- * @desc    Genera e invia chiusura mensile
- * @access  Privato + Password
+ * @route   GET /api/corrispettivi/report/:anno
+ * @desc    Report annuale corrispettivi
+ * @access  Privato
  */
-router.post('/chiusura-mensile/:anno/:mese', corrispettiviController.chiusuraMensile);
+router.get('/report/:anno', corrispettiviController.reportAnnuale);
 
 /**
- * @route   POST /api/corrispettivi/import
- * @desc    Import dati storici
- * @access  Privato + Password
+ * @route   GET /api/corrispettivi/statistiche
+ * @desc    Statistiche corrispettivi
+ * @access  Privato
  */
-router.post('/import', corrispettiviController.importDatiStorici);
+router.get('/statistiche', corrispettiviController.getStatistiche);
 
 export default router;

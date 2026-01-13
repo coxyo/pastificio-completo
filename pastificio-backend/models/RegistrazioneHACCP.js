@@ -1,16 +1,6 @@
 // models/RegistrazioneHACCP.js
+// ✅ MODELLO COMPLETO PER TUTTE LE REGISTRAZIONI HACCP
 import mongoose from 'mongoose';
-
-/**
- * SCHEMA REGISTRAZIONI HACCP
- * Gestisce tutti i controlli del manuale HACCP:
- * - Temperature frigoriferi/congelatori
- * - Controlli igienici
- * - Scadenze prodotti
- * - Sanificazioni
- * - Derattizzazioni
- * - Formazione personale
- */
 
 const registrazioneHACCPSchema = new mongoose.Schema({
   // Tipo di registrazione
@@ -19,21 +9,21 @@ const registrazioneHACCPSchema = new mongoose.Schema({
     required: true,
     enum: [
       'temperatura_frigo',
-      'temperatura_congelatore', 
+      'temperatura_congelatore',
+      'abbattimento',
+      'cottura',
       'controllo_igienico',
-      'scadenza_prodotto',
       'sanificazione',
-      'derattizzazione',
-      'formazione_personale',
-      'verifica_fornitori',
-      'controllo_materie_prime'
+      'materie_prime',
+      'scadenza_prodotto',
+      'non_conformita',
+      'verifica_ccp'
     ]
   },
 
   // Data e ora registrazione
   dataOra: {
     type: Date,
-    required: true,
     default: Date.now,
     index: true
   },
@@ -41,47 +31,88 @@ const registrazioneHACCPSchema = new mongoose.Schema({
   // Operatore che ha effettuato il controllo
   operatore: {
     type: String,
-    required: true,
     default: 'Maurizio Mameli'
   },
 
-  // TEMPERATURE
+  // ============================================
+  // DATI TEMPERATURA (CCP1, CCP2, CCP5)
+  // ============================================
   temperatura: {
-    valore: {
-      type: Number,
-      min: -30,
-      max: 50
-    },
-    unitaMisura: {
-      type: String,
-      enum: ['°C', '°F'],
-      default: '°C'
-    },
-    dispositivo: {
-      type: String, // es: "Frigo 1", "Congelatore principale"
-    },
-    conforme: {
-      type: Boolean, // true se temperatura nei limiti
-      default: true
-    },
+    valore: Number,
+    unitaMisura: { type: String, default: '°C' },
+    dispositivo: String,
+    conforme: Boolean,
     limiteMin: Number,
     limiteMax: Number
   },
 
-  // CONTROLLO IGIENICO
+  // ============================================
+  // DATI ABBATTIMENTO (CCP4)
+  // ============================================
+  abbattimento: {
+    prodotto: String,
+    lotto: String,
+    oraInizio: String,
+    oraFine: String,
+    temperaturaIniziale: Number,
+    temperaturaFinale: Number,
+    durataMinuti: Number
+  },
+
+  // ============================================
+  // DATI COTTURA (CCP3)
+  // ============================================
+  cottura: {
+    prodotto: String,
+    lotto: String,
+    temperaturaRaggiunta: Number,
+    tempoCottura: Number,
+    metodo: String // forno, frittura, etc.
+  },
+
+  // ============================================
+  // CONTROLLO IGIENICO / PULIZIA
+  // ============================================
   controlloIgienico: {
-    area: {
-      type: String, // es: "Laboratorio", "Magazzino", "Bagno"
-    },
+    area: String,
     elementi: [{
-      nome: String, // es: "Pavimento", "Piano lavoro", "Utensili"
-      conforme: Boolean,
+      nome: String,
+      conforme: { type: Boolean, default: true },
       note: String
     }],
     azioneCorrettiva: String
   },
 
-  // SCADENZE PRODOTTI
+  // ============================================
+  // SANIFICAZIONE
+  // ============================================
+  sanificazione: {
+    area: String,
+    prodottoUsato: String,
+    concentrazione: String,
+    durata: Number, // minuti
+    verificaEfficacia: Boolean
+  },
+
+  // ============================================
+  // MATERIE PRIME (CCP1)
+  // ============================================
+  materiePrime: {
+    fornitore: String,
+    prodotto: String,
+    lotto: String,
+    dataScadenza: Date,
+    temperatura: Number,
+    integritaConfezioni: Boolean,
+    azione: {
+      type: String,
+      enum: ['accettato', 'rifiutato', 'accettato_con_riserva']
+    }
+  },
+
+  // ============================================
+  // SCADENZA PRODOTTI
+  // ============================================
   scadenzaProdotto: {
     nomeProdotto: String,
     lotto: String,
@@ -94,184 +125,99 @@ const registrazioneHACCPSchema = new mongoose.Schema({
     }
   },
 
-  // SANIFICAZIONE
-  sanificazione: {
-    area: String,
-    prodottoUsato: String,
-    concentrazione: String,
-    durata: Number, // minuti
-    verificaEfficacia: Boolean
-  },
-
-  // DERATTIZZAZIONE/DISINFESTAZIONE
-  derattizzazione: {
-    aziendaEsterna: String,
-    certificatoNumero: String,
-    areeTratate: [String],
-    prodottiUsati: [String],
-    prossimIntervento: Date
-  },
-
-  // FORMAZIONE PERSONALE
-  formazionePersonale: {
-    argomento: String,
-    durata: Number, // ore
-    partecipanti: [String],
-    attestati: Boolean,
-    dataScadenzaAttestati: Date
-  },
-
-  // VERIFICA FORNITORI
-  verificaFornitori: {
-    nomeFornit: String,
-    tipoVerifica: {
+  // ============================================
+  // NON CONFORMITÀ
+  // ============================================
+  nonConformita: {
+    tipoNC: {
       type: String,
-      enum: ['documentale', 'audit', 'campionamento']
+      enum: ['temperatura', 'materie_prime', 'pulizia', 'processo', 'attrezzature', 'personale', 'altro']
     },
-    esito: {
-      type: String,
-      enum: ['conforme', 'non_conforme', 'azioni_correttive']
-    },
-    certificatiRicevuti: [String],
-    note: String
-  },
-
-  // NOTE GENERALI
-  note: {
-    type: String,
-    maxlength: 1000
-  },
-
-  // AZIONI CORRETTIVE
-  azioniCorrettive: [{
     descrizione: String,
-    responsabile: String,
-    dataScadenza: Date,
-    completata: {
-      type: Boolean,
-      default: false
-    },
-    dataCompletamento: Date
-  }],
+    azioneCorrettiva: String,
+    dataRilevazione: Date,
+    dataRisoluzione: Date,
+    risolto: { type: Boolean, default: false },
+    responsabile: String
+  },
 
-  // ALLEGATI (path file caricati)
-  allegati: [{
-    nome: String,
-    path: String,
-    tipo: String, // 'foto', 'documento', 'certificato'
-    uploadDate: {
-      type: Date,
-      default: Date.now
-    }
-  }],
-
-  // FLAG CONFORMITÀ
+  // ============================================
+  // CAMPI COMUNI
+  // ============================================
   conforme: {
     type: Boolean,
-    required: true,
-    default: true
+    default: true,
+    index: true
   },
 
-  // FLAG RICHIEDE ATTENZIONE
   richiedeAttenzione: {
     type: Boolean,
-    default: false
+    default: false,
+    index: true
   },
 
-  // ALERT INVIATO
-  alertInviato: {
-    type: Boolean,
-    default: false
-  }
+  note: String,
 
+  // Allegati (foto, documenti)
+  allegati: [{
+    nome: String,
+    url: String,
+    tipo: String
+  }],
+
+  // Metadata
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
 }, {
   timestamps: true
 });
 
-// INDICI
+// Index composto per ricerche frequenti
 registrazioneHACCPSchema.index({ tipo: 1, dataOra: -1 });
+registrazioneHACCPSchema.index({ conforme: 1, dataOra: -1 });
 registrazioneHACCPSchema.index({ 'temperatura.dispositivo': 1, dataOra: -1 });
-registrazioneHACCPSchema.index({ conforme: 1 });
-registrazioneHACCPSchema.index({ richiedeAttenzione: 1 });
 
-// METODI
-
-/**
- * Verifica conformità temperatura
- */
+// Metodo per verificare conformità temperatura
 registrazioneHACCPSchema.methods.verificaConformitaTemperatura = function() {
-  if (!this.temperatura || !this.temperatura.valore) return false;
+  if (!this.temperatura || this.temperatura.valore === undefined) return null;
   
-  const temp = this.temperatura.valore;
-  const min = this.temperatura.limiteMin;
-  const max = this.temperatura.limiteMax;
+  const { valore, limiteMin, limiteMax } = this.temperatura;
   
-  if (min !== undefined && max !== undefined) {
-    return temp >= min && temp <= max;
-  }
+  if (limiteMin !== null && valore < limiteMin) return false;
+  if (limiteMax !== null && valore > limiteMax) return false;
   
   return true;
 };
 
-/**
- * Genera alert se non conforme
- */
-registrazioneHACCPSchema.methods.generaAlertSeNecessario = async function() {
-  if (!this.conforme && !this.alertInviato) {
-    // TODO: Inviare notifica (email, WhatsApp, push)
-    this.alertInviato = true;
-    this.richiedeAttenzione = true;
-    await this.save();
-  }
-};
-
-// METODI STATICI
-
-/**
- * Ottieni ultime temperature per dispositivo
- */
-registrazioneHACCPSchema.statics.getUltimeTemperature = function(dispositivo, limit = 10) {
-  return this.find({
-    tipo: { $in: ['temperatura_frigo', 'temperatura_congelatore'] },
-    'temperatura.dispositivo': dispositivo
-  })
-  .sort({ dataOra: -1 })
-  .limit(limit);
-};
-
-/**
- * Ottieni registrazioni non conformi
- */
-registrazioneHACCPSchema.statics.getNonConformi = function(giorni = 7) {
-  const dataInizio = new Date();
-  dataInizio.setDate(dataInizio.getDate() - giorni);
-  
-  return this.find({
-    conforme: false,
-    dataOra: { $gte: dataInizio }
-  }).sort({ dataOra: -1 });
-};
-
-/**
- * Statistiche mensili
- */
-registrazioneHACCPSchema.statics.getStatisticheMensili = async function(anno, mese) {
-  const dataInizio = new Date(anno, mese - 1, 1);
-  const dataFine = new Date(anno, mese, 0, 23, 59, 59);
-  
-  const registrazioni = await this.find({
+// Metodo statico per ottenere statistiche
+registrazioneHACCPSchema.statics.getStatistiche = async function(dataInizio, dataFine) {
+  const match = {
     dataOra: { $gte: dataInizio, $lte: dataFine }
-  });
-  
-  return {
-    totale: registrazioni.length,
-    conformi: registrazioni.filter(r => r.conforme).length,
-    nonConformi: registrazioni.filter(r => !r.conforme).length,
-    perTipo: registrazioni.reduce((acc, r) => {
-      acc[r.tipo] = (acc[r.tipo] || 0) + 1;
-      return acc;
-    }, {})
   };
+
+  const stats = await this.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: '$tipo',
+        totale: { $sum: 1 },
+        conformi: {
+          $sum: { $cond: ['$conforme', 1, 0] }
+        },
+        nonConformi: {
+          $sum: { $cond: ['$conforme', 0, 1] }
+        }
+      }
+    }
+  ]);
+
+  return stats;
 };
 
 const RegistrazioneHACCP = mongoose.model('RegistrazioneHACCP', registrazioneHACCPSchema);
