@@ -27,15 +27,17 @@ import {
   IconButton
 } from '@mui/material';
 import {
-  AcUnit as FridgeIcon,
-  Thermostat as ThermometerIcon,
-  CleaningServices as CleanIcon,
   Warning as WarningIcon,
   CheckCircle as CheckIcon,
   Add as AddIcon,
-  Refresh as RefreshIcon,
-  Assessment as ReportIcon
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
+
+// Icone emoji per compatibilità
+const FridgeIcon = () => <span style={{fontSize: '1.2rem'}}>❄️</span>;
+const ThermometerIcon = () => <span style={{fontSize: '1.2rem'}}>🌡️</span>;
+const CleanIcon = () => <span style={{fontSize: '1.2rem'}}>🧹</span>;
+const ReportIcon = () => <span style={{fontSize: '1.2rem'}}>📊</span>;
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
