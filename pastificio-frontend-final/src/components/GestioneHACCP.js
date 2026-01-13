@@ -73,7 +73,7 @@ export default function GestioneHACCP() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/api/haccp/dashboard`, {
+      const response = await axios.get(`${API_URL}/haccp/dashboard`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -92,7 +92,7 @@ export default function GestioneHACCP() {
   const registraTemperatura = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/api/haccp/temperatura`, nuovaTemp, {
+      await axios.post(`${API_URL}/haccp/temperatura`, nuovaTemp, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -113,7 +113,7 @@ export default function GestioneHACCP() {
   const registraControlloIgien = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/api/haccp/controllo-igienico`, controlloIgienico, {
+      await axios.post(`${API_URL}/haccp/controllo-igienico`, controlloIgienico, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
