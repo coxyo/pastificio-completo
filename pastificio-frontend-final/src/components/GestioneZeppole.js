@@ -1,5 +1,5 @@
 // src/components/GestioneZeppole.js
-// ✅ VERSIONE FINALE 15/12/2025 - Gestione Zeppole con sistema limiti esistente
+// ✅ VERSIONE FIXED 15/12/2025 - Risolto loop infinito Pusher
 
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
@@ -44,10 +44,9 @@ import {
 } from '@mui/icons-material';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-const PRODOTTO_NOME = 'Zeppole'; // Configura qui il nome del prodotto
+const PRODOTTO_NOME = 'Zeppole';
 
 const GestioneZeppole = () => {
-  // Stati
   const [limite, setLimite] = useState(null);
   const [ordini, setOrdini] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,11 +58,12 @@ const GestioneZeppole = () => {
   const [quantitaPersonalizzata, setQuantitaPersonalizzata] = useState('');
   const [ultimoAggiornamento, setUltimoAggiornamento] = useState(new Date());
 
-  // Token autenticazione
   const getToken = () => localStorage.getItem('token');
 
-  // Pusher real-time
+  // ✅ FIX: Pusher useEffect SENZA dipendenze che causano loop
   useEffect(() => {
+    console.log('🔌 [Zeppole] Inizializzazione Pusher...');
+    
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu'
     });
@@ -71,30 +71,33 @@ const GestioneZeppole = () => {
     const channel = pusher.subscribe('zeppole-channel');
 
     channel.bind('vendita-diretta', (data) => {
-      console.log('📡 Pusher: vendita-diretta', data);
-      if (data.prodotto === PRODOTTO_NOME && limite) {
-        setLimite(prev => ({
-          ...prev,
-          quantitaOrdinata: data.ordinatoKg
-        }));
+      console.log('📡 [Zeppole] Pusher: vendita-diretta', data);
+      if (data.prodotto === PRODOTTO_NOME) {
+        // Usa callback per non dipendere da 'limite' nelle dipendenze
+        setLimite(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            quantitaOrdinata: data.ordinatoKg
+          };
+        });
         setUltimoAggiornamento(new Date());
         showSnackbar(`Venduti ${data.quantitaKg} Kg`, 'success');
       }
     });
 
     channel.bind('reset-disponibilita', (data) => {
-      console.log('📡 Pusher: reset-disponibilita', data);
+      console.log('📡 [Zeppole] Pusher: reset-disponibilita', data);
       if (data.prodotto === PRODOTTO_NOME) {
         caricaDati();
         showSnackbar('Disponibilità resettata', 'info');
       }
     });
 
-    // Channel ordini per nuovi ordini
     const ordiniChannel = pusher.subscribe('ordini-channel');
+    
     ordiniChannel.bind('ordine-creato', (data) => {
-      console.log('📡 Pusher: ordine-creato', data);
-      // Verifica se contiene zeppole
+      console.log('📡 [Zeppole] Pusher: ordine-creato', data);
       if (data.ordine?.prodotti?.some(p => 
         p.nome?.toLowerCase().includes(PRODOTTO_NOME.toLowerCase())
       )) {
@@ -103,34 +106,45 @@ const GestioneZeppole = () => {
     });
 
     ordiniChannel.bind('ordine-aggiornato', () => {
+      console.log('📡 [Zeppole] Pusher: ordine-aggiornato');
       caricaDati();
     });
 
+    console.log('✅ [Zeppole] Pusher connesso');
+
     return () => {
+      console.log('🔌 [Zeppole] Disconnessione Pusher...');
       channel.unbind_all();
       channel.unsubscribe();
       ordiniChannel.unbind_all();
       ordiniChannel.unsubscribe();
       pusher.disconnect();
     };
-  }, [limite]);
+  }, []); // ✅ ARRAY VUOTO - Esegue SOLO all'avvio
 
   // Carica dati iniziali
   useEffect(() => {
+    console.log('📥 [Zeppole] Caricamento dati iniziale...');
     caricaDati();
     
     // Refresh automatico ogni minuto
-    const interval = setInterval(caricaDati, 60000);
+    const interval = setInterval(() => {
+      console.log('🔄 [Zeppole] Refresh automatico...');
+      caricaDati();
+    }, 60000);
+    
     return () => clearInterval(interval);
   }, []);
 
   const caricaDati = useCallback(async () => {
     try {
+      console.log('📡 [Zeppole] Chiamata API caricaDati...');
       await Promise.all([caricaLimite(), caricaOrdini()]);
       setUltimoAggiornamento(new Date());
       setLoading(false);
+      console.log('✅ [Zeppole] Dati caricati');
     } catch (error) {
-      console.error('❌ Errore caricamento dati:', error);
+      console.error('❌ [Zeppole] Errore caricamento dati:', error);
       showSnackbar('Errore nel caricamento dati', 'error');
       setLoading(false);
     }
@@ -138,6 +152,7 @@ const GestioneZeppole = () => {
 
   const caricaLimite = async () => {
     try {
+      console.log('📡 [Zeppole] GET /api/limiti/prodotto/Zeppole');
       const response = await axios.get(
         `${API_URL}/api/limiti/prodotto/${PRODOTTO_NOME}`,
         { headers: { Authorization: `Bearer ${getToken()}` } }
@@ -147,24 +162,25 @@ const GestioneZeppole = () => {
       setLimite(limiteData);
       setNuovoLimite(limiteData.limiteQuantita);
       
-      console.log('✅ Limite caricato:', limiteData);
+      console.log('✅ [Zeppole] Limite caricato:', limiteData);
     } catch (error) {
-      console.error('❌ Errore caricamento limite:', error);
+      console.error('❌ [Zeppole] Errore caricamento limite:', error);
       throw error;
     }
   };
 
   const caricaOrdini = async () => {
     try {
+      console.log('📡 [Zeppole] GET /api/limiti/ordini-prodotto/Zeppole');
       const response = await axios.get(
         `${API_URL}/api/limiti/ordini-prodotto/${PRODOTTO_NOME}`,
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
       
       setOrdini(response.data.data || []);
-      console.log(`✅ Ordini caricati: ${response.data.count}`);
+      console.log(`✅ [Zeppole] Ordini caricati: ${response.data.count}`);
     } catch (error) {
-      console.error('❌ Errore caricamento ordini:', error);
+      console.error('❌ [Zeppole] Errore caricamento ordini:', error);
       throw error;
     }
   };
@@ -173,6 +189,7 @@ const GestioneZeppole = () => {
     try {
       if (!limite) return;
 
+      console.log('📡 [Zeppole] PUT /api/limiti/' + limite._id);
       const response = await axios.put(
         `${API_URL}/api/limiti/${limite._id}`,
         { limiteQuantita: nuovoLimite },
@@ -182,15 +199,17 @@ const GestioneZeppole = () => {
       setLimite(response.data.data);
       setDialogEditLimite(false);
       showSnackbar('Limite aggiornato', 'success');
+      console.log('✅ [Zeppole] Limite salvato');
       
     } catch (error) {
-      console.error('❌ Errore salvataggio limite:', error);
+      console.error('❌ [Zeppole] Errore salvataggio limite:', error);
       showSnackbar('Errore nel salvataggio limite', 'error');
     }
   };
 
   const resetDisponibilita = async () => {
     try {
+      console.log('📡 [Zeppole] POST /api/limiti/reset-prodotto');
       await axios.post(
         `${API_URL}/api/limiti/reset-prodotto`,
         { prodotto: PRODOTTO_NOME },
@@ -200,15 +219,17 @@ const GestioneZeppole = () => {
       showSnackbar('Disponibilità resettata', 'success');
       setDialogReset(false);
       await caricaDati();
+      console.log('✅ [Zeppole] Reset completato');
       
     } catch (error) {
-      console.error('❌ Errore reset disponibilità:', error);
+      console.error('❌ [Zeppole] Errore reset disponibilità:', error);
       showSnackbar('Errore nel reset', 'error');
     }
   };
 
   const venditaDiretta = async (quantitaKg) => {
     try {
+      console.log(`📡 [Zeppole] POST /api/limiti/vendita-diretta (${quantitaKg} Kg)`);
       await axios.post(
         `${API_URL}/api/limiti/vendita-diretta`,
         { 
@@ -220,9 +241,10 @@ const GestioneZeppole = () => {
       
       showSnackbar(`Venduti ${quantitaKg} Kg`, 'success');
       await caricaDati();
+      console.log('✅ [Zeppole] Vendita diretta registrata');
       
     } catch (error) {
-      console.error('❌ Errore vendita diretta:', error);
+      console.error('❌ [Zeppole] Errore vendita diretta:', error);
       const messaggio = error.response?.data?.message || 'Errore nella vendita';
       showSnackbar(messaggio, 'error');
     }
@@ -251,7 +273,7 @@ const GestioneZeppole = () => {
 
   const formatOra = (oraString) => {
     if (!oraString) return '-';
-    return oraString.substring(0, 5); // HH:MM
+    return oraString.substring(0, 5);
   };
 
   const getProgressColor = () => {
