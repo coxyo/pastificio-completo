@@ -72,7 +72,12 @@ export default function GestioneHACCP() {
   const caricaDashboard = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/haccp/dashboard`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/api/haccp/dashboard`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setDashboard(response.data.dashboard);
     } catch (error) {
       console.error('Errore caricamento dashboard HACCP:', error);
@@ -86,7 +91,12 @@ export default function GestioneHACCP() {
    */
   const registraTemperatura = async () => {
     try {
-      await axios.post(`${API_URL}/api/haccp/temperatura`, nuovaTemp);
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/api/haccp/temperatura`, nuovaTemp, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setDialogTemp(false);
       setNuovaTemp({ dispositivo: 'Frigo 1', temperatura: '', tipo: 'temperatura_frigo' });
       caricaDashboard();
@@ -102,7 +112,12 @@ export default function GestioneHACCP() {
    */
   const registraControlloIgien = async () => {
     try {
-      await axios.post(`${API_URL}/api/haccp/controllo-igienico`, controlloIgienico);
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_URL}/api/haccp/controllo-igienico`, controlloIgienico, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setDialogIgienico(false);
       setControlloIgienico({ area: '', elementi: [] });
       caricaDashboard();
