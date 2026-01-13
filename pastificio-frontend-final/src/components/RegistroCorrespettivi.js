@@ -306,6 +306,9 @@ export default function RegistroCorrespettivi() {
           />
         </DialogContent>
         <DialogActions>
+          <Button onClick={() => window.history.back()} color="inherit">
+            Indietro
+          </Button>
           <Button onClick={verificaPassword} variant="contained" disabled={!passwordInput}>
             Accedi
           </Button>
