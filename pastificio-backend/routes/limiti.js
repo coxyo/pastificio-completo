@@ -1,24 +1,23 @@
-// routes/limiti.js - VERSIONE COMPLETA
+// routes/limiti.js - VERSIONE DEBUG
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import limitiController from '../controllers/limitiController.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
+import Ordine from '../models/Ordine.js';
 
 const router = express.Router();
 
-// Middleware di autenticazione per tutte le route
+// Middleware di autenticazione
 router.use(protect);
+
+console.log('[LIMITI ROUTES] File caricato');
 
 /**
  * @route   GET /api/limiti
  * @desc    Ottieni tutti i limiti attivi
- * @access  Privato
  */
 router.get('/', async (req, res) => {
   try {
     const { data } = req.query;
-    
-    // Se non specificata, usa oggi
     const dataRicerca = data ? new Date(data) : new Date();
     dataRicerca.setHours(0, 0, 0, 0);
     
@@ -36,188 +35,227 @@ router.get('/', async (req, res) => {
       count: limiti.length,
       data: limiti
     });
-    
   } catch (error) {
-    console.error('[LIMITI] Errore GET limiti:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nel recupero dei limiti',
-      error: error.message
-    });
-  }
-});
-
-/**
- * @route   POST /api/limiti
- * @desc    Crea nuovo limite
- * @access  Privato
- */
-router.post('/', async (req, res) => {
-  try {
-    const { data, prodotto, categoria, limiteQuantita, unitaMisura, sogliAllerta } = req.body;
-    
-    if (!data || !limiteQuantita) {
-      return res.status(400).json({
-        success: false,
-        message: 'Data e limite quantità sono obbligatori'
-      });
-    }
-    
-    if (!prodotto && !categoria) {
-      return res.status(400).json({
-        success: false,
-        message: 'Specificare prodotto o categoria'
-      });
-    }
-    
-    const dataLimite = new Date(data);
-    dataLimite.setHours(0, 0, 0, 0);
-    
-    console.log(`[LIMITI] POST nuovo limite:`, { prodotto, categoria, limiteQuantita });
-    
-    const limite = await LimiteGiornaliero.create({
-      data: dataLimite,
-      prodotto,
-      categoria,
-      limiteQuantita,
-      unitaMisura: unitaMisura || 'Kg',
-      sogliAllerta: sogliAllerta || 80,
-      quantitaOrdinata: 0,
-      attivo: true
-    });
-    
-    console.log(`[LIMITI] Limite creato:`, limite._id);
-    
-    res.status(201).json({
-      success: true,
-      data: limite
-    });
-    
-  } catch (error) {
-    console.error('[LIMITI] Errore POST limite:', error);
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Limite già esistente per questo prodotto/categoria e data'
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: 'Errore nella creazione del limite',
-      error: error.message
-    });
-  }
-});
-
-/**
- * @route   PUT /api/limiti/:id
- * @desc    Aggiorna limite esistente
- * @access  Privato
- */
-router.put('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { limiteQuantita, sogliAllerta, attivo } = req.body;
-    
-    console.log(`[LIMITI] PUT limite ${id}`);
-    
-    const limite = await LimiteGiornaliero.findById(id);
-    
-    if (!limite) {
-      return res.status(404).json({
-        success: false,
-        message: 'Limite non trovato'
-      });
-    }
-    
-    if (limiteQuantita !== undefined) limite.limiteQuantita = limiteQuantita;
-    if (sogliAllerta !== undefined) limite.sogliAllerta = sogliAllerta;
-    if (attivo !== undefined) limite.attivo = attivo;
-    
-    await limite.save();
-    
-    console.log(`[LIMITI] Limite aggiornato`);
-    
-    res.json({
-      success: true,
-      data: limite
-    });
-    
-  } catch (error) {
-    console.error('[LIMITI] Errore PUT limite:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nell\'aggiornamento del limite',
-      error: error.message
-    });
-  }
-});
-
-/**
- * @route   DELETE /api/limiti/:id
- * @desc    Elimina limite
- * @access  Privato
- */
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    console.log(`[LIMITI] DELETE limite ${id}`);
-    
-    const limite = await LimiteGiornaliero.findByIdAndDelete(id);
-    
-    if (!limite) {
-      return res.status(404).json({
-        success: false,
-        message: 'Limite non trovato'
-      });
-    }
-    
-    console.log(`[LIMITI] Limite eliminato`);
-    
-    res.json({
-      success: true,
-      message: 'Limite eliminato'
-    });
-    
-  } catch (error) {
-    console.error('[LIMITI] Errore DELETE limite:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nell\'eliminazione del limite',
-      error: error.message
-    });
+    console.error('[LIMITI] Errore:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 /**
  * @route   GET /api/limiti/prodotto/:nome
- * @desc    Ottieni o crea limite giornaliero per prodotto
- * @access  Privato
+ * @desc    Ottieni/Crea limite per prodotto
  */
-router.get('/prodotto/:nome', limitiController.getLimiteProdotto);
+router.get('/prodotto/:nome', async (req, res) => {
+  try {
+    const { nome } = req.params;
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+
+    console.log(`[LIMITI] GET limite prodotto: ${nome}`);
+
+    let limite = await LimiteGiornaliero.findOne({
+      data: oggi,
+      prodotto: nome,
+      attivo: true
+    });
+
+    if (!limite) {
+      console.log(`[LIMITI] Creazione automatica limite 20 Kg per ${nome}`);
+      limite = await LimiteGiornaliero.create({
+        data: oggi,
+        prodotto: nome,
+        limiteQuantita: 20,
+        unitaMisura: 'Kg',
+        quantitaOrdinata: 0,
+        attivo: true,
+        sogliAllerta: 80
+      });
+    }
+
+    res.json({ success: true, data: limite });
+  } catch (error) {
+    console.error('[LIMITI] Errore:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 /**
  * @route   GET /api/limiti/ordini-prodotto/:nome
- * @desc    Ottieni ordini del giorno con prodotto specifico
- * @access  Privato
+ * @desc    Ottieni ordini con prodotto
  */
-router.get('/ordini-prodotto/:nome', limitiController.getOrdiniProdotto);
+router.get('/ordini-prodotto/:nome', async (req, res) => {
+  try {
+    const { nome } = req.params;
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+    const domani = new Date(oggi);
+    domani.setDate(domani.getDate() + 1);
+
+    console.log(`[LIMITI] GET ordini prodotto: ${nome}`);
+
+    const ordini = await Ordine.find({
+      dataRitiro: { $gte: oggi, $lt: domani },
+      'prodotti.nome': nome
+    }).sort({ oraRitiro: 1 });
+
+    console.log(`[LIMITI] Trovati ${ordini.length} ordini`);
+
+    let totaleKg = 0;
+    const ordiniFormattati = [];
+
+    ordini.forEach(ordine => {
+      ordine.prodotti.forEach(prodotto => {
+        if (prodotto.nome === nome) {
+          let quantitaKg = parseFloat(prodotto.quantita) || 0;
+          
+          if (prodotto.unita === 'g') quantitaKg = quantitaKg / 1000;
+          else if (prodotto.unita === 'pz') quantitaKg = quantitaKg * 0.033;
+          else if (prodotto.unita === '€') quantitaKg = quantitaKg / 20;
+
+          totaleKg += quantitaKg;
+
+          ordiniFormattati.push({
+            ordineId: ordine.numeroOrdine || ordine._id,
+            cliente: ordine.nomeCliente,
+            codiceCliente: ordine.codiceCliente,
+            oraRitiro: ordine.oraRitiro,
+            quantita: prodotto.quantita,
+            unita: prodotto.unita,
+            quantitaKg: quantitaKg,
+            note: prodotto.note || '',
+            stato: ordine.stato
+          });
+        }
+      });
+    });
+
+    res.json({
+      success: true,
+      count: ordiniFormattati.length,
+      totaleKg: parseFloat(totaleKg.toFixed(2)),
+      data: ordiniFormattati
+    });
+  } catch (error) {
+    console.error('[LIMITI] Errore:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 /**
  * @route   POST /api/limiti/vendita-diretta
- * @desc    Registra vendita diretta (senza ordine)
- * @access  Privato
+ * @desc    Registra vendita diretta
  */
-router.post('/vendita-diretta', limitiController.registraVenditaDiretta);
+router.post('/vendita-diretta', async (req, res) => {
+  try {
+    const { prodotto, quantitaKg } = req.body;
+
+    if (!prodotto || !quantitaKg) {
+      return res.status(400).json({
+        success: false,
+        message: 'Prodotto e quantità obbligatori'
+      });
+    }
+
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+
+    console.log(`[LIMITI] POST vendita diretta: ${prodotto} - ${quantitaKg} Kg`);
+
+    let limite = await LimiteGiornaliero.findOne({
+      data: oggi,
+      prodotto,
+      attivo: true
+    });
+
+    if (!limite) {
+      limite = await LimiteGiornaliero.create({
+        data: oggi,
+        prodotto,
+        limiteQuantita: 20,
+        unitaMisura: 'Kg',
+        quantitaOrdinata: 0,
+        attivo: true
+      });
+    }
+
+    const nuovoTotale = limite.quantitaOrdinata + quantitaKg;
+    if (nuovoTotale > limite.limiteQuantita) {
+      return res.status(400).json({
+        success: false,
+        message: `Disponibile: ${(limite.limiteQuantita - limite.quantitaOrdinata).toFixed(2)} Kg`
+      });
+    }
+
+    limite.quantitaOrdinata = nuovoTotale;
+    await limite.save();
+
+    console.log(`[LIMITI] Vendita registrata. Totale: ${nuovoTotale} Kg`);
+
+    res.json({
+      success: true,
+      message: `Vendita di ${quantitaKg} Kg registrata`,
+      data: {
+        prodotto: limite.prodotto,
+        quantitaVenduta: quantitaKg,
+        ordinatoTotale: nuovoTotale,
+        disponibile: limite.limiteQuantita - nuovoTotale
+      }
+    });
+  } catch (error) {
+    console.error('[LIMITI] Errore:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 /**
  * @route   POST /api/limiti/reset-prodotto
- * @desc    Reset disponibilità prodotto a 0
- * @access  Privato
+ * @desc    Reset disponibilità
  */
-router.post('/reset-prodotto', limitiController.resetProdotto);
+router.post('/reset-prodotto', async (req, res) => {
+  try {
+    const { prodotto, data } = req.body;
+
+    if (!prodotto) {
+      return res.status(400).json({
+        success: false,
+        message: 'Prodotto obbligatorio'
+      });
+    }
+
+    const dataReset = data ? new Date(data) : new Date();
+    dataReset.setHours(0, 0, 0, 0);
+
+    console.log(`[LIMITI] POST reset prodotto: ${prodotto}`);
+
+    const limite = await LimiteGiornaliero.findOne({
+      data: dataReset,
+      prodotto,
+      attivo: true
+    });
+
+    if (!limite) {
+      return res.status(404).json({
+        success: false,
+        message: 'Limite non trovato'
+      });
+    }
+
+    limite.quantitaOrdinata = 0;
+    await limite.save();
+
+    console.log(`[LIMITI] Reset completato`);
+
+    res.json({
+      success: true,
+      message: 'Disponibilità resettata',
+      data: limite
+    });
+  } catch (error) {
+    console.error('[LIMITI] Errore:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+console.log('[LIMITI ROUTES] Tutte le route registrate');
 
 export default router;
