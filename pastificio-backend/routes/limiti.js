@@ -1,5 +1,5 @@
-// routes/limiti.js - VERSIONE COMPLETA con route Zeppole
-// ✅ AGGIORNATO 15/12/2025 + ROUTE ZEPPOLE
+// routes/limiti.js - VERSIONE CLEAN ASCII-ONLY
+// AGGIORNATO 13/01/2026 - Fix encoding UTF-8
 
 import express from 'express';
 import { protect } from '../middleware/auth.js';
@@ -13,7 +13,7 @@ const router = express.Router();
 router.use(protect);
 
 /**
- * ✅ FUNZIONE: Calcola quantità ordinata per un limite (CON DEBUG)
+ * FUNZIONE: Calcola quantita ordinata per un limite (CON DEBUG)
  */
 const calcolaOrdinatoPerLimite = async (limite) => {
   try {
@@ -24,10 +24,10 @@ const calcolaOrdinatoPerLimite = async (limite) => {
     const fineGiorno = new Date(limite.data);
     fineGiorno.setHours(23, 59, 59, 999);
     
-    console.log(`\n🔍 ===== CALCOLO ORDINATO =====`);
-    console.log(`📦 Prodotto/Categoria: ${limite.prodotto || limite.categoria}`);
-    console.log(`📅 Data: ${inizioGiorno.toLocaleDateString('it-IT')}`);
-    console.log(`⏰ Range: ${inizioGiorno.toISOString()} → ${fineGiorno.toISOString()}`);
+    console.log('\n[CALCOLO ORDINATO]');
+    console.log('Prodotto/Categoria:', limite.prodotto || limite.categoria);
+    console.log('Data:', inizioGiorno.toLocaleDateString('it-IT'));
+    console.log('Range:', inizioGiorno.toISOString(), '->', fineGiorno.toISOString());
     
     // Trova tutti gli ordini per quella data
     const ordini = await Ordine.find({
@@ -35,7 +35,7 @@ const calcolaOrdinatoPerLimite = async (limite) => {
       stato: { $ne: 'annullato' } // Escludi annullati
     });
     
-    console.log(`📋 Ordini trovati: ${ordini.length}`);
+    console.log('Ordini trovati:', ordini.length);
     
     let totaleOrdinato = 0;
     let contatoreMatch = 0;
@@ -43,18 +43,18 @@ const calcolaOrdinatoPerLimite = async (limite) => {
     ordini.forEach((ordine, idx) => {
       if (!ordine.prodotti) return;
       
-      console.log(`\n  📦 Ordine ${idx + 1}/${ordini.length} - ${ordine.numeroOrdine}`);
+      console.log('\n  Ordine', idx + 1 + '/' + ordini.length, '-', ordine.numeroOrdine);
       
       ordine.prodotti.forEach((prodotto, pIdx) => {
         const nomeProdotto = prodotto.nome || prodotto.prodotto || '';
         const quantita = parseFloat(prodotto.quantita) || 0;
         const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
         
-        console.log(`    ${pIdx + 1}. ${nomeProdotto} - ${quantita} ${unita}`);
+        console.log('   ', pIdx + 1 + '.', nomeProdotto, '-', quantita, unita);
         
         // Skip vassoi
         if (unita === 'vassoio' || nomeProdotto === 'Vassoio Dolci Misti') {
-          console.log(`       ⏭️ Skip vassoio`);
+          console.log('       Skip vassoio');
           return;
         }
         
@@ -62,19 +62,19 @@ const calcolaOrdinatoPerLimite = async (limite) => {
         let quantitaKg = quantita;
         if (unita === 'g') {
           quantitaKg = quantita / 1000;
-          console.log(`       🔄 Conversione: ${quantita}g → ${quantitaKg}Kg`);
+          console.log('       Conversione:', quantita + 'g ->', quantitaKg + 'Kg');
         } else if (unita === 'Pezzi' || unita === 'pz') {
           if (limite.unitaMisura === 'Pezzi') {
             quantitaKg = quantita;
-            console.log(`       ✅ Limite in pezzi, uso diretto: ${quantitaKg}`);
+            console.log('       Limite in pezzi, uso diretto:', quantitaKg);
           } else {
             quantitaKg = quantita / 30;
-            console.log(`       🔄 Conversione: ${quantita}pz → ${quantitaKg}Kg (stima)`);
+            console.log('       Conversione:', quantita + 'pz ->', quantitaKg + 'Kg (stima)');
           }
         } else if (unita === '€') {
           const prezzoAlKg = 20;
           quantitaKg = quantita / prezzoAlKg;
-          console.log(`       🔄 Conversione: ${quantita}€ → ${quantitaKg}Kg (stima @20€/Kg)`);
+          console.log('       Conversione:', quantita + 'euro ->', quantitaKg + 'Kg (stima @20euro/Kg)');
         }
         
         // Verifica match con limite
@@ -85,7 +85,7 @@ const calcolaOrdinatoPerLimite = async (limite) => {
           if (nomeProdotto.toLowerCase().includes(limite.prodotto.toLowerCase()) ||
               limite.prodotto.toLowerCase().includes(nomeProdotto.toLowerCase())) {
             match = true;
-            console.log(`       ✅ MATCH prodotto: "${limite.prodotto}"`);
+            console.log('       MATCH prodotto:', limite.prodotto);
           }
         }
         
@@ -94,37 +94,37 @@ const calcolaOrdinatoPerLimite = async (limite) => {
           const categoriaProdotto = determinaCategoria(nomeProdotto);
           if (categoriaProdotto.toLowerCase() === limite.categoria.toLowerCase()) {
             match = true;
-            console.log(`       ✅ MATCH categoria: "${limite.categoria}"`);
+            console.log('       MATCH categoria:', limite.categoria);
           } else {
-            console.log(`       ❌ NO MATCH: categoria prodotto="${categoriaProdotto}" vs limite="${limite.categoria}"`);
+            console.log('       NO MATCH: categoria prodotto=', categoriaProdotto, 'vs limite=', limite.categoria);
           }
         }
         
         if (match) {
           totaleOrdinato += quantitaKg;
           contatoreMatch++;
-          console.log(`       ➕ Aggiunto: ${quantitaKg}Kg → Totale: ${totaleOrdinato.toFixed(2)}Kg`);
+          console.log('       Aggiunto:', quantitaKg + 'Kg -> Totale:', totaleOrdinato.toFixed(2) + 'Kg');
         }
       });
     });
     
-    console.log(`\n✅ RISULTATO FINALE:`);
-    console.log(`   Prodotti matchati: ${contatoreMatch}`);
-    console.log(`   Totale ordinato: ${totaleOrdinato.toFixed(2)} ${limite.unitaMisura}`);
-    console.log(`   Limite: ${limite.limiteQuantita} ${limite.unitaMisura}`);
-    console.log(`   Disponibile: ${(limite.limiteQuantita - totaleOrdinato).toFixed(2)} ${limite.unitaMisura}`);
-    console.log(`================================\n`);
+    console.log('\n[RISULTATO FINALE]');
+    console.log('   Prodotti matchati:', contatoreMatch);
+    console.log('   Totale ordinato:', totaleOrdinato.toFixed(2), limite.unitaMisura);
+    console.log('   Limite:', limite.limiteQuantita, limite.unitaMisura);
+    console.log('   Disponibile:', (limite.limiteQuantita - totaleOrdinato).toFixed(2), limite.unitaMisura);
+    console.log('================================\n');
     
     return totaleOrdinato;
     
   } catch (error) {
-    console.error('❌ ERRORE calcolo ordinato:', error);
+    console.error('[ERRORE] calcolo ordinato:', error);
     return 0;
   }
 };
 
 /**
- * ✅ HELPER: Determina categoria di un prodotto
+ * HELPER: Determina categoria di un prodotto
  */
 const determinaCategoria = (nomeProdotto) => {
   if (!nomeProdotto) return 'Altro';
@@ -158,7 +158,7 @@ router.get('/', async (req, res) => {
   try {
     const { data, attivo } = req.query;
     
-    console.log(`\n🌐 GET /api/limiti - Query params:`, { data, attivo });
+    console.log('\n[GET /api/limiti] Query params:', { data, attivo });
     
     let query = {};
     
@@ -177,9 +177,9 @@ router.get('/', async (req, res) => {
     }
     
     const limiti = await LimiteGiornaliero.find(query).sort({ data: 1, prodotto: 1 });
-    console.log(`📊 Limiti trovati in DB: ${limiti.length}`);
+    console.log('Limiti trovati in DB:', limiti.length);
     
-    // ✅ NUOVO: Calcola ordinato dinamicamente per ogni limite
+    // Calcola ordinato dinamicamente per ogni limite
     const limitiConOrdinato = await Promise.all(
       limiti.map(async (limite) => {
         const limiteObj = limite.toObject();
@@ -195,7 +195,7 @@ router.get('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore GET /limiti:', error);
+    console.error('[ERRORE] GET /limiti:', error);
     logger.error('Errore GET /limiti:', error);
     res.status(500).json({
       success: false,
@@ -215,7 +215,7 @@ router.post('/', async (req, res) => {
     const limite = new LimiteGiornaliero(req.body);
     await limite.save();
     
-    logger.info(`✅ Limite creato: ${limite.prodotto || limite.categoria} per ${limite.data.toLocaleDateString()}`);
+    logger.info('Limite creato:', limite.prodotto || limite.categoria, 'per', limite.data.toLocaleDateString());
     
     res.status(201).json({
       success: true,
@@ -252,7 +252,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    logger.info(`✅ Limite aggiornato: ${limite._id}`);
+    logger.info('Limite aggiornato:', limite._id);
     
     res.json({
       success: true,
@@ -285,7 +285,7 @@ router.delete('/:id', async (req, res) => {
       });
     }
     
-    logger.info(`🗑️ Limite eliminato: ${limite._id}`);
+    logger.info('Limite eliminato:', limite._id);
     
     res.json({
       success: true,
@@ -353,7 +353,7 @@ router.post('/bulk', async (req, res) => {
     
     const limitiCreati = await LimiteGiornaliero.insertMany(limiti);
     
-    logger.info(`✅ Creati ${limitiCreati.length} limiti in massa`);
+    logger.info('Creati', limitiCreati.length, 'limiti in massa');
     
     res.status(201).json({
       success: true,
@@ -372,7 +372,7 @@ router.post('/bulk', async (req, res) => {
 });
 
 // ========================================
-// ⭐ NUOVE ROUTE PER GESTIONE ZEPPOLE
+// NUOVE ROUTE PER GESTIONE ZEPPOLE
 // ========================================
 
 /**
@@ -387,7 +387,7 @@ router.post('/vendita-diretta', async (req, res) => {
     if (!prodotto || !quantitaKg) {
       return res.status(400).json({
         success: false,
-        message: 'Prodotto e quantità sono obbligatori'
+        message: 'Prodotto e quantita sono obbligatori'
       });
     }
 
@@ -405,30 +405,30 @@ router.post('/vendita-diretta', async (req, res) => {
     if (!limite) {
       return res.status(404).json({
         success: false,
-        message: `Limite giornaliero non configurato per ${prodotto}`
+        message: 'Limite giornaliero non configurato per ' + prodotto
       });
     }
 
-    // Verifica disponibilità
+    // Verifica disponibilita
     const disponibile = limite.limiteQuantita - limite.quantitaOrdinata;
     if (disponibile < quantitaKg) {
       return res.status(400).json({
         success: false,
-        message: `Disponibilità insufficiente. Rimangono solo ${disponibile.toFixed(2)} Kg`
+        message: 'Disponibilita insufficiente. Rimangono solo ' + disponibile.toFixed(2) + ' Kg'
       });
     }
 
-    // Incrementa quantità ordinata
+    // Incrementa quantita ordinata
     limite.quantitaOrdinata += quantitaKg;
     
     // Aggiungi alle note se fornita
     if (nota) {
-      limite.note = (limite.note || '') + `\n[${new Date().toLocaleTimeString('it-IT')}] Vendita diretta: ${quantitaKg}Kg - ${nota}`;
+      limite.note = (limite.note || '') + '\n[' + new Date().toLocaleTimeString('it-IT') + '] Vendita diretta: ' + quantitaKg + 'Kg - ' + nota;
     }
     
     await limite.save();
 
-    // 🔥 Notifica real-time via Pusher
+    // Notifica real-time via Pusher
     try {
       const pusherService = await import('../services/pusherService.js');
       pusherService.default.trigger('zeppole-channel', 'vendita-diretta', {
@@ -439,14 +439,14 @@ router.post('/vendita-diretta', async (req, res) => {
         timestamp: new Date()
       });
     } catch (pusherError) {
-      console.error('⚠️ Errore Pusher (non critico):', pusherError);
+      console.error('[WARN] Errore Pusher (non critico):', pusherError);
     }
 
-    logger.info(`✅ Vendita diretta registrata: ${quantitaKg}Kg di ${prodotto}`);
+    logger.info('Vendita diretta registrata:', quantitaKg + 'Kg di', prodotto);
 
     res.json({
       success: true,
-      message: `Venduti ${quantitaKg} Kg di ${prodotto}`,
+      message: 'Venduti ' + quantitaKg + ' Kg di ' + prodotto,
       data: {
         limite: limite.limiteQuantita,
         ordinato: limite.quantitaOrdinata,
@@ -494,7 +494,7 @@ router.get('/prodotto/:nome', async (req, res) => {
         attivo: true,
         sogliAllerta: 80
       });
-      logger.info(`✅ Creato limite di default per ${nome}: 20 Kg`);
+      logger.info('Creato limite di default per', nome + ': 20 Kg');
     }
 
     // Calcola ordinato dinamicamente
@@ -518,7 +518,7 @@ router.get('/prodotto/:nome', async (req, res) => {
 
 /**
  * @route   POST /api/limiti/reset-prodotto
- * @desc    Reset disponibilità per un prodotto specifico
+ * @desc    Reset disponibilita per un prodotto specifico
  * @access  Protetto
  */
 router.post('/reset-prodotto', async (req, res) => {
@@ -528,7 +528,7 @@ router.post('/reset-prodotto', async (req, res) => {
     if (!prodotto) {
       return res.status(400).json({
         success: false,
-        message: 'Prodotto è obbligatorio'
+        message: 'Prodotto e obbligatorio'
       });
     }
 
@@ -544,17 +544,17 @@ router.post('/reset-prodotto', async (req, res) => {
     if (!limite) {
       return res.status(404).json({
         success: false,
-        message: `Limite non trovato per ${prodotto}`
+        message: 'Limite non trovato per ' + prodotto
       });
     }
 
-    // Reset quantità ordinata
+    // Reset quantita ordinata
     const vecchioOrdinato = limite.quantitaOrdinata;
     limite.quantitaOrdinata = 0;
-    limite.note = (limite.note || '') + `\n[${new Date().toLocaleTimeString('it-IT')}] Reset disponibilità (era: ${vecchioOrdinato}Kg)`;
+    limite.note = (limite.note || '') + '\n[' + new Date().toLocaleTimeString('it-IT') + '] Reset disponibilita (era: ' + vecchioOrdinato + 'Kg)';
     await limite.save();
 
-    // 🔥 Notifica real-time
+    // Notifica real-time
     try {
       const pusherService = await import('../services/pusherService.js');
       pusherService.default.trigger('zeppole-channel', 'reset-disponibilita', {
@@ -563,14 +563,14 @@ router.post('/reset-prodotto', async (req, res) => {
         timestamp: new Date()
       });
     } catch (pusherError) {
-      console.error('⚠️ Errore Pusher (non critico):', pusherError);
+      console.error('[WARN] Errore Pusher (non critico):', pusherError);
     }
 
-    logger.info(`✅ Reset disponibilità: ${prodotto} (era ${vecchioOrdinato}Kg)`);
+    logger.info('Reset disponibilita:', prodotto, '(era', vecchioOrdinato + 'Kg)');
 
     res.json({
       success: true,
-      message: `Disponibilità resettata per ${prodotto}`,
+      message: 'Disponibilita resettata per ' + prodotto,
       data: limite
     });
 
@@ -633,9 +633,9 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
             ordineId: ordine._id,
             numeroOrdine: ordine.numeroOrdine,
             cliente: ordine.cliente ? 
-              `${ordine.cliente.nome || ''} ${ordine.cliente.cognome || ''}`.trim() : 
+              (ordine.cliente.nome || '') + ' ' + (ordine.cliente.cognome || '').trim() : 
               'Cliente non specificato',
-            codiceCliente: ordine.cliente?.codiceCliente,
+            codiceCliente: ordine.cliente && ordine.cliente.codiceCliente,
             oraRitiro: ordine.oraRitiro,
             quantita: prodotto.quantita,
             unita: unita,
