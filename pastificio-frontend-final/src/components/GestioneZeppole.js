@@ -1,5 +1,6 @@
 // src/components/GestioneZeppole.js
-// ✅ VERSIONE FIXED 15/12/2025 - Risolto loop infinito Pusher
+// ✅ VERSIONE FIXED 14/01/2026 - Route Railway corrette
+// Cache bust: 2026-01-14T09:45:00Z
 
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
@@ -43,8 +44,14 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+// ✅ API URL senza fallback - usa SOLO variabile ambiente Vercel
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PRODOTTO_NOME = 'Zeppole';
+
+// ✅ Validazione API URL all'avvio
+if (!API_URL) {
+  console.error('❌ NEXT_PUBLIC_API_URL non configurato!');
+}
 
 const GestioneZeppole = () => {
   const [limite, setLimite] = useState(null);
@@ -125,6 +132,7 @@ const GestioneZeppole = () => {
   // Carica dati iniziali
   useEffect(() => {
     console.log('📥 [Zeppole] Caricamento dati iniziale...');
+    console.log('🔗 [Zeppole] API URL:', API_URL);
     caricaDati();
     
     // Refresh automatico ogni minuto
@@ -152,11 +160,12 @@ const GestioneZeppole = () => {
 
   const caricaLimite = async () => {
     try {
-      console.log('📡 [Zeppole] GET /api/limiti/prodotto/Zeppole');
-      const response = await axios.get(
-        `${API_URL}/api/limiti/prodotto/${PRODOTTO_NOME}`,
-        { headers: { Authorization: `Bearer ${getToken()}` } }
-      );
+      const url = `${API_URL}/api/limiti/prodotto/${PRODOTTO_NOME}`;
+      console.log('📡 [Zeppole] GET', url);
+      
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
       
       const limiteData = response.data.data;
       setLimite(limiteData);
@@ -165,22 +174,25 @@ const GestioneZeppole = () => {
       console.log('✅ [Zeppole] Limite caricato:', limiteData);
     } catch (error) {
       console.error('❌ [Zeppole] Errore caricamento limite:', error);
+      console.error('URL:', `${API_URL}/api/limiti/prodotto/${PRODOTTO_NOME}`);
       throw error;
     }
   };
 
   const caricaOrdini = async () => {
     try {
-      console.log('📡 [Zeppole] GET /api/limiti/ordini-prodotto/Zeppole');
-      const response = await axios.get(
-        `${API_URL}/api/limiti/ordini-prodotto/${PRODOTTO_NOME}`,
-        { headers: { Authorization: `Bearer ${getToken()}` } }
-      );
+      const url = `${API_URL}/api/limiti/ordini-prodotto/${PRODOTTO_NOME}`;
+      console.log('📡 [Zeppole] GET', url);
+      
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
       
       setOrdini(response.data.data || []);
       console.log(`✅ [Zeppole] Ordini caricati: ${response.data.count}`);
     } catch (error) {
       console.error('❌ [Zeppole] Errore caricamento ordini:', error);
+      console.error('URL:', `${API_URL}/api/limiti/ordini-prodotto/${PRODOTTO_NOME}`);
       throw error;
     }
   };
