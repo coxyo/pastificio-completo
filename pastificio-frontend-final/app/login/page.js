@@ -1,4 +1,4 @@
-// app/login/page.js - VERSIONE DEFINITIVA
+// app/login/page.js - VERSIONE CORRETTA 14/01/2026
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -133,7 +133,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="admin@pastificio.it"
+              placeholder="admin@pastificio.com"
               autoComplete="email"
               style={{
                 width: '100%',
@@ -142,7 +142,8 @@ export default function LoginPage() {
                 borderRadius: '8px',
                 fontSize: '16px',
                 outline: 'none',
-                transition: 'border-color 0.2s'
+                transition: 'border-color 0.2s',
+                boxSizing: 'border-box'
               }}
               onFocus={(e) => e.target.style.borderColor = '#667eea'}
               onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
@@ -173,7 +174,8 @@ export default function LoginPage() {
                 borderRadius: '8px',
                 fontSize: '16px',
                 outline: 'none',
-                transition: 'border-color 0.2s'
+                transition: 'border-color 0.2s',
+                boxSizing: 'border-box'
               }}
               onFocus={(e) => e.target.style.borderColor = '#667eea'}
               onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
@@ -273,15 +275,16 @@ export default function LoginPage() {
             gridTemplateColumns: '1fr 1fr',
             gap: '10px'
           }}>
+            {/* ✅ CREDENZIALI CORRETTE */}
             {[
-              { name: 'Admin', email: 'admin@pastificio.it', icon: '👨‍💼' },
-              { name: 'Maria', email: 'maria@pastificio.it', icon: '👩' },
-              { name: 'Giuseppe', email: 'giuseppe@pastificio.it', icon: '👨' },
-              { name: 'Anna', email: 'anna@pastificio.it', icon: '👩' }
+              { name: 'Admin', email: 'admin@pastificio.com', password: 'Pastificio2025!', icon: '👨‍💼' },
+              { name: 'Maria', email: 'maria@pastificio.it', password: 'Pastificio2025!', icon: '👩' },
+              { name: 'Giuseppe', email: 'giuseppe@pastificio.it', password: 'Pastificio2025!', icon: '👨' },
+              { name: 'Anna', email: 'anna@pastificio.it', password: 'Pastificio2025!', icon: '👩' }
             ].map((user) => (
               <button
                 key={user.email}
-                onClick={() => quickLogin(user.email, 'admin123')}
+                onClick={() => quickLogin(user.email, user.password)}
                 type="button"
                 style={{
                   padding: '10px',
@@ -315,7 +318,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Info Credenziali */}
+        {/* Info Credenziali - AGGIORNATE */}
         <div style={{
           marginTop: '24px',
           padding: '16px',
@@ -336,8 +339,8 @@ export default function LoginPage() {
             color: '#3b82f6',
             lineHeight: '1.6'
           }}>
-            <strong>Email:</strong> admin@pastificio.it<br />
-            <strong>Password:</strong> admin123<br />
+            <strong>Email:</strong> admin@pastificio.com<br />
+            <strong>Password:</strong> Pastificio2025!<br />
             <strong>Durata Token:</strong> 7 giorni
           </div>
         </div>
@@ -349,7 +352,7 @@ export default function LoginPage() {
           color: '#9ca3af',
           textAlign: 'center'
         }}>
-          Sistema Gestionale v2.0.1 • Produzione
+          Sistema Gestionale v2.0.2 • Produzione
         </p>
       </div>
 
