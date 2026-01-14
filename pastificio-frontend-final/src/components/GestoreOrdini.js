@@ -996,7 +996,7 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   
   // ✅ NUOVISSIMO: State per Storico Chiamate e Statistiche (16/11/2025)
   const [storicoChiamateAperto, setStoricoChiamateAperto] = useState(false);
-const [dialogZeppoleOpen, setDialogZeppoleOpen] = useState(false);
+  const [dialogZeppoleOpen, setDialogZeppoleOpen] = useState(false);
   const [statisticheChiamateAperto, setStatisticheChiamateAperto] = useState(false);
   const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
@@ -2308,41 +2308,41 @@ return (
                 📊 Statistiche Chiamate
               </Button>
               
-<Button
-  variant="contained"
-  size="small"
-  sx={{ 
-    bgcolor: '#FF6B9D',
-    color: 'white',
-    '&:hover': { bgcolor: '#FF4081' }
-  }}
-  startIcon={<CakeIcon />}
-  onClick={() => setDialogZeppoleOpen(true)}
+              <Button
+                variant="contained"
+                size="small"
+                sx={{ 
+                  bgcolor: '#FF6B9D',
+                  color: 'white',
+                  '&:hover': { bgcolor: '#FF4081' }
+                }}
+                startIcon={<CakeIcon />}
+                onClick={() => setDialogZeppoleOpen(true)}
+              >
+                🎂 ZEPPOLE
+              </Button>
+              
+              <Button
+              variant="contained"
+              size="small"
+              color="primary"
+              startIcon={<ListAltIcon />}
+              onClick={() => setRiepilogoAperto(true)}
 >
-  🎂 ZEPPOLE
+              Riepilogo
 </Button>
 
               <Button
-  variant="contained"
-  size="small"
-  color="primary"
-  startIcon={<ListAltIcon />}
-  onClick={() => setRiepilogoAperto(true)}
->
-  Riepilogo
-</Button>
-
-<Button
-  variant="contained"
-  size="small"
-  color="warning"
-  startIcon={<PrintIcon />}
-  onClick={() => setRiepilogoStampabileAperto(true)}
-  sx={{ ml: 1 }}
->
-  📄 Stampabile
-</Button>
-
+                variant="contained"
+                size="small"
+                color="warning"
+                startIcon={<PrintIcon />}
+                onClick={() => setRiepilogoStampabileAperto(true)}
+                sx={{ ml: 1 }}
+              >
+                📄 Stampabile
+              </Button>
+              
 <Button
   variant="outlined"
   size="small"
