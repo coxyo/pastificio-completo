@@ -1,15 +1,16 @@
-// routes/limiti.js - ROUTE ORDINATE CORRETTAMENTE
+// routes/limiti.js - ✅ FIX 14/01/2026: Route PUBBLICHE (come ordini e clienti)
 import express from 'express';
-import { protect } from '../middleware/auth.js';
+import { optionalAuth } from '../middleware/auth.js';  // ✅ CAMBIATO: usa optionalAuth invece di protect
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
 import Ordine from '../models/Ordine.js';
 
 const router = express.Router();
 
-// Middleware di autenticazione
-router.use(protect);
+// ✅ FIX: Usa autenticazione OPZIONALE (non blocca se manca il token)
+// Questo allinea il comportamento con /api/ordini e /api/clienti
+router.use(optionalAuth);
 
-console.log('[LIMITI ROUTES] File caricato');
+console.log('[LIMITI ROUTES] File caricato - Autenticazione OPZIONALE');
 
 // ⚠️ IMPORTANTE: Route SPECIFICHE devono venire PRIMA delle generiche!
 
@@ -228,6 +229,37 @@ router.post('/reset-prodotto', async (req, res) => {
   }
 });
 
+/**
+ * @route   PUT /api/limiti/:id
+ * @desc    Aggiorna limite esistente
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limiteQuantita } = req.body;
+
+    console.log(`[LIMITI] PUT limite ${id}: ${limiteQuantita} Kg`);
+
+    const limite = await LimiteGiornaliero.findByIdAndUpdate(
+      id,
+      { limiteQuantita },
+      { new: true }
+    );
+
+    if (!limite) {
+      return res.status(404).json({
+        success: false,
+        message: 'Limite non trovato'
+      });
+    }
+
+    res.json({ success: true, data: limite });
+  } catch (error) {
+    console.error('[LIMITI] Errore:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ⚠️ Route generiche ALLA FINE (dopo quelle specifiche)
 
 /**
@@ -260,6 +292,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-console.log('[LIMITI ROUTES] Tutte le route registrate (ordine corretto)');
+console.log('[LIMITI ROUTES] Tutte le route registrate (autenticazione opzionale)');
 
 export default router;
