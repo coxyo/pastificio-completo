@@ -21,12 +21,8 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
   
-  // Environment variables - ✅ FIXED: Railway URL
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app',
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'wss://pastificio-completo-production.up.railway.app',
-    NEXT_PUBLIC_APP_VERSION: '2.0.0',
-  },
+  // ❌ RIMOSSO: env (non funziona bene in Next.js 15)
+  // Usare invece Environment Variables su Vercel Dashboard
   
   // Webpack configuration
   webpack: (config, { isServer }) => {
