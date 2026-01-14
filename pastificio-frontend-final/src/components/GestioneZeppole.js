@@ -1,368 +1,783 @@
-// app/login/page.js - VERSIONE CORRETTA 14/01/2026
-'use client';
+// src/components/GestioneZeppole.js
+// ✅ VERSIONE FIX 14/01/2026 - Risolto doppio /api nell'URL
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
+import React, { useState, useEffect, useCallback } from 'react';
+import Pusher from 'pusher-js';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  ButtonGroup,
+  TextField,
+  LinearProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Grid,
+  Alert,
+  Snackbar,
+  Card,
+  CardContent,
+  Divider,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Tooltip
+} from '@mui/material';
+import {
+  Refresh as RefreshIcon,
+  RestartAlt as ResetIcon,
+  Add as AddIcon,
+  ShoppingCart as CartIcon,
+  LocalPizza as ZeppoleIcon,
+  AccessTime as TimeIcon,
+  TrendingUp as TrendingIcon,
+  Warning as WarningIcon,
+  Settings as SettingsIcon
+} from '@mui/icons-material';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+// ✅ FIX: API_URL include già /api, quindi nelle chiamate NON aggiungiamo /api
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+const PRODOTTO_NOME = 'Zeppole';
 
-  // Check se già loggato all'avvio
-  useEffect(() => {
-    const token = Cookies.get('token') || localStorage.getItem('token');
-    if (token) {
-      console.log('✅ Già loggato, redirect a dashboard...');
-      router.push('/dashboard');
+const GestioneZeppole = () => {
+  const [limite, setLimite] = useState(null);
+  const [ordini, setOrdini] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [nuovoLimite, setNuovoLimite] = useState(20);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [dialogReset, setDialogReset] = useState(false);
+  const [dialogVendita, setDialogVendita] = useState(false);
+  const [dialogEditLimite, setDialogEditLimite] = useState(false);
+  const [quantitaPersonalizzata, setQuantitaPersonalizzata] = useState('');
+  const [ultimoAggiornamento, setUltimoAggiornamento] = useState(new Date());
+
+  const getToken = () => localStorage.getItem('token');
+  
+  // Helper per fetch con auth (token opzionale)
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = getToken();
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers
+    };
+    
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-  }, [router]);
+    
+    return response.json();
+  };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const showSnackbar = (message, severity = 'info') => {
+    setSnackbar({ open: true, message, severity });
+  };
 
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
-      
-      console.log('🔐 Tentativo login:', { email, API_URL });
+  const closeSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
 
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password })
-      });
+  // ✅ FIX: Pusher useEffect SENZA dipendenze che causano loop
+  useEffect(() => {
+    console.log('🔌 [Zeppole] Inizializzazione Pusher...');
+    
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
+    if (!pusherKey) {
+      console.warn('⚠️ [Zeppole] PUSHER_KEY non configurata');
+      return;
+    }
+    
+    const pusher = new Pusher(pusherKey, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu'
+    });
 
-      const data = await response.json();
-      console.log('📡 Risposta server:', data);
+    const channel = pusher.subscribe('zeppole-channel');
 
-      if (data.success && data.token) {
-        // Salva in ENTRAMBI i posti per massima compatibilità
-        Cookies.set('token', data.token, { 
-          expires: 7, // 7 giorni
-          secure: true, // Solo HTTPS
-          sameSite: 'strict' // Protezione CSRF
+    channel.bind('vendita-diretta', (data) => {
+      console.log('📡 [Zeppole] Pusher: vendita-diretta', data);
+      if (data.prodotto === PRODOTTO_NOME) {
+        setLimite(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            quantitaOrdinata: data.ordinatoKg
+          };
         });
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        console.log('✅ Login effettuato con successo!');
-        console.log('🔑 Token salvato in cookies e localStorage');
-
-        // Redirect al dashboard
-        router.push('/dashboard');
-      } else {
-        setError(data.message || data.error || 'Credenziali non valide');
-        console.error('❌ Login fallito:', data);
+        setUltimoAggiornamento(new Date());
+        showSnackbar(`Venduti ${data.quantitaKg} Kg`, 'success');
       }
+    });
+
+    channel.bind('reset-disponibilita', (data) => {
+      console.log('📡 [Zeppole] Pusher: reset-disponibilita', data);
+      if (data.prodotto === PRODOTTO_NOME) {
+        caricaDati();
+        showSnackbar('Disponibilità resettata', 'info');
+      }
+    });
+
+    const ordiniChannel = pusher.subscribe('ordini-channel');
+    
+    ordiniChannel.bind('ordine-creato', (data) => {
+      console.log('📡 [Zeppole] Pusher: ordine-creato', data);
+      if (data.ordine?.prodotti?.some(p => 
+        p.nome?.toLowerCase().includes(PRODOTTO_NOME.toLowerCase())
+      )) {
+        caricaDati();
+      }
+    });
+
+    ordiniChannel.bind('ordine-aggiornato', () => {
+      console.log('📡 [Zeppole] Pusher: ordine-aggiornato');
+      caricaDati();
+    });
+
+    console.log('✅ [Zeppole] Pusher connesso');
+
+    return () => {
+      console.log('🔌 [Zeppole] Disconnessione Pusher...');
+      channel.unbind_all();
+      channel.unsubscribe();
+      ordiniChannel.unbind_all();
+      ordiniChannel.unsubscribe();
+      pusher.disconnect();
+    };
+  }, []);
+
+  // Carica dati iniziali
+  useEffect(() => {
+    console.log('📥 [Zeppole] Caricamento dati iniziale...');
+    console.log('🔗 [Zeppole] API URL:', API_URL);
+    caricaDati();
+    
+    const interval = setInterval(() => {
+      console.log('🔄 [Zeppole] Refresh automatico...');
+      caricaDati();
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const caricaDati = useCallback(async () => {
+    try {
+      console.log('📡 [Zeppole] Chiamata API caricaDati...');
+      await Promise.all([caricaLimite(), caricaOrdini()]);
+      setUltimoAggiornamento(new Date());
+      setLoading(false);
+      console.log('✅ [Zeppole] Dati caricati');
     } catch (error) {
-      console.error('❌ Errore login:', error);
-      setError('Errore di connessione al server');
-    } finally {
+      console.error('❌ [Zeppole] Errore caricamento dati:', error);
+      showSnackbar('Errore nel caricamento dati', 'error');
       setLoading(false);
     }
+  }, []);
+
+  const caricaLimite = async () => {
+    try {
+      // ✅ FIX: NON aggiungere /api perché API_URL già lo include
+      const url = `${API_URL}/limiti/prodotto/${PRODOTTO_NOME}`;
+      console.log('📡 [Zeppole] GET', url);
+      
+      const data = await fetchWithAuth(url);
+      
+      const limiteData = data.data;
+      setLimite(limiteData);
+      setNuovoLimite(limiteData.limiteQuantita);
+      
+      console.log('✅ [Zeppole] Limite caricato:', limiteData);
+    } catch (error) {
+      console.error('❌ [Zeppole] Errore caricamento limite:', error);
+      throw error;
+    }
   };
 
-  // Quick login per test
-  const quickLogin = (userEmail, userPassword) => {
-    setEmail(userEmail);
-    setPassword(userPassword);
+  const caricaOrdini = async () => {
+    try {
+      // ✅ FIX: NON aggiungere /api perché API_URL già lo include
+      const url = `${API_URL}/limiti/ordini-prodotto/${PRODOTTO_NOME}`;
+      console.log('📡 [Zeppole] GET', url);
+      
+      const data = await fetchWithAuth(url);
+      
+      setOrdini(data.data || []);
+      console.log(`✅ [Zeppole] Ordini caricati: ${data.count}`);
+    } catch (error) {
+      console.error('❌ [Zeppole] Errore caricamento ordini:', error);
+      throw error;
+    }
   };
+
+  const salvaLimite = async () => {
+    try {
+      if (!limite) return;
+
+      console.log('📡 [Zeppole] PUT /limiti/' + limite._id);
+      
+      // ✅ FIX: NON aggiungere /api
+      const data = await fetchWithAuth(
+        `${API_URL}/limiti/${limite._id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ limiteQuantita: nuovoLimite })
+        }
+      );
+      
+      setLimite(data.data);
+      setDialogEditLimite(false);
+      showSnackbar('Limite aggiornato', 'success');
+      console.log('✅ [Zeppole] Limite salvato');
+      
+    } catch (error) {
+      console.error('❌ [Zeppole] Errore salvataggio limite:', error);
+      showSnackbar('Errore nel salvataggio limite', 'error');
+    }
+  };
+
+  const resetDisponibilita = async () => {
+    try {
+      console.log('📡 [Zeppole] POST /limiti/reset-prodotto');
+      
+      // ✅ FIX: NON aggiungere /api
+      await fetchWithAuth(
+        `${API_URL}/limiti/reset-prodotto`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ prodotto: PRODOTTO_NOME })
+        }
+      );
+      
+      setDialogReset(false);
+      showSnackbar('Disponibilità resettata', 'success');
+      caricaDati();
+      
+    } catch (error) {
+      console.error('❌ [Zeppole] Errore reset:', error);
+      showSnackbar('Errore nel reset', 'error');
+    }
+  };
+
+  const registraVendita = async (quantitaKg) => {
+    try {
+      console.log(`📡 [Zeppole] POST /limiti/vendita-diretta: ${quantitaKg} Kg`);
+      
+      // ✅ FIX: NON aggiungere /api
+      const data = await fetchWithAuth(
+        `${API_URL}/limiti/vendita-diretta`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ 
+            prodotto: PRODOTTO_NOME, 
+            quantitaKg 
+          })
+        }
+      );
+      
+      showSnackbar(`Vendita registrata: ${quantitaKg} Kg`, 'success');
+      caricaDati();
+      return data;
+      
+    } catch (error) {
+      console.error('❌ [Zeppole] Errore vendita:', error);
+      showSnackbar(error.message || 'Errore nella vendita', 'error');
+      throw error;
+    }
+  };
+
+  const venditaRapida = async (kg) => {
+    await registraVendita(kg);
+  };
+
+  const venditaPersonalizzata = async () => {
+    const kg = parseFloat(quantitaPersonalizzata);
+    if (isNaN(kg) || kg <= 0) {
+      showSnackbar('Inserisci una quantità valida', 'warning');
+      return;
+    }
+    await registraVendita(kg);
+    setDialogVendita(false);
+    setQuantitaPersonalizzata('');
+  };
+
+  // Calcoli
+  const disponibile = limite ? Math.max(0, limite.limiteQuantita - limite.quantitaOrdinata) : 0;
+  const percentualeUsata = limite ? (limite.quantitaOrdinata / limite.limiteQuantita) * 100 : 0;
+  const totaleOrdiniKg = ordini.reduce((sum, o) => sum + (o.quantitaKg || 0), 0);
+  
+  // Colore progress bar
+  const getProgressColor = (perc) => {
+    if (perc >= 90) return 'error';
+    if (perc >= 70) return 'warning';
+    return 'success';
+  };
+
+  // Formatta ora
+  const formatOra = (ora) => {
+    if (!ora) return '--:--';
+    if (ora.includes(':')) return ora.substring(0, 5);
+    return ora;
+  };
+
+  // Colore stato ordine
+  const getStatusColor = (stato) => {
+    switch (stato?.toLowerCase()) {
+      case 'completato': return 'success';
+      case 'in_preparazione': return 'warning';
+      case 'pronto': return 'info';
+      default: return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <LinearProgress />
+        <Typography sx={{ mt: 2 }} align="center">
+          Caricamento dati Zeppole...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!limite) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning">
+          Impossibile caricare i dati. Riprova più tardi.
+          <Button onClick={caricaDati} sx={{ ml: 2 }}>
+            Riprova
+          </Button>
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      padding: '20px'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        padding: '48px',
-        borderRadius: '16px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-        width: '100%',
-        maxWidth: '450px'
-      }}>
-        {/* Logo e Titolo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ fontSize: '64px', marginBottom: '16px' }}>
-            🍝
-          </div>
-          <h1 style={{
-            fontSize: '28px',
-            fontWeight: 'bold',
-            color: '#1f2937',
-            margin: '0 0 8px 0'
-          }}>
-            Pastificio Nonna Claudia
-          </h1>
-          <p style={{
-            fontSize: '16px',
-            color: '#6b7280',
-            margin: 0
-          }}>
-            Accedi al Sistema Gestionale
-          </p>
-        </div>
+    <Box sx={{ p: 2 }}>
+      {/* Header */}
+      <Paper 
+        elevation={3} 
+        sx={{ 
+          p: 2, 
+          mb: 3, 
+          background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
+          color: 'white'
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <ZeppoleIcon sx={{ fontSize: 40 }} />
+            <Box>
+              <Typography variant="h5" fontWeight="bold">
+                🎂 Gestione Zeppole
+              </Typography>
+              <Typography variant="body2">
+                Monitoraggio disponibilità giornaliera
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Aggiorna dati">
+              <IconButton onClick={caricaDati} sx={{ color: 'white' }}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+      </Paper>
 
-        {/* Form Login */}
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              color: '#374151',
-              fontSize: '14px',
-              fontWeight: '600'
-            }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="admin@pastificio.com"
-              autoComplete="email"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '16px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-            />
-          </div>
+      <Grid container spacing={3}>
+        {/* Card Disponibilità */}
+        <Grid item xs={12} md={6}>
+          <Card elevation={3}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                📊 Disponibilità Oggi
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              {/* Progress Bar */}
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Ordinato: {limite.quantitaOrdinata.toFixed(2)} Kg
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Limite: {limite.limiteQuantita} Kg
+                  </Typography>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={Math.min(percentualeUsata, 100)} 
+                  color={getProgressColor(percentualeUsata)}
+                  sx={{ height: 20, borderRadius: 2 }}
+                />
+                <Typography 
+                  variant="body2" 
+                  align="center" 
+                  sx={{ mt: 1, fontWeight: 'bold' }}
+                >
+                  {percentualeUsata.toFixed(1)}% utilizzato
+                </Typography>
+              </Box>
 
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              color: '#374151',
-              fontSize: '14px',
-              fontWeight: '600'
-            }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              autoComplete="current-password"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '16px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-            />
-          </div>
-
-          {/* Errore */}
-          {error && (
-            <div style={{
-              padding: '12px 16px',
-              backgroundColor: '#fee2e2',
-              color: '#991b1b',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span style={{ fontSize: '18px' }}>⚠️</span>
-              {error}
-            </div>
-          )}
-
-          {/* Pulsante Login */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '14px',
-              backgroundColor: loading ? '#9ca3af' : '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: loading ? 'none' : '0 4px 6px rgba(102, 126, 234, 0.4)'
-            }}
-            onMouseEnter={(e) => {
-              if (!loading) {
-                e.target.style.backgroundColor = '#5568d3';
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 12px rgba(102, 126, 234, 0.5)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!loading) {
-                e.target.style.backgroundColor = '#667eea';
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 6px rgba(102, 126, 234, 0.4)';
-              }
-            }}
-          >
-            {loading ? (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px'
+              {/* Disponibilità grande */}
+              <Box sx={{ 
+                textAlign: 'center', 
+                p: 3, 
+                bgcolor: disponibile > 5 ? 'success.light' : disponibile > 0 ? 'warning.light' : 'error.light',
+                borderRadius: 2,
+                mb: 2
               }}>
-                <div style={{
-                  width: '18px',
-                  height: '18px',
-                  border: '3px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite'
-                }} />
-                Accesso in corso...
-              </div>
-            ) : (
-              '🔐 ACCEDI AL GESTIONALE'
-            )}
-          </button>
-        </form>
+                <Typography variant="h2" fontWeight="bold" color="white">
+                  {disponibile.toFixed(1)}
+                </Typography>
+                <Typography variant="h6" color="white">
+                  Kg Disponibili
+                </Typography>
+              </Box>
 
-        {/* Quick Login Buttons */}
-        <div style={{
-          marginTop: '32px',
-          paddingTop: '24px',
-          borderTop: '1px solid #e5e7eb'
-        }}>
-          <p style={{
-            fontSize: '13px',
-            color: '#9ca3af',
-            marginBottom: '16px',
-            textAlign: 'center',
-            fontWeight: '500'
-          }}>
-            🚀 Accesso Rapido (Test):
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '10px'
-          }}>
-            {/* ✅ CREDENZIALI CORRETTE */}
-            {[
-              { name: 'Admin', email: 'admin@pastificio.com', password: 'Pastificio2025!', icon: '👨‍💼' },
-              { name: 'Maria', email: 'maria@pastificio.it', password: 'Pastificio2025!', icon: '👩' },
-              { name: 'Giuseppe', email: 'giuseppe@pastificio.it', password: 'Pastificio2025!', icon: '👨' },
-              { name: 'Anna', email: 'anna@pastificio.it', password: 'Pastificio2025!', icon: '👩' }
-            ].map((user) => (
-              <button
-                key={user.email}
-                onClick={() => quickLogin(user.email, user.password)}
-                type="button"
-                style={{
-                  padding: '10px',
-                  backgroundColor: '#f3f4f6',
-                  border: '2px solid transparent',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#e5e7eb';
-                  e.target.style.borderColor = '#667eea';
-                  e.target.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#f3f4f6';
-                  e.target.style.borderColor = 'transparent';
-                  e.target.style.transform = 'scale(1)';
-                }}
+              {/* Alert se scorte basse */}
+              {disponibile <= 5 && disponibile > 0 && (
+                <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 2 }}>
+                  Scorte basse! Rimangono solo {disponibile.toFixed(2)} Kg
+                </Alert>
+              )}
+              
+              {disponibile === 0 && (
+                <Alert severity="error" icon={<WarningIcon />} sx={{ mb: 2 }}>
+                  Esaurite! Nessuna disponibilità rimasta
+                </Alert>
+              )}
+
+              {/* Ultimo aggiornamento */}
+              <Typography variant="caption" color="text.secondary" display="block" textAlign="center">
+                Ultimo aggiornamento: {ultimoAggiornamento.toLocaleTimeString('it-IT')}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Card Azioni Rapide */}
+        <Grid item xs={12} md={6}>
+          <Card elevation={3}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                ⚡ Vendita Rapida
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Registra vendite dirette (non da ordini)
+              </Typography>
+
+              {/* Pulsanti vendita rapida */}
+              <Grid container spacing={1} sx={{ mb: 3 }}>
+                {[
+                  { kg: 0.1, label: '100g' },
+                  { kg: 0.2, label: '200g' },
+                  { kg: 0.5, label: '500g' },
+                  { kg: 0.7, label: '700g' },
+                  { kg: 1, label: '1 Kg' }
+                ].map((item) => (
+                  <Grid item key={item.kg}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => venditaRapida(item.kg)}
+                      disabled={disponibile < item.kg}
+                      startIcon={<AddIcon />}
+                    >
+                      {item.label}
+                    </Button>
+                  </Grid>
+                ))}
+              </Grid>
+
+              {/* Pulsante vendita personalizzata */}
+              <Button
+                variant="outlined"
+                color="primary"
+                fullWidth
+                onClick={() => setDialogVendita(true)}
+                disabled={disponibile <= 0}
+                sx={{ mb: 2 }}
               >
-                <span style={{ fontSize: '18px' }}>{user.icon}</span>
-                {user.name}
-              </button>
-            ))}
-          </div>
-        </div>
+                Vendita Personalizzata
+              </Button>
 
-        {/* Info Credenziali - AGGIORNATE */}
-        <div style={{
-          marginTop: '24px',
-          padding: '16px',
-          backgroundColor: '#f0f9ff',
-          borderRadius: '8px',
-          border: '1px solid #bfdbfe'
-        }}>
-          <div style={{
-            fontSize: '13px',
-            color: '#1e40af',
-            marginBottom: '8px',
-            fontWeight: '600'
-          }}>
-            ℹ️ Credenziali di Test:
-          </div>
-          <div style={{
-            fontSize: '12px',
-            color: '#3b82f6',
-            lineHeight: '1.6'
-          }}>
-            <strong>Email:</strong> admin@pastificio.com<br />
-            <strong>Password:</strong> Pastificio2025!<br />
-            <strong>Durata Token:</strong> 7 giorni
-          </div>
-        </div>
+              <Divider sx={{ my: 2 }} />
 
-        {/* Footer */}
-        <p style={{
-          marginTop: '24px',
-          fontSize: '12px',
-          color: '#9ca3af',
-          textAlign: 'center'
-        }}>
-          Sistema Gestionale v2.0.2 • Produzione
-        </p>
-      </div>
+              {/* Azioni amministrative */}
+              <Typography variant="subtitle2" gutterBottom>
+                🛠️ Gestione
+              </Typography>
+              
+              <ButtonGroup fullWidth sx={{ mb: 1 }}>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => setDialogReset(true)}
+                  startIcon={<ResetIcon />}
+                >
+                  Reset
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="info"
+                  onClick={() => setDialogEditLimite(true)}
+                  startIcon={<SettingsIcon />}
+                >
+                  Modifica Limite
+                </Button>
+              </ButtonGroup>
+            </CardContent>
+          </Card>
+        </Grid>
 
-      {/* CSS Animations */}
-      <style jsx>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+        {/* Tabella Ordini */}
+        <Grid item xs={12}>
+          <Card elevation={3}>
+            <CardContent>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                mb: 2,
+                flexWrap: 'wrap',
+                gap: 1
+              }}>
+                <Typography variant="h6">
+                  📦 Ordini Registrati Oggi
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Chip
+                    label={`${ordini.length} ordini`}
+                    color="primary"
+                    icon={<CartIcon />}
+                  />
+                  <Chip
+                    label={`${totaleOrdiniKg.toFixed(2)} Kg totali`}
+                    color="secondary"
+                    icon={<TrendingIcon />}
+                  />
+                </Box>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
+              
+              {ordini.length === 0 ? (
+                <Alert severity="info">
+                  Nessun ordine di Zeppole registrato oggi
+                </Alert>
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Ora</strong></TableCell>
+                        <TableCell><strong>Cliente</strong></TableCell>
+                        <TableCell><strong>Codice</strong></TableCell>
+                        <TableCell align="right"><strong>Quantità</strong></TableCell>
+                        <TableCell><strong>Note</strong></TableCell>
+                        <TableCell align="center"><strong>Stato</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {ordini.map((ordine, idx) => (
+                        <TableRow key={ordine.ordineId || idx} hover>
+                          <TableCell>
+                            <Chip
+                              label={formatOra(ordine.oraRitiro)}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              icon={<TimeIcon />}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="medium">
+                              {ordine.cliente}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="caption" color="text.secondary">
+                              {ordine.codiceCliente || '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">
+                                {ordine.quantitaKg.toFixed(2)} Kg
+                              </Typography>
+                              {ordine.unita !== 'Kg' && (
+                                <Typography variant="caption" color="text.secondary">
+                                  ({ordine.quantita} {ordine.unita})
+                                </Typography>
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="caption">
+                              {ordine.note || '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={ordine.stato}
+                              size="small"
+                              color={getStatusColor(ordine.stato)}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      
+                      {/* Riga totale */}
+                      <TableRow sx={{ bgcolor: 'action.hover' }}>
+                        <TableCell colSpan={3} align="right">
+                          <Typography variant="body1" fontWeight="bold">
+                            TOTALE ORDINI:
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="h6" color="primary" fontWeight="bold">
+                            {totaleOrdiniKg.toFixed(2)} Kg
+                          </Typography>
+                        </TableCell>
+                        <TableCell colSpan={2} />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Dialog Modifica Limite */}
+      <Dialog 
+        open={dialogEditLimite} 
+        onClose={() => setDialogEditLimite(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Modifica Limite Giornaliero</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Nuovo Limite (Kg)"
+            type="number"
+            value={nuovoLimite}
+            onChange={(e) => setNuovoLimite(parseFloat(e.target.value))}
+            fullWidth
+            margin="normal"
+            inputProps={{ min: 0, step: 1 }}
+            autoFocus
+          />
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Limite attuale: <strong>{limite.limiteQuantita} Kg</strong>
+            <br />
+            Già ordinato: <strong>{limite.quantitaOrdinata.toFixed(2)} Kg</strong>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogEditLimite(false)}>Annulla</Button>
+          <Button onClick={salvaLimite} variant="contained">
+            Salva
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Reset Disponibilità */}
+      <Dialog open={dialogReset} onClose={() => setDialogReset(false)}>
+        <DialogTitle>⚠️ Conferma Reset</DialogTitle>
+        <DialogContent>
+          <Typography paragraph>
+            Sei sicuro di voler resettare la disponibilità a <strong>{limite.limiteQuantita} Kg</strong>?
+          </Typography>
+          <Alert severity="warning">
+            Questa azione azzererà il contatore delle vendite registrate oggi.
+            Attualmente hai ordinato: <strong>{limite.quantitaOrdinata.toFixed(2)} Kg</strong>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogReset(false)}>Annulla</Button>
+          <Button 
+            onClick={resetDisponibilita} 
+            variant="contained" 
+            color="warning"
+          >
+            Conferma Reset
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Vendita Personalizzata */}
+      <Dialog 
+        open={dialogVendita} 
+        onClose={() => setDialogVendita(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Vendita Personalizzata</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Quantità (Kg)"
+            type="number"
+            value={quantitaPersonalizzata}
+            onChange={(e) => setQuantitaPersonalizzata(e.target.value)}
+            fullWidth
+            margin="normal"
+            inputProps={{ min: 0, step: 0.1, max: disponibile }}
+            autoFocus
+            helperText={`Disponibilità: ${disponibile.toFixed(2)} Kg`}
+          />
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Disponibilità attuale: <strong>{disponibile.toFixed(2)} Kg</strong>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogVendita(false)}>Annulla</Button>
+          <Button 
+            onClick={venditaPersonalizzata} 
+            variant="contained"
+            disabled={!quantitaPersonalizzata || parseFloat(quantitaPersonalizzata) <= 0}
+          >
+            Conferma Vendita
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar Notifiche */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={closeSnackbar} 
+          severity={snackbar.severity} 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
-}
+};
+
+export default GestioneZeppole;
