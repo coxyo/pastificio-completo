@@ -486,16 +486,22 @@ const GestioneZeppole = () => {
 
               {/* Pulsanti vendita rapida */}
               <Grid container spacing={1} sx={{ mb: 3 }}>
-                {[0.5, 1, 2, 3, 5].map((kg) => (
-                  <Grid item key={kg}>
+                {[
+                  { kg: 0.1, label: '100g' },
+                  { kg: 0.2, label: '200g' },
+                  { kg: 0.5, label: '500g' },
+                  { kg: 0.7, label: '700g' },
+                  { kg: 1, label: '1 Kg' }
+                ].map((item) => (
+                  <Grid item key={item.kg}>
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={() => venditaRapida(kg)}
-                      disabled={disponibile < kg}
+                      onClick={() => venditaRapida(item.kg)}
+                      disabled={disponibile < item.kg}
                       startIcon={<AddIcon />}
                     >
-                      {kg} Kg
+                      {item.label}
                     </Button>
                   </Grid>
                 ))}
