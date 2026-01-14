@@ -293,9 +293,6 @@ const GestioneZeppole = () => {
     setQuantitaPersonalizzata('');
   };
 
-  const showSnackbar = (message, severity = 'info') => {
-    setSnackbar({ open: true, message, severity });
-  };
 
   const closeSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
