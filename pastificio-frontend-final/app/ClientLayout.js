@@ -1,7 +1,7 @@
-// app/ClientLayout.js - VERSIONE AGGIORNATA con Zeppole
+// app/ClientLayout.js - VERSIONE AGGIORNATA
 // ✅ CallPopup riattivato
 // ✅ useIncomingCall riattivato
-// ✅ NUOVO: Menu Zeppole
+// ✅ Rimossa voce Zeppole (si accede da dialog in Ordini)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -39,11 +39,10 @@ import CallPopup from '@/components/CallPopup';
 
 const drawerWidth = 240;
 
-// ✅ AGGIORNATO: Aggiunta voce Zeppole
+// ✅ Menu senza Zeppole (si accede dal pulsante in Ordini)
 const menuItems = [
   { id: 'dashboard', title: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/' },
-  { id: 'zeppole', title: '🎂 Zeppole', icon: <ShoppingCart />, path: '/zeppole' },
   { id: 'clienti', title: 'Clienti', icon: <People />, path: '/clienti' },
   { id: 'magazzino', title: 'Magazzino', icon: <Inventory />, path: '/magazzino' },
   { id: 'corrispettivi', title: '💰 Corrispettivi', icon: <Receipt />, path: '/corrispettivi' },
