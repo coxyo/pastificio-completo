@@ -1034,7 +1034,11 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     // Apri dialogo nuovo ordine
     setDialogoNuovoOrdineAperto(true);
     
-    // Chiudi popup
+    // ✅ FIX 14/01/2026: CHIUDI IL POPUP!
+    // Prima mancava questa chiamata, per questo il popup restava aperto
+    handleClosePopup();
+    
+    // Chiama anche hook (per consistenza)
     handleAcceptCallFromHook();
   };
     
