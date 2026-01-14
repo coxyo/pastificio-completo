@@ -1,9 +1,7 @@
 // src/components/GestioneZeppole.js
-// ✅ VERSIONE FIXED 14/01/2026 - Route Railway corrette
-// Cache bust: 2026-01-14T09:45:00Z
+// ✅ VERSIONE FETCH 14/01/2026 - Sostituito axios con fetch
 
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import Pusher from 'pusher-js';
 import {
   Box,
@@ -44,14 +42,8 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 
-// ✅ API URL senza fallback - usa SOLO variabile ambiente Vercel
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
 const PRODOTTO_NOME = 'Zeppole';
-
-// ✅ Validazione API URL all'avvio
-if (!API_URL) {
-  console.error('❌ NEXT_PUBLIC_API_URL non configurato!');
-}
 
 const GestioneZeppole = () => {
   const [limite, setLimite] = useState(null);
@@ -66,6 +58,31 @@ const GestioneZeppole = () => {
   const [ultimoAggiornamento, setUltimoAggiornamento] = useState(new Date());
 
   const getToken = () => localStorage.getItem('token');
+  
+  // Helper per fetch con auth
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers
+    };
+    
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return response.json();
+  };
+
+  const showSnackbar = (message, severity = 'info') => {
+    setSnackbar({ open: true, message, severity });
+  };
 
   // ✅ FIX: Pusher useEffect SENZA dipendenze che causano loop
   useEffect(() => {
@@ -80,7 +97,6 @@ const GestioneZeppole = () => {
     channel.bind('vendita-diretta', (data) => {
       console.log('📡 [Zeppole] Pusher: vendita-diretta', data);
       if (data.prodotto === PRODOTTO_NOME) {
-        // Usa callback per non dipendere da 'limite' nelle dipendenze
         setLimite(prev => {
           if (!prev) return prev;
           return {
@@ -127,7 +143,7 @@ const GestioneZeppole = () => {
       ordiniChannel.unsubscribe();
       pusher.disconnect();
     };
-  }, []); // ✅ ARRAY VUOTO - Esegue SOLO all'avvio
+  }, []);
 
   // Carica dati iniziali
   useEffect(() => {
@@ -135,7 +151,6 @@ const GestioneZeppole = () => {
     console.log('🔗 [Zeppole] API URL:', API_URL);
     caricaDati();
     
-    // Refresh automatico ogni minuto
     const interval = setInterval(() => {
       console.log('🔄 [Zeppole] Refresh automatico...');
       caricaDati();
@@ -163,18 +178,15 @@ const GestioneZeppole = () => {
       const url = `${API_URL}/api/limiti/prodotto/${PRODOTTO_NOME}`;
       console.log('📡 [Zeppole] GET', url);
       
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
+      const data = await fetchWithAuth(url);
       
-      const limiteData = response.data.data;
+      const limiteData = data.data;
       setLimite(limiteData);
       setNuovoLimite(limiteData.limiteQuantita);
       
       console.log('✅ [Zeppole] Limite caricato:', limiteData);
     } catch (error) {
       console.error('❌ [Zeppole] Errore caricamento limite:', error);
-      console.error('URL:', `${API_URL}/api/limiti/prodotto/${PRODOTTO_NOME}`);
       throw error;
     }
   };
@@ -184,15 +196,12 @@ const GestioneZeppole = () => {
       const url = `${API_URL}/api/limiti/ordini-prodotto/${PRODOTTO_NOME}`;
       console.log('📡 [Zeppole] GET', url);
       
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
+      const data = await fetchWithAuth(url);
       
-      setOrdini(response.data.data || []);
-      console.log(`✅ [Zeppole] Ordini caricati: ${response.data.count}`);
+      setOrdini(data.data || []);
+      console.log(`✅ [Zeppole] Ordini caricati: ${data.count}`);
     } catch (error) {
       console.error('❌ [Zeppole] Errore caricamento ordini:', error);
-      console.error('URL:', `${API_URL}/api/limiti/ordini-prodotto/${PRODOTTO_NOME}`);
       throw error;
     }
   };
@@ -202,13 +211,16 @@ const GestioneZeppole = () => {
       if (!limite) return;
 
       console.log('📡 [Zeppole] PUT /api/limiti/' + limite._id);
-      const response = await axios.put(
+      
+      const data = await fetchWithAuth(
         `${API_URL}/api/limiti/${limite._id}`,
-        { limiteQuantita: nuovoLimite },
-        { headers: { Authorization: `Bearer ${getToken()}` } }
+        {
+          method: 'PUT',
+          body: JSON.stringify({ limiteQuantita: nuovoLimite })
+        }
       );
       
-      setLimite(response.data.data);
+      setLimite(data.data);
       setDialogEditLimite(false);
       showSnackbar('Limite aggiornato', 'success');
       console.log('✅ [Zeppole] Limite salvato');
@@ -222,10 +234,13 @@ const GestioneZeppole = () => {
   const resetDisponibilita = async () => {
     try {
       console.log('📡 [Zeppole] POST /api/limiti/reset-prodotto');
-      await axios.post(
+      
+      await fetchWithAuth(
         `${API_URL}/api/limiti/reset-prodotto`,
-        { prodotto: PRODOTTO_NOME },
-        { headers: { Authorization: `Bearer ${getToken()}` } }
+        {
+          method: 'POST',
+          body: JSON.stringify({ prodotto: PRODOTTO_NOME })
+        }
       );
       
       showSnackbar('Disponibilità resettata', 'success');
@@ -242,13 +257,16 @@ const GestioneZeppole = () => {
   const venditaDiretta = async (quantitaKg) => {
     try {
       console.log(`📡 [Zeppole] POST /api/limiti/vendita-diretta (${quantitaKg} Kg)`);
-      await axios.post(
+      
+      await fetchWithAuth(
         `${API_URL}/api/limiti/vendita-diretta`,
-        { 
-          prodotto: PRODOTTO_NOME,
-          quantitaKg: quantitaKg 
-        },
-        { headers: { Authorization: `Bearer ${getToken()}` } }
+        {
+          method: 'POST',
+          body: JSON.stringify({ 
+            prodotto: PRODOTTO_NOME,
+            quantitaKg: quantitaKg 
+          })
+        }
       );
       
       showSnackbar(`Venduti ${quantitaKg} Kg`, 'success');
@@ -257,7 +275,7 @@ const GestioneZeppole = () => {
       
     } catch (error) {
       console.error('❌ [Zeppole] Errore vendita diretta:', error);
-      const messaggio = error.response?.data?.message || 'Errore nella vendita';
+      const messaggio = error.message || 'Errore nella vendita';
       showSnackbar(messaggio, 'error');
     }
   };
