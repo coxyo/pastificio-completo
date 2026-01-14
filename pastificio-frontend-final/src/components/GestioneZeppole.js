@@ -59,16 +59,41 @@ const GestioneZeppole = () => {
   const [quantitaPersonalizzata, setQuantitaPersonalizzata] = useState('');
   const [ultimoAggiornamento, setUltimoAggiornamento] = useState(new Date());
 
-  const getToken = () => localStorage.getItem('token');
+  const getToken = () => {
+    const token = localStorage.getItem('token');
+    console.log('🔑 [Zeppole] Token presente:', token ? `${token.substring(0, 20)}...` : 'NULL');
+    return token;
+  };
   
   // Helper per fetch con auth
   const fetchWithAuth = async (url, options = {}) => {
     const token = getToken();
+    
+    // Debug: mostra tutti gli item in localStorage
+    console.log('📦 [Zeppole] localStorage keys:', Object.keys(localStorage));
+    
+    if (!token) {
+      console.error('❌ [Zeppole] ATTENZIONE: Token non trovato in localStorage!');
+      // Prova a cercare con altri nomi comuni
+      const possibleTokenKeys = ['token', 'authToken', 'jwt', 'accessToken', 'auth_token'];
+      for (const key of possibleTokenKeys) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          console.log(`🔍 [Zeppole] Trovato token con chiave "${key}":`, val.substring(0, 20));
+        }
+      }
+    }
+    
     const headers = {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` }),
       ...options.headers
     };
+    
+    console.log('📡 [Zeppole] Headers:', {
+      ...headers,
+      Authorization: headers.Authorization ? 'Bearer ***' : 'MISSING'
+    });
     
     const response = await fetch(url, {
       ...options,
