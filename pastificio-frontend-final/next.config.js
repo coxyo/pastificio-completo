@@ -1,87 +1,94 @@
+// next.config.js - ✅ FIXED 14/01/2026
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Ottimizzazione imports per Material-UI
+  modularizeImports: {
+    '@mui/material': {
+      transform: '@mui/material/{{member}}',
+    },
+    '@mui/icons-material': {
+      transform: '@mui/icons-material/{{member}}',
+    },
+  },
+  
+  // ✅ FIXED: Variabili d'ambiente SENZA /api nel path
+  env: {
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://pastificio-completo-production.up.railway.app',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app',
+    NEXT_PUBLIC_PUSHER_KEY: process.env.NEXT_PUBLIC_PUSHER_KEY,
+    NEXT_PUBLIC_PUSHER_CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+  },
+  
+  // Configurazioni del compilatore
+  compiler: {
+    // Rimuove console.log in produzione
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
+  
+  // Configurazione immagini
+  images: {
+    domains: ['localhost', 'pastificio-completo-production.up.railway.app'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'pastificio-completo-production.up.railway.app',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '5000',
+        pathname: '/uploads/**',
+      },
+    ],
+  },
+  
+  // Headers per CORS
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
+        ],
+      },
+    ];
+  },
+  
+  // ✅ REMOVED: Rewrites non necessari
+  
+  // Configurazioni per TypeScript/JavaScript
   reactStrictMode: true,
   
-  // Configurazione per PWA
-  headers: async () => [
-    {
-      source: '/sw.js',
-      headers: [
-        {
-          key: 'Service-Worker-Allowed',
-          value: '/',
-        },
-      ],
-    },
-  ],
+  // Disabilita x-powered-by header per sicurezza
+  poweredByHeader: false,
   
-  // Ottimizzazione immagini
-  images: {
-    domains: ['pastificio-completo-production.up.railway.app', 'localhost'],
-    formats: ['image/avif', 'image/webp'],
-  },
+  // Configurazione per trailing slash
+  trailingSlash: false,
   
-  // ❌ RIMOSSO: env (non funziona bene in Next.js 15)
-  // Usare invece Environment Variables su Vercel Dashboard
-  
-  // Webpack configuration
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-    return config;
-  },
-  
-  // Experimental features
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '2mb',
-    },
-  },
-};
+  // Output standalone per Docker se necessario
+  output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
+}
 
 module.exports = nextConfig;
 
 // Injected content via Sentry wizard below
-
 const { withSentryConfig } = require("@sentry/nextjs");
 
 module.exports = withSentryConfig(
   module.exports,
   {
-    // For all available options, see:
-    // https://www.npmjs.com/package/@sentry/webpack-plugin#options
-
     org: "pastificio-nonna-claudia",
     project: "javascript-nextjs",
-
-    // Only print logs for uploading source maps in CI
     silent: !process.env.CI,
-
-    // For all available options, see:
-    // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-    // Upload a larger set of source maps for prettier stack traces (increases build time)
     widenClientFileUpload: true,
-
-    // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-    // This can increase your server load as well as your hosting bill.
-    // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
-    // side errors will fail.
     tunnelRoute: "/monitoring",
-
-    // Automatically tree-shake Sentry logger statements to reduce bundle size
     disableLogger: true,
-
-    // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-    // See the following for more information:
-    // https://docs.sentry.io/product/crons/
-    // https://vercel.com/docs/cron-jobs
     automaticVercelMonitors: true,
   }
 );
