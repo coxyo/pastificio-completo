@@ -1,5 +1,5 @@
 // src/components/GestioneZeppole.js
-// ✅ VERSIONE FETCH 14/01/2026 - Sostituito axios con fetch
+// ✅ VERSIONE FIX 14/01/2026 - Risolto doppio /api nell'URL
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Pusher from 'pusher-js';
@@ -39,10 +39,12 @@ import {
   LocalPizza as ZeppoleIcon,
   AccessTime as TimeIcon,
   TrendingUp as TrendingIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+// ✅ FIX: API_URL include già /api, quindi nelle chiamate NON aggiungiamo /api
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const PRODOTTO_NOME = 'Zeppole';
 
 const GestioneZeppole = () => {
@@ -84,11 +86,21 @@ const GestioneZeppole = () => {
     setSnackbar({ open: true, message, severity });
   };
 
+  const closeSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
   // ✅ FIX: Pusher useEffect SENZA dipendenze che causano loop
   useEffect(() => {
     console.log('🔌 [Zeppole] Inizializzazione Pusher...');
     
-    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY, {
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
+    if (!pusherKey) {
+      console.warn('⚠️ [Zeppole] PUSHER_KEY non configurata');
+      return;
+    }
+    
+    const pusher = new Pusher(pusherKey, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu'
     });
 
@@ -175,7 +187,8 @@ const GestioneZeppole = () => {
 
   const caricaLimite = async () => {
     try {
-      const url = `${API_URL}/api/limiti/prodotto/${PRODOTTO_NOME}`;
+      // ✅ FIX: NON aggiungere /api perché API_URL già lo include
+      const url = `${API_URL}/limiti/prodotto/${PRODOTTO_NOME}`;
       console.log('📡 [Zeppole] GET', url);
       
       const data = await fetchWithAuth(url);
@@ -193,7 +206,8 @@ const GestioneZeppole = () => {
 
   const caricaOrdini = async () => {
     try {
-      const url = `${API_URL}/api/limiti/ordini-prodotto/${PRODOTTO_NOME}`;
+      // ✅ FIX: NON aggiungere /api perché API_URL già lo include
+      const url = `${API_URL}/limiti/ordini-prodotto/${PRODOTTO_NOME}`;
       console.log('📡 [Zeppole] GET', url);
       
       const data = await fetchWithAuth(url);
@@ -210,10 +224,11 @@ const GestioneZeppole = () => {
     try {
       if (!limite) return;
 
-      console.log('📡 [Zeppole] PUT /api/limiti/' + limite._id);
+      console.log('📡 [Zeppole] PUT /limiti/' + limite._id);
       
+      // ✅ FIX: NON aggiungere /api
       const data = await fetchWithAuth(
-        `${API_URL}/api/limiti/${limite._id}`,
+        `${API_URL}/limiti/${limite._id}`,
         {
           method: 'PUT',
           body: JSON.stringify({ limiteQuantita: nuovoLimite })
@@ -233,98 +248,105 @@ const GestioneZeppole = () => {
 
   const resetDisponibilita = async () => {
     try {
-      console.log('📡 [Zeppole] POST /api/limiti/reset-prodotto');
+      console.log('📡 [Zeppole] POST /limiti/reset-prodotto');
       
+      // ✅ FIX: NON aggiungere /api
       await fetchWithAuth(
-        `${API_URL}/api/limiti/reset-prodotto`,
+        `${API_URL}/limiti/reset-prodotto`,
         {
           method: 'POST',
           body: JSON.stringify({ prodotto: PRODOTTO_NOME })
         }
       );
       
-      showSnackbar('Disponibilità resettata', 'success');
       setDialogReset(false);
-      await caricaDati();
-      console.log('✅ [Zeppole] Reset completato');
+      showSnackbar('Disponibilità resettata', 'success');
+      caricaDati();
       
     } catch (error) {
-      console.error('❌ [Zeppole] Errore reset disponibilità:', error);
+      console.error('❌ [Zeppole] Errore reset:', error);
       showSnackbar('Errore nel reset', 'error');
     }
   };
 
-  const venditaDiretta = async (quantitaKg) => {
+  const registraVendita = async (quantitaKg) => {
     try {
-      console.log(`📡 [Zeppole] POST /api/limiti/vendita-diretta (${quantitaKg} Kg)`);
+      console.log(`📡 [Zeppole] POST /limiti/vendita-diretta: ${quantitaKg} Kg`);
       
-      await fetchWithAuth(
-        `${API_URL}/api/limiti/vendita-diretta`,
+      // ✅ FIX: NON aggiungere /api
+      const data = await fetchWithAuth(
+        `${API_URL}/limiti/vendita-diretta`,
         {
           method: 'POST',
           body: JSON.stringify({ 
-            prodotto: PRODOTTO_NOME,
-            quantitaKg: quantitaKg 
+            prodotto: PRODOTTO_NOME, 
+            quantitaKg 
           })
         }
       );
       
-      showSnackbar(`Venduti ${quantitaKg} Kg`, 'success');
-      await caricaDati();
-      console.log('✅ [Zeppole] Vendita diretta registrata');
+      showSnackbar(`Vendita registrata: ${quantitaKg} Kg`, 'success');
+      caricaDati();
+      return data;
       
     } catch (error) {
-      console.error('❌ [Zeppole] Errore vendita diretta:', error);
-      const messaggio = error.message || 'Errore nella vendita';
-      showSnackbar(messaggio, 'error');
+      console.error('❌ [Zeppole] Errore vendita:', error);
+      showSnackbar(error.message || 'Errore nella vendita', 'error');
+      throw error;
     }
   };
 
+  const venditaRapida = async (kg) => {
+    await registraVendita(kg);
+  };
+
   const venditaPersonalizzata = async () => {
-    const quantita = parseFloat(quantitaPersonalizzata);
-    
-    if (isNaN(quantita) || quantita <= 0) {
-      showSnackbar('Quantità non valida', 'error');
+    const kg = parseFloat(quantitaPersonalizzata);
+    if (isNaN(kg) || kg <= 0) {
+      showSnackbar('Inserisci una quantità valida', 'warning');
       return;
     }
-    
-    await venditaDiretta(quantita);
+    await registraVendita(kg);
     setDialogVendita(false);
     setQuantitaPersonalizzata('');
   };
 
-
-  const closeSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
-
-  const formatOra = (oraString) => {
-    if (!oraString) return '-';
-    return oraString.substring(0, 5);
-  };
-
-  const getProgressColor = () => {
-    if (!limite) return 'primary';
-    const percentuale = (limite.quantitaOrdinata / limite.limiteQuantita) * 100;
-    if (percentuale >= 90) return 'error';
-    if (percentuale >= 70) return 'warning';
+  // Calcoli
+  const disponibile = limite ? Math.max(0, limite.limiteQuantita - limite.quantitaOrdinata) : 0;
+  const percentualeUsata = limite ? (limite.quantitaOrdinata / limite.limiteQuantita) * 100 : 0;
+  const totaleOrdiniKg = ordini.reduce((sum, o) => sum + (o.quantitaKg || 0), 0);
+  
+  // Colore progress bar
+  const getProgressColor = (perc) => {
+    if (perc >= 90) return 'error';
+    if (perc >= 70) return 'warning';
     return 'success';
   };
 
+  // Formatta ora
+  const formatOra = (ora) => {
+    if (!ora) return '--:--';
+    if (ora.includes(':')) return ora.substring(0, 5);
+    return ora;
+  };
+
+  // Colore stato ordine
   const getStatusColor = (stato) => {
-    switch (stato) {
+    switch (stato?.toLowerCase()) {
       case 'completato': return 'success';
-      case 'in_corso': return 'warning';
-      case 'annullato': return 'error';
+      case 'in_preparazione': return 'warning';
+      case 'pronto': return 'info';
       default: return 'default';
     }
   };
 
   if (loading) {
     return (
-      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        <LinearProgress sx={{ width: '100%', maxWidth: 400 }} />
-        <Typography>Caricamento dati Zeppole...</Typography>
+      <Box sx={{ p: 3 }}>
+        <LinearProgress />
+        <Typography sx={{ mt: 2 }} align="center">
+          Caricamento dati Zeppole...
+        </Typography>
       </Box>
     );
   }
@@ -333,319 +355,188 @@ const GestioneZeppole = () => {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="warning">
-          Limite giornaliero non configurato per le Zeppole. 
-          Il sistema lo creerà automaticamente con limite di default 20 Kg.
+          Impossibile caricare i dati. Riprova più tardi.
+          <Button onClick={caricaDati} sx={{ ml: 2 }}>
+            Riprova
+          </Button>
         </Alert>
-        <Button 
-          variant="contained" 
-          onClick={caricaDati}
-          sx={{ mt: 2 }}
-        >
-          Ricarica
-        </Button>
       </Box>
     );
   }
 
-  const disponibile = limite.limiteQuantita - limite.quantitaOrdinata;
-  const percentualeVenduto = (limite.quantitaOrdinata / limite.limiteQuantita) * 100;
-  const totaleOrdiniKg = ordini.reduce((sum, ord) => sum + ord.quantitaKg, 0);
-  const isAlertaSoglia = percentualeVenduto >= (limite.sogliAllerta || 80);
-
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 2 }}>
       {/* Header */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 3,
-        flexWrap: 'wrap',
-        gap: 2
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <ZeppoleIcon sx={{ fontSize: 48, color: 'warning.main' }} />
-          <Box>
-            <Typography variant="h4" component="h1">
-              🎂 Gestione Zeppole
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {new Date().toLocaleDateString('it-IT', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </Typography>
+      <Paper 
+        elevation={3} 
+        sx={{ 
+          p: 2, 
+          mb: 3, 
+          background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
+          color: 'white'
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <ZeppoleIcon sx={{ fontSize: 40 }} />
+            <Box>
+              <Typography variant="h5" fontWeight="bold">
+                🎂 Gestione Zeppole
+              </Typography>
+              <Typography variant="body2">
+                Monitoraggio disponibilità giornaliera
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Aggiorna dati">
+              <IconButton onClick={caricaDati} sx={{ color: 'white' }}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
           </Box>
         </Box>
-        
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Tooltip title="Aggiorna dati">
-            <IconButton onClick={caricaDati} color="primary">
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-          <Typography variant="caption" color="text.secondary">
-            Ultimo agg: {ultimoAggiornamento.toLocaleTimeString('it-IT')}
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* Alert soglia superata */}
-      {isAlertaSoglia && (
-        <Alert 
-          severity="warning" 
-          icon={<WarningIcon />}
-          sx={{ mb: 3 }}
-        >
-          <strong>Attenzione!</strong> Raggiunta soglia {limite.sogliAllerta}% del limite giornaliero
-        </Alert>
-      )}
+      </Paper>
 
       <Grid container spacing={3}>
-        {/* Card Statistiche Principali */}
-        <Grid item xs={12} md={8}>
+        {/* Card Disponibilità */}
+        <Grid item xs={12} md={6}>
           <Card elevation={3}>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">
-                  📊 Stato Disponibilità
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setDialogEditLimite(true)}
-                >
-                  Modifica Limite
-                </Button>
-              </Box>
-              <Divider sx={{ mb: 3 }} />
+              <Typography variant="h6" gutterBottom>
+                📊 Disponibilità Oggi
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
               
-              {/* Metriche principali */}
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={4}>
-                  <Paper 
-                    sx={{ 
-                      p: 2, 
-                      bgcolor: disponibile > 0 ? 'success.light' : 'error.light',
-                      color: disponibile > 0 ? 'success.contrastText' : 'error.contrastText',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <Typography variant="subtitle2">Disponibile</Typography>
-                    <Typography variant="h3" fontWeight="bold">
-                      {disponibile.toFixed(2)}
-                    </Typography>
-                    <Typography variant="caption">Kg</Typography>
-                  </Paper>
-                </Grid>
-                
-                <Grid item xs={12} sm={4}>
-                  <Paper 
-                    sx={{ 
-                      p: 2, 
-                      bgcolor: 'error.light',
-                      color: 'error.contrastText',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <Typography variant="subtitle2">Ordinato</Typography>
-                    <Typography variant="h3" fontWeight="bold">
-                      {limite.quantitaOrdinata.toFixed(2)}
-                    </Typography>
-                    <Typography variant="caption">
-                      Kg ({percentualeVenduto.toFixed(0)}%)
-                    </Typography>
-                  </Paper>
-                </Grid>
-                
-                <Grid item xs={12} sm={4}>
-                  <Paper 
-                    sx={{ 
-                      p: 2, 
-                      bgcolor: 'primary.light',
-                      color: 'primary.contrastText',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <Typography variant="subtitle2">Limite</Typography>
-                    <Typography variant="h3" fontWeight="bold">
-                      {limite.limiteQuantita.toFixed(0)}
-                    </Typography>
-                    <Typography variant="caption">Kg</Typography>
-                  </Paper>
-                </Grid>
-              </Grid>
-
-              {/* Barra progresso */}
-              <Box>
+              {/* Progress Bar */}
+              <Box sx={{ mb: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Progresso vendite giornaliere
+                    Ordinato: {limite.quantitaOrdinata.toFixed(2)} Kg
                   </Typography>
-                  <Typography variant="body2" fontWeight="bold" color={getProgressColor()}>
-                    {percentualeVenduto.toFixed(1)}%
+                  <Typography variant="body2" color="text.secondary">
+                    Limite: {limite.limiteQuantita} Kg
                   </Typography>
                 </Box>
-                
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(percentualeVenduto, 100)}
-                  color={getProgressColor()}
-                  sx={{ 
-                    height: 15, 
-                    borderRadius: 2,
-                    bgcolor: 'action.hover'
-                  }}
+                <LinearProgress 
+                  variant="determinate" 
+                  value={Math.min(percentualeUsata, 100)} 
+                  color={getProgressColor(percentualeUsata)}
+                  sx={{ height: 20, borderRadius: 2 }}
                 />
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    0 Kg
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {limite.limiteQuantita} Kg
-                  </Typography>
-                </Box>
+                <Typography 
+                  variant="body2" 
+                  align="center" 
+                  sx={{ mt: 1, fontWeight: 'bold' }}
+                >
+                  {percentualeUsata.toFixed(1)}% utilizzato
+                </Typography>
               </Box>
+
+              {/* Disponibilità grande */}
+              <Box sx={{ 
+                textAlign: 'center', 
+                p: 3, 
+                bgcolor: disponibile > 5 ? 'success.light' : disponibile > 0 ? 'warning.light' : 'error.light',
+                borderRadius: 2,
+                mb: 2
+              }}>
+                <Typography variant="h2" fontWeight="bold" color="white">
+                  {disponibile.toFixed(1)}
+                </Typography>
+                <Typography variant="h6" color="white">
+                  Kg Disponibili
+                </Typography>
+              </Box>
+
+              {/* Alert se scorte basse */}
+              {disponibile <= 5 && disponibile > 0 && (
+                <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 2 }}>
+                  Scorte basse! Rimangono solo {disponibile.toFixed(2)} Kg
+                </Alert>
+              )}
+              
+              {disponibile === 0 && (
+                <Alert severity="error" icon={<WarningIcon />} sx={{ mb: 2 }}>
+                  Esaurite! Nessuna disponibilità rimasta
+                </Alert>
+              )}
+
+              {/* Ultimo aggiornamento */}
+              <Typography variant="caption" color="text.secondary" display="block" textAlign="center">
+                Ultimo aggiornamento: {ultimoAggiornamento.toLocaleTimeString('it-IT')}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         {/* Card Azioni Rapide */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={6}>
           <Card elevation={3}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                ⚡ Azioni Rapide
+                ⚡ Vendita Rapida
               </Typography>
               <Divider sx={{ mb: 2 }} />
               
-              <Button
-                fullWidth
-                variant="outlined"
-                color="warning"
-                startIcon={<ResetIcon />}
-                onClick={() => setDialogReset(true)}
-                sx={{ mb: 1 }}
-              >
-                Reset Disponibilità
-              </Button>
-              
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={caricaDati}
-              >
-                Ricarica Dati
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Card Info */}
-          <Card elevation={3} sx={{ mt: 2 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                📈 Statistiche
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Registra vendite dirette (non da ordini)
               </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2">Ordini registrati:</Typography>
-                  <Chip label={ordini.length} size="small" color="primary" />
-                </Box>
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2">Totale ordini:</Typography>
-                  <Chip 
-                    label={`${totaleOrdiniKg.toFixed(2)} Kg`} 
-                    size="small" 
-                    color="secondary" 
-                  />
-                </Box>
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2">Vendite dirette:</Typography>
-                  <Chip 
-                    label={`${(limite.quantitaOrdinata - totaleOrdiniKg).toFixed(2)} Kg`} 
-                    size="small"
-                  />
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
 
-        {/* Card Vendita Diretta */}
-        <Grid item xs={12}>
-          <Card elevation={3}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                🔘 Vendita Diretta (senza registrare ordine)
-              </Typography>
-              <Divider sx={{ mb: 3 }} />
-              
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={8}>
-                  <ButtonGroup 
-                    variant="contained" 
-                    size="large" 
-                    fullWidth
-                    disabled={disponibile <= 0}
-                  >
-                    <Button 
-                      onClick={() => venditaDiretta(0.1)} 
-                      disabled={disponibile < 0.1}
-                      sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}
+              {/* Pulsanti vendita rapida */}
+              <Grid container spacing={1} sx={{ mb: 3 }}>
+                {[0.5, 1, 2, 3, 5].map((kg) => (
+                  <Grid item key={kg}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => venditaRapida(kg)}
+                      disabled={disponibile < kg}
+                      startIcon={<AddIcon />}
                     >
-                      100g
+                      {kg} Kg
                     </Button>
-                    <Button 
-                      onClick={() => venditaDiretta(0.2)} 
-                      disabled={disponibile < 0.2}
-                      sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}
-                    >
-                      200g
-                    </Button>
-                    <Button 
-                      onClick={() => venditaDiretta(0.5)} 
-                      disabled={disponibile < 0.5}
-                      sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}
-                    >
-                      500g
-                    </Button>
-                    <Button 
-                      onClick={() => venditaDiretta(1)} 
-                      disabled={disponibile < 1}
-                      sx={{ fontSize: '1.1rem', fontWeight: 'bold' }}
-                    >
-                      1 Kg
-                    </Button>
-                  </ButtonGroup>
-                </Grid>
-                
-                <Grid item xs={12} md={4}>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    size="large"
-                    startIcon={<AddIcon />}
-                    onClick={() => setDialogVendita(true)}
-                    disabled={disponibile <= 0}
-                  >
-                    Quantità Personalizzata
-                  </Button>
-                </Grid>
+                  </Grid>
+                ))}
               </Grid>
 
-              {disponibile <= 0 && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  <strong>Esaurito!</strong> Nessuna disponibilità rimasta per oggi.
-                </Alert>
-              )}
+              {/* Pulsante vendita personalizzata */}
+              <Button
+                variant="outlined"
+                color="primary"
+                fullWidth
+                onClick={() => setDialogVendita(true)}
+                disabled={disponibile <= 0}
+                sx={{ mb: 2 }}
+              >
+                Vendita Personalizzata
+              </Button>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Azioni amministrative */}
+              <Typography variant="subtitle2" gutterBottom>
+                🛠️ Gestione
+              </Typography>
+              
+              <ButtonGroup fullWidth sx={{ mb: 1 }}>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => setDialogReset(true)}
+                  startIcon={<ResetIcon />}
+                >
+                  Reset
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="info"
+                  onClick={() => setDialogEditLimite(true)}
+                  startIcon={<SettingsIcon />}
+                >
+                  Modifica Limite
+                </Button>
+              </ButtonGroup>
             </CardContent>
           </Card>
         </Grid>
@@ -882,4 +773,4 @@ const GestioneZeppole = () => {
   );
 };
 
-export default GestioneZeppole;// Force rebuild 14/01/2026 15:19:53,05 
+export default GestioneZeppole;
