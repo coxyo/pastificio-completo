@@ -17,14 +17,14 @@ const nextConfig = {
   
   // Ottimizzazione immagini
   images: {
-    domains: ['pastificio-backend.onrender.com', 'localhost'],
+    domains: ['pastificio-completo-production.up.railway.app', 'localhost'],
     formats: ['image/avif', 'image/webp'],
   },
   
-  // Environment variables
+  // Environment variables - ✅ FIXED: Railway URL
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend.onrender.com',
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'wss://pastificio-backend.onrender.com',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app',
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'wss://pastificio-completo-production.up.railway.app',
     NEXT_PUBLIC_APP_VERSION: '2.0.0',
   },
   
