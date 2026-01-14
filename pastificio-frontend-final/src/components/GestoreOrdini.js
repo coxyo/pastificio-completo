@@ -58,7 +58,9 @@ import useIncomingCall from '@/hooks/useIncomingCall';  // ✅ AGGIUNTO
 
 // ✅ NUOVISSIMO: Import per Tag e Statistiche Chiamate (16/11/2025)
 import StoricoChiamate from './StoricoChiamate';
+import GestioneZeppole from './GestioneZeppole';
 import StatisticheChiamate from './StatisticheChiamate';
+import { Cake as CakeIcon, Close as CloseIcon } from '@mui/icons-material';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -994,6 +996,7 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   
   // ✅ NUOVISSIMO: State per Storico Chiamate e Statistiche (16/11/2025)
   const [storicoChiamateAperto, setStoricoChiamateAperto] = useState(false);
+const [dialogZeppoleOpen, setDialogZeppoleOpen] = useState(false);
   const [statisticheChiamateAperto, setStatisticheChiamateAperto] = useState(false);
   const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
@@ -2305,6 +2308,20 @@ return (
                 📊 Statistiche Chiamate
               </Button>
               
+<Button
+  variant="contained"
+  size="small"
+  sx={{ 
+    bgcolor: '#FF6B9D',
+    color: 'white',
+    '&:hover': { bgcolor: '#FF4081' }
+  }}
+  startIcon={<CakeIcon />}
+  onClick={() => setDialogZeppoleOpen(true)}
+>
+  🎂 ZEPPOLE
+</Button>
+
               <Button
   variant="contained"
   size="small"
@@ -2746,6 +2763,45 @@ return (
           onClose={handleClosePopup}
           onAccept={handleAcceptIncomingCall}
           callData={chiamataCorrente}
+/>
+
+{/* Dialog Zeppole */}
+<Dialog
+  open={dialogZeppoleOpen}
+  onClose={() => setDialogZeppoleOpen(false)}
+  maxWidth="xl"
+  fullWidth
+  PaperProps={{
+    sx: {
+      height: '90vh',
+      maxHeight: '90vh'
+    }
+  }}
+>
+  <DialogTitle sx={{ 
+    bgcolor: '#FF6B9D', 
+    color: 'white',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <CakeIcon />
+      <Typography variant="h6">🎂 Gestione Zeppole</Typography>
+    </Box>
+    <IconButton 
+      onClick={() => setDialogZeppoleOpen(false)}
+      sx={{ color: 'white' }}
+    >
+      <CloseIcon />
+    </IconButton>
+  </DialogTitle>
+  
+  <DialogContent sx={{ p: 0, overflow: 'auto' }}>
+    <GestioneZeppole />
+  </DialogContent>
+</Dialog>
+
         />
       </Container>
     </>
