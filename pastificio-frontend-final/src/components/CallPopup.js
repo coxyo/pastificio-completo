@@ -1,4 +1,5 @@
-// components/CallPopup.js - VERSIONE v3.5
+// components/CallPopup.js - VERSIONE v3.6
+// ✅ FIX 14/01/2026: Popup si chiude dopo click "Nuovo Ordine"
 // ✅ FIX 12/12/2025: Campo input nome che non risponde
 // ✅ Click singolo sui pulsanti
 // ✅ Timeout 60 secondi (pausa durante salvataggio)
@@ -226,8 +227,18 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     e.preventDefault();
     e.stopPropagation();
     console.log('📞 [CallPopup] Nuovo ordine');
-    onAccept();
-  }, [onAccept]);
+    
+    // ✅ FIX 14/01/2026: Chiama onAccept E poi chiudi popup
+    if (onAccept) {
+      onAccept();
+    }
+    
+    // ✅ Chiudi popup dopo 300ms (tempo per aprire dialog)
+    setTimeout(() => {
+      console.log('✅ [CallPopup] Chiusura popup dopo apertura ordine');
+      onClose();
+    }, 300);
+  }, [onAccept, onClose]);
 
   const handleTagClick = useCallback((e) => {
     e.preventDefault();
