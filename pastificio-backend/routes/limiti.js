@@ -1,4 +1,4 @@
-// routes/limiti.js - VERSIONE DEBUG
+// routes/limiti.js - ROUTE ORDINATE CORRETTAMENTE
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
@@ -11,35 +11,7 @@ router.use(protect);
 
 console.log('[LIMITI ROUTES] File caricato');
 
-/**
- * @route   GET /api/limiti
- * @desc    Ottieni tutti i limiti attivi
- */
-router.get('/', async (req, res) => {
-  try {
-    const { data } = req.query;
-    const dataRicerca = data ? new Date(data) : new Date();
-    dataRicerca.setHours(0, 0, 0, 0);
-    
-    console.log(`[LIMITI] GET tutti i limiti per data: ${dataRicerca.toISOString()}`);
-    
-    const limiti = await LimiteGiornaliero.find({
-      data: dataRicerca,
-      attivo: true
-    }).sort({ prodotto: 1, categoria: 1 });
-    
-    console.log(`[LIMITI] Trovati ${limiti.length} limiti`);
-    
-    res.json({
-      success: true,
-      count: limiti.length,
-      data: limiti
-    });
-  } catch (error) {
-    console.error('[LIMITI] Errore:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+// ⚠️ IMPORTANTE: Route SPECIFICHE devono venire PRIMA delle generiche!
 
 /**
  * @route   GET /api/limiti/prodotto/:nome
@@ -256,6 +228,38 @@ router.post('/reset-prodotto', async (req, res) => {
   }
 });
 
-console.log('[LIMITI ROUTES] Tutte le route registrate');
+// ⚠️ Route generiche ALLA FINE (dopo quelle specifiche)
+
+/**
+ * @route   GET /api/limiti
+ * @desc    Ottieni tutti i limiti attivi
+ */
+router.get('/', async (req, res) => {
+  try {
+    const { data } = req.query;
+    const dataRicerca = data ? new Date(data) : new Date();
+    dataRicerca.setHours(0, 0, 0, 0);
+    
+    console.log(`[LIMITI] GET tutti i limiti per data: ${dataRicerca.toISOString()}`);
+    
+    const limiti = await LimiteGiornaliero.find({
+      data: dataRicerca,
+      attivo: true
+    }).sort({ prodotto: 1, categoria: 1 });
+    
+    console.log(`[LIMITI] Trovati ${limiti.length} limiti`);
+    
+    res.json({
+      success: true,
+      count: limiti.length,
+      data: limiti
+    });
+  } catch (error) {
+    console.error('[LIMITI] Errore:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+console.log('[LIMITI ROUTES] Tutte le route registrate (ordine corretto)');
 
 export default router;
