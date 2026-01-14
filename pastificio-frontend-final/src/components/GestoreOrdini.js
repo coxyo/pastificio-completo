@@ -2802,7 +2802,6 @@ return (
   </DialogContent>
 </Dialog>
 
-        />
       </Container>
     </>
   );
