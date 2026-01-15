@@ -1,5 +1,5 @@
 // src/components/GestioneZeppole.js
-// ✅ VERSIONE FIX 14/01/2026 - Risolto doppio /api nell'URL
+// ✅ VERSIONE 15/01/2026 - Aggiunto selettore data per navigare tra i giorni
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Pusher from 'pusher-js';
@@ -40,14 +40,35 @@ import {
   AccessTime as TimeIcon,
   TrendingUp as TrendingIcon,
   Warning as WarningIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  ChevronLeft as PrevIcon,
+  ChevronRight as NextIcon,
+  Today as TodayIcon
 } from '@mui/icons-material';
 
 // ✅ FIX: API_URL include già /api, quindi nelle chiamate NON aggiungiamo /api
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const PRODOTTO_NOME = 'Zeppole';
 
+// Helper per formattare la data
+const formatDateForAPI = (date) => {
+  return date.toISOString().split('T')[0];
+};
+
+const formatDateDisplay = (date) => {
+  const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+  return date.toLocaleDateString('it-IT', options);
+};
+
+const isToday = (date) => {
+  const today = new Date();
+  return date.toDateString() === today.toDateString();
+};
+
 const GestioneZeppole = () => {
+  // ✅ NUOVO: State per la data selezionata
+  const [dataSelezionata, setDataSelezionata] = useState(new Date());
+  
   const [limite, setLimite] = useState(null);
   const [ordini, setOrdini] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +112,23 @@ const GestioneZeppole = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
+  // ✅ NUOVO: Funzioni per navigare tra le date
+  const goToPreviousDay = () => {
+    const newDate = new Date(dataSelezionata);
+    newDate.setDate(newDate.getDate() - 1);
+    setDataSelezionata(newDate);
+  };
+
+  const goToNextDay = () => {
+    const newDate = new Date(dataSelezionata);
+    newDate.setDate(newDate.getDate() + 1);
+    setDataSelezionata(newDate);
+  };
+
+  const goToToday = () => {
+    setDataSelezionata(new Date());
+  };
+
   // ✅ FIX: Pusher useEffect SENZA dipendenze che causano loop
   useEffect(() => {
     console.log('🔌 [Zeppole] Inizializzazione Pusher...');
@@ -100,43 +138,25 @@ const GestioneZeppole = () => {
       console.warn('⚠️ [Zeppole] PUSHER_KEY non configurata');
       return;
     }
-    
+
     const pusher = new Pusher(pusherKey, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu'
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu',
+      encrypted: true
     });
 
-    const channel = pusher.subscribe('zeppole-channel');
+    const channel = pusher.subscribe('limiti-channel');
+    const ordiniChannel = pusher.subscribe('ordini-channel');
 
-    channel.bind('vendita-diretta', (data) => {
-      console.log('📡 [Zeppole] Pusher: vendita-diretta', data);
-      if (data.prodotto === PRODOTTO_NOME) {
-        setLimite(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            quantitaOrdinata: data.ordinatoKg
-          };
-        });
-        setUltimoAggiornamento(new Date());
-        showSnackbar(`Venduti ${data.quantitaKg} Kg`, 'success');
-      }
-    });
-
-    channel.bind('reset-disponibilita', (data) => {
-      console.log('📡 [Zeppole] Pusher: reset-disponibilita', data);
+    channel.bind('limite-aggiornato', (data) => {
+      console.log('📡 [Zeppole] Pusher: limite-aggiornato', data);
       if (data.prodotto === PRODOTTO_NOME) {
         caricaDati();
-        showSnackbar('Disponibilità resettata', 'info');
       }
     });
 
-    const ordiniChannel = pusher.subscribe('ordini-channel');
-    
-    ordiniChannel.bind('ordine-creato', (data) => {
-      console.log('📡 [Zeppole] Pusher: ordine-creato', data);
-      if (data.ordine?.prodotti?.some(p => 
-        p.nome?.toLowerCase().includes(PRODOTTO_NOME.toLowerCase())
-      )) {
+    ordiniChannel.bind('nuovo-ordine', (data) => {
+      console.log('📡 [Zeppole] Pusher: nuovo-ordine', data);
+      if (data.prodotti?.some(p => p.nome === PRODOTTO_NOME)) {
         caricaDati();
       }
     });
@@ -158,11 +178,16 @@ const GestioneZeppole = () => {
     };
   }, []);
 
-  // Carica dati iniziali
+  // ✅ MODIFICATO: Carica dati quando cambia la data selezionata
   useEffect(() => {
-    console.log('📥 [Zeppole] Caricamento dati iniziale...');
+    console.log('📥 [Zeppole] Caricamento dati per data:', formatDateForAPI(dataSelezionata));
     console.log('🔗 [Zeppole] API URL:', API_URL);
     caricaDati();
+  }, [dataSelezionata]);
+
+  // Auto-refresh solo per oggi
+  useEffect(() => {
+    if (!isToday(dataSelezionata)) return;
     
     const interval = setInterval(() => {
       console.log('🔄 [Zeppole] Refresh automatico...');
@@ -170,11 +195,12 @@ const GestioneZeppole = () => {
     }, 60000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [dataSelezionata]);
 
   const caricaDati = useCallback(async () => {
     try {
-      console.log('📡 [Zeppole] Chiamata API caricaDati...');
+      setLoading(true);
+      console.log('📡 [Zeppole] Chiamata API caricaDati per data:', formatDateForAPI(dataSelezionata));
       await Promise.all([caricaLimite(), caricaOrdini()]);
       setUltimoAggiornamento(new Date());
       setLoading(false);
@@ -184,12 +210,13 @@ const GestioneZeppole = () => {
       showSnackbar('Errore nel caricamento dati', 'error');
       setLoading(false);
     }
-  }, []);
+  }, [dataSelezionata]);
 
   const caricaLimite = async () => {
     try {
-      // ✅ FIX: NON aggiungere /api perché API_URL già lo include
-      const url = `${API_URL}/limiti/prodotto/${PRODOTTO_NOME}`;
+      // ✅ MODIFICATO: Aggiungi data come query parameter
+      const dataParam = formatDateForAPI(dataSelezionata);
+      const url = `${API_URL}/limiti/prodotto/${PRODOTTO_NOME}?data=${dataParam}`;
       console.log('📡 [Zeppole] GET', url);
       
       const data = await fetchWithAuth(url);
@@ -201,14 +228,20 @@ const GestioneZeppole = () => {
       console.log('✅ [Zeppole] Limite caricato:', limiteData);
     } catch (error) {
       console.error('❌ [Zeppole] Errore caricamento limite:', error);
-      throw error;
+      // Se non esiste limite per quella data, crea uno di default
+      setLimite({
+        limiteQuantita: 50,
+        quantitaOrdinata: 0,
+        unitaMisura: 'Kg'
+      });
     }
   };
 
   const caricaOrdini = async () => {
     try {
-      // ✅ FIX: NON aggiungere /api perché API_URL già lo include
-      const url = `${API_URL}/limiti/ordini-prodotto/${PRODOTTO_NOME}`;
+      // ✅ MODIFICATO: Aggiungi data come query parameter
+      const dataParam = formatDateForAPI(dataSelezionata);
+      const url = `${API_URL}/limiti/ordini-prodotto/${PRODOTTO_NOME}?data=${dataParam}`;
       console.log('📡 [Zeppole] GET', url);
       
       const data = await fetchWithAuth(url);
@@ -217,135 +250,104 @@ const GestioneZeppole = () => {
       console.log(`✅ [Zeppole] Ordini caricati: ${data.count}`);
     } catch (error) {
       console.error('❌ [Zeppole] Errore caricamento ordini:', error);
-      throw error;
+      setOrdini([]);
     }
   };
 
   const salvaLimite = async () => {
     try {
-      if (!limite) return;
+      if (!limite?._id) {
+        showSnackbar('Limite non trovato', 'error');
+        return;
+      }
+      
+      const url = `${API_URL}/limiti/${limite._id}`;
+      console.log('📡 [Zeppole] PUT', url);
+      
+      await fetchWithAuth(url, {
+        method: 'PUT',
+        body: JSON.stringify({ limiteQuantita: nuovoLimite })
+      });
 
-      console.log('📡 [Zeppole] PUT /limiti/' + limite._id);
-      
-      // ✅ FIX: NON aggiungere /api
-      const data = await fetchWithAuth(
-        `${API_URL}/limiti/${limite._id}`,
-        {
-          method: 'PUT',
-          body: JSON.stringify({ limiteQuantita: nuovoLimite })
-        }
-      );
-      
-      setLimite(data.data);
+      showSnackbar(`Limite aggiornato a ${nuovoLimite} Kg`, 'success');
       setDialogEditLimite(false);
-      showSnackbar('Limite aggiornato', 'success');
-      console.log('✅ [Zeppole] Limite salvato');
-      
+      await caricaDati();
     } catch (error) {
       console.error('❌ [Zeppole] Errore salvataggio limite:', error);
-      showSnackbar('Errore nel salvataggio limite', 'error');
+      showSnackbar('Errore nel salvataggio', 'error');
     }
   };
 
   const resetDisponibilita = async () => {
     try {
-      console.log('📡 [Zeppole] POST /limiti/reset-prodotto');
+      const dataParam = formatDateForAPI(dataSelezionata);
+      const url = `${API_URL}/limiti/reset-prodotto`;
+      console.log('📡 [Zeppole] POST', url);
       
-      // ✅ FIX: NON aggiungere /api
-      await fetchWithAuth(
-        `${API_URL}/limiti/reset-prodotto`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ prodotto: PRODOTTO_NOME })
-        }
-      );
-      
+      await fetchWithAuth(url, {
+        method: 'POST',
+        body: JSON.stringify({ prodotto: PRODOTTO_NOME, data: dataParam })
+      });
+
+      showSnackbar('Disponibilità resettata!', 'success');
       setDialogReset(false);
-      showSnackbar('Disponibilità resettata', 'success');
-      caricaDati();
-      
+      await caricaDati();
     } catch (error) {
       console.error('❌ [Zeppole] Errore reset:', error);
       showSnackbar('Errore nel reset', 'error');
     }
   };
 
-  const registraVendita = async (quantitaKg) => {
+  const venditaRapida = async (quantitaKg) => {
     try {
-      console.log(`📡 [Zeppole] POST /limiti/vendita-diretta: ${quantitaKg} Kg`);
+      const url = `${API_URL}/limiti/vendita-diretta`;
+      console.log('📡 [Zeppole] POST', url, { prodotto: PRODOTTO_NOME, quantitaKg });
       
-      // ✅ FIX: NON aggiungere /api
-      const data = await fetchWithAuth(
-        `${API_URL}/limiti/vendita-diretta`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ 
-            prodotto: PRODOTTO_NOME, 
-            quantitaKg 
-          })
-        }
-      );
-      
-      showSnackbar(`Vendita registrata: ${quantitaKg} Kg`, 'success');
-      caricaDati();
-      return data;
-      
+      await fetchWithAuth(url, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          prodotto: PRODOTTO_NOME, 
+          quantitaKg,
+          data: formatDateForAPI(dataSelezionata)
+        })
+      });
+
+      showSnackbar(`Vendita di ${quantitaKg} Kg registrata!`, 'success');
+      await caricaDati();
     } catch (error) {
       console.error('❌ [Zeppole] Errore vendita:', error);
       showSnackbar(error.message || 'Errore nella vendita', 'error');
-      throw error;
     }
-  };
-
-  const venditaRapida = async (kg) => {
-    await registraVendita(kg);
   };
 
   const venditaPersonalizzata = async () => {
-    const kg = parseFloat(quantitaPersonalizzata);
-    if (isNaN(kg) || kg <= 0) {
+    const quantita = parseFloat(quantitaPersonalizzata);
+    if (isNaN(quantita) || quantita <= 0) {
       showSnackbar('Inserisci una quantità valida', 'warning');
       return;
     }
-    await registraVendita(kg);
+    
     setDialogVendita(false);
+    await venditaRapida(quantita);
     setQuantitaPersonalizzata('');
   };
 
   // Calcoli
   const disponibile = limite ? Math.max(0, limite.limiteQuantita - limite.quantitaOrdinata) : 0;
   const percentualeUsata = limite ? (limite.quantitaOrdinata / limite.limiteQuantita) * 100 : 0;
-  const totaleOrdiniKg = ordini.reduce((sum, o) => sum + (o.quantitaKg || 0), 0);
-  
-  // Colore progress bar
-  const getProgressColor = (perc) => {
-    if (perc >= 90) return 'error';
-    if (perc >= 70) return 'warning';
+  const totaleOrdini = ordini.reduce((acc, o) => acc + (o.quantitaKg || 0), 0);
+
+  const getProgressColor = (percent) => {
+    if (percent >= 90) return 'error';
+    if (percent >= 70) return 'warning';
     return 'success';
   };
 
-  // Formatta ora
-  const formatOra = (ora) => {
-    if (!ora) return '--:--';
-    if (ora.includes(':')) return ora.substring(0, 5);
-    return ora;
-  };
-
-  // Colore stato ordine
-  const getStatusColor = (stato) => {
-    switch (stato?.toLowerCase()) {
-      case 'completato': return 'success';
-      case 'in_preparazione': return 'warning';
-      case 'pronto': return 'info';
-      default: return 'default';
-    }
-  };
-
-  if (loading) {
+  if (loading && !limite) {
     return (
-      <Box sx={{ p: 3 }}>
-        <LinearProgress />
-        <Typography sx={{ mt: 2 }} align="center">
+      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+        <LinearProgress sx={{ width: '100%' }} />
+        <Typography variant="body2" color="text.secondary">
           Caricamento dati Zeppole...
         </Typography>
       </Box>
@@ -399,13 +401,82 @@ const GestioneZeppole = () => {
         </Box>
       </Paper>
 
+      {/* ✅ NUOVO: Selettore Data */}
+      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          gap: 2,
+          flexWrap: 'wrap'
+        }}>
+          <Tooltip title="Giorno precedente">
+            <IconButton onClick={goToPreviousDay} color="primary" size="large">
+              <PrevIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2,
+            minWidth: 300
+          }}>
+            <TextField
+              type="date"
+              value={formatDateForAPI(dataSelezionata)}
+              onChange={(e) => setDataSelezionata(new Date(e.target.value + 'T00:00:00'))}
+              size="small"
+              sx={{ width: 160 }}
+            />
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontWeight: isToday(dataSelezionata) ? 'bold' : 'normal',
+                color: isToday(dataSelezionata) ? 'primary.main' : 'text.primary',
+                textTransform: 'capitalize'
+              }}
+            >
+              {formatDateDisplay(dataSelezionata)}
+            </Typography>
+          </Box>
+
+          <Tooltip title="Giorno successivo">
+            <IconButton onClick={goToNextDay} color="primary" size="large">
+              <NextIcon />
+            </IconButton>
+          </Tooltip>
+
+          {!isToday(dataSelezionata) && (
+            <Tooltip title="Vai a oggi">
+              <Button 
+                variant="outlined" 
+                startIcon={<TodayIcon />}
+                onClick={goToToday}
+                size="small"
+              >
+                Oggi
+              </Button>
+            </Tooltip>
+          )}
+
+          {isToday(dataSelezionata) && (
+            <Chip 
+              label="📍 OGGI" 
+              color="primary" 
+              size="small"
+            />
+          )}
+        </Box>
+      </Paper>
+
       <Grid container spacing={3}>
         {/* Card Disponibilità */}
         <Grid item xs={12} md={6}>
           <Card elevation={3}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                📊 Disponibilità Oggi
+                📊 Disponibilità {isToday(dataSelezionata) ? 'Oggi' : formatDateDisplay(dataSelezionata).split(',')[0]}
               </Typography>
               <Divider sx={{ mb: 2 }} />
               
@@ -450,28 +521,18 @@ const GestioneZeppole = () => {
                 </Typography>
               </Box>
 
-              {/* Alert se scorte basse */}
-              {disponibile <= 5 && disponibile > 0 && (
-                <Alert severity="warning" icon={<WarningIcon />} sx={{ mb: 2 }}>
-                  Scorte basse! Rimangono solo {disponibile.toFixed(2)} Kg
-                </Alert>
-              )}
-              
-              {disponibile === 0 && (
-                <Alert severity="error" icon={<WarningIcon />} sx={{ mb: 2 }}>
-                  Esaurite! Nessuna disponibilità rimasta
-                </Alert>
-              )}
-
               {/* Ultimo aggiornamento */}
-              <Typography variant="caption" color="text.secondary" display="block" textAlign="center">
-                Ultimo aggiornamento: {ultimoAggiornamento.toLocaleTimeString('it-IT')}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                <TimeIcon fontSize="small" color="action" />
+                <Typography variant="caption" color="text.secondary">
+                  Ultimo aggiornamento: {ultimoAggiornamento.toLocaleTimeString()}
+                </Typography>
+              </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Card Azioni Rapide */}
+        {/* Card Vendita Rapida */}
         <Grid item xs={12} md={6}>
           <Card elevation={3}>
             <CardContent>
@@ -487,18 +548,18 @@ const GestioneZeppole = () => {
               {/* Pulsanti vendita rapida */}
               <Grid container spacing={1} sx={{ mb: 3 }}>
                 {[
-                  { kg: 0.1, label: '100g' },
-                  { kg: 0.2, label: '200g' },
-                  { kg: 0.5, label: '500g' },
-                  { kg: 0.7, label: '700g' },
-                  { kg: 1, label: '1 Kg' }
+                  { kg: 0.1, label: '100G' },
+                  { kg: 0.2, label: '200G' },
+                  { kg: 0.5, label: '500G' },
+                  { kg: 0.7, label: '700G' },
+                  { kg: 1, label: '1 KG' }
                 ].map((item) => (
                   <Grid item key={item.kg}>
                     <Button
                       variant="contained"
                       color="primary"
                       onClick={() => venditaRapida(item.kg)}
-                      disabled={disponibile < item.kg}
+                      disabled={disponibile < item.kg || !isToday(dataSelezionata)}
                       startIcon={<AddIcon />}
                     >
                       {item.label}
@@ -507,13 +568,20 @@ const GestioneZeppole = () => {
                 ))}
               </Grid>
 
+              {/* Avviso se non è oggi */}
+              {!isToday(dataSelezionata) && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Le vendite rapide sono disponibili solo per la data odierna
+                </Alert>
+              )}
+
               {/* Pulsante vendita personalizzata */}
               <Button
                 variant="outlined"
                 color="primary"
                 fullWidth
                 onClick={() => setDialogVendita(true)}
-                disabled={disponibile <= 0}
+                disabled={disponibile <= 0 || !isToday(dataSelezionata)}
                 sx={{ mb: 2 }}
               >
                 Vendita Personalizzata
@@ -532,6 +600,7 @@ const GestioneZeppole = () => {
                   color="warning"
                   onClick={() => setDialogReset(true)}
                   startIcon={<ResetIcon />}
+                  disabled={!isToday(dataSelezionata)}
                 >
                   Reset
                 </Button>
@@ -547,232 +616,169 @@ const GestioneZeppole = () => {
             </CardContent>
           </Card>
         </Grid>
-
-        {/* Tabella Ordini */}
-        <Grid item xs={12}>
-          <Card elevation={3}>
-            <CardContent>
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                mb: 2,
-                flexWrap: 'wrap',
-                gap: 1
-              }}>
-                <Typography variant="h6">
-                  📦 Ordini Registrati Oggi
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <Chip
-                    label={`${ordini.length} ordini`}
-                    color="primary"
-                    icon={<CartIcon />}
-                  />
-                  <Chip
-                    label={`${totaleOrdiniKg.toFixed(2)} Kg totali`}
-                    color="secondary"
-                    icon={<TrendingIcon />}
-                  />
-                </Box>
-              </Box>
-              <Divider sx={{ mb: 2 }} />
-              
-              {ordini.length === 0 ? (
-                <Alert severity="info">
-                  Nessun ordine di Zeppole registrato oggi
-                </Alert>
-              ) : (
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell><strong>Ora</strong></TableCell>
-                        <TableCell><strong>Cliente</strong></TableCell>
-                        <TableCell><strong>Codice</strong></TableCell>
-                        <TableCell align="right"><strong>Quantità</strong></TableCell>
-                        <TableCell><strong>Note</strong></TableCell>
-                        <TableCell align="center"><strong>Stato</strong></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {ordini.map((ordine, idx) => (
-                        <TableRow key={ordine.ordineId || idx} hover>
-                          <TableCell>
-                            <Chip
-                              label={formatOra(ordine.oraRitiro)}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                              icon={<TimeIcon />}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight="medium">
-                              {ordine.cliente}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="caption" color="text.secondary">
-                              {ordine.codiceCliente || '-'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Box>
-                              <Typography variant="body2" fontWeight="bold">
-                                {ordine.quantitaKg.toFixed(2)} Kg
-                              </Typography>
-                              {ordine.unita !== 'Kg' && (
-                                <Typography variant="caption" color="text.secondary">
-                                  ({ordine.quantita} {ordine.unita})
-                                </Typography>
-                              )}
-                            </Box>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="caption">
-                              {ordine.note || '-'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Chip
-                              label={ordine.stato}
-                              size="small"
-                              color={getStatusColor(ordine.stato)}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      
-                      {/* Riga totale */}
-                      <TableRow sx={{ bgcolor: 'action.hover' }}>
-                        <TableCell colSpan={3} align="right">
-                          <Typography variant="body1" fontWeight="bold">
-                            TOTALE ORDINI:
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="h6" color="primary" fontWeight="bold">
-                            {totaleOrdiniKg.toFixed(2)} Kg
-                          </Typography>
-                        </TableCell>
-                        <TableCell colSpan={2} />
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
-      {/* Dialog Modifica Limite */}
-      <Dialog 
-        open={dialogEditLimite} 
-        onClose={() => setDialogEditLimite(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Modifica Limite Giornaliero</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Nuovo Limite (Kg)"
-            type="number"
-            value={nuovoLimite}
-            onChange={(e) => setNuovoLimite(parseFloat(e.target.value))}
-            fullWidth
-            margin="normal"
-            inputProps={{ min: 0, step: 1 }}
-            autoFocus
-          />
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Limite attuale: <strong>{limite.limiteQuantita} Kg</strong>
-            <br />
-            Già ordinato: <strong>{limite.quantitaOrdinata.toFixed(2)} Kg</strong>
-          </Alert>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogEditLimite(false)}>Annulla</Button>
-          <Button onClick={salvaLimite} variant="contained">
-            Salva
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Tabella Ordini */}
+      <Paper elevation={3} sx={{ mt: 3 }}>
+        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">
+            🛒 Ordini Registrati {isToday(dataSelezionata) ? 'Oggi' : formatDateDisplay(dataSelezionata).split(',')[0]}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Chip 
+              icon={<CartIcon />} 
+              label={`${ordini.length} ordini`}
+              color="primary"
+              variant="filled"
+            />
+            <Chip 
+              icon={<TrendingIcon />} 
+              label={`${totaleOrdini.toFixed(2)} Kg totali`}
+              color="secondary"
+              variant="filled"
+            />
+          </Box>
+        </Box>
+        
+        <TableContainer sx={{ maxHeight: 300 }}>
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Ora</TableCell>
+                <TableCell>Cliente</TableCell>
+                <TableCell>Codice</TableCell>
+                <TableCell align="right">Quantità</TableCell>
+                <TableCell>Note</TableCell>
+                <TableCell>Stato</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {ordini.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+                      Nessun ordine con Zeppole per {isToday(dataSelezionata) ? 'oggi' : 'questa data'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                ordini.map((ordine, idx) => (
+                  <TableRow key={idx} hover>
+                    <TableCell>
+                      <Chip 
+                        icon={<TimeIcon />} 
+                        label={ordine.oraRitiro || '--:--'}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>{ordine.cliente}</TableCell>
+                    <TableCell>{ordine.codiceCliente || '-'}</TableCell>
+                    <TableCell align="right">
+                      <Typography fontWeight="bold">
+                        {ordine.quantita} {ordine.unita}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{ordine.note || '-'}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={ordine.stato || 'nuovo'}
+                        size="small"
+                        color={ordine.stato === 'completato' ? 'success' : 'default'}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        
+        {ordini.length > 0 && (
+          <Box sx={{ p: 2, bgcolor: 'grey.100', display: 'flex', justifyContent: 'flex-end' }}>
+            <Typography variant="subtitle1" fontWeight="bold">
+              TOTALE ORDINI: <span style={{ color: '#1976d2' }}>{totaleOrdini.toFixed(2)} Kg</span>
+            </Typography>
+          </Box>
+        )}
+      </Paper>
 
-      {/* Dialog Reset Disponibilità */}
+      {/* Dialog Reset */}
       <Dialog open={dialogReset} onClose={() => setDialogReset(false)}>
         <DialogTitle>⚠️ Conferma Reset</DialogTitle>
         <DialogContent>
-          <Typography paragraph>
-            Sei sicuro di voler resettare la disponibilità a <strong>{limite.limiteQuantita} Kg</strong>?
+          <Typography>
+            Sei sicuro di voler resettare la disponibilità di oggi?
+            Questa azione azzererà il contatore delle vendite.
           </Typography>
-          <Alert severity="warning">
-            Questa azione azzererà il contatore delle vendite registrate oggi.
-            Attualmente hai ordinato: <strong>{limite.quantitaOrdinata.toFixed(2)} Kg</strong>
-          </Alert>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogReset(false)}>Annulla</Button>
-          <Button 
-            onClick={resetDisponibilita} 
-            variant="contained" 
-            color="warning"
-          >
+          <Button onClick={resetDisponibilita} color="warning" variant="contained">
             Conferma Reset
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Dialog Vendita Personalizzata */}
-      <Dialog 
-        open={dialogVendita} 
-        onClose={() => setDialogVendita(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Vendita Personalizzata</DialogTitle>
+      <Dialog open={dialogVendita} onClose={() => setDialogVendita(false)}>
+        <DialogTitle>💰 Vendita Personalizzata</DialogTitle>
         <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Inserisci la quantità in Kg da registrare come vendita diretta.
+          </Typography>
           <TextField
+            autoFocus
             label="Quantità (Kg)"
             type="number"
+            fullWidth
             value={quantitaPersonalizzata}
             onChange={(e) => setQuantitaPersonalizzata(e.target.value)}
-            fullWidth
-            margin="normal"
-            inputProps={{ min: 0, step: 0.1, max: disponibile }}
-            autoFocus
-            helperText={`Disponibilità: ${disponibile.toFixed(2)} Kg`}
+            inputProps={{ step: 0.1, min: 0.1 }}
+            helperText={`Disponibile: ${disponibile.toFixed(2)} Kg`}
           />
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Disponibilità attuale: <strong>{disponibile.toFixed(2)} Kg</strong>
-          </Alert>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogVendita(false)}>Annulla</Button>
-          <Button 
-            onClick={venditaPersonalizzata} 
-            variant="contained"
-            disabled={!quantitaPersonalizzata || parseFloat(quantitaPersonalizzata) <= 0}
-          >
-            Conferma Vendita
+          <Button onClick={venditaPersonalizzata} color="primary" variant="contained">
+            Registra Vendita
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar Notifiche */}
+      {/* Dialog Modifica Limite */}
+      <Dialog open={dialogEditLimite} onClose={() => setDialogEditLimite(false)}>
+        <DialogTitle>⚙️ Modifica Limite Giornaliero</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Imposta il limite massimo di Zeppole vendibili per {isToday(dataSelezionata) ? 'oggi' : 'questa data'}.
+          </Typography>
+          <TextField
+            autoFocus
+            label="Limite (Kg)"
+            type="number"
+            fullWidth
+            value={nuovoLimite}
+            onChange={(e) => setNuovoLimite(Number(e.target.value))}
+            inputProps={{ step: 1, min: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogEditLimite(false)}>Annulla</Button>
+          <Button onClick={salvaLimite} color="primary" variant="contained">
+            Salva Limite
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
         onClose={closeSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={closeSnackbar} 
-          severity={snackbar.severity} 
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled">
           {snackbar.message}
         </Alert>
       </Snackbar>
