@@ -174,9 +174,17 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
   const convertiInKg = (prodotto) => {
     const unita = (prodotto.unita || 'kg').toLowerCase();
     const quantita = prodotto.quantita || 0;
+    const nomeLC = (prodotto.nome || '').toLowerCase();
     
-    // ✅ IGNORA prodotti in € (non hanno peso)
-    if (unita === '€' || unita === 'euro') return 0;
+    // ✅ FIX 15/01/2026: Converti € in Kg per Zeppole (€21/Kg)
+    if (unita === '€' || unita === 'euro') {
+      if (nomeLC.includes('zeppol')) {
+        // Zeppole: €21/Kg → quantità € / 21 = Kg
+        return quantita / 21;
+      }
+      // Altri prodotti in € non hanno peso
+      return 0;
+    }
     
     if (unita === 'kg' || unita === 'kilogrammi') return quantita;
     if (unita === 'pezzi' || unita === 'pz') {
@@ -615,8 +623,16 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const convertiInKg = (prodotto) => {
     const unita = (prodotto.unita || 'kg').toLowerCase();
     const quantita = prodotto.quantita || 0;
+    const nomeLC = (prodotto.nome || '').toLowerCase();
     
-    if (unita === '€' || unita === 'euro') return 0;
+    // ✅ FIX 15/01/2026: Converti € in Kg per Zeppole (€21/Kg)
+    if (unita === '€' || unita === 'euro') {
+      if (nomeLC.includes('zeppol')) {
+        return quantita / 21;
+      }
+      return 0;
+    }
+    
     if (unita === 'kg' || unita === 'kilogrammi') return quantita;
     if (unita === 'pezzi' || unita === 'pz') {
       for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
