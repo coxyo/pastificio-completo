@@ -490,14 +490,17 @@ Pastificio Nonna Claudia`;
         const quantita = prodotto.quantita || 0;
         const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
         const nomeCliente = ordine.nomeCliente || 'N/D';
+        const ordineId = ordine._id || ordine.id || `temp-${Date.now()}-${Math.random()}`;
         
+        // ✅ FIX 15/01/2026: OGNI ORDINE SEPARATO usando ordineId
+        // Prima: chiave senza ordineId → ordini fusi insieme
+        // Dopo: chiave con ordineId → ogni ordine rimane separato
         let chiave;
         if (nomeProdotto === 'Vassoio Dolci Misti' || unita === 'vassoio') {
-          // ✅ FIX: Raggruppa vassoi per cliente + prezzo (arrotondato)
           const prezzoArrotondato = Math.round((prodotto.prezzo || 0) * 100) / 100;
-          chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${prezzoArrotondato}`;
+          chiave = `${ordineId}-${indiceProdotto}-${categoria}-${nomeCliente}-${nomeProdotto}-${prezzoArrotondato}`;
         } else {
-          chiave = `${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}`;
+          chiave = `${ordineId}-${indiceProdotto}-${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}`;
         }
 
         if (mappaRaggruppamento.has(chiave)) {
