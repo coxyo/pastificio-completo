@@ -22,6 +22,7 @@ import {
   Radio,
   Select,
   MenuItem,
+  InputAdornment,
   Checkbox,
   FormGroup,
   Grid,
@@ -866,13 +867,68 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
 
       {/* ========== SEZIONE 3: ESCLUSIONI (se modalità = mix_completo) ========== */}
       {modalita === MODALITA.MIX_COMPLETO && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            🚫 Escludi Prodotti dal Mix
-          </Typography>
-          <Typography variant="caption" color="text.secondary" gutterBottom>
-            Il mix predefinito contiene: Pardulas (50%), Ciambelle (25%), Amaretti (15%), Bianchini (5%), Gueffus (5%)
-          </Typography>
+        <>
+          {/* ✅ FIX 15/01/2026: Peso totale personalizzabile */}
+          <Paper sx={{ p: 3, mb: 2, bgcolor: '#FFF3E0', borderLeft: '4px solid #FF9800' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#E65100' }}>
+              ⚖️ Peso Totale Vassoio
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <TextField
+                type="number"
+                label="Peso totale desiderato (Kg)"
+                value={totaleTarget.valore}
+                onChange={(e) => {
+                  const nuovoPeso = parseFloat(e.target.value) || 1.0;
+                  setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso, unita: 'Kg' }));
+                  
+                  // Ricalcola composizione con nuovo peso
+                  const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
+                    .filter(([nome]) => !esclusioni.includes(nome));
+                  
+                  const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
+                  
+                  if (sommaPercentuali > 0) {
+                    const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
+                      const pesoRicalcolato = (info.percentuale / sommaPercentuali) * nuovoPeso;
+                      const prezzo = calcolaPrezzoProdotto(nome, pesoRicalcolato, 'Kg');
+                      
+                      return {
+                        id: Date.now() + Math.random(),
+                        prodotto: nome,
+                        quantita: pesoRicalcolato,
+                        unita: 'Kg',
+                        prezzo: prezzo || 0,
+                        percentuale: (info.percentuale / sommaPercentuali) * 100
+                      };
+                    });
+                    
+                    setComposizione(nuovaComposizione);
+                  }
+                }}
+                inputProps={{ min: 0.1, step: 0.1 }}
+                sx={{ minWidth: 200 }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">Kg</InputAdornment>
+                }}
+              />
+              
+              <Typography variant="body2" color="text.secondary">
+                {esclusioni.length > 0 
+                  ? `Stai escludendo ${esclusioni.length} prodotto/i. Le percentuali sono ricalcolate automaticamente.`
+                  : 'Mix equilibrato standard. Escludi prodotti se desiderato.'}
+              </Typography>
+            </Box>
+          </Paper>
+        
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              🚫 Escludi Prodotti dal Mix
+            </Typography>
+            <Typography variant="caption" color="text.secondary" gutterBottom>
+              Il mix predefinito contiene: Pardulas (50%), Ciambelle (25%), Amaretti (15%), Bianchini (5%), Gueffus (5%)
+            </Typography>
           
           <FormGroup row sx={{ mt: 2 }}>
             {Object.keys(MIX_DOLCI_COMPLETO_DEFAULT).map(nome => (
@@ -889,6 +945,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
             ))}
           </FormGroup>
         </Paper>
+        </>
       )}
 
       {/* ========== SEZIONE 4: SELEZIONE PRODOTTI (modalità LIBERA o TOTALE_PRIMA) ========== */}
