@@ -1,9 +1,10 @@
 // controllers/corrispettiviController.js
+// ✅ VERSIONE CORRETTA - COMPATIBILE CON ROUTES
 import Corrispettivo from '../models/Corrispettivo.js';
 import logger from '../config/logger.js';
 
 // GET - Ottieni corrispettivi per mese/anno
-export const getCorrispettivi = async (req, res) => {
+const getCorrispettivi = async (req, res) => {
   try {
     const { anno, mese } = req.query;
     
@@ -26,39 +27,8 @@ export const getCorrispettivi = async (req, res) => {
   }
 };
 
-// GET - Ottieni singolo corrispettivo
-export const getCorrispettivo = async (req, res) => {
-  try {
-    const { anno, mese, giorno } = req.params;
-    
-    const corrispettivo = await Corrispettivo.findOne({
-      anno: parseInt(anno),
-      mese: parseInt(mese),
-      giorno: parseInt(giorno)
-    });
-    
-    if (!corrispettivo) {
-      return res.status(404).json({
-        success: false,
-        message: 'Corrispettivo non trovato'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: corrispettivo
-    });
-  } catch (error) {
-    logger.error('Errore getCorrispettivo:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
 // POST - Crea o aggiorna corrispettivo (UPSERT)
-export const creaCorrispettivo = async (req, res) => {
+const creaCorrispettivo = async (req, res) => {
   try {
     const { anno, mese, giorno, totale, dettaglioIva, note, operatore } = req.body;
     
@@ -76,7 +46,7 @@ export const creaCorrispettivo = async (req, res) => {
       esente: 0
     };
     
-    // UPSERT
+    // UPSERT - Aggiorna se esiste, crea se non esiste
     const corrispettivo = await Corrispettivo.findOneAndUpdate(
       { anno: parseInt(anno), mese: parseInt(mese), giorno: parseInt(giorno) },
       {
@@ -113,41 +83,8 @@ export const creaCorrispettivo = async (req, res) => {
   }
 };
 
-// PUT - Aggiorna corrispettivo
-export const aggiornaCorrispettivo = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-    
-    const corrispettivo = await Corrispettivo.findByIdAndUpdate(
-      id,
-      { ...updates, updatedAt: new Date() },
-      { new: true }
-    );
-    
-    if (!corrispettivo) {
-      return res.status(404).json({
-        success: false,
-        message: 'Corrispettivo non trovato'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: 'Corrispettivo aggiornato',
-      data: corrispettivo
-    });
-  } catch (error) {
-    logger.error('Errore aggiornaCorrispettivo:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
 // DELETE - Elimina corrispettivo
-export const eliminaCorrispettivo = async (req, res) => {
+const eliminaCorrispettivo = async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -173,8 +110,152 @@ export const eliminaCorrispettivo = async (req, res) => {
   }
 };
 
+// POST - Chiusura mensile
+const chiusuraMensile = async (req, res) => {
+  try {
+    const { anno, mese } = req.body;
+    
+    await Corrispettivo.updateMany(
+      { anno: parseInt(anno), mese: parseInt(mese) },
+      { 
+        $set: { 
+          chiusoMese: true, 
+          dataChiusura: new Date() 
+        } 
+      }
+    );
+    
+    // Calcola totali per il report
+    const corrispettivi = await Corrispettivo.find({
+      anno: parseInt(anno),
+      mese: parseInt(mese)
+    });
+    
+    const totali = {
+      totaleMese: 0,
+      iva22: 0,
+      iva10: 0,
+      iva4: 0,
+      esente: 0
+    };
+    
+    corrispettivi.forEach(c => {
+      totali.totaleMese += c.totale || 0;
+      if (c.dettaglioIva) {
+        totali.iva22 += c.dettaglioIva.iva22 || 0;
+        totali.iva10 += c.dettaglioIva.iva10 || 0;
+        totali.iva4 += c.dettaglioIva.iva4 || 0;
+        totali.esente += c.dettaglioIva.esente || 0;
+      }
+    });
+    
+    res.json({
+      success: true,
+      message: `Mese ${mese}/${anno} chiuso con successo`,
+      data: totali
+    });
+  } catch (error) {
+    logger.error('Errore chiusuraMensile:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// GET - Report annuale
+const reportAnnuale = async (req, res) => {
+  try {
+    const { anno } = req.params;
+    
+    const pipeline = [
+      { $match: { anno: parseInt(anno) } },
+      {
+        $group: {
+          _id: '$mese',
+          totaleMese: { $sum: '$totale' },
+          iva22: { $sum: '$dettaglioIva.iva22' },
+          iva10: { $sum: '$dettaglioIva.iva10' },
+          iva4: { $sum: '$dettaglioIva.iva4' },
+          esente: { $sum: '$dettaglioIva.esente' },
+          giorniRegistrati: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ];
+    
+    const mesi = await Corrispettivo.aggregate(pipeline);
+    
+    const totaleAnno = mesi.reduce((sum, m) => sum + (m.totaleMese || 0), 0);
+    
+    res.json({
+      success: true,
+      data: {
+        anno: parseInt(anno),
+        totaleAnno,
+        mesi
+      }
+    });
+  } catch (error) {
+    logger.error('Errore reportAnnuale:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// GET - Statistiche
+const getStatistiche = async (req, res) => {
+  try {
+    const { anno } = req.query;
+    const annoCorrente = anno ? parseInt(anno) : new Date().getFullYear();
+    
+    // Totale anno corrente
+    const totaleAnno = await Corrispettivo.aggregate([
+      { $match: { anno: annoCorrente } },
+      { $group: { _id: null, totale: { $sum: '$totale' } } }
+    ]);
+    
+    // Media giornaliera
+    const countGiorni = await Corrispettivo.countDocuments({ anno: annoCorrente });
+    const mediaGiornaliera = countGiorni > 0 ? (totaleAnno[0]?.totale || 0) / countGiorni : 0;
+    
+    // Mese migliore
+    const meseMigliore = await Corrispettivo.aggregate([
+      { $match: { anno: annoCorrente } },
+      { $group: { _id: '$mese', totale: { $sum: '$totale' } } },
+      { $sort: { totale: -1 } },
+      { $limit: 1 }
+    ]);
+    
+    // Giorno migliore
+    const giornoMigliore = await Corrispettivo.findOne({ anno: annoCorrente })
+      .sort({ totale: -1 })
+      .limit(1);
+    
+    res.json({
+      success: true,
+      data: {
+        anno: annoCorrente,
+        totaleAnno: totaleAnno[0]?.totale || 0,
+        mediaGiornaliera: Math.round(mediaGiornaliera * 100) / 100,
+        giorniRegistrati: countGiorni,
+        meseMigliore: meseMigliore[0] || null,
+        giornoMigliore: giornoMigliore || null
+      }
+    });
+  } catch (error) {
+    logger.error('Errore getStatistiche:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // POST - Import bulk corrispettivi (UPSERT per ogni record)
-export const importBulk = async (req, res) => {
+const importBulk = async (req, res) => {
   try {
     const { dati } = req.body;
     
@@ -204,7 +285,7 @@ export const importBulk = async (req, res) => {
           esente: 0
         };
         
-        // UPSERT
+        // UPSERT - Aggiorna se esiste, crea se non esiste
         await Corrispettivo.findOneAndUpdate(
           { 
             anno: parseInt(d.anno), 
@@ -255,128 +336,13 @@ export const importBulk = async (req, res) => {
   }
 };
 
-// GET - Riepilogo mensile
-export const getRiepilogoMensile = async (req, res) => {
-  try {
-    const { anno, mese } = req.query;
-    
-    const corrispettivi = await Corrispettivo.find({
-      anno: parseInt(anno),
-      mese: parseInt(mese)
-    });
-    
-    const riepilogo = {
-      anno: parseInt(anno),
-      mese: parseInt(mese),
-      totaleMese: 0,
-      iva22: 0,
-      iva10: 0,
-      iva4: 0,
-      esente: 0,
-      giorniRegistrati: corrispettivi.length
-    };
-    
-    corrispettivi.forEach(c => {
-      riepilogo.totaleMese += c.totale || 0;
-      if (c.dettaglioIva) {
-        riepilogo.iva22 += c.dettaglioIva.iva22 || 0;
-        riepilogo.iva10 += c.dettaglioIva.iva10 || 0;
-        riepilogo.iva4 += c.dettaglioIva.iva4 || 0;
-        riepilogo.esente += c.dettaglioIva.esente || 0;
-      }
-    });
-    
-    res.json({
-      success: true,
-      data: riepilogo
-    });
-  } catch (error) {
-    logger.error('Errore getRiepilogoMensile:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// GET - Riepilogo annuale
-export const getRiepilogoAnnuale = async (req, res) => {
-  try {
-    const { anno } = req.query;
-    
-    const pipeline = [
-      { $match: { anno: parseInt(anno) } },
-      {
-        $group: {
-          _id: '$mese',
-          totaleMese: { $sum: '$totale' },
-          iva22: { $sum: '$dettaglioIva.iva22' },
-          iva10: { $sum: '$dettaglioIva.iva10' },
-          iva4: { $sum: '$dettaglioIva.iva4' },
-          esente: { $sum: '$dettaglioIva.esente' },
-          giorniRegistrati: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ];
-    
-    const mesi = await Corrispettivo.aggregate(pipeline);
-    
-    const totaleAnno = mesi.reduce((sum, m) => sum + m.totaleMese, 0);
-    
-    res.json({
-      success: true,
-      data: {
-        anno: parseInt(anno),
-        totaleAnno,
-        mesi
-      }
-    });
-  } catch (error) {
-    logger.error('Errore getRiepilogoAnnuale:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// POST - Chiudi mese
-export const chiudiMese = async (req, res) => {
-  try {
-    const { anno, mese } = req.body;
-    
-    await Corrispettivo.updateMany(
-      { anno: parseInt(anno), mese: parseInt(mese) },
-      { 
-        $set: { 
-          chiusoMese: true, 
-          dataChiusura: new Date() 
-        } 
-      }
-    );
-    
-    res.json({
-      success: true,
-      message: `Mese ${mese}/${anno} chiuso con successo`
-    });
-  } catch (error) {
-    logger.error('Errore chiudiMese:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
+// Export come oggetto (per import default)
 export default {
   getCorrispettivi,
-  getCorrispettivo,
   creaCorrispettivo,
-  aggiornaCorrispettivo,
   eliminaCorrispettivo,
-  importBulk,
-  getRiepilogoMensile,
-  getRiepilogoAnnuale,
-  chiudiMese
+  chiusuraMensile,
+  reportAnnuale,
+  getStatistiche,
+  importBulk
 };
