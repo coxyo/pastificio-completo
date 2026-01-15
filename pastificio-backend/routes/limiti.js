@@ -87,12 +87,36 @@ router.get('/prodotto/:nome', async (req, res) => {
       });
     });
 
-    // Aggiorna il limite con il totale calcolato
-    limite.quantitaOrdinata = parseFloat(totaleOrdinatoKg.toFixed(2));
+    // ✅ FIX 15/01/2026 v2: NON sovrascrivere quantitaOrdinata!
+    // quantitaOrdinata contiene le VENDITE DIRETTE (persistenti)
+    // totaleOrdinatoKg contiene gli ORDINI (calcolati al volo)
+    const totaleOrdini = parseFloat(totaleOrdinatoKg.toFixed(2));
+    const venditeDirette = limite.quantitaOrdinata || 0;
+    const totaleComplessivo = totaleOrdini + venditeDirette;
+    const disponibile = limite.limiteQuantita - totaleComplessivo;
 
-    console.log(`[LIMITI] Limite ${nome}: ${limite.quantitaOrdinata}/${limite.limiteQuantita} Kg (da ${ordini.length} ordini)`);
+    console.log(`[LIMITI] Limite ${nome}:`);
+    console.log(`  - Ordini: ${totaleOrdini} Kg (da ${ordini.length} ordini)`);
+    console.log(`  - Vendite dirette: ${venditeDirette} Kg`);
+    console.log(`  - Totale: ${totaleComplessivo} Kg`);
+    console.log(`  - Disponibile: ${disponibile} Kg`);
 
-    res.json({ success: true, data: limite });
+    // Prepara risposta con tutti i dati
+    const limiteRisposta = {
+      _id: limite._id,
+      data: limite.data,
+      prodotto: limite.prodotto,
+      limiteQuantita: limite.limiteQuantita,
+      quantitaOrdinata: venditeDirette, // Solo vendite dirette
+      totaleOrdini: totaleOrdini, // Ordini calcolati
+      totaleComplessivo: totaleComplessivo, // Somma
+      disponibile: disponibile,
+      unitaMisura: limite.unitaMisura,
+      attivo: limite.attivo,
+      sogliAllerta: limite.sogliAllerta
+    };
+
+    res.json({ success: true, data: limiteRisposta });
   } catch (error) {
     console.error('[LIMITI] Errore:', error);
     res.status(500).json({ success: false, error: error.message });
