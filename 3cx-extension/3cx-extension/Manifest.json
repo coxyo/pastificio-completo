@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "3CX Call Detector - Pastificio Nonna Claudia",
-  "version": "3.7.0",
-  "description": "Preferenza numeri +39. Content scripts automatico.",
+  "version": "3.7.1",
+  "description": "Rilevamento chiamate 3CX - Fix Chrome Manifest V3",
   
   "permissions": [
     "activeTab",
     "storage",
     "notifications",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   
   "host_permissions": [
