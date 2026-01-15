@@ -1127,6 +1127,10 @@ clienteIdPreselezionato,
     const ordineData = {
       ...formData,
       nomeCliente: nomeClienteCompleto,  // ✅ Usa nome completo calcolato
+      // ✅ FIX 15/01/2026 v2: Salva nome/cognome/telefono separati per modifica
+      nome: formData.nome || nomeClienteCompleto.split(' ')[0] || '',
+      cognome: formData.cognome || nomeClienteCompleto.split(' ').slice(1).join(' ') || '',
+      telefono: formData.telefono || '',
       cliente: formData.cliente?._id || null,
       totale: calcolaTotale(),
       daViaggio: formData.daViaggio,
@@ -1972,29 +1976,58 @@ clienteIdPreselezionato,
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>📅 Data e Ora Ritiro</Typography>
             
-            {/* ✅ FIX 15/01/2026: Data grande e visibile */}
+            {/* ✅ FIX 15/01/2026 v2: Data più piccola con frecce ◀️ ▶️ */}
             <Box sx={{ 
-              p: 3, 
+              p: 2, 
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               borderRadius: 2,
               color: 'white',
               mb: 2,
-              textAlign: 'center'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
             }}>
-              <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, textTransform: 'uppercase' }}>
-                {formData.dataRitiro ? 
-                  new Date(formData.dataRitiro + 'T12:00:00').toLocaleDateString('it-IT', { 
-                    weekday: 'long', 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                  }).toUpperCase()
-                  : 'SELEZIONA DATA'
-                }
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                {formData.oraRitiro ? `ORE ${formData.oraRitiro}` : 'ORE --:--'}
-              </Typography>
+              {/* Freccia sinistra */}
+              <IconButton 
+                onClick={() => {
+                  const currentDate = new Date(formData.dataRitiro + 'T12:00:00');
+                  currentDate.setDate(currentDate.getDate() - 1);
+                  setFormData({ ...formData, dataRitiro: currentDate.toISOString().split('T')[0] });
+                }}
+                sx={{ color: 'white', fontSize: '2rem' }}
+              >
+                ◀️
+              </IconButton>
+              
+              {/* Data e Ora */}
+              <Box sx={{ textAlign: 'center', flex: 1 }}>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+                  {formData.dataRitiro ? 
+                    new Date(formData.dataRitiro + 'T12:00:00').toLocaleDateString('it-IT', { 
+                      weekday: 'long', 
+                      day: 'numeric', 
+                      month: 'long', 
+                      year: 'numeric' 
+                    }).toUpperCase()
+                    : 'SELEZIONA DATA'
+                  }
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                  {formData.oraRitiro ? `ORE ${formData.oraRitiro}` : 'ORE --:--'}
+                </Typography>
+              </Box>
+              
+              {/* Freccia destra */}
+              <IconButton 
+                onClick={() => {
+                  const currentDate = new Date(formData.dataRitiro + 'T12:00:00');
+                  currentDate.setDate(currentDate.getDate() + 1);
+                  setFormData({ ...formData, dataRitiro: currentDate.toISOString().split('T')[0] });
+                }}
+                sx={{ color: 'white', fontSize: '2rem' }}
+              >
+                ▶️
+              </IconButton>
             </Box>
             
             <Box sx={{ display: 'flex', gap: 2 }}>
