@@ -1,3 +1,7 @@
+// hooks/useIncomingCall.js - v2.1 - 15/01/2026 ore 06:15
+// ✅ FIX: Pulizia popup persistente al mount
+// ✅ FIX: Salvataggio DB disabilitato (errori CORS)
+// ✅ FIX: Solo localStorage per storico chiamate
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -13,6 +17,21 @@ export default function useIncomingCall() {
   const lastCallIdRef = useRef(null);
   const resetTimeoutRef = useRef(null);
 
+  // ✅ FIX 15/01/2026: Pulizia popup persistente al mount
+  useEffect(() => {
+    console.log('[useIncomingCall] 🧹 Pulizia popup persistente al caricamento');
+    
+    // Resetta stato se ci sono popup fantasma
+    setIsPopupOpen(false);
+    setChiamataCorrente(null);
+    
+    // Pulisci eventuali timeout appesi
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
+    }
+  }, []); // Solo al mount
+
   useEffect(() => {
     console.log('[useIncomingCall] STATE UPDATE:');
     console.log('  - chiamataCorrente:', chiamataCorrente?.numero || null);
@@ -20,8 +39,14 @@ export default function useIncomingCall() {
     console.log('  - connected:', connected);
   }, [chiamataCorrente, isPopupOpen, connected]);
 
-  // FIX: Rimuovo campo sorgente dal payload
+  // ✅ FIX 15/01/2026: Salvataggio DB disabilitato temporaneamente (causa errori CORS)
+  // Riattivare quando backend Railway è stabile
   const salvaChiamataDB = useCallback(async (callData) => {
+    // DISABILITATO: causa errori CORS continui
+    console.log('[useIncomingCall] ℹ️ Salvataggio DB disabilitato (solo localStorage)');
+    return;
+    
+    /* CODICE ORIGINALE - DISABILITATO
     try {
       const response = await fetch(`${API_URL}/chiamate/webhook`, {
         method: 'POST',
@@ -35,7 +60,6 @@ export default function useIncomingCall() {
           callId: `call_${Date.now()}`,
           cliente: callData.cliente || null,
           clienteTrovato: !!callData.cliente
-          // RIMOSSO: sorgente (causa errore validation)
         })
       });
       
@@ -47,6 +71,7 @@ export default function useIncomingCall() {
     } catch (error) {
       console.error('ERROR [useIncomingCall] Errore salvataggio chiamata:', error);
     }
+    */
   }, []);
 
   const salvaChiamataLocale = useCallback((callData) => {
