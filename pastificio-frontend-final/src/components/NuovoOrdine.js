@@ -391,9 +391,17 @@ clienteIdPreselezionato,
 
   useEffect(() => {
     if (ordineIniziale) {
+      // ✅ FIX 15/01/2026 v3: Estrai nome/cognome da nomeCliente
+      const nomeClienteCompleto = ordineIniziale.nomeCliente || '';
+      const partiNome = nomeClienteCompleto.split(' ');
+      const nome = partiNome[0] || '';
+      const cognome = partiNome.slice(1).join(' ') || '';
+      
       setFormData({
         cliente: ordineIniziale.cliente || null,
         nomeCliente: ordineIniziale.nomeCliente || '',
+        nome: nome,  // ✅ Popola nome separato
+        cognome: cognome,  // ✅ Popola cognome separato
         telefono: ordineIniziale.telefono || '',
         dataRitiro: ordineIniziale.dataRitiro?.split('T')[0] || new Date().toISOString().split('T')[0],
         oraRitiro: ordineIniziale.oraRitiro || '',
