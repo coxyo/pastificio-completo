@@ -551,49 +551,69 @@ Pastificio Nonna Claudia`;
 
   return (
     <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent' }}>
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {/* ✅ FIX 15/01/2026: Data grande con frecce come NuovoOrdine */}
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ 
+          p: 2, 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 2,
+          color: 'white',
+          mb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          {/* Freccia sinistra */}
           <IconButton 
-            onClick={handleGiornoPrecedente} 
-            size="small"
-            sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+            onClick={handleGiornoPrecedente}
+            sx={{ color: 'white', fontSize: '2rem' }}
           >
-            <ChevronLeftIcon />
+            ◀️
           </IconButton>
           
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '0.75rem', lineHeight: 1 }}>
-              {getNomeGiorno(dataFiltro)}
+          {/* Data e Ora */}
+          <Box sx={{ textAlign: 'center', flex: 1 }}>
+            <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+              {getNomeGiorno(dataFiltro)} {new Date(dataFiltro + 'T12:00:00').toLocaleDateString('it-IT', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+              }).toUpperCase()}
             </Typography>
-            <TextField
-              type="date"
-              size="small"
-              value={dataFiltro}
-              onChange={handleDateChange}
-              sx={{ width: 150, '& .MuiInputBase-input': { py: 0.5, fontSize: '0.9rem' } }}
-            />
+            <Typography variant="body1" sx={{ mt: 0.5 }}>
+              {totaleRigheOggi} prodotti
+            </Typography>
           </Box>
           
+          {/* Freccia destra */}
           <IconButton 
-            onClick={handleGiornoSuccessivo} 
-            size="small"
-            sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+            onClick={handleGiornoSuccessivo}
+            sx={{ color: 'white', fontSize: '2rem' }}
           >
-            <ChevronRightIcon />
+            ▶️
           </IconButton>
-          
-          <Typography variant="subtitle2" color="text.secondary" sx={{ ml: 1 }}>
-            {totaleRigheOggi} prodotti
-          </Typography>
         </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={onNuovoOrdine}
-        >
-          NUOVO
-        </Button>
+        
+        {/* Riga con campo data nascosto e pulsante Nuovo */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <TextField
+            type="date"
+            size="small"
+            value={dataFiltro}
+            onChange={handleDateChange}
+            sx={{ width: 150 }}
+            label="Salta a data"
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={onNuovoOrdine}
+            size="large"
+          >
+            NUOVO
+          </Button>
+        </Box>
       </Box>
 
       {/* Tabelle per categoria */}
