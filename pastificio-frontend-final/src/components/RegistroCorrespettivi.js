@@ -145,7 +145,7 @@ export default function RegistroCorrespettivi({ onBack }) {
         `${API_URL}/corrispettivi?anno=${annoCorrente}&mese=${meseCorrente + 1}`,
         getAuthHeaders()
       );
-      setCorrispettivi(response.data.corrispettivi || []);
+setCorrispettivi(response.data.data || response.data.corrispettivi || []);
     } catch (error) {
       console.error('Errore caricamento corrispettivi:', error);
       // Inizializza array vuoto per il mese
