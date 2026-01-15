@@ -492,20 +492,23 @@ Pastificio Nonna Claudia`;
         const nomeCliente = ordine.nomeCliente || 'N/D';
         const ordineId = ordine._id || ordine.id || `temp-${Date.now()}-${Math.random()}`;
         
-        // ✅ FIX 15/01/2026: OGNI ORDINE SEPARATO usando ordineId
-        // Prima: chiave senza ordineId → ordini fusi insieme
-        // Dopo: chiave con ordineId → ogni ordine rimane separato
+        // ✅ FIX 15/01/2026 v2: Raggruppa prodotti NELLO STESSO ORDINE
+        // Chiave: ordineId + prodotto + quantità
+        // Stesso ordine + stesso prodotto + stessa quantità → "2x", "3x", etc
+        // Ordini diversi → righe separate anche se stesso prodotto
         let chiave;
         if (nomeProdotto === 'Vassoio Dolci Misti' || unita === 'vassoio') {
           const prezzoArrotondato = Math.round((prodotto.prezzo || 0) * 100) / 100;
-          chiave = `${ordineId}-${indiceProdotto}-${categoria}-${nomeCliente}-${nomeProdotto}-${prezzoArrotondato}`;
+          // Vassoi: raggruppa per ordine + prezzo (non per quantità)
+          chiave = `${ordineId}-${categoria}-${nomeCliente}-${nomeProdotto}-${prezzoArrotondato}`;
         } else {
-          chiave = `${ordineId}-${indiceProdotto}-${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}`;
+          // Prodotti normali: raggruppa per ordine + prodotto + quantità
+          chiave = `${ordineId}-${categoria}-${nomeCliente}-${nomeProdotto}-${quantita}-${unita}`;
         }
 
         if (mappaRaggruppamento.has(chiave)) {
           const gruppo = mappaRaggruppamento.get(chiave);
-          gruppo.count += 1;
+          gruppo.count += 1;  // ✅ Incrementa count: 2x, 3x, etc
           gruppo.prezzoTotale += (parseFloat(prodotto.prezzo) || 0);
           // ✅ FIX 19/12/2025: Salva TUTTI gli ordini del gruppo, non solo il primo!
           gruppo.ordini.push({ ordine, indiceProdotto });
