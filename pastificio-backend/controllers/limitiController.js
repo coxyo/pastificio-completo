@@ -1,4 +1,4 @@
-// controllers/limitiController.js
+// controllers/limitiController.js - ✅ FIX 15/01/2026: Zeppole 24 pz/Kg e €21/Kg
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
 import Ordine from '../models/Ordine.js';
 
@@ -79,14 +79,16 @@ export const getOrdiniProdotto = async (req, res) => {
           let quantitaKg = parseFloat(prodotto.quantita) || 0;
           
           // Converti in Kg
-          if (prodotto.unita === 'g') {
+          const unita = (prodotto.unita || 'Kg').toLowerCase();
+          
+          if (unita === 'g') {
             quantitaKg = quantitaKg / 1000;
-          } else if (prodotto.unita === 'pz' || prodotto.unita === 'Pezzi') {
-            // Stima: 1 pezzo = ~33g
-            quantitaKg = quantitaKg * 0.033;
-          } else if (prodotto.unita === '€') {
-            // Stima: prezzo medio €20/Kg
-            quantitaKg = quantitaKg / 20;
+          } else if (unita === 'pz' || unita === 'pezzi') {
+            // ✅ FIX 15/01/2026: Zeppole 24 pz/Kg (1 Kg = 24 pezzi)
+            quantitaKg = quantitaKg / 24;
+          } else if (unita === '€' || unita === 'euro') {
+            // ✅ FIX 15/01/2026: Zeppole €21/Kg
+            quantitaKg = quantitaKg / 21;
           }
 
           totaleKg += quantitaKg;

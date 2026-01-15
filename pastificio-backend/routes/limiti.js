@@ -1,4 +1,4 @@
-// routes/limiti.js - ✅ FIX 15/01/2026: Supporto filtro per DATA
+// routes/limiti.js - ✅ FIX 15/01/2026: Supporto filtro per DATA + ZEPPOLE 24 pz/Kg e €21/Kg
 import express from 'express';
 import { optionalAuth } from '../middleware/auth.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
@@ -72,9 +72,15 @@ router.get('/prodotto/:nome', async (req, res) => {
           let quantitaKg = parseFloat(prodotto.quantita) || 0;
           
           const unita = (prodotto.unita || 'Kg').toLowerCase();
-          if (unita === 'g') quantitaKg = quantitaKg / 1000;
-          else if (unita === 'pz') quantitaKg = quantitaKg * 0.08; // ~80g per zeppola
-          else if (unita === '€') quantitaKg = quantitaKg / 17; // ~17€/kg
+          if (unita === 'g') {
+            quantitaKg = quantitaKg / 1000;
+          } else if (unita === 'pz' || unita === 'pezzi') {
+            // ✅ FIX 15/01/2026: Zeppole 24 pz/Kg (1 Kg = 24 pezzi)
+            quantitaKg = quantitaKg / 24;
+          } else if (unita === '€' || unita === 'euro') {
+            // ✅ FIX 15/01/2026: Zeppole €21/Kg
+            quantitaKg = quantitaKg / 21;
+          }
 
           totaleOrdinatoKg += quantitaKg;
         }
@@ -125,9 +131,15 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
           let quantitaKg = parseFloat(prodotto.quantita) || 0;
           
           const unita = (prodotto.unita || 'Kg').toLowerCase();
-          if (unita === 'g') quantitaKg = quantitaKg / 1000;
-          else if (unita === 'pz') quantitaKg = quantitaKg * 0.08; // ~80g per zeppola
-          else if (unita === '€') quantitaKg = quantitaKg / 17; // ~17€/kg
+          if (unita === 'g') {
+            quantitaKg = quantitaKg / 1000;
+          } else if (unita === 'pz' || unita === 'pezzi') {
+            // ✅ FIX 15/01/2026: Zeppole 24 pz/Kg
+            quantitaKg = quantitaKg / 24;
+          } else if (unita === '€' || unita === 'euro') {
+            // ✅ FIX 15/01/2026: Zeppole €21/Kg
+            quantitaKg = quantitaKg / 21;
+          }
 
           totaleKg += quantitaKg;
 
@@ -209,9 +221,15 @@ router.post('/vendita-diretta', async (req, res) => {
         if (p.nome && p.nome.toLowerCase().includes(prodotto.toLowerCase())) {
           let q = parseFloat(p.quantita) || 0;
           const u = (p.unita || 'Kg').toLowerCase();
-          if (u === 'g') q = q / 1000;
-          else if (u === 'pz') q = q * 0.08;
-          else if (u === '€') q = q / 17;
+          if (u === 'g') {
+            q = q / 1000;
+          } else if (u === 'pz' || u === 'pezzi') {
+            // ✅ FIX 15/01/2026: Zeppole 24 pz/Kg
+            q = q / 24;
+          } else if (u === '€' || u === 'euro') {
+            // ✅ FIX 15/01/2026: Zeppole €21/Kg
+            q = q / 21;
+          }
           totaleOrdini += q;
         }
       });
