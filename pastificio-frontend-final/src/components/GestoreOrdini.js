@@ -1,4 +1,5 @@
 // src/components/GestoreOrdini.js - ✅ VERSIONE COMPLETA CON CALLPOPUP + PUSHER INTEGRATION
+// 🔄 Deploy forzato: 15/01/2026 ore 05:36 - Fix popup che non si chiude
 // File unico completo - 1600+ linee
 // Data aggiornamento: 28 Ottobre 2025
 
