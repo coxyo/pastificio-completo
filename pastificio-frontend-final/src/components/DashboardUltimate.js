@@ -41,6 +41,15 @@ function DashboardUltimate() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   
   useEffect(() => {
+    // ✅ FIX: Controlla token prima di caricare
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('❌ Token mancante - Redirect a login');
+      alert('Sessione scaduta. Effettua nuovamente il login.');
+      window.location.href = '/';
+      return;
+    }
+    
     loadData();
     setupNotifications();
     setupGoogleAnalytics();
@@ -248,25 +257,14 @@ function DashboardUltimate() {
   const loadData = async () => {
     setLoading(true);
     try {
-      let token = localStorage.getItem('token');
+      // ✅ FIX: Rilegge token ogni volta (potrebbe essere cambiato)
+      const token = localStorage.getItem('token');
       
       if (!token) {
-        const loginRes = await fetch('https://pastificio-completo-production.up.railway.app/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: 'admin@pastificio.it',
-            password: 'admin123'
-          })
-        });
-        
-        const loginData = await loginRes.json();
-        if (loginData.success && loginData.token) {
-          token = loginData.token;
-          localStorage.setItem('token', token);
-        } else {
-          throw new Error('Login fallito');
-        }
+        console.error('❌ Token mancante in loadData - Redirect a login');
+        localStorage.clear();
+        window.location.href = '/';
+        return;
       }
       
       const ordersRes = await fetch('https://pastificio-completo-production.up.railway.app/api/ordini', {
@@ -277,6 +275,14 @@ function DashboardUltimate() {
       });
       
       if (!ordersRes.ok) {
+        // ✅ FIX: Se 401 Unauthorized, token scaduto → logout
+        if (ordersRes.status === 401) {
+          console.error('❌ 401 Unauthorized - Token scaduto');
+          alert('Sessione scaduta. Effettua nuovamente il login.');
+          localStorage.clear();
+          window.location.href = '/';
+          return;
+        }
         throw new Error(`Errore ${ordersRes.status}`);
       }
       
