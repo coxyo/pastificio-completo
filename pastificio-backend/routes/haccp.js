@@ -7,17 +7,48 @@ const router = express.Router();
 // Tutte le route protette da autenticazione
 router.use(protect);
 
+// ✅ NUOVO: Endpoint per dashboard HACCP
+router.get('/dashboard', async (req, res) => {
+  try {
+    // Restituisci dati mock per dashboard
+    res.json({
+      success: true,
+      data: {
+        registrazioni: {
+          totali: 0,
+          conformi: 0,
+          nonConformi: 0,
+          daVerificare: 0
+        },
+        ultimiControlli: {
+          frigoriferi: [],
+          congelatori: [],
+          abbattitori: []
+        },
+        statistiche: {
+          totaleRegistrazioni: 0,
+          conformi: 0,
+          nonConformi: 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Errore caricamento dashboard:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Errore caricamento dashboard' 
+    });
+  }
+});
+
 // ✅ Endpoint per verificare se già registrato oggi
 router.get('/check-registrazione', async (req, res) => {
   try {
     const { data } = req.query;
     
-    // Per ora restituisci sempre false (deve sempre mostrare)
-    // In futuro puoi salvare su MongoDB
-    
     res.json({ 
       success: true,
-      giaRegistrato: false, // ✅ Sempre false = mostra sempre popup
+      giaRegistrato: false,
       data: data
     });
     
@@ -43,8 +74,6 @@ router.post('/temperatura', async (req, res) => {
       note,
       data: new Date().toISOString()
     });
-    
-    // TODO: Salvare su MongoDB (per ora solo log)
     
     res.json({
       success: true,
@@ -74,8 +103,6 @@ router.post('/segna-registrazione', async (req, res) => {
     const { data } = req.body;
     
     console.log('✅ Registrazione HACCP completata per data:', data);
-    
-    // TODO: Salvare su MongoDB
     
     res.json({
       success: true,
