@@ -1,7 +1,7 @@
-// src/components/GestoreOrdini.js - ✅ VERSIONE COMPLETA CON CALLPOPUP + PUSHER INTEGRATION
-// 🔄 Deploy forzato: 15/01/2026 ore 05:36 - Fix popup che non si chiude
-// File unico completo - 1600+ linee
-// Data aggiornamento: 28 Ottobre 2025
+// src/components/GestoreOrdini.js - ✅ VERSIONE COMPLETA CON CALLPOPUP + PUSHER + HACCP AUTO
+// 🔄 Deploy forzato: 16/01/2026 ore 06:30 - Aggiunto popup HACCP automatico Martedì
+// File unico completo - 2800+ linee
+// Data aggiornamento: 16 Gennaio 2026
 
 'use client';
 
@@ -61,7 +61,10 @@ import useIncomingCall from '@/hooks/useIncomingCall';  // ✅ AGGIUNTO
 import StoricoChiamate from './StoricoChiamate';
 import GestioneZeppole from './GestioneZeppole';
 import StatisticheChiamate from './StatisticheChiamate';
-import { Cake as CakeIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } from '@mui/icons-material';
+
+// ✅ NUOVO 16/01/2026: Import per popup HACCP automatico (Martedì)
+import HACCPAutoPopup, { useHACCPAutoPopup } from './HACCPAutoPopup';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -1037,6 +1040,9 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     connected: pusherConnected,
     pusherService
   } = useIncomingCall();
+
+  // ✅ NUOVO 16/01/2026: Hook per popup HACCP automatico (Martedì)
+  const { showPopup: showHACCPPopup, closePopup: closeHACCPPopup, forceShowPopup: forceShowHACCPPopup } = useHACCPAutoPopup();
 
   // ✅ Handler personalizzato accettazione chiamata
   const handleAcceptIncomingCall = () => {
@@ -2822,6 +2828,13 @@ return (
     <GestioneZeppole />
   </DialogContent>
 </Dialog>
+
+{/* ✅ NUOVO 16/01/2026: Popup HACCP Automatico - Appare ogni Martedì */}
+{showHACCPPopup && (
+  <HACCPAutoPopup 
+    onClose={closeHACCPPopup}
+  />
+)}
 
       </Container>
     </>
