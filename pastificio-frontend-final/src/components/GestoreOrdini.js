@@ -1,5 +1,5 @@
-// src/components/GestoreOrdini.js - ✅ VERSIONE COMPLETA CON CALLPOPUP + PUSHER + HACCP AUTO
-// 🔄 Deploy forzato: 16/01/2026 ore 06:30 - Aggiunto popup HACCP automatico Martedì
+// src/components/GestoreOrdini.js - ✅ VERSIONE COMPLETA CON CALLPOPUP + PUSHER
+
 // File unico completo - 2800+ linee
 // Data aggiornamento: 16 Gennaio 2026
 
@@ -2823,13 +2823,6 @@ return (
     <GestioneZeppole />
   </DialogContent>
 </Dialog>
-
-{/* ✅ NUOVO 16/01/2026: Popup HACCP Automatico - Appare ogni Martedì */}
-{showHACCPPopup && (
-  <HACCPAutoPopup 
-    onClose={closeHACCPPopup}
-  />
-)}
 
       </Container>
     </>
