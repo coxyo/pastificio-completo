@@ -162,10 +162,12 @@ const OrdiniList = ({
   });
   const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
 
-  // ✅ NUOVO 16/01/2026: Funzione per calcolare se ordine è IMMINENTE (1 ora prima e non completato)
+  // ✅ NUOVO 16/01/2026: Funzione per calcolare se ordine è IMMINENTE (1 ora prima e non completato/consegnato)
   const isOrdineImminente = (ordine, prodotto) => {
-    // Se non c'è orario o è già completato (F spuntata), non evidenziare
-    if (!ordine.oraRitiro || prodotto.statoProduzione === 'completato') {
+    // Se non c'è orario o è già completato (F spuntata) o consegnato (C spuntata), non evidenziare
+    if (!ordine.oraRitiro || 
+        prodotto.statoProduzione === 'completato' || 
+        prodotto.statoProduzione === 'consegnato') {
       return false;
     }
     
