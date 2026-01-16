@@ -49,9 +49,11 @@ import {
   Save as SaveIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
-  ArrowBack as BackIcon
+  ArrowBack as BackIcon,
+  Thermostat as TempIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import HACCPAutoPopup from './HACCPAutoPopup';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -139,6 +141,7 @@ export default function GestioneHACCP() {
   const [tabCorrente, setTabCorrente] = useState(0);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [showTestPopup, setShowTestPopup] = useState(false);
   
   // Dati dal backend
   const [dashboard, setDashboard] = useState(null);
@@ -412,6 +415,15 @@ export default function GestioneHACCP() {
               startIcon={<PrintIcon />}
             >
               Stampa Report
+            </Button>
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<TempIcon />}
+              onClick={() => setShowTestPopup(true)}
+              sx={{ ml: 1 }}
+            >
+              🧪 TEST POPUP MARTEDÌ
             </Button>
           </Box>
         </Box>
@@ -1473,6 +1485,17 @@ export default function GestioneHACCP() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* ✅ POPUP TEST HACCP */}
+      {showTestPopup && (
+        <HACCPAutoPopup
+          forceShow={true}
+          onClose={() => {
+            setShowTestPopup(false);
+            caricaDashboard(); // Ricarica dati dopo salvataggio
+          }}
+        />
+      )}
 
       {/* SNACKBAR */}
       <Snackbar
