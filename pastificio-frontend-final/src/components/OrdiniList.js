@@ -832,24 +832,13 @@ Pastificio Nonna Claudia`;
                         <TableRow 
                           key={`${ordine._id}-${idx}`}
                           sx={{
-                            // ✅ EVIDENZIAZIONE ORDINE IMMINENTE (1 ora prima, non completato)
+                            // ✅ EVIDENZIAZIONE ORDINE IMMINENTE (1 ora prima, non completato) - STATICA (no animazioni)
                             ...(isImminente && {
                               backgroundColor: '#fff3cd !important',
-                              borderLeft: '4px solid #ff9800',
-                              boxShadow: '0 2px 8px rgba(255, 152, 0, 0.3)',
-                              animation: 'pulse 2s ease-in-out infinite',
-                              '@keyframes pulse': {
-                                '0%, 100%': { 
-                                  backgroundColor: '#fff3cd',
-                                  transform: 'scale(1)'
-                                },
-                                '50%': { 
-                                  backgroundColor: '#fffbea',
-                                  transform: 'scale(1.01)'
-                                }
-                              },
+                              borderLeft: '5px solid #ff9800',
+                              boxShadow: '0 0 0 2px rgba(255, 152, 0, 0.2)',
                               '& td': {
-                                fontWeight: '600 !important',
+                                fontWeight: '700 !important',
                                 color: '#d84315 !important'
                               },
                               '& td:first-of-type': {
@@ -857,14 +846,8 @@ Pastificio Nonna Claudia`;
                                 '&::before': {
                                   content: '"⏰"',
                                   position: 'absolute',
-                                  left: '-20px',
-                                  fontSize: '1.5rem',
-                                  animation: 'shake 0.5s ease-in-out infinite'
-                                },
-                                '@keyframes shake': {
-                                  '0%, 100%': { transform: 'rotate(0deg)' },
-                                  '25%': { transform: 'rotate(-10deg)' },
-                                  '75%': { transform: 'rotate(10deg)' }
+                                  left: '-22px',
+                                  fontSize: '1.2rem'
                                 }
                               }
                             }),
