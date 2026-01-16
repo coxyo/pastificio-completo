@@ -1,11 +1,11 @@
-// app/login/page.js - VERSIONE COMPLETA
+// app/login/page.js - VERSIONE CORRETTA CON EMAIL
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');  // ✅ CAMBIATO da username
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,20 +29,15 @@ export default function LoginPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
       
-      console.log('🔐 Tentativo login:', { username, API_URL });
+      console.log('🔐 Tentativo login:', { email, API_URL });
 
-      // Prova auto-login se username è admin
-      const endpoint = username.toLowerCase() === 'admin' ? '/auth/auto-login' : '/auth/login';
-      const body = username.toLowerCase() === 'admin' 
-        ? { username: 'admin', autoLoginKey: password }
-        : { username, password };
-
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      // ✅ Usa sempre /auth/login con email
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ email, password })  // ✅ email, non username
       });
 
       const data = await response.json();
@@ -68,7 +63,7 @@ export default function LoginPage() {
     }
   };
 
-  // Auto-login veloce
+  // Auto-login veloce con email corretta
   const handleAutoLogin = async () => {
     setLoading(true);
     setError('');
@@ -76,12 +71,12 @@ export default function LoginPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
       
-      const response = await fetch(`${API_URL}/auth/auto-login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {  // ✅ /auth/login
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: 'admin',
-          autoLoginKey: 'pastificio2024'
+          email: 'admin@pastificio.com',      // ✅ EMAIL
+          password: 'Pastificio2025!'         // ✅ PASSWORD CORRETTA
         })
       });
 
@@ -104,10 +99,10 @@ export default function LoginPage() {
     }
   };
 
-  // Quick login per utenti test
-  const quickLogin = (user, pass) => {
-    setUsername(user);
-    setPassword(pass);
+  // Quick login per utenti test (con EMAIL)
+  const quickLogin = (userEmail, userPass) => {
+    setEmail(userEmail);
+    setPassword(userPass);
   };
 
   return (
@@ -173,15 +168,15 @@ export default function LoginPage() {
               fontSize: '14px',
               fontWeight: '600'
             }}>
-              Username
+              Email
             </label>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"  {/* ✅ type="email" */}
+              value={email}  {/* ✅ value={email} */}
+              onChange={(e) => setEmail(e.target.value)}  {/* ✅ setEmail */}
               required
-              placeholder="admin"
-              autoComplete="username"
+              placeholder="admin@pastificio.com"
+              autoComplete="email"
               autoFocus
               disabled={loading}
               style={{
@@ -307,7 +302,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Auto-login e Quick Login */}
+        {/* Auto-login */}
         <div style={{
           marginTop: '32px',
           paddingTop: '24px',
@@ -355,21 +350,21 @@ export default function LoginPage() {
             🚀 Auto-Login Veloce (Admin)
           </button>
 
-          {/* Quick Login Buttons per utenti test */}
+          {/* Quick Login Buttons */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: '10px'
           }}>
             {[
-              { name: 'Admin', user: 'admin', pass: 'pastificio2024', icon: '👨‍💼' },
-              { name: 'Maria', user: 'maria', pass: 'maria123', icon: '👩' },
-              { name: 'Giuseppe', user: 'giuseppe', pass: 'giuseppe123', icon: '👨' },
-              { name: 'Test', user: 'test', pass: 'test123', icon: '🧪' }
+              { name: 'Admin', email: 'admin@pastificio.com', pass: 'Pastificio2025!', icon: '👨‍💼' },
+              { name: 'Maria', email: 'maria@pastificio.it', pass: 'maria123', icon: '👩' },
+              { name: 'Giuseppe', email: 'giuseppe@pastificio.it', pass: 'giuseppe123', icon: '👨' },
+              { name: 'Test', email: 'test@test.com', pass: 'test123', icon: '🧪' }
             ].map((item) => (
               <button
-                key={item.user}
-                onClick={() => quickLogin(item.user, item.pass)}
+                key={item.email}
+                onClick={() => quickLogin(item.email, item.pass)}
                 type="button"
                 disabled={loading}
                 style={{
@@ -429,8 +424,8 @@ export default function LoginPage() {
             color: '#3b82f6',
             lineHeight: '1.6'
           }}>
-            <strong>Username:</strong> admin<br />
-            <strong>Password:</strong> pastificio2024<br />
+            <strong>Email:</strong> admin@pastificio.com<br />
+            <strong>Password:</strong> Pastificio2025!<br />
             <strong>Durata Token:</strong> 7 giorni
           </div>
         </div>
