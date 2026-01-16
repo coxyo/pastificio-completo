@@ -1,18 +1,17 @@
-// app/login/page.js - VERSIONE CORRETTA CON EMAIL
+// app/login/page.js - VERSIONE CORRETTA SENZA COMMENTI INLINE
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');  // ✅ CAMBIATO da username
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  // Verifica se già loggato
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -31,13 +30,12 @@ export default function LoginPage() {
       
       console.log('🔐 Tentativo login:', { email, API_URL });
 
-      // ✅ Usa sempre /auth/login con email
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password })  // ✅ email, non username
+        body: JSON.stringify({ email, password })
       });
 
       const data = await response.json();
@@ -48,8 +46,6 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(data.user));
 
         console.log('✅ Login effettuato con successo!');
-
-        // Redirect al gestionale
         router.push('/');
       } else {
         setError(data.message || 'Credenziali non valide');
@@ -63,7 +59,6 @@ export default function LoginPage() {
     }
   };
 
-  // Auto-login veloce con email corretta
   const handleAutoLogin = async () => {
     setLoading(true);
     setError('');
@@ -71,12 +66,12 @@ export default function LoginPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
       
-      const response = await fetch(`${API_URL}/auth/login`, {  // ✅ /auth/login
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: 'admin@pastificio.com',      // ✅ EMAIL
-          password: 'Pastificio2025!'         // ✅ PASSWORD CORRETTA
+          email: 'admin@pastificio.com',
+          password: 'Pastificio2025!'
         })
       });
 
@@ -99,7 +94,6 @@ export default function LoginPage() {
     }
   };
 
-  // Quick login per utenti test (con EMAIL)
   const quickLogin = (userEmail, userPass) => {
     setEmail(userEmail);
     setPassword(userPass);
@@ -124,7 +118,6 @@ export default function LoginPage() {
         width: '100%',
         maxWidth: '450px'
       }}>
-        {/* Logo e Titolo */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{ fontSize: '64px', marginBottom: '16px' }}>🍝</div>
           <h1 style={{
@@ -140,7 +133,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Errore */}
         {error && (
           <div style={{
             padding: '12px 16px',
@@ -158,7 +150,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Form Login */}
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: '20px' }}>
             <label style={{
@@ -171,9 +162,9 @@ export default function LoginPage() {
               Email
             </label>
             <input
-              type="email"  {/* ✅ type="email" */}
-              value={email}  {/* ✅ value={email} */}
-              onChange={(e) => setEmail(e.target.value)}  {/* ✅ setEmail */}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="admin@pastificio.com"
               autoComplete="email"
@@ -247,7 +238,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Pulsante Login */}
           <button
             type="submit"
             disabled={loading}
@@ -302,7 +292,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Auto-login */}
         <div style={{
           marginTop: '32px',
           paddingTop: '24px',
@@ -318,7 +307,6 @@ export default function LoginPage() {
             🚀 Accesso Rapido:
           </p>
           
-          {/* Pulsante Auto-Login Principale */}
           <button
             onClick={handleAutoLogin}
             disabled={loading}
@@ -350,7 +338,6 @@ export default function LoginPage() {
             🚀 Auto-Login Veloce (Admin)
           </button>
 
-          {/* Quick Login Buttons */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
@@ -403,7 +390,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Info Credenziali */}
         <div style={{
           marginTop: '24px',
           padding: '16px',
@@ -430,7 +416,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Footer */}
         <p style={{
           marginTop: '24px',
           fontSize: '12px',
@@ -442,7 +427,6 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* CSS Animations */}
       <style jsx>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
