@@ -162,6 +162,37 @@ const OrdiniList = ({
   });
   const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
 
+  // ✅ NUOVO 16/01/2026: Funzione per calcolare se ordine è IMMINENTE (1 ora prima e non completato)
+  const isOrdineImminente = (ordine, prodotto) => {
+    // Se non c'è orario o è già completato (F spuntata), non evidenziare
+    if (!ordine.oraRitiro || prodotto.statoProduzione === 'completato') {
+      return false;
+    }
+    
+    const now = new Date();
+    const oggi = now.toISOString().split('T')[0];
+    const dataOrdine = ordine.dataRitiro?.split('T')[0];
+    
+    // Solo ordini di oggi
+    if (dataOrdine !== oggi) return false;
+    
+    // Calcola l'orario di ritiro
+    const [ore, minuti] = ordine.oraRitiro.split(':').map(Number);
+    const orarioRitiro = new Date(now);
+    orarioRitiro.setHours(ore, minuti, 0, 0);
+    
+    // Calcola 1 ora prima
+    const unOraPrima = new Date(orarioRitiro);
+    unOraPrima.setHours(unOraPrima.getHours() - 1);
+    
+    // Calcola 30 minuti dopo (tolleranza per ritardi)
+    const tolleranzaDopo = new Date(orarioRitiro);
+    tolleranzaDopo.setMinutes(tolleranzaDopo.getMinutes() + 30);
+    
+    // Evidenzia se siamo nell'intervallo: 1 ora prima -> 30 min dopo
+    return now >= unOraPrima && now <= tolleranzaDopo;
+  };
+
   const handleDateChange = (e) => {
     const newDate = e.target.value;
     setDataFiltro(newDate);
@@ -794,14 +825,56 @@ Pastificio Nonna Claudia`;
                         composizioneDisplay = prodotto.dettagliCalcolo.dettagli;
                       }
 
+                      // ✅ NUOVO 16/01/2026: Calcola se ordine è IMMINENTE
+                      const isImminente = isOrdineImminente(ordine, prodotto);
+
                       return (
                         <TableRow 
                           key={`${ordine._id}-${idx}`}
                           sx={{
-                            '&:nth-of-type(odd)': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)' },
-                            '&:hover': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)' },
-                            opacity: isConsegnato ? 0.6 : 1,
-                            textDecoration: isConsegnato ? 'line-through' : 'none'
+                            // ✅ EVIDENZIAZIONE ORDINE IMMINENTE (1 ora prima, non completato)
+                            ...(isImminente && {
+                              backgroundColor: '#fff3cd !important',
+                              borderLeft: '4px solid #ff9800',
+                              boxShadow: '0 2px 8px rgba(255, 152, 0, 0.3)',
+                              animation: 'pulse 2s ease-in-out infinite',
+                              '@keyframes pulse': {
+                                '0%, 100%': { 
+                                  backgroundColor: '#fff3cd',
+                                  transform: 'scale(1)'
+                                },
+                                '50%': { 
+                                  backgroundColor: '#fffbea',
+                                  transform: 'scale(1.01)'
+                                }
+                              },
+                              '& td': {
+                                fontWeight: '600 !important',
+                                color: '#d84315 !important'
+                              },
+                              '& td:first-of-type': {
+                                position: 'relative',
+                                '&::before': {
+                                  content: '"⏰"',
+                                  position: 'absolute',
+                                  left: '-20px',
+                                  fontSize: '1.5rem',
+                                  animation: 'shake 0.5s ease-in-out infinite'
+                                },
+                                '@keyframes shake': {
+                                  '0%, 100%': { transform: 'rotate(0deg)' },
+                                  '25%': { transform: 'rotate(-10deg)' },
+                                  '75%': { transform: 'rotate(10deg)' }
+                                }
+                              }
+                            }),
+                            // Stili normali quando NON imminente
+                            ...(!isImminente && {
+                              '&:nth-of-type(odd)': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)' },
+                              '&:hover': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)' },
+                              opacity: isConsegnato ? 0.6 : 1,
+                              textDecoration: isConsegnato ? 'line-through' : 'none'
+                            })
                           }}
                         >
                           {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
