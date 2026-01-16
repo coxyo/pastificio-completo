@@ -1,23 +1,23 @@
-// app/login/page.js - VERSIONE CORRETTA 14/01/2026
+// app/login/page.js - VERSIONE COMPLETA
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  // Check se già loggato all'avvio
+  // Verifica se già loggato
   useEffect(() => {
-    const token = Cookies.get('token') || localStorage.getItem('token');
+    const token = localStorage.getItem('token');
     if (token) {
-      console.log('✅ Già loggato, redirect a dashboard...');
-      router.push('/dashboard');
+      console.log('✅ Già loggato, redirect...');
+      router.push('/');
     }
   }, [router]);
 
@@ -27,38 +27,37 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
       
-      console.log('🔐 Tentativo login:', { email, API_URL });
+      console.log('🔐 Tentativo login:', { username, API_URL });
 
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      // Prova auto-login se username è admin
+      const endpoint = username.toLowerCase() === 'admin' ? '/auth/auto-login' : '/auth/login';
+      const body = username.toLowerCase() === 'admin' 
+        ? { username: 'admin', autoLoginKey: password }
+        : { username, password };
+
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();
       console.log('📡 Risposta server:', data);
 
       if (data.success && data.token) {
-        // Salva in ENTRAMBI i posti per massima compatibilità
-        Cookies.set('token', data.token, { 
-          expires: 7, // 7 giorni
-          secure: true, // Solo HTTPS
-          sameSite: 'strict' // Protezione CSRF
-        });
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
 
         console.log('✅ Login effettuato con successo!');
-        console.log('🔑 Token salvato in cookies e localStorage');
 
-        // Redirect al dashboard
-        router.push('/dashboard');
+        // Redirect al gestionale
+        router.push('/');
       } else {
-        setError(data.message || data.error || 'Credenziali non valide');
+        setError(data.message || 'Credenziali non valide');
         console.error('❌ Login fallito:', data);
       }
     } catch (error) {
@@ -69,10 +68,46 @@ export default function LoginPage() {
     }
   };
 
-  // Quick login per test
-  const quickLogin = (userEmail, userPassword) => {
-    setEmail(userEmail);
-    setPassword(userPassword);
+  // Auto-login veloce
+  const handleAutoLogin = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+      
+      const response = await fetch(`${API_URL}/auth/auto-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: 'admin',
+          autoLoginKey: 'pastificio2024'
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        console.log('✅ Auto-login veloce riuscito');
+        router.push('/');
+      } else {
+        throw new Error('Auto-login fallito');
+      }
+    } catch (error) {
+      console.error('❌ Errore auto-login:', error);
+      setError('Errore auto-login. Usa il form manuale.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Quick login per utenti test
+  const quickLogin = (user, pass) => {
+    setUsername(user);
+    setPassword(pass);
   };
 
   return (
@@ -96,9 +131,7 @@ export default function LoginPage() {
       }}>
         {/* Logo e Titolo */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ fontSize: '64px', marginBottom: '16px' }}>
-            🍝
-          </div>
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>🍝</div>
           <h1 style={{
             fontSize: '28px',
             fontWeight: 'bold',
@@ -107,14 +140,28 @@ export default function LoginPage() {
           }}>
             Pastificio Nonna Claudia
           </h1>
-          <p style={{
-            fontSize: '16px',
-            color: '#6b7280',
-            margin: 0
-          }}>
-            Accedi al Sistema Gestionale
+          <p style={{ fontSize: '16px', color: '#6b7280', margin: 0 }}>
+            Sistema Gestionale
           </p>
         </div>
+
+        {/* Errore */}
+        {error && (
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: '#fee2e2',
+            color: '#991b1b',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '18px' }}>⚠️</span>
+            {error}
+          </div>
+        )}
 
         {/* Form Login */}
         <form onSubmit={handleLogin}>
@@ -126,15 +173,17 @@ export default function LoginPage() {
               fontSize: '14px',
               fontWeight: '600'
             }}>
-              Email
+              Username
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
-              placeholder="admin@pastificio.com"
-              autoComplete="email"
+              placeholder="admin"
+              autoComplete="username"
+              autoFocus
+              disabled={loading}
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -160,45 +209,48 @@ export default function LoginPage() {
             }}>
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              autoComplete="current-password"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '16px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-            />
-          </div>
-
-          {/* Errore */}
-          {error && (
-            <div style={{
-              padding: '12px 16px',
-              backgroundColor: '#fee2e2',
-              color: '#991b1b',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span style={{ fontSize: '18px' }}>⚠️</span>
-              {error}
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  paddingRight: '50px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#667eea'}
+                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '20px',
+                  padding: '4px'
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
             </div>
-          )}
+          </div>
 
           {/* Pulsante Login */}
           <button
@@ -255,7 +307,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Quick Login Buttons */}
+        {/* Auto-login e Quick Login */}
         <div style={{
           marginTop: '32px',
           paddingTop: '24px',
@@ -268,24 +320,58 @@ export default function LoginPage() {
             textAlign: 'center',
             fontWeight: '500'
           }}>
-            🚀 Accesso Rapido (Test):
+            🚀 Accesso Rapido:
           </p>
+          
+          {/* Pulsante Auto-Login Principale */}
+          <button
+            onClick={handleAutoLogin}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: '#f3f4f6',
+              border: '2px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              marginBottom: '12px',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#e5e7eb';
+                e.target.style.borderColor = '#667eea';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#f3f4f6';
+                e.target.style.borderColor = '#e5e7eb';
+              }
+            }}
+          >
+            🚀 Auto-Login Veloce (Admin)
+          </button>
+
+          {/* Quick Login Buttons per utenti test */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: '10px'
           }}>
-            {/* ✅ CREDENZIALI CORRETTE */}
             {[
-              { name: 'Admin', email: 'admin@pastificio.com', password: 'Pastificio2025!', icon: '👨‍💼' },
-              { name: 'Maria', email: 'maria@pastificio.it', password: 'Pastificio2025!', icon: '👩' },
-              { name: 'Giuseppe', email: 'giuseppe@pastificio.it', password: 'Pastificio2025!', icon: '👨' },
-              { name: 'Anna', email: 'anna@pastificio.it', password: 'Pastificio2025!', icon: '👩' }
-            ].map((user) => (
+              { name: 'Admin', user: 'admin', pass: 'pastificio2024', icon: '👨‍💼' },
+              { name: 'Maria', user: 'maria', pass: 'maria123', icon: '👩' },
+              { name: 'Giuseppe', user: 'giuseppe', pass: 'giuseppe123', icon: '👨' },
+              { name: 'Test', user: 'test', pass: 'test123', icon: '🧪' }
+            ].map((item) => (
               <button
-                key={user.email}
-                onClick={() => quickLogin(user.email, user.password)}
+                key={item.user}
+                onClick={() => quickLogin(item.user, item.pass)}
                 type="button"
+                disabled={loading}
                 style={{
                   padding: '10px',
                   backgroundColor: '#f3f4f6',
@@ -293,7 +379,7 @@ export default function LoginPage() {
                   borderRadius: '8px',
                   fontSize: '13px',
                   fontWeight: '500',
-                  cursor: 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
                   display: 'flex',
                   alignItems: 'center',
@@ -301,24 +387,28 @@ export default function LoginPage() {
                   gap: '6px'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#e5e7eb';
-                  e.target.style.borderColor = '#667eea';
-                  e.target.style.transform = 'scale(1.05)';
+                  if (!loading) {
+                    e.target.style.backgroundColor = '#e5e7eb';
+                    e.target.style.borderColor = '#667eea';
+                    e.target.style.transform = 'scale(1.05)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#f3f4f6';
-                  e.target.style.borderColor = 'transparent';
-                  e.target.style.transform = 'scale(1)';
+                  if (!loading) {
+                    e.target.style.backgroundColor = '#f3f4f6';
+                    e.target.style.borderColor = 'transparent';
+                    e.target.style.transform = 'scale(1)';
+                  }
                 }}
               >
-                <span style={{ fontSize: '18px' }}>{user.icon}</span>
-                {user.name}
+                <span style={{ fontSize: '18px' }}>{item.icon}</span>
+                {item.name}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Info Credenziali - AGGIORNATE */}
+        {/* Info Credenziali */}
         <div style={{
           marginTop: '24px',
           padding: '16px',
@@ -332,15 +422,15 @@ export default function LoginPage() {
             marginBottom: '8px',
             fontWeight: '600'
           }}>
-            ℹ️ Credenziali di Test:
+            ℹ️ Credenziali Principali:
           </div>
           <div style={{
             fontSize: '12px',
             color: '#3b82f6',
             lineHeight: '1.6'
           }}>
-            <strong>Email:</strong> admin@pastificio.com<br />
-            <strong>Password:</strong> Pastificio2025!<br />
+            <strong>Username:</strong> admin<br />
+            <strong>Password:</strong> pastificio2024<br />
             <strong>Durata Token:</strong> 7 giorni
           </div>
         </div>
@@ -352,7 +442,8 @@ export default function LoginPage() {
           color: '#9ca3af',
           textAlign: 'center'
         }}>
-          Sistema Gestionale v2.0.2 • Produzione
+          © 2025 Pastificio Nonna Claudia<br />
+          Sistema Gestionale v2.0
         </p>
       </div>
 
