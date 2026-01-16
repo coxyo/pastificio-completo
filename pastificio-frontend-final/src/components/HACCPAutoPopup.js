@@ -28,7 +28,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 // ============================================
 // CONFIGURAZIONE DISPOSITIVI
@@ -138,7 +138,7 @@ export default function HACCPAutoPopup({ onClose }) {
       const dataOggi = oggi.toISOString().split('T')[0];
       
       const response = await axios.get(
-        `${API_URL}/api/haccp/check-registrazione?data=${dataOggi}`,
+        `${API_URL}/haccp/check-registrazione?data=${dataOggi}`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
@@ -200,7 +200,7 @@ export default function HACCPAutoPopup({ onClose }) {
       // Salva ogni temperatura
       for (const temp of temperature) {
         await axios.post(
-          `${API_URL}/api/haccp/temperatura`,
+          `${API_URL}/haccp/temperatura`,
           {
             dispositivo: temp.nome,
             temperatura: temp.temperatura,
@@ -214,7 +214,7 @@ export default function HACCPAutoPopup({ onClose }) {
 
       // Segna come registrato oggi
       await axios.post(
-        `${API_URL}/api/haccp/segna-registrazione`,
+        `${API_URL}/haccp/segna-registrazione`,
         { data: new Date().toISOString().split('T')[0] },
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
@@ -427,5 +427,11 @@ export function useHACCPAutoPopup() {
 
   const closePopup = () => setShowPopup(false);
 
-  return { showPopup, closePopup };
+  // ✅ NUOVO: Funzione per forzare visualizzazione (per testing)
+  const forceShowPopup = () => {
+    setShowPopup(true);
+    localStorage.setItem('haccp_popup_last_shown', new Date().toISOString().split('T')[0]);
+  };
+
+  return { showPopup, closePopup, forceShowPopup };
 }
