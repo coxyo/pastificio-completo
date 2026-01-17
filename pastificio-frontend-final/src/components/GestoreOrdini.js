@@ -2814,42 +2814,11 @@ return (
           }}
 />
 
-{/* Dialog Zeppole */}
-<Dialog
-  open={dialogZeppoleOpen}
-  onClose={() => setDialogZeppoleOpen(false)}
-  maxWidth="xl"
-  fullWidth
-  PaperProps={{
-    sx: {
-      height: '90vh',
-      maxHeight: '90vh'
-    }
-  }}
->
-  <DialogTitle sx={{ 
-    bgcolor: '#FF6B9D', 
-    color: 'white',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <CakeIcon />
-      <Typography variant="h6">🎂 Gestione Zeppole</Typography>
-    </Box>
-    <IconButton 
-      onClick={() => setDialogZeppoleOpen(false)}
-      sx={{ color: 'white' }}
-    >
-      <CloseIcon />
-    </IconButton>
-  </DialogTitle>
-  
-  <DialogContent sx={{ p: 0, overflow: 'auto' }}>
-    <GestioneZeppole />
-  </DialogContent>
-</Dialog>
+{/* ✅ FIX 18/01/2026: GestioneZeppole ha già il proprio Dialog interno */}
+<GestioneZeppole 
+  open={dialogZeppoleOpen} 
+  onClose={() => setDialogZeppoleOpen(false)} 
+/>
 
 {/* ✅ DISABILITATO 17/01/2026: Popup HACCP Automatico - Componente non trovato
 {showHACCPPopup && (
