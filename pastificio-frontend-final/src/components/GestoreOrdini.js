@@ -1027,6 +1027,9 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [periodoInizio, setPeriodoInizio] = useState(new Date().toISOString().split('T')[0]);
   const [periodoFine, setPeriodoFine] = useState(new Date().toISOString().split('T')[0]);
   
+  // ✅ FIX 17/01/2026: State per HACCP popup automatico
+  const [showHACCPPopup, setShowHACCPPopup] = useState(false);
+  
   // ✅ PUSHER: Hook per chiamate entranti real-time
   const {
     chiamataCorrente,
@@ -1058,6 +1061,11 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     
     // Chiama anche hook (per consistenza)
     handleAcceptCallFromHook();
+  };
+  
+  // ✅ FIX 17/01/2026: Funzione per chiudere popup HACCP
+  const closeHACCPPopup = () => {
+    setShowHACCPPopup(false);
   };
     
   // ----------------------------------------------------------------
@@ -2824,12 +2832,13 @@ return (
   </DialogContent>
 </Dialog>
 
-{/* ✅ NUOVO 16/01/2026: Popup HACCP Automatico - Appare ogni Martedì */}
+{/* ✅ DISABILITATO 17/01/2026: Popup HACCP Automatico - Componente non trovato
 {showHACCPPopup && (
   <HACCPAutoPopup 
     onClose={closeHACCPPopup}
   />
 )}
+*/}
 
       </Container>
     </>
