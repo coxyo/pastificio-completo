@@ -1,4 +1,4 @@
-// routes/limiti.js - ✅ FIX 17/01/2026: Supporto filtro DATA + Zeppole 24 pz/Kg e €21/Kg
+// routes/limiti.js - ✅ FIX COMPLETO 18/01/2026: Calcolo disponibilità corretto
 import express from 'express';
 import { optionalAuth } from '../middleware/auth.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
@@ -36,6 +36,18 @@ const convertiInKg = (quantita, unita) => {
   return qty;
 };
 
+// ✅ FIX: Helper per normalizzare nome prodotto
+const normalizzaNomeProdotto = (nome) => {
+  return nome.toLowerCase().trim();
+};
+
+// ✅ FIX: Helper per verificare se un prodotto contiene il nome cercato
+const prodottoContiene = (nomeProdotto, nomeCercato) => {
+  const prodottoNorm = normalizzaNomeProdotto(nomeProdotto);
+  const cercatoNorm = normalizzaNomeProdotto(nomeCercato);
+  return prodottoNorm.includes(cercatoNorm);
+};
+
 /**
  * @route   GET /api/limiti/prodotto/:nome
  * @desc    Ottieni/Crea limite per prodotto per una data specifica
@@ -48,7 +60,9 @@ router.get('/prodotto/:nome', async (req, res) => {
     
     const dataRicerca = getDataFromQuery(queryData);
     
-    console.log(`[LIMITI] GET limite prodotto: ${nome} per data: ${dataRicerca.toISOString().split('T')[0]}`);
+    console.log(`[LIMITI] ==========================================`);
+    console.log(`[LIMITI] GET limite prodotto: ${nome}`);
+    console.log(`[LIMITI] Data: ${dataRicerca.toISOString().split('T')[0]}`);
 
     // Cerca limite esistente per questa data
     let limite = await LimiteGiornaliero.findOne({
@@ -59,36 +73,66 @@ router.get('/prodotto/:nome', async (req, res) => {
 
     // Se non esiste, crealo automaticamente
     if (!limite) {
-      console.log(`[LIMITI] Creazione automatica limite 27 Kg per ${nome} - ${dataRicerca.toISOString().split('T')[0]}`);
+      console.log(`[LIMITI] ⚠️  Limite non trovato - Creazione automatica 27 Kg`);
       limite = await LimiteGiornaliero.create({
         data: dataRicerca,
         prodotto: nome,
-        limiteQuantita: 27, // Default 27 Kg per Zeppole
+        limiteQuantita: 27,
         unitaMisura: 'Kg',
-        quantitaOrdinata: 0, // Vendite dirette
+        quantitaOrdinata: 0,
         attivo: true,
         sogliAllerta: 80
       });
+    } else {
+      console.log(`[LIMITI] ✅ Limite trovato in DB: ID=${limite._id}`);
     }
 
-    // ✅ Calcola quantitaOrdinata dagli ordini reali per questa data
+    // ✅ FIX: Calcola quantitaOrdinata dagli ordini reali per questa data
     const dataFine = new Date(dataRicerca);
     dataFine.setDate(dataFine.getDate() + 1);
 
-    const ordini = await Ordine.find({
-      dataRitiro: { $gte: dataRicerca, $lt: dataFine },
-      'prodotti.nome': { $regex: new RegExp(nome, 'i') }
+    console.log(`[LIMITI] 🔍 Cerco ordini tra ${dataRicerca.toISOString()} e ${dataFine.toISOString()}`);
+
+    // ✅ FIX: Carica TUTTI gli ordini del giorno (senza filtro prodotto)
+    const tuttiOrdini = await Ordine.find({
+      dataRitiro: { $gte: dataRicerca, $lt: dataFine }
     });
 
+    console.log(`[LIMITI] 📦 Trovati ${tuttiOrdini.length} ordini totali per questa data`);
+
+    // ✅ FIX: Filtra manualmente gli ordini che contengono il prodotto
     let totaleOrdinatoKg = 0;
-    ordini.forEach(ordine => {
+    let ordiniConProdotto = 0;
+    let prodottiTrovati = [];
+
+    tuttiOrdini.forEach(ordine => {
       ordine.prodotti.forEach(prodotto => {
-        if (prodotto.nome && prodotto.nome.toLowerCase().includes(nome.toLowerCase())) {
+        if (prodotto.nome && prodottoContiene(prodotto.nome, nome)) {
           const quantitaKg = convertiInKg(prodotto.quantita, prodotto.unita);
           totaleOrdinatoKg += quantitaKg;
+          ordiniConProdotto++;
+          
+          prodottiTrovati.push({
+            ordineId: ordine._id,
+            cliente: ordine.nomeCliente,
+            nomeProdotto: prodotto.nome,
+            quantita: prodotto.quantita,
+            unita: prodotto.unita,
+            quantitaKg: quantitaKg.toFixed(3)
+          });
         }
       });
     });
+
+    console.log(`[LIMITI] 🎯 Prodotti ${nome} trovati: ${ordiniConProdotto}`);
+    console.log(`[LIMITI] 📊 Totale calcolato dagli ordini: ${totaleOrdinatoKg.toFixed(3)} Kg`);
+    
+    if (prodottiTrovati.length > 0) {
+      console.log(`[LIMITI] 📋 Dettaglio prodotti trovati:`);
+      prodottiTrovati.forEach((p, idx) => {
+        console.log(`[LIMITI]   ${idx + 1}. ${p.cliente}: ${p.quantita} ${p.unita} (${p.quantitaKg} Kg) - "${p.nomeProdotto}"`);
+      });
+    }
 
     // ✅ Calcoli finali
     const totaleOrdini = parseFloat(totaleOrdinatoKg.toFixed(2));
@@ -96,11 +140,13 @@ router.get('/prodotto/:nome', async (req, res) => {
     const totaleComplessivo = totaleOrdini + venditeDirette;
     const disponibile = limite.limiteQuantita - totaleComplessivo;
 
-    console.log(`[LIMITI] Limite ${nome}:`);
-    console.log(`  - Ordini: ${totaleOrdini} Kg (da ${ordini.length} ordini)`);
-    console.log(`  - Vendite dirette: ${venditeDirette} Kg`);
-    console.log(`  - Totale: ${totaleComplessivo} Kg`);
-    console.log(`  - Disponibile: ${disponibile} Kg`);
+    console.log(`[LIMITI] 💰 RIEPILOGO CALCOLI:`);
+    console.log(`[LIMITI]   - Limite giornaliero: ${limite.limiteQuantita} Kg`);
+    console.log(`[LIMITI]   - Ordini registrati: ${totaleOrdini} Kg (da ${ordiniConProdotto} prodotti)`);
+    console.log(`[LIMITI]   - Vendite dirette: ${venditeDirette} Kg`);
+    console.log(`[LIMITI]   - Totale complessivo: ${totaleComplessivo} Kg`);
+    console.log(`[LIMITI]   - Disponibile: ${disponibile} Kg`);
+    console.log(`[LIMITI] ==========================================`);
 
     // ✅ Prepara risposta con tutti i dati
     const limiteRisposta = {
@@ -115,12 +161,18 @@ router.get('/prodotto/:nome', async (req, res) => {
       unitaMisura: limite.unitaMisura,
       attivo: limite.attivo,
       sogliAllerta: limite.sogliAllerta,
-      updatedAt: limite.updatedAt
+      updatedAt: limite.updatedAt,
+      // ✅ Debug info
+      debug: {
+        ordiniTotaliGiorno: tuttiOrdini.length,
+        ordiniConProdotto: ordiniConProdotto,
+        prodottiDettaglio: prodottiTrovati
+      }
     };
 
     res.json({ success: true, data: limiteRisposta });
   } catch (error) {
-    console.error('[LIMITI] Errore GET limite:', error);
+    console.error('[LIMITI] ❌ ERRORE GET limite:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -141,19 +193,20 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
 
     console.log(`[LIMITI] GET ordini prodotto: ${nome} per data: ${dataRicerca.toISOString().split('T')[0]}`);
 
-    const ordini = await Ordine.find({
-      dataRitiro: { $gte: dataRicerca, $lt: dataFine },
-      'prodotti.nome': { $regex: new RegExp(nome, 'i') }
+    // ✅ FIX: Carica TUTTI gli ordini del giorno (senza filtro prodotto)
+    const tuttiOrdini = await Ordine.find({
+      dataRitiro: { $gte: dataRicerca, $lt: dataFine }
     }).sort({ oraRitiro: 1 });
 
-    console.log(`[LIMITI] Trovati ${ordini.length} ordini per ${dataRicerca.toISOString().split('T')[0]}`);
+    console.log(`[LIMITI] Trovati ${tuttiOrdini.length} ordini totali per ${dataRicerca.toISOString().split('T')[0]}`);
 
     let totaleKg = 0;
     const ordiniFormattati = [];
 
-    ordini.forEach(ordine => {
+    // ✅ FIX: Filtra manualmente
+    tuttiOrdini.forEach(ordine => {
       ordine.prodotti.forEach(prodotto => {
-        if (prodotto.nome && prodotto.nome.toLowerCase().includes(nome.toLowerCase())) {
+        if (prodotto.nome && prodottoContiene(prodotto.nome, nome)) {
           const quantitaKg = convertiInKg(prodotto.quantita, prodotto.unita);
           totaleKg += quantitaKg;
 
@@ -171,6 +224,8 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
         }
       });
     });
+
+    console.log(`[LIMITI] Trovati ${ordiniFormattati.length} prodotti "${nome}" per un totale di ${totaleKg.toFixed(2)} Kg`);
 
     res.json({
       success: true,
@@ -221,19 +276,18 @@ router.post('/vendita-diretta', async (req, res) => {
       });
     }
 
-    // ✅ Calcola totale attuale dagli ordini
+    // ✅ FIX: Calcola totale attuale dagli ordini (stesso metodo del GET)
     const dataFine = new Date(dataVendita);
     dataFine.setDate(dataFine.getDate() + 1);
 
-    const ordini = await Ordine.find({
-      dataRitiro: { $gte: dataVendita, $lt: dataFine },
-      'prodotti.nome': { $regex: new RegExp(prodotto, 'i') }
+    const tuttiOrdini = await Ordine.find({
+      dataRitiro: { $gte: dataVendita, $lt: dataFine }
     });
 
     let totaleOrdini = 0;
-    ordini.forEach(ordine => {
+    tuttiOrdini.forEach(ordine => {
       ordine.prodotti.forEach(p => {
-        if (p.nome && p.nome.toLowerCase().includes(prodotto.toLowerCase())) {
+        if (p.nome && prodottoContiene(p.nome, prodotto)) {
           totaleOrdini += convertiInKg(p.quantita, p.unita);
         }
       });
@@ -410,6 +464,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-console.log('[LIMITI ROUTES] Tutte le route registrate con supporto filtro DATA');
+console.log('[LIMITI ROUTES] ✅ Tutte le route registrate con FIX calcolo disponibilità');
 
 export default router;
