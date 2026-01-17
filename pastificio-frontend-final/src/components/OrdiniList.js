@@ -819,7 +819,9 @@ Pastificio Nonna Claudia`;
                               nomeCompleto = `${nomeCompleto} ${item.variante}`.trim();
                             }
                             const nomeAbbreviato = abbreviaNome(nomeCompleto);
-                            return `${nomeAbbreviato}: ${formatQuantita(item.quantita)}`;
+                            // ✅ FIX 17/01/2026: Aggiungi unità di misura
+                            const unitaDisplay = item.unita && item.unita !== 'Kg' ? item.unita : '';
+                            return `${nomeAbbreviato}: ${formatQuantita(item.quantita)}${unitaDisplay}`;
                           })
                           .join(', ');
                       } else if (prodotto.dettagliCalcolo?.dettagli && 
