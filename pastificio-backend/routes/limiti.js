@@ -1,4 +1,4 @@
-// routes/limiti.js - ✅ FIX 15/01/2026: Supporto filtro per DATA + ZEPPOLE 24 pz/Kg e €21/Kg
+// routes/limiti.js - ✅ FIX 17/01/2026: Supporto filtro DATA + Zeppole 24 pz/Kg e €21/Kg
 import express from 'express';
 import { optionalAuth } from '../middleware/auth.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
@@ -10,7 +10,7 @@ router.use(optionalAuth);
 
 console.log('[LIMITI ROUTES] File caricato - Autenticazione OPZIONALE');
 
-// Helper per parsare la data dalla query o usare oggi
+// ✅ Helper per parsare la data dalla query o usare oggi
 const getDataFromQuery = (queryData) => {
   let data;
   if (queryData) {
@@ -21,6 +21,19 @@ const getDataFromQuery = (queryData) => {
   }
   data.setHours(0, 0, 0, 0);
   return data;
+};
+
+// ✅ Helper per convertire quantità in Kg
+const convertiInKg = (quantita, unita) => {
+  const qty = parseFloat(quantita) || 0;
+  const unit = (unita || 'Kg').toLowerCase();
+  
+  if (unit === 'kg') return qty;
+  if (unit === 'g') return qty / 1000;
+  if (unit === 'pz' || unit === 'pezzi') return qty / 24; // ✅ Zeppole: 24 pz = 1 Kg
+  if (unit === '€' || unit === 'euro') return qty / 21;   // ✅ Zeppole: €21 = 1 Kg
+  
+  return qty;
 };
 
 /**
@@ -37,26 +50,28 @@ router.get('/prodotto/:nome', async (req, res) => {
     
     console.log(`[LIMITI] GET limite prodotto: ${nome} per data: ${dataRicerca.toISOString().split('T')[0]}`);
 
+    // Cerca limite esistente per questa data
     let limite = await LimiteGiornaliero.findOne({
       data: dataRicerca,
       prodotto: nome,
       attivo: true
     });
 
+    // Se non esiste, crealo automaticamente
     if (!limite) {
-      console.log(`[LIMITI] Creazione automatica limite 50 Kg per ${nome} - ${dataRicerca.toISOString().split('T')[0]}`);
+      console.log(`[LIMITI] Creazione automatica limite 27 Kg per ${nome} - ${dataRicerca.toISOString().split('T')[0]}`);
       limite = await LimiteGiornaliero.create({
         data: dataRicerca,
         prodotto: nome,
-        limiteQuantita: 50,
+        limiteQuantita: 27, // Default 27 Kg per Zeppole
         unitaMisura: 'Kg',
-        quantitaOrdinata: 0,
+        quantitaOrdinata: 0, // Vendite dirette
         attivo: true,
         sogliAllerta: 80
       });
     }
 
-    // ✅ NUOVO: Calcola quantitaOrdinata dagli ordini reali per questa data
+    // ✅ Calcola quantitaOrdinata dagli ordini reali per questa data
     const dataFine = new Date(dataRicerca);
     dataFine.setDate(dataFine.getDate() + 1);
 
@@ -69,27 +84,13 @@ router.get('/prodotto/:nome', async (req, res) => {
     ordini.forEach(ordine => {
       ordine.prodotti.forEach(prodotto => {
         if (prodotto.nome && prodotto.nome.toLowerCase().includes(nome.toLowerCase())) {
-          let quantitaKg = parseFloat(prodotto.quantita) || 0;
-          
-          const unita = (prodotto.unita || 'Kg').toLowerCase();
-          if (unita === 'g') {
-            quantitaKg = quantitaKg / 1000;
-          } else if (unita === 'pz' || unita === 'pezzi') {
-            // ✅ FIX 15/01/2026: Zeppole 24 pz/Kg (1 Kg = 24 pezzi)
-            quantitaKg = quantitaKg / 24;
-          } else if (unita === '€' || unita === 'euro') {
-            // ✅ FIX 15/01/2026: Zeppole €21/Kg
-            quantitaKg = quantitaKg / 21;
-          }
-
+          const quantitaKg = convertiInKg(prodotto.quantita, prodotto.unita);
           totaleOrdinatoKg += quantitaKg;
         }
       });
     });
 
-    // ✅ FIX 15/01/2026 v2: NON sovrascrivere quantitaOrdinata!
-    // quantitaOrdinata contiene le VENDITE DIRETTE (persistenti)
-    // totaleOrdinatoKg contiene gli ORDINI (calcolati al volo)
+    // ✅ Calcoli finali
     const totaleOrdini = parseFloat(totaleOrdinatoKg.toFixed(2));
     const venditeDirette = limite.quantitaOrdinata || 0;
     const totaleComplessivo = totaleOrdini + venditeDirette;
@@ -101,24 +102,25 @@ router.get('/prodotto/:nome', async (req, res) => {
     console.log(`  - Totale: ${totaleComplessivo} Kg`);
     console.log(`  - Disponibile: ${disponibile} Kg`);
 
-    // Prepara risposta con tutti i dati
+    // ✅ Prepara risposta con tutti i dati
     const limiteRisposta = {
       _id: limite._id,
       data: limite.data,
       prodotto: limite.prodotto,
       limiteQuantita: limite.limiteQuantita,
-      quantitaOrdinata: venditeDirette, // Solo vendite dirette
-      totaleOrdini: totaleOrdini, // Ordini calcolati
-      totaleComplessivo: totaleComplessivo, // Somma
+      quantitaOrdinata: venditeDirette,      // Solo vendite dirette (per compatibilità)
+      totaleOrdini: totaleOrdini,            // Solo ordini
+      totaleComplessivo: totaleComplessivo,  // ✅ SOMMA TOTALE (ordini + vendite)
       disponibile: disponibile,
       unitaMisura: limite.unitaMisura,
       attivo: limite.attivo,
-      sogliAllerta: limite.sogliAllerta
+      sogliAllerta: limite.sogliAllerta,
+      updatedAt: limite.updatedAt
     };
 
     res.json({ success: true, data: limiteRisposta });
   } catch (error) {
-    console.error('[LIMITI] Errore:', error);
+    console.error('[LIMITI] Errore GET limite:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -152,19 +154,7 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
     ordini.forEach(ordine => {
       ordine.prodotti.forEach(prodotto => {
         if (prodotto.nome && prodotto.nome.toLowerCase().includes(nome.toLowerCase())) {
-          let quantitaKg = parseFloat(prodotto.quantita) || 0;
-          
-          const unita = (prodotto.unita || 'Kg').toLowerCase();
-          if (unita === 'g') {
-            quantitaKg = quantitaKg / 1000;
-          } else if (unita === 'pz' || unita === 'pezzi') {
-            // ✅ FIX 15/01/2026: Zeppole 24 pz/Kg
-            quantitaKg = quantitaKg / 24;
-          } else if (unita === '€' || unita === 'euro') {
-            // ✅ FIX 15/01/2026: Zeppole €21/Kg
-            quantitaKg = quantitaKg / 21;
-          }
-
+          const quantitaKg = convertiInKg(prodotto.quantita, prodotto.unita);
           totaleKg += quantitaKg;
 
           ordiniFormattati.push({
@@ -189,14 +179,14 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
       data: ordiniFormattati
     });
   } catch (error) {
-    console.error('[LIMITI] Errore:', error);
+    console.error('[LIMITI] Errore GET ordini:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 /**
  * @route   POST /api/limiti/vendita-diretta
- * @desc    Registra vendita diretta
+ * @desc    Registra vendita diretta (non da ordini)
  */
 router.post('/vendita-diretta', async (req, res) => {
   try {
@@ -213,6 +203,7 @@ router.post('/vendita-diretta', async (req, res) => {
 
     console.log(`[LIMITI] POST vendita diretta: ${prodotto} - ${quantitaKg} Kg per ${dataVendita.toISOString().split('T')[0]}`);
 
+    // Trova o crea limite
     let limite = await LimiteGiornaliero.findOne({
       data: dataVendita,
       prodotto,
@@ -223,14 +214,14 @@ router.post('/vendita-diretta', async (req, res) => {
       limite = await LimiteGiornaliero.create({
         data: dataVendita,
         prodotto,
-        limiteQuantita: 50,
+        limiteQuantita: 27,
         unitaMisura: 'Kg',
         quantitaOrdinata: 0,
         attivo: true
       });
     }
 
-    // Calcola totale attuale dagli ordini
+    // ✅ Calcola totale attuale dagli ordini
     const dataFine = new Date(dataVendita);
     dataFine.setDate(dataFine.getDate() + 1);
 
@@ -243,22 +234,12 @@ router.post('/vendita-diretta', async (req, res) => {
     ordini.forEach(ordine => {
       ordine.prodotti.forEach(p => {
         if (p.nome && p.nome.toLowerCase().includes(prodotto.toLowerCase())) {
-          let q = parseFloat(p.quantita) || 0;
-          const u = (p.unita || 'Kg').toLowerCase();
-          if (u === 'g') {
-            q = q / 1000;
-          } else if (u === 'pz' || u === 'pezzi') {
-            // ✅ FIX 15/01/2026: Zeppole 24 pz/Kg
-            q = q / 24;
-          } else if (u === '€' || u === 'euro') {
-            // ✅ FIX 15/01/2026: Zeppole €21/Kg
-            q = q / 21;
-          }
-          totaleOrdini += q;
+          totaleOrdini += convertiInKg(p.quantita, p.unita);
         }
       });
     });
 
+    // ✅ Verifica disponibilità
     const nuovoTotale = totaleOrdini + limite.quantitaOrdinata + quantitaKg;
     
     if (nuovoTotale > limite.limiteQuantita) {
@@ -269,10 +250,25 @@ router.post('/vendita-diretta', async (req, res) => {
       });
     }
 
+    // ✅ Aggiorna contatore vendite dirette
     limite.quantitaOrdinata += quantitaKg;
     await limite.save();
 
     console.log(`[LIMITI] Vendita registrata. Vendite dirette: ${limite.quantitaOrdinata} Kg`);
+
+    // ✅ Emetti evento Pusher (opzionale)
+    try {
+      const pusher = (await import('../services/pusherService.js')).default;
+      await pusher.trigger('zeppole-channel', 'vendita-diretta', {
+        prodotto,
+        quantitaKg,
+        totaleComplessivo: totaleOrdini + limite.quantitaOrdinata,
+        disponibile: limite.limiteQuantita - totaleOrdini - limite.quantitaOrdinata,
+        timestamp: new Date()
+      });
+    } catch (pusherError) {
+      console.warn('[LIMITI] Pusher non disponibile:', pusherError.message);
+    }
 
     res.json({
       success: true,
@@ -282,18 +278,19 @@ router.post('/vendita-diretta', async (req, res) => {
         quantitaVenduta: quantitaKg,
         venditeDirette: limite.quantitaOrdinata,
         totaleOrdini: parseFloat(totaleOrdini.toFixed(2)),
+        totaleComplessivo: parseFloat((totaleOrdini + limite.quantitaOrdinata).toFixed(2)),
         disponibile: limite.limiteQuantita - totaleOrdini - limite.quantitaOrdinata
       }
     });
   } catch (error) {
-    console.error('[LIMITI] Errore:', error);
+    console.error('[LIMITI] Errore vendita diretta:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 /**
  * @route   POST /api/limiti/reset-prodotto
- * @desc    Reset disponibilità (solo vendite dirette)
+ * @desc    Reset disponibilità (solo vendite dirette, ordini restano)
  */
 router.post('/reset-prodotto', async (req, res) => {
   try {
@@ -323,11 +320,23 @@ router.post('/reset-prodotto', async (req, res) => {
       });
     }
 
-    // Reset solo le vendite dirette, non gli ordini
+    // ✅ Reset solo le vendite dirette
     limite.quantitaOrdinata = 0;
     await limite.save();
 
     console.log(`[LIMITI] Reset completato - Vendite dirette azzerate`);
+
+    // ✅ Emetti evento Pusher
+    try {
+      const pusher = (await import('../services/pusherService.js')).default;
+      await pusher.trigger('zeppole-channel', 'reset-disponibilita', {
+        prodotto,
+        limiteKg: limite.limiteQuantita,
+        timestamp: new Date()
+      });
+    } catch (pusherError) {
+      console.warn('[LIMITI] Pusher non disponibile:', pusherError.message);
+    }
 
     res.json({
       success: true,
@@ -335,7 +344,7 @@ router.post('/reset-prodotto', async (req, res) => {
       data: limite
     });
   } catch (error) {
-    console.error('[LIMITI] Errore:', error);
+    console.error('[LIMITI] Errore reset:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -366,7 +375,7 @@ router.put('/:id', async (req, res) => {
 
     res.json({ success: true, data: limite });
   } catch (error) {
-    console.error('[LIMITI] Errore:', error);
+    console.error('[LIMITI] Errore PUT limite:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -374,6 +383,7 @@ router.put('/:id', async (req, res) => {
 /**
  * @route   GET /api/limiti
  * @desc    Ottieni tutti i limiti attivi per una data
+ * @query   data - Data in formato YYYY-MM-DD (opzionale, default: oggi)
  */
 router.get('/', async (req, res) => {
   try {
@@ -395,7 +405,7 @@ router.get('/', async (req, res) => {
       data: limiti
     });
   } catch (error) {
-    console.error('[LIMITI] Errore:', error);
+    console.error('[LIMITI] Errore GET limiti:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
