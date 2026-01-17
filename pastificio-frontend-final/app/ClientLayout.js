@@ -1,11 +1,12 @@
-// app/ClientLayout.js - VERSIONE AGGIORNATA
-// ✅ CallPopup riattivato
-// ✅ useIncomingCall riattivato
+// app/ClientLayout.js - ✅ FIX SSR 17/01/2026
+// ✅ CallPopup caricato dinamicamente
+// ✅ useIncomingCall protetto con typeof window
 // ✅ Rimossa voce Zeppole (si accede da dialog in Ordini)
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import {
   Box,
   Drawer,
@@ -33,9 +34,14 @@ import {
   Phone as PhoneIcon
 } from '@mui/icons-material';
 
-// ✅ RIATTIVATO
-import useIncomingCall from '@/hooks/useIncomingCall';
-import CallPopup from '@/components/CallPopup';
+// ✅ FIX SSR: Dynamic import per CallPopup (usa localStorage)
+const CallPopup = dynamic(
+  () => import('@/components/CallPopup'),
+  { 
+    ssr: false,
+    loading: () => null
+  }
+);
 
 const drawerWidth = 240;
 
@@ -60,22 +66,37 @@ export default function ClientLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
+  
+  // ✅ FIX SSR: Stati per chiamate (inizializzati solo client-side)
+  const [chiamataCorrente, setChiamataCorrente] = useState(null);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [connected, setConnected] = useState(false);
 
-  // ✅ RIATTIVATO useIncomingCall
-  const { 
-    chiamataCorrente, 
-    isPopupOpen,
-    handleClosePopup,
-    handleAcceptCall,
-    clearChiamata, 
-    connected 
-  } = useIncomingCall();
-
+  // ✅ FIX SSR: Carica hook solo client-side
   useEffect(() => {
     setMounted(true);
 
+    // Importa dinamicamente il hook solo nel browser
+    if (typeof window !== 'undefined') {
+      import('@/hooks/useIncomingCall').then((module) => {
+        const useIncomingCall = module.default;
+        
+        // Inizializza il hook (solo nel browser)
+        const hookResult = useIncomingCall();
+        
+        // Aggiorna stati con i dati del hook
+        if (hookResult.chiamataCorrente) {
+          setChiamataCorrente(hookResult.chiamataCorrente);
+          setIsPopupOpen(hookResult.isPopupOpen);
+          setConnected(hookResult.connected);
+        }
+      }).catch(err => {
+        console.error('❌ Errore caricamento useIncomingCall:', err);
+      });
+    }
+
     // Richiedi permessi notifiche browser
-    if ('Notification' in window && Notification.permission === 'default') {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().then(permission => {
         console.log('🔔 [ClientLayout] Permesso notifiche:', permission);
       });
@@ -96,8 +117,10 @@ export default function ClientLayout({ children }) {
     return pathname === path || pathname.startsWith(path + '/');
   };
 
-  // ✅ RIATTIVATO handler accettazione chiamata
+  // ✅ Handler accettazione chiamata
   const handleAcceptAndNavigate = () => {
+    if (typeof window === 'undefined') return;
+    
     console.log('📞 [ClientLayout] Accetta chiamata:', chiamataCorrente);
     
     if (chiamataCorrente?.cliente) {
@@ -125,10 +148,16 @@ export default function ClientLayout({ children }) {
     window.dispatchEvent(new Event('nuova-chiamata'));
     console.log('📢 Evento nuova-chiamata dispatched');
     
-    handleAcceptCall();
+    setIsPopupOpen(false);
+    setChiamataCorrente(null);
     console.log('✅ Popup chiuso');
     
     router.push('/');
+  };
+
+  const handleClosePopup = () => {
+    setIsPopupOpen(false);
+    setChiamataCorrente(null);
   };
 
   const drawer = (
@@ -248,7 +277,7 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ✅ CALL POPUP RIATTIVATO */}
+      {/* ✅ CALL POPUP CARICATO DINAMICAMENTE */}
       {mounted && isPopupOpen && chiamataCorrente && (
         <CallPopup
           isOpen={isPopupOpen}
