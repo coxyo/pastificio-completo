@@ -675,7 +675,14 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         
         // Abbrevia per la stringa
         const nomeAbbreviato = abbreviaNome(nomeCompleto);
-        return `${nomeAbbreviato}: ${parseFloat(item.quantita) || 0}`;
+        
+        // ✅ FIX 17/01/2026: Aggiungi unità di misura
+        const unitaDisplay = item.unita === 'Kg' ? '' : item.unita; // Non mostrare "Kg" (default)
+        const quantitaConUnita = unitaDisplay ? 
+          `${parseFloat(item.quantita) || 0}${unitaDisplay}` : 
+          `${parseFloat(item.quantita) || 0}`;
+        
+        return `${nomeAbbreviato}: ${quantitaConUnita}`;
       })
       .join(', ');
 
