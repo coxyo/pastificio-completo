@@ -292,6 +292,13 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
           return acc + (qty / config.pezziPerKg);
         }
       }
+      if (item.unita === '€') {
+        // ✅ FIX 17/01/2026: Calcola peso da importo in euro
+        // Formula: Peso(kg) = Importo(€) / Prezzo(€/kg)
+        const config = getProdottoConfigSafe(item.prodotto);
+        const prezzoKg = item.prezzoUnitario || config?.prezzoKg || 20;
+        return acc + (qty / prezzoKg);
+      }
       return acc;
     }, 0);
   }, [composizione]);
