@@ -1,4 +1,6 @@
-// components/CallPopup.js - VERSIONE v3.6
+// components/CallPopup.js - VERSIONE v3.7.0 - 17/01/2026 ore 18:50
+// ✅ FIX SSR DEFINITIVO: tutti gli accessi browser protetti con typeof window
+// ✅ FIX 15/01/2026: Deploy forzato con modifica
 // ✅ FIX 14/01/2026: Popup si chiude dopo click "Nuovo Ordine"
 // ✅ FIX 12/12/2025: Campo input nome che non risponde
 // ✅ Click singolo sui pulsanti
@@ -14,7 +16,7 @@ import TagManager from './TagManager';
 // ✅ URL BACKEND CORRETTO - hardcoded per sicurezza
 const API_URL = 'https://pastificio-completo-production.up.railway.app';
 
-export function CallPopup({ isOpen, onClose, onAccept, callData }) {
+export function CallPopup({ chiamata, isOpen, onClose, onNuovoOrdine }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const [tags, setTags] = useState([]);
   const [countdown, setCountdown] = useState(60);
@@ -33,15 +35,18 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const [suggerimenti, setSuggerimenti] = useState([]);
   const [clienteEsistente, setClienteEsistente] = useState(null);
   
-  // ✅ FIX: Ref per l'input
+  // ✅ Ref per l'input
   const inputRef = useRef(null);
 
   // ✅ Carica lista clienti quando si apre il form
   useEffect(() => {
+    // ✅ FIX SSR: Solo nel browser
+    if (typeof window === 'undefined') return;
+
     if (showSaveForm && clientiLista.length === 0) {
       const fetchClienti = async () => {
         try {
-          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+          const token = localStorage.getItem('token');
           const response = await fetch(`${API_URL}/api/clienti`, {
             headers: {
               'Authorization': token ? `Bearer ${token}` : ''
@@ -98,33 +103,36 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
 
   // Auto-close dopo 60 secondi + SUONO + VIBRAZIONE
   useEffect(() => {
-    if (!isOpen) return;
+    // ✅ FIX SSR: Solo nel browser
+    if (!isOpen || typeof window === 'undefined') return;
 
     setCountdown(60);
     setShowSaveForm(false);
-    setNomeCompleto(''); // ✅ Campo unico
+    setNomeCompleto('');
     setNomeCliente('');
     setCognomeCliente('');
     setSaveError(null);
     setSavedCliente(null);
-    setSuggerimenti([]); // ✅ Reset suggerimenti
-    setClienteEsistente(null); // ✅ Reset cliente esistente
+    setSuggerimenti([]);
+    setClienteEsistente(null);
     
-    // 🔊 SUONO NOTIFICA
+    // 🔊 SUONO NOTIFICA (solo nel browser)
     try {
-      const audio = new Audio('/sounds/phone-ring.mp3');
-      audio.volume = 0.7;
-      audio.play().catch(e => console.log('Audio bloccato dal browser:', e));
+      if (typeof Audio !== 'undefined') {
+        const audio = new Audio('/sounds/phone-ring.mp3');
+        audio.volume = 0.7;
+        audio.play().catch(e => console.log('Audio bloccato dal browser:', e));
+      }
     } catch (e) {
       console.log('Errore audio:', e);
     }
 
-    // 📳 VIBRAZIONE
-    if ('vibrate' in navigator) {
+    // 📳 VIBRAZIONE (solo nel browser)
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate([200, 100, 200]);
     }
 
-    // ⏰ TIMER AUTO-CLOSE (si ferma se form salva cliente è aperto)
+    // ⏰ TIMER AUTO-CLOSE
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
@@ -145,7 +153,6 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     
     let pauseTimer;
     if (showSaveForm) {
-      // Mantieni il countdown fermo resettandolo ogni secondo
       pauseTimer = setInterval(() => {
         setCountdown(prev => Math.max(prev, 30)); // Mantieni almeno 30 secondi
       }, 1000);
@@ -157,15 +164,21 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     };
   }, [isOpen, showSaveForm]);
 
-  // Tags dal callData
+  // Tags dalla chiamata
   useEffect(() => {
-    if (callData?.chiamataId && callData?.tags) {
-      setTags(callData.tags);
+    if (chiamata?.chiamataId && chiamata?.tags) {
+      setTags(chiamata.tags);
     }
-  }, [callData]);
+  }, [chiamata]);
 
   // ✅ HANDLER per salvare il cliente
   const handleSaveCliente = async () => {
+    // ✅ FIX SSR: Solo nel browser
+    if (typeof window === 'undefined') {
+      console.warn('⚠️ handleSaveCliente chiamato su SSR, ignoro');
+      return;
+    }
+
     if (!nomeCliente.trim()) {
       setSaveError('Inserisci almeno il nome');
       return;
@@ -187,7 +200,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
         body: JSON.stringify({
           nome: nomeCliente.trim(),
           cognome: cognomeCliente.trim() || '',
-          telefono: callData?.numero?.replace(/\D/g, '') || '',
+          telefono: chiamata?.numero?.replace(/\D/g, '') || '',
           email: '',
           note: `Cliente aggiunto da chiamata del ${new Date().toLocaleDateString('it-IT')}`
         })
@@ -200,9 +213,9 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
         setSavedCliente(data.cliente || data.data);
         setShowSaveForm(false);
         
-        // ✅ Aggiorna callData con il nuovo cliente
-        if (callData) {
-          callData.cliente = data.cliente || data.data;
+        // ✅ Aggiorna chiamata con il nuovo cliente
+        if (chiamata) {
+          chiamata.cliente = data.cliente || data.data;
         }
       } else {
         throw new Error(data.message || data.error || 'Errore durante il salvataggio');
@@ -226,19 +239,21 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const handleAccept = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('📞 [CallPopup] Nuovo ordine');
     
-    // ✅ FIX 14/01/2026: Chiama onAccept E poi chiudi popup
-    if (onAccept) {
-      onAccept();
+    // Usa cliente salvato o cliente esistente
+    const clienteAttuale = savedCliente || chiamata?.cliente;
+    
+    console.log('[CallPopup] 📝 Apertura nuovo ordine con dati:', {
+      clienteId: clienteAttuale?._id,
+      clienteNome: clienteAttuale?.nome,
+      clienteTelefono: chiamata?.numero
+    });
+    
+    // ✅ FIX 17/01/2026: Chiama onNuovoOrdine con cliente e numero
+    if (onNuovoOrdine) {
+      onNuovoOrdine(clienteAttuale, chiamata?.numero);
     }
-    
-    // ✅ Chiudi popup dopo 300ms (tempo per aprire dialog)
-    setTimeout(() => {
-      console.log('✅ [CallPopup] Chiusura popup dopo apertura ordine');
-      onClose();
-    }, 300);
-  }, [onAccept, onClose]);
+  }, [onNuovoOrdine, savedCliente, chiamata]);
 
   const handleTagClick = useCallback((e) => {
     e.preventDefault();
@@ -263,12 +278,17 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     setCognomeCliente(parti.slice(1).join(' ') || '');
   }, []);
 
-  // Se non aperto o senza dati, non renderizzare
-  if (!isOpen || !callData) {
+  // ✅ FIX SSR: Non renderizzare nulla su server
+  if (typeof window === 'undefined') {
     return null;
   }
 
-  const { numero, cliente, noteAutomatiche, chiamataId } = callData;
+  // Se non aperto o senza dati, non renderizzare
+  if (!isOpen || !chiamata) {
+    return null;
+  }
+
+  const { numero, cliente, noteAutomatiche, chiamataId } = chiamata;
   
   // Usa cliente salvato se disponibile
   const clienteAttuale = savedCliente || cliente;
@@ -490,7 +510,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                   </button>
                 ) : (
                   <div>
-                    {/* ✅ FIX: CAMPO UNICO con autocomplete - attributi corretti */}
+                    {/* ✅ CAMPO UNICO con autocomplete */}
                     <div style={{ position: 'relative', marginBottom: '12px' }}>
                       <input
                         ref={inputRef}
@@ -613,7 +633,6 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
                             setNomeCompleto('');
                             setNomeCliente('');
                             setCognomeCliente('');
-                            // Focus sull'input dopo il reset
                             setTimeout(() => inputRef.current?.focus(), 50);
                           }}
                           style={{
