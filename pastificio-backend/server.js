@@ -42,6 +42,7 @@ import fixPrezziRoutes from './routes/fix-prezzi-routes.js';
 import corrispettiviRoutes from './routes/corrispettivi.js';
 import emailRoutes from './routes/email.js';
 import haccpRoutes from './routes/haccp.js';
+import emailCorrispettiviRoutes from './routes/emailCorrispettivi.routes.js'; // ✅ NUOVO - Email corrispettivi
 
 // Import Danea Monitor
 
@@ -69,6 +70,8 @@ import pusherService from './services/pusherService.js'; // ✅ PUSHER
 import schedulerEmail from './services/schedulerEmail.js';
 import schedulerCorrespettivi from './services/schedulerCorrespettivi.js';
 import schedulerHACCP from './services/schedulerHACCP.js';
+import cronJobsEmail from './services/cronJobsEmail.js'; // ✅ NUOVO - Cron jobs email
+import pdfCorrispettiviService from './services/pdfCorrispettivi.js'; // ✅ NUOVO - PDF corrispettivi
 
 
 // Configurazione path
@@ -318,6 +321,7 @@ app.use('/api/cx3', cx3Routes);
 app.use('/api/chiamate', chiamateRoutes); // ✅ NUOVO - Gestione chiamate e tag
 app.use('/api/statistiche', statisticheRoutes); // ✅ NUOVO - Statistiche chiamate
 app.use('/api/corrispettivi', corrispettiviRoutes);
+app.use('/api/email-corrispettivi', emailCorrispettiviRoutes); // ✅ NUOVO - Route email corrispettivi
 app.use('/api/email', emailRoutes);
 app.use('/api/haccp', haccpRoutes);
 app.use('/api/fix', fixPrezziRoutes);
@@ -975,6 +979,16 @@ const startServer = async () => {
     } catch (haccpError) {
       logger.warn('⚠️ Scheduler HACCP non disponibile:', haccpError.message);
     }
+
+    // ✅ Inizializza cron jobs email corrispettivi
+    try {
+      if (cronJobsEmail && cronJobsEmail.inizializza) {
+        logger.info('🚀 Avvio cron jobs email automatici...');
+        cronJobsEmail.inizializza();
+      }
+    } catch (cronEmailError) {
+      logger.warn('⚠️ Cron jobs email non disponibile:', cronEmailError.message);
+    }
     } catch (schedulerError) {
       logger.warn('Scheduler generale non disponibile:', schedulerError.message);
     }
@@ -1100,4 +1114,20 @@ process.on('unhandledRejection', (err) => {
 
 startServer();
 
-export default app;
+export default app;-e 
+// ✅ Gestione shutdown graceful
+process.on('SIGTERM', () => {
+  logger.info('⏹️ SIGTERM ricevuto, chiusura graceful...');
+  if (cronJobsEmail && cronJobsEmail.fermatutti) {
+    cronJobsEmail.fermatutti();
+  }
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  logger.info('⏹️ SIGINT ricevuto, chiusura graceful...');
+  if (cronJobsEmail && cronJobsEmail.fermatutti) {
+    cronJobsEmail.fermatutti();
+  }
+  process.exit(0);
+});
