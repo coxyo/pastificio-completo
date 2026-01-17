@@ -143,36 +143,7 @@ clienteIdPreselezionato,
   const [numeroVassoiProdotto, setNumeroVassoiProdotto] = useState(1);
   const [dimensioneVassoio, setDimensioneVassoio] = useState('');
 
-  // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
-  useEffect(() => {
-    if (isConnected) {
-      caricaProdotti();
-    }
-  }, [isConnected]);
-
-  // ✅ FIX 17/01/2026: Precompila dati da chiamata telefonica
-  useEffect(() => {
-    if (open && (clientePrecompilato || numeroPrecompilato)) {
-      console.log('[NuovoOrdine] 📞 Precompilazione dati da chiamata:', {
-        cliente: clientePrecompilato?.nome,
-        numero: numeroPrecompilato
-      });
-
-      setFormData(prev => ({
-        ...prev,
-        cliente: clientePrecompilato || null,
-        nome: clientePrecompilato?.nome || '',
-        cognome: clientePrecompilato?.cognome || '',
-        nomeCliente: clientePrecompilato?.nome 
-          ? `${clientePrecompilato.nome} ${clientePrecompilato.cognome || ''}`.trim()
-          : '',
-        telefono: numeroPrecompilato || clientePrecompilato?.telefono || prev.telefono
-      }));
-
-      console.log('[NuovoOrdine] ✅ Dati precompilati');
-    }
-  }, [open, clientePrecompilato, numeroPrecompilato]);
-
+  // ✅ FIX 17/01/2026: Sposto caricaProdotti PRIMA degli useEffect per evitare hoisting error
   const caricaProdotti = async () => {
     const cacheTime = localStorage.getItem('prodotti_cache_time');
     const now = Date.now();
@@ -223,6 +194,36 @@ clienteIdPreselezionato,
       setLoadingProdotti(false);
     }
   };
+
+  // ✅ CARICA PRODOTTI CON CACHE OTTIMIZZATA
+  useEffect(() => {
+    if (isConnected) {
+      caricaProdotti();
+    }
+  }, [isConnected]);
+
+  // ✅ FIX 17/01/2026: Precompila dati da chiamata telefonica
+  useEffect(() => {
+    if (open && (clientePrecompilato || numeroPrecompilato)) {
+      console.log('[NuovoOrdine] 📞 Precompilazione dati da chiamata:', {
+        cliente: clientePrecompilato?.nome,
+        numero: numeroPrecompilato
+      });
+
+      setFormData(prev => ({
+        ...prev,
+        cliente: clientePrecompilato || null,
+        nome: clientePrecompilato?.nome || '',
+        cognome: clientePrecompilato?.cognome || '',
+        nomeCliente: clientePrecompilato?.nome 
+          ? `${clientePrecompilato.nome} ${clientePrecompilato.cognome || ''}`.trim()
+          : '',
+        telefono: numeroPrecompilato || clientePrecompilato?.telefono || prev.telefono
+      }));
+
+      console.log('[NuovoOrdine] ✅ Dati precompilati');
+    }
+  }, [open, clientePrecompilato, numeroPrecompilato]);
 
   // ✅ Carica limiti quando cambia data
   useEffect(() => {
