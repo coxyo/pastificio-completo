@@ -1,12 +1,16 @@
 // services/emailService.js
+// ✅ VERSIONE COMPLETA CON REPORT CORRISPETTIVI MENSILE
 import nodemailer from 'nodemailer';
 import logger from '../config/logger.js';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
+import Corrispettivo from '../models/Corrispettivo.js';
 
 /**
  * SERVIZIO EMAIL AUTOMATICHE
- * Gestisce invio email a commercialista, clienti, fornitori
+ * - Report corrispettivi mensile commercialista
+ * - Ordini pronti clienti
+ * - Promemoria ritiri
  */
 
 class EmailService {
@@ -23,8 +27,8 @@ class EmailService {
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: process.env.EMAIL_USER, // es: pastificionc@gmail.com
-          pass: process.env.EMAIL_PASSWORD // App Password Gmail
+          user: process.env.EMAIL_USER || 'pastificionc@gmail.com',
+          pass: process.env.EMAIL_PASSWORD || 'jhzu xlld djxb jgnu'
         }
       });
 
@@ -35,119 +39,118 @@ class EmailService {
   }
 
   /**
-   * REPORT MENSILE COMMERCIALISTA
-   * Invia riepilogo ordini, incassi, statistiche del mese
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * 📊 REPORT MENSILE CORRISPETTIVI COMMERCIALISTA (NUOVO)
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * Invia riepilogo corrispettivi del mese chiuso
+   * Chiamato automaticamente il 3° giorno del mese (cron job)
    */
-  async inviaReportMensileCommercialista() {
+  async inviaReportCorrispettiviMensile(anno, mese, pdfBuffer, csvBuffer) {
     try {
-      logger.info('📧 Preparazione report mensile commercialista...');
+      logger.info(`📧 Preparazione report corrispettivi ${mese}/${anno} per commercialista...`);
 
-      // Calcola date mese corrente
-      const oggi = new Date();
-      const primoGiornoMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1);
-      const ultimoGiornoMese = new Date(oggi.getFullYear(), oggi.getMonth() + 1, 0);
+      // Recupera dati corrispettivi dal database
+      const corrispettivi = await Corrispettivo.find({ anno, mese }).sort({ giorno: 1 });
 
-      // Query ordini del mese
-      const ordiniMese = await Ordine.find({
-        dataRitiro: {
-          $gte: primoGiornoMese,
-          $lte: ultimoGiornoMese
-        }
-      }).populate('cliente');
+      if (corrispettivi.length === 0) {
+        logger.warn(`⚠️ Nessun corrispettivo trovato per ${mese}/${anno}`);
+        return { success: false, reason: 'no_data' };
+      }
 
-      // Calcola statistiche
-      const statistiche = this.calcolaStatisticheMensili(ordiniMese);
+      // Calcola totali
+      const totali = this.calcolaTotaliCorrispettivi(corrispettivi);
 
       // Genera HTML email
-      const htmlEmail = this.generaHtmlReportCommercialista(statistiche, ordiniMese);
+      const htmlEmail = this.generaHtmlReportCorrispettivi(anno, mese, totali, corrispettivi);
+
+      // Prepara allegati
+      const attachments = [];
+      
+      if (pdfBuffer) {
+        attachments.push({
+          filename: `Corrispettivi_${anno}_${String(mese).padStart(2, '0')}.pdf`,
+          content: pdfBuffer
+        });
+      }
+
+      if (csvBuffer) {
+        attachments.push({
+          filename: `Corrispettivi_${anno}_${String(mese).padStart(2, '0')}.csv`,
+          content: csvBuffer
+        });
+      }
 
       // Invia email
       const info = await this.transporter.sendMail({
         from: `"Pastificio Nonna Claudia" <${process.env.EMAIL_USER}>`,
         to: process.env.EMAIL_COMMERCIALISTA, // es: commercialista@studio.it
-        subject: `Report Mensile - ${this.getNomeMese(oggi.getMonth())} ${oggi.getFullYear()}`,
+        cc: process.env.EMAIL_CC || '', // Copia conoscenza opzionale
+        subject: `📊 Report Corrispettivi - ${this.getNomeMese(mese - 1)} ${anno}`,
         html: htmlEmail,
-        attachments: [
-          {
-            filename: `report_${oggi.getFullYear()}_${String(oggi.getMonth() + 1).padStart(2, '0')}.csv`,
-            content: this.generaCSVOrdini(ordiniMese)
-          }
-        ]
+        attachments: attachments
       });
 
-      logger.info(`✅ Report mensile inviato con successo! MessageID: ${info.messageId}`);
-      return { success: true, messageId: info.messageId };
+      logger.info(`✅ Report corrispettivi inviato! MessageID: ${info.messageId}`);
+      
+      return { 
+        success: true, 
+        messageId: info.messageId,
+        totali: totali
+      };
 
     } catch (error) {
-      logger.error('❌ Errore invio report commercialista:', error);
+      logger.error('❌ Errore invio report corrispettivi:', error);
       throw error;
     }
   }
 
   /**
-   * Calcola statistiche mensili
+   * Calcola totali corrispettivi
    */
-  calcolaStatisticheMensili(ordini) {
-    const stats = {
-      totaleOrdini: ordini.length,
-      totaleIncasso: 0,
-      ordiniPerStato: {
-        pending: 0,
-        confermato: 0,
-        pronto: 0,
-        consegnato: 0,
-        annullato: 0
-      },
-      prodottiVenduti: {},
-      topClienti: {},
-      incassoPerGiorno: {}
+  calcolaTotaliCorrispettivi(corrispettivi) {
+    const totali = {
+      totaleMese: 0,
+      iva22: 0,
+      iva10: 0,
+      iva4: 0,
+      esente: 0,
+      giorniConIncasso: 0,
+      giorniTotali: corrispettivi.length,
+      mediaGiornaliera: 0
     };
 
-    ordini.forEach(ordine => {
-      // Totale incasso
-      stats.totaleIncasso += ordine.totale || 0;
-
-      // Ordini per stato
-      stats.ordiniPerStato[ordine.stato]++;
-
-      // Prodotti venduti
-      ordine.prodotti.forEach(prod => {
-        const nomeProdotto = prod.nome;
-        if (!stats.prodottiVenduti[nomeProdotto]) {
-          stats.prodottiVenduti[nomeProdotto] = {
-            quantita: 0,
-            incasso: 0
-          };
-        }
-        stats.prodottiVenduti[nomeProdotto].quantita += prod.quantita;
-        stats.prodottiVenduti[nomeProdotto].incasso += prod.prezzo * prod.quantita;
-      });
-
-      // Top clienti
-      const nomeCliente = ordine.cliente?.nome || 'Cliente Sconosciuto';
-      if (!stats.topClienti[nomeCliente]) {
-        stats.topClienti[nomeCliente] = {
-          ordini: 0,
-          totaleSpeso: 0
-        };
+    corrispettivi.forEach(c => {
+      totali.totaleMese += c.totale || 0;
+      
+      if (c.dettaglioIva) {
+        totali.iva22 += c.dettaglioIva.iva22 || 0;
+        totali.iva10 += c.dettaglioIva.iva10 || 0;
+        totali.iva4 += c.dettaglioIva.iva4 || 0;
+        totali.esente += c.dettaglioIva.esente || 0;
       }
-      stats.topClienti[nomeCliente].ordini++;
-      stats.topClienti[nomeCliente].totaleSpeso += ordine.totale || 0;
 
-      // Incasso per giorno
-      const dataGiorno = ordine.dataRitiro.toISOString().split('T')[0];
-      stats.incassoPerGiorno[dataGiorno] = (stats.incassoPerGiorno[dataGiorno] || 0) + (ordine.totale || 0);
+      if (c.totale > 0) {
+        totali.giorniConIncasso++;
+      }
     });
 
-    return stats;
+    totali.mediaGiornaliera = totali.giorniConIncasso > 0 
+      ? totali.totaleMese / totali.giorniConIncasso 
+      : 0;
+
+    return totali;
   }
 
   /**
-   * Genera HTML report per commercialista
+   * Genera HTML email report corrispettivi
    */
-  generaHtmlReportCommercialista(stats, ordini) {
-    const mese = this.getNomeMese(new Date().getMonth());
-    const anno = new Date().getFullYear();
+  generaHtmlReportCorrispettivi(anno, mese, totali, corrispettivi) {
+    const nomeMese = this.getNomeMese(mese - 1);
+
+    // Trova giorno con incasso massimo
+    const giornoMax = corrispettivi.reduce((max, c) => 
+      (c.totale > max.totale) ? c : max
+    , { totale: 0, giorno: 0 });
 
     return `
 <!DOCTYPE html>
@@ -155,104 +158,258 @@ class EmailService {
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: Arial, sans-serif; color: #333; }
-    .header { background: #2196F3; color: white; padding: 20px; text-align: center; }
-    .section { margin: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-    .stat-box { display: inline-block; margin: 10px; padding: 15px; background: #f5f5f5; border-radius: 5px; }
-    .stat-label { font-size: 12px; color: #666; }
-    .stat-value { font-size: 24px; font-weight: bold; color: #2196F3; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-    th { background: #f5f5f5; font-weight: bold; }
-    .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #999; }
+    body { 
+      font-family: 'Segoe UI', Arial, sans-serif; 
+      color: #333; 
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .header { 
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+      color: white; 
+      padding: 30px; 
+      text-align: center; 
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 28px;
+    }
+    .header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 16px;
+    }
+    .section { 
+      padding: 25px 30px;
+      border-bottom: 1px solid #eee;
+    }
+    .section:last-child {
+      border-bottom: none;
+    }
+    .section h2 {
+      color: #2196F3;
+      margin-top: 0;
+      font-size: 20px;
+      border-bottom: 2px solid #2196F3;
+      padding-bottom: 10px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .stat-box { 
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      border-left: 4px solid #2196F3;
+    }
+    .stat-label { 
+      font-size: 12px; 
+      color: #666; 
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .stat-value { 
+      font-size: 28px; 
+      font-weight: bold; 
+      color: #2196F3; 
+    }
+    .stat-value.green {
+      color: #4CAF50;
+    }
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 15px; 
+      font-size: 14px;
+    }
+    th, td { 
+      padding: 12px; 
+      text-align: left; 
+      border-bottom: 1px solid #eee; 
+    }
+    th { 
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+    tr:hover {
+      background: #f8f9fa;
+    }
+    .footer { 
+      text-align: center; 
+      padding: 25px 30px;
+      background: #f8f9fa;
+      font-size: 13px; 
+      color: #666; 
+    }
+    .footer p {
+      margin: 5px 0;
+    }
+    .highlight {
+      background: #FFF3E0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      color: #F57C00;
+      font-weight: 600;
+    }
+    .alert-box {
+      background: #E3F2FD;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+    .alert-box strong {
+      color: #1976D2;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🍝 Pastificio Nonna Claudia</h1>
-    <h2>Report Mensile - ${mese} ${anno}</h2>
-  </div>
-
-  <div class="section">
-    <h3>📊 Riepilogo Generale</h3>
-    <div class="stat-box">
-      <div class="stat-label">Totale Ordini</div>
-      <div class="stat-value">${stats.totaleOrdini}</div>
+  <div class="container">
+    <div class="header">
+      <h1>🍰 Pastificio Nonna Claudia</h1>
+      <p>Report Corrispettivi - ${nomeMese} ${anno}</p>
     </div>
-    <div class="stat-box">
-      <div class="stat-label">Incasso Totale</div>
-      <div class="stat-value">€${stats.totaleIncasso.toFixed(2)}</div>
+
+    <div class="section">
+      <h2>📊 Riepilogo Generale</h2>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Incasso Totale</div>
+          <div class="stat-value green">€${totali.totaleMese.toFixed(2)}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Media Giornaliera</div>
+          <div class="stat-value">€${totali.mediaGiornaliera.toFixed(2)}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Giorni Apertura</div>
+          <div class="stat-value">${totali.giorniConIncasso}/${totali.giorniTotali}</div>
+        </div>
+      </div>
+
+      <div class="alert-box">
+        <strong>📈 Giorno migliore:</strong> 
+        ${giornoMax.giorno}/${mese}/${anno} con 
+        <span class="highlight">€${giornoMax.totale.toFixed(2)}</span>
+      </div>
     </div>
-    <div class="stat-box">
-      <div class="stat-label">Ticket Medio</div>
-      <div class="stat-value">€${(stats.totaleIncasso / stats.totaleOrdini || 0).toFixed(2)}</div>
+
+    <div class="section">
+      <h2>💶 Dettaglio IVA</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Aliquota IVA</th>
+            <th style="text-align: right;">Imponibile + IVA</th>
+            <th style="text-align: right;">IVA Scorporata</th>
+            <th style="text-align: right;">Imponibile</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${totali.iva22 > 0 ? `
+          <tr>
+            <td>22% (Ordinaria)</td>
+            <td style="text-align: right;">€${totali.iva22.toFixed(2)}</td>
+            <td style="text-align: right;">€${(totali.iva22 - totali.iva22 / 1.22).toFixed(2)}</td>
+            <td style="text-align: right;">€${(totali.iva22 / 1.22).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          ${totali.iva10 > 0 ? `
+          <tr>
+            <td>10% (Ridotta)</td>
+            <td style="text-align: right;">€${totali.iva10.toFixed(2)}</td>
+            <td style="text-align: right;">€${(totali.iva10 - totali.iva10 / 1.10).toFixed(2)}</td>
+            <td style="text-align: right;">€${(totali.iva10 / 1.10).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          ${totali.iva4 > 0 ? `
+          <tr>
+            <td>4% (Super ridotta)</td>
+            <td style="text-align: right;">€${totali.iva4.toFixed(2)}</td>
+            <td style="text-align: right;">€${(totali.iva4 - totali.iva4 / 1.04).toFixed(2)}</td>
+            <td style="text-align: right;">€${(totali.iva4 / 1.04).toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          ${totali.esente > 0 ? `
+          <tr>
+            <td>Esente/Non imponibile</td>
+            <td style="text-align: right;">€${totali.esente.toFixed(2)}</td>
+            <td style="text-align: right;">€0.00</td>
+            <td style="text-align: right;">€${totali.esente.toFixed(2)}</td>
+          </tr>
+          ` : ''}
+          <tr style="font-weight: bold; background: #f0f0f0;">
+            <td>TOTALE</td>
+            <td style="text-align: right;">€${totali.totaleMese.toFixed(2)}</td>
+            <td style="text-align: right;">€${(
+              (totali.iva22 - totali.iva22 / 1.22) + 
+              (totali.iva10 - totali.iva10 / 1.10) + 
+              (totali.iva4 - totali.iva4 / 1.04)
+            ).toFixed(2)}</td>
+            <td style="text-align: right;">€${(
+              totali.iva22 / 1.22 + 
+              totali.iva10 / 1.10 + 
+              totali.iva4 / 1.04 + 
+              totali.esente
+            ).toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </div>
 
-  <div class="section">
-    <h3>📦 Ordini per Stato</h3>
-    <table>
-      <tr>
-        <th>Stato</th>
-        <th>Numero Ordini</th>
-        <th>Percentuale</th>
-      </tr>
-      ${Object.entries(stats.ordiniPerStato).map(([stato, count]) => `
-        <tr>
-          <td>${this.tradStato(stato)}</td>
-          <td>${count}</td>
-          <td>${((count / stats.totaleOrdini) * 100).toFixed(1)}%</td>
-        </tr>
-      `).join('')}
-    </table>
-  </div>
+    <div class="section">
+      <h2>📅 Dettaglio Giornaliero (Prime 10 giornate)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Giorno</th>
+            <th style="text-align: right;">Incasso</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${corrispettivi.slice(0, 10).map(c => `
+            <tr>
+              <td>${c.giorno}/${mese}/${anno}</td>
+              <td style="text-align: right;">€${(c.totale || 0).toFixed(2)}</td>
+              <td style="font-size: 12px; color: #666;">${c.note || '-'}</td>
+            </tr>
+          `).join('')}
+          ${corrispettivi.length > 10 ? `
+            <tr>
+              <td colspan="3" style="text-align: center; font-style: italic; color: #999;">
+                ... e altri ${corrispettivi.length - 10} giorni (vedi allegato completo)
+              </td>
+            </tr>
+          ` : ''}
+        </tbody>
+      </table>
+    </div>
 
-  <div class="section">
-    <h3>🏆 Top 10 Prodotti Venduti</h3>
-    <table>
-      <tr>
-        <th>Prodotto</th>
-        <th>Quantità</th>
-        <th>Incasso</th>
-      </tr>
-      ${Object.entries(stats.prodottiVenduti)
-        .sort((a, b) => b[1].incasso - a[1].incasso)
-        .slice(0, 10)
-        .map(([nome, data]) => `
-        <tr>
-          <td>${nome}</td>
-          <td>${data.quantita}</td>
-          <td>€${data.incasso.toFixed(2)}</td>
-        </tr>
-      `).join('')}
-    </table>
-  </div>
-
-  <div class="section">
-    <h3>👥 Top 10 Clienti</h3>
-    <table>
-      <tr>
-        <th>Cliente</th>
-        <th>Ordini</th>
-        <th>Totale Speso</th>
-      </tr>
-      ${Object.entries(stats.topClienti)
-        .sort((a, b) => b[1].totaleSpeso - a[1].totaleSpeso)
-        .slice(0, 10)
-        .map(([nome, data]) => `
-        <tr>
-          <td>${nome}</td>
-          <td>${data.ordini}</td>
-          <td>€${data.totaleSpeso.toFixed(2)}</td>
-        </tr>
-      `).join('')}
-    </table>
-  </div>
-
-  <div class="footer">
-    <p>Report generato automaticamente il ${new Date().toLocaleDateString('it-IT')}</p>
-    <p>Pastificio Nonna Claudia - Via Carmine 20/B, Assemini (CA)</p>
-    <p>Tel: 389 887 9833 | Email: pastificionc@gmail.com</p>
+    <div class="footer">
+      <p><strong>📎 Allegati:</strong> PDF e CSV completi con tutti i dettagli</p>
+      <p style="margin-top: 15px;">Report generato automaticamente il ${new Date().toLocaleString('it-IT')}</p>
+      <p>Pastificio Nonna Claudia - Via Carmine 20/B, Assemini (CA)</p>
+      <p>Tel: 389 887 9833 | Email: pastificionc@gmail.com</p>
+    </div>
   </div>
 </body>
 </html>
@@ -260,24 +417,10 @@ class EmailService {
   }
 
   /**
-   * Genera CSV ordini per allegato
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * 📧 ALTRE FUNZIONI EMAIL (ORDINI, PROMEMORIA)
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    */
-  generaCSVOrdini(ordini) {
-    let csv = 'Data,Numero Ordine,Cliente,Totale,Stato,Prodotti\n';
-    
-    ordini.forEach(ordine => {
-      const data = ordine.dataRitiro.toLocaleDateString('it-IT');
-      const numeroOrdine = ordine.numeroOrdine || ordine._id;
-      const cliente = ordine.cliente?.nome || 'N/A';
-      const totale = ordine.totale.toFixed(2);
-      const stato = ordine.stato;
-      const prodotti = ordine.prodotti.map(p => `${p.nome}(${p.quantita})`).join('; ');
-      
-      csv += `"${data}","${numeroOrdine}","${cliente}","${totale}","${stato}","${prodotti}"\n`;
-    });
-
-    return csv;
-  }
 
   /**
    * EMAIL ORDINE PRONTO (alternativa a WhatsApp)
@@ -300,7 +443,6 @@ class EmailService {
     .header { background: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
     .content { background: #f9f9f9; padding: 20px; }
     .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
-    .btn { display: inline-block; padding: 15px 30px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -325,7 +467,7 @@ class EmailService {
          📞 389 887 9833</p>
     </div>
     <div class="footer">
-      <p>Grazie per averci scelto! 🍝</p>
+      <p>Grazie per averci scelto! 🍰</p>
     </div>
   </div>
 </body>
@@ -382,7 +524,7 @@ class EmailService {
       </ul>
       
       <p><strong>Totale:</strong> €${ordine.totale.toFixed(2)}</p>
-      <p>Ci vediamo domani! 🍝</p>
+      <p>Ci vediamo domani! 🍰</p>
     </div>
   </div>
 </body>
@@ -403,20 +545,6 @@ class EmailService {
       logger.error('❌ Errore invio email promemoria:', error);
       throw error;
     }
-  }
-
-  /**
-   * UTILITY: Traduzione stati
-   */
-  tradStato(stato) {
-    const traduzioni = {
-      pending: 'In Attesa',
-      confermato: 'Confermato',
-      pronto: 'Pronto',
-      consegnato: 'Consegnato',
-      annullato: 'Annullato'
-    };
-    return traduzioni[stato] || stato;
   }
 
   /**
