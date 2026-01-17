@@ -75,7 +75,8 @@ const GestioneZeppole = ({ open, onClose }) => {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('token');
+      // ✅ FIX SSR: Verifica che sia nel browser
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const headers = {
         'Content-Type': 'application/json',
         ...(token && { 'Authorization': `Bearer ${token}` })
