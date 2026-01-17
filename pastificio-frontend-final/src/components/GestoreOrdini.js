@@ -63,9 +63,6 @@ import GestioneZeppole from './GestioneZeppole';
 import StatisticheChiamate from './StatisticheChiamate';
 import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } from '@mui/icons-material';
 
-// ✅ NUOVO 16/01/2026: Import per popup HACCP automatico (Martedì)
-import HACCPAutoPopup, { useHACCPAutoPopup } from './HACCPAutoPopup';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
@@ -1041,9 +1038,7 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     pusherService
   } = useIncomingCall();
 
-  // ✅ NUOVO 16/01/2026: Hook per popup HACCP automatico (Martedì)
-  const { showPopup: showHACCPPopup, closePopup: closeHACCPPopup, forceShowPopup: forceShowHACCPPopup } = useHACCPAutoPopup();
-
+ 
   // ✅ Handler personalizzato accettazione chiamata
   const handleAcceptIncomingCall = () => {
     console.log('🟢 [GestoreOrdini] Chiamata accettata, preparo dati per NuovoOrdine');

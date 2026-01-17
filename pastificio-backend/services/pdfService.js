@@ -1,659 +1,454 @@
-// backend/services/pdfService.js
+// services/pdfCorrispettivi.js
+// ✅ GENERATORE PDF E CSV PER CORRISPETTIVI MENSILI
+
 import PDFDocument from 'pdfkit';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import logger from '../config/logger.js';
+import Corrispettivo from '../models/Corrispettivo.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+/**
+ * SERVIZIO GENERAZIONE PDF/CSV CORRISPETTIVI
+ * - PDF report mensile formattato
+ * - CSV export per Excel/LibreOffice
+ */
 
-class PDFService {
-  constructor() {
-    this.tempDir = path.join(__dirname, '../temp');
-    this.ensureTempDir();
-  }
+class PdfCorrispettiviService {
 
-  ensureTempDir() {
-    if (!fs.existsSync(this.tempDir)) {
-      fs.mkdirSync(this.tempDir, { recursive: true });
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * 📄 GENERA PDF REPORT CORRISPETTIVI
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+  async generaPdfCorrispettivi(anno, mese) {
+    try {
+      logger.info(`📄 Generazione PDF corrispettivi ${mese}/${anno}...`);
+
+      // Recupera dati dal database
+      const corrispettivi = await Corrispettivo.find({ anno, mese }).sort({ giorno: 1 });
+
+      if (corrispettivi.length === 0) {
+        throw new Error(`Nessun corrispettivo trovato per ${mese}/${anno}`);
+      }
+
+      // Calcola totali
+      const totali = this.calcolaTotali(corrispettivi);
+
+      // Crea documento PDF
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margin: 50,
+        info: {
+          Title: `Registro Corrispettivi ${mese}/${anno}`,
+          Author: 'Pastificio Nonna Claudia',
+          Subject: 'Registro Corrispettivi Mensile',
+          Keywords: 'corrispettivi, iva, fatturazione'
+        }
+      });
+
+      // Array per accumulare chunks
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      
+      // Promise per fine documento
+      const pdfPromise = new Promise((resolve, reject) => {
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+      });
+
+      // ━━━ HEADER ━━━
+      this.aggiungiHeader(doc, anno, mese);
+
+      // ━━━ RIEPILOGO GENERALE ━━━
+      this.aggiungiRiepilogoGenerale(doc, totali);
+
+      // ━━━ DETTAGLIO IVA ━━━
+      this.aggiungiDettaglioIva(doc, totali);
+
+      // ━━━ TABELLA GIORNALIERA ━━━
+      this.aggiungiTabellaGiornaliera(doc, corrispettivi, anno, mese);
+
+      // ━━━ FOOTER ━━━
+      this.aggiungiFooter(doc);
+
+      // Finalizza documento
+      doc.end();
+
+      // Attendi completamento
+      const buffer = await pdfPromise;
+
+      logger.info(`✅ PDF generato: ${buffer.length} bytes`);
+      return buffer;
+
+    } catch (error) {
+      logger.error('❌ Errore generazione PDF corrispettivi:', error);
+      throw error;
     }
   }
 
   /**
-   * Genera report giornaliero
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * 📊 GENERA CSV EXPORT CORRISPETTIVI
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    */
-  async generateDailyReport(data) {
-    return new Promise((resolve, reject) => {
-      try {
-        const fileName = `report_giornaliero_${new Date(data.data).toISOString().split('T')[0]}.pdf`;
-        const filePath = path.join(this.tempDir, fileName);
+  async generaCsvCorrispettivi(anno, mese) {
+    try {
+      logger.info(`📊 Generazione CSV corrispettivi ${mese}/${anno}...`);
 
-        const doc = new PDFDocument({
-          size: 'A4',
-          margin: 50
-        });
+      const corrispettivi = await Corrispettivo.find({ anno, mese }).sort({ giorno: 1 });
 
-        const stream = fs.createWriteStream(filePath);
-        doc.pipe(stream);
-
-        // Header
-        doc.fontSize(20)
-           .font('Helvetica-Bold')
-           .text('PASTIFICIO NONNA CLAUDIA', { align: 'center' });
-        
-        doc.fontSize(16)
-           .font('Helvetica')
-           .text('Report Giornaliero', { align: 'center' });
-        
-        doc.fontSize(12)
-           .text(`Data: ${new Date(data.data).toLocaleDateString('it-IT', {
-             weekday: 'long',
-             year: 'numeric',
-             month: 'long',
-             day: 'numeric'
-           })}`, { align: 'center' });
-
-        doc.moveDown(2);
-
-        // Statistiche
-        doc.font('Helvetica-Bold')
-           .fontSize(14)
-           .text('STATISTICHE GENERALI', 50);
-        
-        doc.moveDown();
-        
-        // Box statistiche
-        const statsY = doc.y;
-        doc.rect(50, statsY, 500, 80)
-           .stroke();
-
-        doc.font('Helvetica')
-           .fontSize(11);
-        
-        doc.text(`Totale Ordini: ${data.totaleOrdini}`, 70, statsY + 15);
-        doc.text(`Valore Totale: € ${data.valoreTotale}`, 250, statsY + 15);
-        doc.text(`Ordini Completati: ${data.ordini.filter(o => o.stato === 'completato').length}`, 70, statsY + 35);
-        doc.text(`Ordini da Viaggio: ${data.ordini.filter(o => o.deveViaggiare).length}`, 250, statsY + 35);
-        doc.text(`Clienti Serviti: ${new Set(data.ordini.map(o => o.nomeCliente)).size}`, 70, statsY + 55);
-        doc.text(`Media per Ordine: € ${(parseFloat(data.valoreTotale) / (data.totaleOrdini || 1)).toFixed(2)}`, 250, statsY + 55);
-
-        doc.moveDown(6);
-
-        // Riepilogo per categoria
-        if (data.riepilogoCategorie && Object.keys(data.riepilogoCategorie).length > 0) {
-          doc.font('Helvetica-Bold')
-             .fontSize(14)
-             .text('RIEPILOGO PER CATEGORIA', 50);
-          
-          doc.moveDown();
-
-          const tableTop = doc.y;
-          
-          // Headers tabella
-          doc.fontSize(11);
-          doc.text('Categoria', 50, tableTop);
-          doc.text('Quantità', 250, tableTop);
-          doc.text('Valore', 400, tableTop);
-
-          doc.moveTo(50, tableTop + 15)
-             .lineTo(550, tableTop + 15)
-             .stroke();
-
-          doc.font('Helvetica');
-          let yPos = tableTop + 25;
-
-          Object.entries(data.riepilogoCategorie).forEach(([categoria, dati]) => {
-            doc.text(categoria, 50, yPos);
-            doc.text(dati.quantita.toString(), 250, yPos);
-            doc.text(`€ ${dati.valore.toFixed(2)}`, 400, yPos);
-            yPos += 20;
-          });
-        }
-
-        // Nuova pagina per lista ordini
-        doc.addPage();
-        doc.font('Helvetica-Bold')
-           .fontSize(14)
-           .text('DETTAGLIO ORDINI', 50, 50);
-        
-        doc.moveDown();
-
-        // Lista ordini
-        let currentY = doc.y;
-        doc.font('Helvetica')
-           .fontSize(10);
-
-        data.ordini.forEach((ordine, index) => {
-          if (currentY > 700) {
-            doc.addPage();
-            currentY = 50;
-          }
-
-          // Box ordine
-          doc.rect(50, currentY, 500, 80)
-             .stroke();
-
-          doc.font('Helvetica-Bold')
-             .fontSize(11)
-             .text(`${ordine.oraRitiro} - ${ordine.nomeCliente}`, 60, currentY + 10);
-          
-          doc.font('Helvetica')
-             .fontSize(10);
-          
-          doc.text(`Tel: ${ordine.telefono}`, 300, currentY + 10);
-          doc.text(`Totale: € ${ordine.totale}`, 450, currentY + 10);
-          
-          doc.text(`Prodotti: ${ordine.numeroProdotti}`, 60, currentY + 30);
-          doc.text(`Stato: ${ordine.stato}`, 300, currentY + 30);
-          
-          if (ordine.note) {
-            doc.text(`Note: ${ordine.note.substring(0, 50)}...`, 60, currentY + 50);
-          }
-
-          currentY += 90;
-        });
-
-        // Footer
-        const pageCount = doc.bufferedPageRange().count;
-        for (let i = 0; i < pageCount; i++) {
-          doc.switchToPage(i);
-          doc.font('Helvetica')
-             .fontSize(8)
-             .text(
-               `Pagina ${i + 1} di ${pageCount} - Report generato il ${new Date().toLocaleString('it-IT')}`,
-               50,
-               doc.page.height - 50,
-               { align: 'center', width: 500 }
-             );
-        }
-
-        doc.end();
-
-        stream.on('finish', () => {
-          resolve({ 
-            filepath: filePath, 
-            filename: fileName 
-          });
-        });
-
-        stream.on('error', reject);
-
-      } catch (error) {
-        reject(error);
+      if (corrispettivi.length === 0) {
+        throw new Error(`Nessun corrispettivo trovato per ${mese}/${anno}`);
       }
-    });
+
+      // Header CSV
+      let csv = 'Data,Giorno,Totale,IVA 22%,IVA 10%,IVA 4%,Esente,Note,Operatore\n';
+
+      // Righe dati
+      corrispettivi.forEach(c => {
+        const data = `${c.giorno}/${mese}/${anno}`;
+        const giorno = c.giorno;
+        const totale = (c.totale || 0).toFixed(2);
+        const iva22 = (c.dettaglioIva?.iva22 || 0).toFixed(2);
+        const iva10 = (c.dettaglioIva?.iva10 || 0).toFixed(2);
+        const iva4 = (c.dettaglioIva?.iva4 || 0).toFixed(2);
+        const esente = (c.dettaglioIva?.esente || 0).toFixed(2);
+        const note = c.note ? `"${c.note.replace(/"/g, '""')}"` : '';
+        const operatore = c.operatore || '';
+
+        csv += `${data},${giorno},${totale},${iva22},${iva10},${iva4},${esente},${note},${operatore}\n`;
+      });
+
+      // Riga totale
+      const totali = this.calcolaTotali(corrispettivi);
+      csv += `\nTOTALE,,${totali.totaleMese.toFixed(2)},${totali.iva22.toFixed(2)},${totali.iva10.toFixed(2)},${totali.iva4.toFixed(2)},${totali.esente.toFixed(2)},,\n`;
+
+      const buffer = Buffer.from(csv, 'utf-8');
+
+      logger.info(`✅ CSV generato: ${buffer.length} bytes`);
+      return buffer;
+
+    } catch (error) {
+      logger.error('❌ Errore generazione CSV corrispettivi:', error);
+      throw error;
+    }
   }
 
   /**
-   * Genera report settimanale
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * 🛠️ FUNZIONI HELPER PDF
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    */
-  async generateWeeklyReport(data) {
-    return new Promise((resolve, reject) => {
-      try {
-        const fileName = `report_settimanale_${data.settimana}.pdf`;
-        const filePath = path.join(this.tempDir, fileName);
 
-        const doc = new PDFDocument({
-          size: 'A4',
-          landscape: true,
-          margin: 40
-        });
+  aggiungiHeader(doc, anno, mese) {
+    const nomeMese = this.getNomeMese(mese - 1);
 
-        const stream = fs.createWriteStream(filePath);
-        doc.pipe(stream);
+    // Logo/Title
+    doc
+      .fontSize(24)
+      .font('Helvetica-Bold')
+      .fillColor('#2196F3')
+      .text('🍰 Pastificio Nonna Claudia', { align: 'center' })
+      .moveDown(0.5);
 
-        // Header
-        doc.fontSize(20)
-           .font('Helvetica-Bold')
-           .text('PASTIFICIO NONNA CLAUDIA', { align: 'center' });
-        
-        doc.fontSize(16)
-           .font('Helvetica')
-           .text(`Report Settimanale - Settimana ${data.settimana}`, { align: 'center' });
-        
-        doc.fontSize(12)
-           .text(`Dal ${new Date(data.dataInizio).toLocaleDateString('it-IT')} al ${new Date(data.dataFine).toLocaleDateString('it-IT')}`, { align: 'center' });
+    doc
+      .fontSize(18)
+      .fillColor('#333')
+      .text(`Registro Corrispettivi`, { align: 'center' })
+      .moveDown(0.2);
 
-        doc.moveDown(2);
+    doc
+      .fontSize(14)
+      .fillColor('#666')
+      .text(`${nomeMese} ${anno}`, { align: 'center' })
+      .moveDown(1.5);
 
-        // KPI principali
-        doc.font('Helvetica-Bold')
-           .fontSize(14)
-           .text('KEY PERFORMANCE INDICATORS', 50);
-        
-        doc.moveDown();
-
-        // Box KPI
-        const kpiY = doc.y;
-        const kpiBoxWidth = 170;
-        const kpiBoxHeight = 60;
-        const kpiSpacing = 10;
-
-        // KPI 1: Totale Ordini
-        doc.rect(50, kpiY, kpiBoxWidth, kpiBoxHeight)
-           .stroke();
-        doc.fontSize(20)
-           .text(data.kpi.totaleOrdini.toString(), 50, kpiY + 15, { align: 'center', width: kpiBoxWidth });
-        doc.fontSize(10)
-           .text('Ordini Totali', 50, kpiY + 40, { align: 'center', width: kpiBoxWidth });
-
-        // KPI 2: Valore Totale
-        doc.rect(50 + kpiBoxWidth + kpiSpacing, kpiY, kpiBoxWidth, kpiBoxHeight)
-           .stroke();
-        doc.fontSize(20)
-           .text(`€ ${data.kpi.valoreTotale.toFixed(0)}`, 50 + kpiBoxWidth + kpiSpacing, kpiY + 15, { align: 'center', width: kpiBoxWidth });
-        doc.fontSize(10)
-           .text('Valore Totale', 50 + kpiBoxWidth + kpiSpacing, kpiY + 40, { align: 'center', width: kpiBoxWidth });
-
-        // KPI 3: Ticket Medio
-        doc.rect(50 + (kpiBoxWidth + kpiSpacing) * 2, kpiY, kpiBoxWidth, kpiBoxHeight)
-           .stroke();
-        doc.fontSize(20)
-           .text(`€ ${data.kpi.ticketMedio.toFixed(2)}`, 50 + (kpiBoxWidth + kpiSpacing) * 2, kpiY + 15, { align: 'center', width: kpiBoxWidth });
-        doc.fontSize(10)
-           .text('Ticket Medio', 50 + (kpiBoxWidth + kpiSpacing) * 2, kpiY + 40, { align: 'center', width: kpiBoxWidth });
-
-        // KPI 4: Tasso Completamento
-        doc.rect(50 + (kpiBoxWidth + kpiSpacing) * 3, kpiY, kpiBoxWidth, kpiBoxHeight)
-           .stroke();
-        doc.fontSize(20)
-           .text(`${data.kpi.tassoCompletamento.toFixed(0)}%`, 50 + (kpiBoxWidth + kpiSpacing) * 3, kpiY + 15, { align: 'center', width: kpiBoxWidth });
-        doc.fontSize(10)
-           .text('Completamento', 50 + (kpiBoxWidth + kpiSpacing) * 3, kpiY + 40, { align: 'center', width: kpiBoxWidth });
-
-        doc.moveDown(6);
-
-        // Trend giornaliero
-        doc.font('Helvetica-Bold')
-           .fontSize(14)
-           .text('TREND GIORNALIERO', 50);
-        
-        doc.moveDown();
-
-        const trendTableTop = doc.y;
-        doc.fontSize(10);
-        
-        // Headers
-        doc.text('Giorno', 50, trendTableTop);
-        doc.text('Data', 150, trendTableTop);
-        doc.text('N° Ordini', 300, trendTableTop);
-        doc.text('Valore', 450, trendTableTop);
-
-        doc.moveTo(50, trendTableTop + 15)
-           .lineTo(750, trendTableTop + 15)
-           .stroke();
-
-        doc.font('Helvetica');
-        let trendY = trendTableTop + 25;
-
-        data.trend.forEach(giorno => {
-          doc.text(giorno.giorno, 50, trendY);
-          doc.text(giorno.data, 150, trendY);
-          doc.text(giorno.ordini.toString(), 300, trendY);
-          doc.text(`€ ${giorno.valore.toFixed(2)}`, 450, trendY);
-          trendY += 20;
-        });
-
-        // Nuova pagina per top prodotti e clienti
-        doc.addPage();
-
-        // Top Prodotti
-        doc.font('Helvetica-Bold')
-           .fontSize(14)
-           .text('TOP 10 PRODOTTI', 50, 50);
-        
-        doc.moveDown();
-
-        const prodottiTableTop = doc.y;
-        doc.fontSize(10);
-
-        // Headers
-        doc.text('Prodotto', 50, prodottiTableTop);
-        doc.text('Quantità', 300, prodottiTableTop);
-        doc.text('Valore', 500, prodottiTableTop);
-
-        doc.moveTo(50, prodottiTableTop + 15)
-           .lineTo(700, prodottiTableTop + 15)
-           .stroke();
-
-        doc.font('Helvetica');
-        let prodY = prodottiTableTop + 25;
-
-        data.topProdotti.forEach((prodotto, index) => {
-          doc.text(`${index + 1}. ${prodotto.prodotto}`, 50, prodY);
-          doc.text(prodotto.quantita.toString(), 300, prodY);
-          doc.text(`€ ${prodotto.valore.toFixed(2)}`, 500, prodY);
-          prodY += 20;
-        });
-
-        // Top Clienti
-        doc.font('Helvetica-Bold')
-           .fontSize(14)
-           .text('TOP 5 CLIENTI', 50, prodY + 30);
-        
-        const clientiTableTop = prodY + 50;
-        doc.fontSize(10);
-
-        // Headers
-        doc.text('Cliente', 50, clientiTableTop);
-        doc.text('N° Ordini', 300, clientiTableTop);
-        doc.text('Valore Totale', 500, clientiTableTop);
-
-        doc.moveTo(50, clientiTableTop + 15)
-           .lineTo(700, clientiTableTop + 15)
-           .stroke();
-
-        doc.font('Helvetica');
-        let clientiY = clientiTableTop + 25;
-
-        data.analisiClienti.topClienti.forEach((cliente, index) => {
-          doc.text(`${index + 1}. ${cliente.cliente}`, 50, clientiY);
-          doc.text(cliente.ordini.toString(), 300, clientiY);
-          doc.text(`€ ${cliente.valore.toFixed(2)}`, 500, clientiY);
-          clientiY += 20;
-        });
-
-        // Analisi clienti
-        doc.moveDown(2);
-        doc.fontSize(11);
-        doc.text(`Totale Clienti Serviti: ${data.analisiClienti.totaleClienti}`, 50);
-        doc.text(`Clienti Ricorrenti: ${data.analisiClienti.clientiRicorrenti}`, 250);
-
-        // Footer
-        const pageCount = doc.bufferedPageRange().count;
-        for (let i = 0; i < pageCount; i++) {
-          doc.switchToPage(i);
-          doc.font('Helvetica')
-             .fontSize(8)
-             .text(
-               `Pagina ${i + 1} di ${pageCount} - Report generato il ${new Date().toLocaleString('it-IT')}`,
-               50,
-               doc.page.height - 30,
-               { align: 'center', width: 700 }
-             );
-        }
-
-        doc.end();
-
-        stream.on('finish', () => {
-          resolve({ 
-            filepath: filePath, 
-            filename: fileName 
-          });
-        });
-
-        stream.on('error', reject);
-
-      } catch (error) {
-        reject(error);
-      }
-    });
+    // Linea separatore
+    doc
+      .strokeColor('#2196F3')
+      .lineWidth(2)
+      .moveTo(50, doc.y)
+      .lineTo(545, doc.y)
+      .stroke()
+      .moveDown(1);
   }
 
-  /**
-   * Genera ricevuta ordine
-   */
-  async generateOrderReceipt(ordine) {
-    return new Promise((resolve, reject) => {
-      try {
-        const fileName = `ricevuta_${ordine._id}.pdf`;
-        const filePath = path.join(this.tempDir, fileName);
+  aggiungiRiepilogoGenerale(doc, totali) {
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .fillColor('#2196F3')
+      .text('📊 RIEPILOGO GENERALE', { underline: true })
+      .moveDown(0.5);
 
-        const doc = new PDFDocument({
-          size: 'A4',
-          margin: 50
-        });
+    const startY = doc.y;
+    const boxWidth = 160;
+    const boxHeight = 80;
+    const gap = 15;
 
-        const stream = fs.createWriteStream(filePath);
-        doc.pipe(stream);
+    // Box 1: Totale Mese
+    this.disegnaBoxStatistica(doc, 50, startY, boxWidth, boxHeight, 
+      'Incasso Totale', `€${totali.totaleMese.toFixed(2)}`, '#4CAF50');
 
-        // Header
-        doc.fontSize(20)
-           .font('Helvetica-Bold')
-           .text('PASTIFICIO NONNA CLAUDIA', { align: 'center' });
-        
-        doc.fontSize(14)
-           .font('Helvetica')
-           .text('Ricevuta Ordine', { align: 'center' });
-        
-        doc.moveDown(2);
+    // Box 2: Media Giornaliera
+    this.disegnaBoxStatistica(doc, 50 + boxWidth + gap, startY, boxWidth, boxHeight,
+      'Media Giornaliera', `€${totali.mediaGiornaliera.toFixed(2)}`, '#2196F3');
 
-        // Info ordine
-        doc.fontSize(12);
-        const infoY = doc.y;
-        
-        // Box info
-        doc.rect(50, infoY, 500, 100)
-           .stroke();
+    // Box 3: Giorni Apertura
+    this.disegnaBoxStatistica(doc, 50 + (boxWidth + gap) * 2, startY, boxWidth, boxHeight,
+      'Giorni Apertura', `${totali.giorniConIncasso}/${totali.giorniTotali}`, '#FF9800');
 
-        doc.text(`Ordine N°: ${ordine._id}`, 70, infoY + 15);
-        doc.text(`Data: ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}`, 70, infoY + 35);
-        doc.text(`Ora ritiro: ${ordine.oraRitiro}`, 70, infoY + 55);
-        doc.text(`Stato: ${ordine.stato}`, 70, infoY + 75);
+    doc.y = startY + boxHeight + 20;
+  }
 
-        doc.text(`Cliente: ${ordine.nomeCliente}`, 300, infoY + 15);
-        doc.text(`Telefono: ${ordine.telefono}`, 300, infoY + 35);
-        if (ordine.deveViaggiare) {
-          doc.font('Helvetica-Bold')
-             .text('DA VIAGGIO', 300, infoY + 55);
-          doc.font('Helvetica');
-        }
+  disegnaBoxStatistica(doc, x, y, width, height, label, value, color) {
+    // Bordo box
+    doc
+      .rect(x, y, width, height)
+      .fillAndStroke('#f8f9fa', '#ddd');
 
-        doc.moveDown(7);
+    // Label
+    doc
+      .fontSize(10)
+      .fillColor('#666')
+      .text(label, x + 10, y + 15, { width: width - 20, align: 'center' });
 
-        // Linea separatrice
-        doc.moveTo(50, doc.y)
-           .lineTo(550, doc.y)
-           .stroke();
+    // Valore
+    doc
+      .fontSize(20)
+      .font('Helvetica-Bold')
+      .fillColor(color)
+      .text(value, x + 10, y + 35, { width: width - 20, align: 'center' });
+  }
 
-        doc.moveDown();
+  aggiungiDettaglioIva(doc, totali) {
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .fillColor('#2196F3')
+      .text('💶 DETTAGLIO IVA', { underline: true })
+      .moveDown(0.5);
 
-        // Intestazione tabella prodotti
-        const tableTop = doc.y;
-        doc.font('Helvetica-Bold');
-        doc.text('Prodotto', 50, tableTop);
-        doc.text('Quantità', 300, tableTop);
-        doc.text('Prezzo', 400, tableTop);
-        doc.text('Totale', 480, tableTop);
+    const startY = doc.y;
+    const colWidths = [100, 120, 120, 120];
+    const rowHeight = 25;
 
-        doc.moveTo(50, tableTop + 20)
-           .lineTo(550, tableTop + 20)
-           .stroke();
+    // Header tabella
+    doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .fillColor('#fff');
 
-        // Prodotti
-        doc.font('Helvetica');
-        let yPosition = tableTop + 30;
-        let totaleOrdine = 0;
+    let currentX = 50;
+    ['Aliquota', 'Imponibile + IVA', 'IVA Scorporata', 'Imponibile'].forEach((header, i) => {
+      doc
+        .rect(currentX, startY, colWidths[i], rowHeight)
+        .fill('#2196F3');
+      
+      doc
+        .fillColor('#fff')
+        .text(header, currentX + 5, startY + 8, { width: colWidths[i] - 10 });
+      
+      currentX += colWidths[i];
+    });
 
-        if (ordine.prodotti && ordine.prodotti.length > 0) {
-          ordine.prodotti.forEach(prodotto => {
-            const totaleRiga = (prodotto.quantita || 0) * (prodotto.prezzo || 0);
-            totaleOrdine += totaleRiga;
+    doc.y = startY + rowHeight;
 
-            doc.text(prodotto.prodotto, 50, yPosition);
-            doc.text(`${prodotto.quantita} ${prodotto.unita || 'pz'}`, 300, yPosition);
-            doc.text(`€ ${(prodotto.prezzo || 0).toFixed(2)}`, 400, yPosition);
-            doc.text(`€ ${totaleRiga.toFixed(2)}`, 480, yPosition);
+    // Righe IVA
+    const righeIva = [
+      { label: '22% (Ord.)', totale: totali.iva22, divisore: 1.22 },
+      { label: '10% (Rid.)', totale: totali.iva10, divisore: 1.10 },
+      { label: '4% (Super)', totale: totali.iva4, divisore: 1.04 },
+      { label: 'Esente', totale: totali.esente, divisore: 1 }
+    ];
 
-            if (prodotto.note) {
-              yPosition += 15;
-              doc.fontSize(9)
-                 .text(`  Note: ${prodotto.note}`, 70, yPosition);
-              doc.fontSize(11);
-            }
+    doc.font('Helvetica');
 
-            yPosition += 25;
-          });
-        }
+    righeIva.forEach((riga, index) => {
+      if (riga.totale > 0) {
+        const y = doc.y;
+        const fill = index % 2 === 0 ? '#f8f9fa' : '#fff';
 
-        // Linea sopra totale
-        doc.moveTo(400, yPosition + 10)
-           .lineTo(550, yPosition + 10)
-           .stroke();
+        currentX = 50;
+
+        // Background alternato
+        doc.rect(50, y, 460, rowHeight).fill(fill);
+
+        doc.fillColor('#333');
+
+        // Aliquota
+        doc.text(riga.label, currentX + 5, y + 8, { width: colWidths[0] - 10 });
+        currentX += colWidths[0];
 
         // Totale
-        doc.font('Helvetica-Bold')
-           .fontSize(14)
-           .text('TOTALE:', 400, yPosition + 20);
-        doc.text(`€ ${(ordine.totale || totaleOrdine).toFixed(2)}`, 480, yPosition + 20);
+        doc.text(`€${riga.totale.toFixed(2)}`, currentX + 5, y + 8, { 
+          width: colWidths[1] - 10, 
+          align: 'right' 
+        });
+        currentX += colWidths[1];
 
-        // Note ordine
-        if (ordine.note) {
-          doc.moveDown(3);
-          doc.font('Helvetica')
-             .fontSize(10)
-             .text('Note ordine:', 50);
-          doc.fontSize(10)
-             .text(ordine.note, 50, doc.y + 10, { width: 500 });
-        }
+        // IVA scorporata
+        const ivaScorporata = riga.totale - (riga.totale / riga.divisore);
+        doc.text(`€${ivaScorporata.toFixed(2)}`, currentX + 5, y + 8, { 
+          width: colWidths[2] - 10, 
+          align: 'right' 
+        });
+        currentX += colWidths[2];
 
-        // Footer
-        doc.font('Helvetica')
-           .fontSize(10)
-           .text(
-             'Grazie per aver scelto il nostro pastificio!',
-             50,
-             doc.page.height - 100,
-             { align: 'center', width: 500 }
-           );
-
-        doc.fontSize(8)
-           .text(
-             `Ricevuta generata il ${new Date().toLocaleString('it-IT')}`,
-             50,
-             doc.page.height - 80,
-             { align: 'center', width: 500 }
-           );
-
-        doc.end();
-
-        stream.on('finish', () => {
-          resolve({ 
-            filepath: filePath, 
-            filename: fileName 
-          });
+        // Imponibile
+        const imponibile = riga.totale / riga.divisore;
+        doc.text(`€${imponibile.toFixed(2)}`, currentX + 5, y + 8, { 
+          width: colWidths[3] - 10, 
+          align: 'right' 
         });
 
-        stream.on('error', reject);
-
-      } catch (error) {
-        reject(error);
+        doc.y = y + rowHeight;
       }
     });
+
+    doc.moveDown(1);
   }
 
-  /**
-   * Genera etichette prodotti
-   */
-  async generateProductLabels(prodotti, options = {}) {
-    return new Promise((resolve, reject) => {
-      try {
-        const fileName = `etichette_${Date.now()}.pdf`;
-        const filePath = path.join(this.tempDir, fileName);
+  aggiungiTabellaGiornaliera(doc, corrispettivi, anno, mese) {
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .fillColor('#2196F3')
+      .text('📅 DETTAGLIO GIORNALIERO', { underline: true })
+      .moveDown(0.5);
 
-        // Formato etichetta (default A4 con 21 etichette)
-        const labelWidth = options.width || 70;
-        const labelHeight = options.height || 42.3;
-        const marginX = options.marginX || 5;
-        const marginY = options.marginY || 10;
-        const columns = options.columns || 3;
-        const rows = options.rows || 7;
+    const startY = doc.y;
+    const colWidths = [80, 100, 280];
+    const rowHeight = 20;
 
-        const doc = new PDFDocument({
-          size: 'A4',
-          margin: 0
-        });
+    // Header
+    doc
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .fillColor('#fff');
 
-        const stream = fs.createWriteStream(filePath);
-        doc.pipe(stream);
-
-        let currentColumn = 0;
-        let currentRow = 0;
-        let currentPage = 0;
-
-        prodotti.forEach((prodotto, index) => {
-          // Calcola posizione etichetta
-          const x = marginX + (currentColumn * (labelWidth + marginX));
-          const y = marginY + (currentRow * (labelHeight + marginY));
-
-          // Box etichetta
-          doc.rect(x, y, labelWidth, labelHeight)
-             .stroke();
-
-          // Contenuto etichetta
-          doc.fontSize(10)
-             .font('Helvetica-Bold')
-             .text(prodotto.nome, x + 5, y + 5, {
-               width: labelWidth - 10,
-               height: 15,
-               ellipsis: true
-             });
-
-          doc.fontSize(8)
-             .font('Helvetica')
-             .text(`€ ${prodotto.prezzo.toFixed(2)}`, x + 5, y + 20);
-
-          if (prodotto.codice) {
-            doc.fontSize(6)
-               .text(`Cod: ${prodotto.codice}`, x + 5, y + 32);
-          }
-
-          // Avanza alla prossima posizione
-          currentColumn++;
-          if (currentColumn >= columns) {
-            currentColumn = 0;
-            currentRow++;
-            if (currentRow >= rows) {
-              currentRow = 0;
-              if (index < prodotti.length - 1) {
-                doc.addPage();
-              }
-            }
-          }
-        });
-
-        doc.end();
-
-        stream.on('finish', () => {
-          resolve({ 
-            filepath: filePath, 
-            filename: fileName 
-          });
-        });
-
-        stream.on('error', reject);
-
-      } catch (error) {
-        reject(error);
-      }
+    let currentX = 50;
+    ['Data', 'Incasso', 'Note'].forEach((header, i) => {
+      doc
+        .rect(currentX, startY, colWidths[i], rowHeight)
+        .fill('#2196F3');
+      
+      doc
+        .fillColor('#fff')
+        .text(header, currentX + 5, startY + 6, { width: colWidths[i] - 10 });
+      
+      currentX += colWidths[i];
     });
-  }
 
-  /**
-   * Pulizia file temporanei
-   */
-  cleanupTempFiles(hoursOld = 24) {
-    const now = Date.now();
-    const maxAge = hoursOld * 60 * 60 * 1000;
+    doc.y = startY + rowHeight;
 
-    fs.readdir(this.tempDir, (err, files) => {
-      if (err) return;
+    // Righe dati
+    doc.font('Helvetica').fontSize(8);
 
-      files.forEach(file => {
-        const filePath = path.join(this.tempDir, file);
-        fs.stat(filePath, (err, stats) => {
-          if (err) return;
+    corrispettivi.forEach((c, index) => {
+      const y = doc.y;
 
-          if (now - stats.mtime.getTime() > maxAge) {
-            fs.unlink(filePath, err => {
-              if (err) console.error(`Errore eliminazione file: ${file}`, err);
-            });
-          }
-        });
+      // Controllo pagina (se supera 700, nuova pagina)
+      if (y > 700) {
+        doc.addPage();
+        doc.y = 50;
+      }
+
+      const fill = index % 2 === 0 ? '#f8f9fa' : '#fff';
+
+      currentX = 50;
+
+      // Background
+      doc.rect(50, doc.y, 460, rowHeight).fill(fill);
+
+      doc.fillColor('#333');
+
+      // Data
+      doc.text(`${c.giorno}/${mese}/${anno}`, currentX + 5, doc.y + 6, { 
+        width: colWidths[0] - 10 
       });
+      currentX += colWidths[0];
+
+      // Incasso
+      doc.text(`€${(c.totale || 0).toFixed(2)}`, currentX + 5, doc.y + 6, { 
+        width: colWidths[1] - 10,
+        align: 'right'
+      });
+      currentX += colWidths[1];
+
+      // Note
+      doc.text(c.note || '-', currentX + 5, doc.y + 6, { 
+        width: colWidths[2] - 10 
+      });
+
+      doc.y += rowHeight;
     });
+
+    doc.moveDown(1);
+  }
+
+  aggiungiFooter(doc) {
+    const now = new Date();
+    const data = now.toLocaleDateString('it-IT');
+    const ora = now.toLocaleTimeString('it-IT');
+
+    doc
+      .fontSize(8)
+      .fillColor('#999')
+      .text(`Documento generato automaticamente il ${data} alle ${ora}`, 50, 750, {
+        align: 'center'
+      });
+
+    doc.text('Pastificio Nonna Claudia - Via Carmine 20/B, Assemini (CA) - Tel: 389 887 9833', {
+      align: 'center'
+    });
+  }
+
+  /**
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   * 🛠️ UTILITY
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   */
+
+  calcolaTotali(corrispettivi) {
+    const totali = {
+      totaleMese: 0,
+      iva22: 0,
+      iva10: 0,
+      iva4: 0,
+      esente: 0,
+      giorniConIncasso: 0,
+      giorniTotali: corrispettivi.length,
+      mediaGiornaliera: 0
+    };
+
+    corrispettivi.forEach(c => {
+      totali.totaleMese += c.totale || 0;
+      
+      if (c.dettaglioIva) {
+        totali.iva22 += c.dettaglioIva.iva22 || 0;
+        totali.iva10 += c.dettaglioIva.iva10 || 0;
+        totali.iva4 += c.dettaglioIva.iva4 || 0;
+        totali.esente += c.dettaglioIva.esente || 0;
+      }
+
+      if (c.totale > 0) {
+        totali.giorniConIncasso++;
+      }
+    });
+
+    totali.mediaGiornaliera = totali.giorniConIncasso > 0 
+      ? totali.totaleMese / totali.giorniConIncasso 
+      : 0;
+
+    return totali;
+  }
+
+  getNomeMese(numeroMese) {
+    const mesi = [
+      'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+      'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
+    ];
+    return mesi[numeroMese];
   }
 }
 
-export default new PDFService();
+export default new PdfCorrispettiviService();

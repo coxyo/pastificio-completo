@@ -1,6 +1,6 @@
-// components/HACCPAutoPopup.js
-// ✅ POPUP AUTOMATICO PER CONFERMA TEMPERATURE HACCP
-// Appare automaticamente ogni Martedì quando si apre il gestionale
+// src/components/HACCPAutoPopup.js
+// ✅ POPUP AUTOMATICO TEMPERATURE HACCP - MARTEDÌ
+// Genera automaticamente temperature realistiche per 5 dispositivi
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -14,21 +14,22 @@ import {
   Grid,
   Paper,
   Chip,
-  CircularProgress,
   Alert,
-  Divider
+  IconButton,
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import {
   AcUnit as FridgeIcon,
   Kitchen as FreezerIcon,
   Speed as AbbattitoreIcon,
   CheckCircle as CheckIcon,
-  Cancel as CancelIcon,
+  Close as CloseIcon,
+  Refresh as RefreshIcon,
   Thermostat as TempIcon
 } from '@mui/icons-material';
-import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
 
 // ============================================
 // CONFIGURAZIONE DISPOSITIVI
@@ -82,115 +83,115 @@ const DISPOSITIVI = [
 ];
 
 // ============================================
-// FUNZIONE GENERA TEMPERATURA REALISTICA
+// GENERA TEMPERATURA REALISTICA
 // ============================================
 const generaTemperaturaRealistica = (minTemp, maxTemp) => {
-  // Genera temperatura nel range con distribuzione normale verso il centro
   const centro = (minTemp + maxTemp) / 2;
   const range = maxTemp - minTemp;
   
-  // Usa Box-Muller per distribuzione normale
+  // Distribuzione normale (Box-Muller)
   const u1 = Math.random();
   const u2 = Math.random();
   const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   
-  // Scala e sposta per il nostro range (deviazione standard = range/4)
   let temp = centro + z * (range / 4);
-  
-  // Limita ai valori min/max
   temp = Math.max(minTemp, Math.min(maxTemp, temp));
   
-  // Arrotonda a 1 decimale
   return Math.round(temp * 10) / 10;
 };
 
 // ============================================
 // COMPONENTE PRINCIPALE
 // ============================================
-export default function HACCPAutoPopup({ onClose }) {
+export default function HACCPAutoPopup({ onClose, forceShow = false }) {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [temperature, setTemperature] = useState([]);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
   // ============================================
-  // VERIFICA SE È MARTEDÌ E SE SERVE REGISTRAZIONE
+  // INIZIALIZZAZIONE
   // ============================================
   useEffect(() => {
-    checkIfShouldShow();
-  }, []);
+    if (forceShow) {
+      // TEST MODE: Mostra sempre
+      inizializzaTemperature();
+      setOpen(true);
+      setLoading(false);
+    } else {
+      // MODALITÀ NORMALE: Solo martedì
+      checkIfShouldShow();
+    }
+  }, [forceShow]);
 
   const checkIfShouldShow = async () => {
-    const oggi = new Date();
-    const giornoSettimana = oggi.getDay(); // 0 = Domenica, 2 = Martedì
+    setLoading(true);
     
-    // Verifica se è Martedì
+    const oggi = new Date();
+    const giornoSettimana = oggi.getDay(); // 0=Dom, 2=Mar
+    
+    // Verifica se è martedì
     if (giornoSettimana !== 2) {
-      console.log('Non è Martedì, popup HACCP non mostrato');
+      console.log('📅 Non è Martedì, popup HACCP non mostrato');
+      setLoading(false);
       return;
     }
 
     // Verifica se già registrato oggi
-    try {
-      const token = localStorage.getItem('token');
-      const dataOggi = oggi.toISOString().split('T')[0];
-      
-      const response = await axios.get(
-        `${API_URL}/haccp/check-registrazione?data=${dataOggi}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-
-      if (response.data.giaRegistrato) {
-        console.log('Temperature già registrate oggi');
-        return;
-      }
-
-      // Mostra popup e genera temperature
-      generaTemperature();
-      setOpen(true);
-      
-    } catch (error) {
-      // Se l'endpoint non esiste, mostra comunque il popup
-      console.log('Verifica registrazione fallita, mostro popup comunque');
-      generaTemperature();
-      setOpen(true);
+    const dataOggi = oggi.toISOString().split('T')[0];
+    const ultimaRegistrazione = localStorage.getItem('haccp_last_registration');
+    
+    if (ultimaRegistrazione === dataOggi) {
+      console.log('✅ Temperature già registrate oggi');
+      setLoading(false);
+      return;
     }
+
+    // Mostra popup
+    inizializzaTemperature();
+    setOpen(true);
+    setLoading(false);
   };
 
-  // ============================================
-  // GENERA TEMPERATURE PER TUTTI I DISPOSITIVI
-  // ============================================
-  const generaTemperature = () => {
-    const temps = DISPOSITIVI.map(disp => ({
-      ...disp,
+  const inizializzaTemperature = () => {
+    const tempGenerate = DISPOSITIVI.map(disp => ({
+      dispositivo: disp.id,
+      nome: disp.nome,
+      tipo: disp.tipo,
       temperatura: generaTemperaturaRealistica(disp.minTemp, disp.maxTemp),
-      conforme: true // Sarà sempre conforme perché generato nel range
+      minTemp: disp.minTemp,
+      maxTemp: disp.maxTemp,
+      icon: disp.icon,
+      color: disp.color,
+      conforme: true // Sempre conforme se nel range
     }));
-    setTemperature(temps);
+    
+    setTemperature(tempGenerate);
   };
 
   // ============================================
   // RIGENERA SINGOLA TEMPERATURA
   // ============================================
-  const rigeneraTemperatura = (id) => {
-    setTemperature(prev => prev.map(t => {
-      if (t.id === id) {
-        const disp = DISPOSITIVI.find(d => d.id === id);
-        return {
-          ...t,
-          temperatura: generaTemperaturaRealistica(disp.minTemp, disp.maxTemp)
-        };
-      }
-      return t;
-    }));
+  const rigeneraSingola = (index) => {
+    const newTemps = [...temperature];
+    const disp = DISPOSITIVI[index];
+    newTemps[index].temperatura = generaTemperaturaRealistica(disp.minTemp, disp.maxTemp);
+    setTemperature(newTemps);
   };
 
   // ============================================
-  // SALVA TEMPERATURE NEL DATABASE
+  // RIGENERA TUTTE
   // ============================================
-  const salvaTemperature = async () => {
+  const rigeneraTutte = () => {
+    inizializzaTemperature();
+  };
+
+  // ============================================
+  // CONFERMA E SALVA
+  // ============================================
+  const handleConferma = async () => {
     setSaving(true);
     setError(null);
 
@@ -198,47 +199,48 @@ export default function HACCPAutoPopup({ onClose }) {
       const token = localStorage.getItem('token');
       
       // Salva ogni temperatura
-      for (const temp of temperature) {
-        await axios.post(
-          `${API_URL}/haccp/temperatura`,
-          {
-            dispositivo: temp.nome,
-            temperatura: temp.temperatura,
-            tipo: `temperatura_${temp.tipo}`,
-            automatico: true,
-            note: 'Registrazione automatica settimanale'
+      const promises = temperature.map(temp => 
+        fetch(`${API_URL}/api/haccp/temperature`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
-          { headers: { 'Authorization': `Bearer ${token}` } }
-        );
-      }
-
-      // Segna come registrato oggi
-      await axios.post(
-        `${API_URL}/haccp/segna-registrazione`,
-        { data: new Date().toISOString().split('T')[0] },
-        { headers: { 'Authorization': `Bearer ${token}` } }
+          body: JSON.stringify({
+            dispositivo: temp.dispositivo,
+            tipo: temp.tipo,
+            temperatura: temp.temperatura,
+            conforme: temp.conforme,
+            note: 'Registrazione automatica martedì'
+          })
+        })
       );
+
+      await Promise.all(promises);
+
+      // Salva data in localStorage
+      const oggi = new Date().toISOString().split('T')[0];
+      localStorage.setItem('haccp_last_registration', oggi);
 
       setSaved(true);
       
       // Chiudi dopo 2 secondi
       setTimeout(() => {
-        setOpen(false);
-        if (onClose) onClose();
+        handleClose();
       }, 2000);
 
-    } catch (error) {
-      console.error('Errore salvataggio temperature:', error);
-      setError('Errore durante il salvataggio. Riprova o registra manualmente.');
+    } catch (err) {
+      console.error('❌ Errore salvataggio temperature:', err);
+      setError('Errore nel salvataggio. Riprova o registra manualmente dalla sezione HACCP.');
     } finally {
       setSaving(false);
     }
   };
 
   // ============================================
-  // ANNULLA E CHIUDI
+  // ANNULLA
   // ============================================
-  const handleAnnulla = () => {
+  const handleClose = () => {
     setOpen(false);
     if (onClose) onClose();
   };
@@ -246,7 +248,9 @@ export default function HACCPAutoPopup({ onClose }) {
   // ============================================
   // RENDER
   // ============================================
-  if (!open) return null;
+  if (loading) {
+    return null;
+  }
 
   return (
     <Dialog 
@@ -263,10 +267,21 @@ export default function HACCPAutoPopup({ onClose }) {
         color: 'white',
         display: 'flex',
         alignItems: 'center',
-        gap: 1
+        justifyContent: 'space-between'
       }}>
-        <TempIcon />
-        🌡️ Registrazione Temperature HACCP - Martedì
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TempIcon />
+          <Typography variant="h6">
+            🌡️ Registrazione Temperature HACCP - Martedì
+          </Typography>
+        </Box>
+        <IconButton 
+          onClick={handleClose} 
+          sx={{ color: 'white' }}
+          disabled={saving}
+        >
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>
@@ -283,6 +298,10 @@ export default function HACCPAutoPopup({ onClose }) {
               La registrazione settimanale HACCP è stata completata.
             </Typography>
           </Alert>
+        ) : error ? (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
         ) : (
           <>
             <Alert severity="info" sx={{ mb: 3 }}>
@@ -290,71 +309,60 @@ export default function HACCPAutoPopup({ onClose }) {
                 <strong>È Martedì!</strong> Conferma le temperature generate automaticamente per la registrazione HACCP settimanale.
               </Typography>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                Puoi rigenerare singole temperature cliccando su "🔄" se necessario.
+                Puoi rigenerare singole temperature cliccando su "🔄" oppure tutte con il pulsante in basso.
               </Typography>
             </Alert>
 
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-
             <Grid container spacing={2}>
-              {temperature.map((temp) => {
-                const IconComponent = temp.icon;
+              {temperature.map((temp, index) => {
+                const Icon = temp.icon;
                 return (
-                  <Grid item xs={12} sm={6} md={4} key={temp.id}>
+                  <Grid item xs={12} sm={6} key={temp.dispositivo}>
                     <Paper 
                       elevation={3}
                       sx={{ 
-                        p: 2, 
-                        textAlign: 'center',
-                        border: `2px solid ${temp.color}`,
-                        borderRadius: 2,
+                        p: 2,
+                        borderLeft: `4px solid ${temp.color}`,
                         position: 'relative'
                       }}
                     >
-                      <IconComponent sx={{ fontSize: 40, color: temp.color, mb: 1 }} />
-                      
-                      <Typography variant="subtitle1" fontWeight="bold">
-                        {temp.nome}
-                      </Typography>
-                      
-                      <Typography 
-                        variant="h3" 
-                        sx={{ 
-                          color: temp.color,
-                          fontWeight: 'bold',
-                          my: 1
-                        }}
-                      >
-                        {temp.temperatura}°C
-                      </Typography>
-                      
-                      <Chip 
-                        label={`Range: ${temp.minTemp}°C / ${temp.maxTemp}°C`}
-                        size="small"
-                        sx={{ mb: 1 }}
-                      />
-                      
-                      <Box>
-                        <Chip 
-                          icon={<CheckIcon />}
-                          label="Conforme"
-                          color="success"
-                          size="small"
-                        />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Icon sx={{ color: temp.color }} />
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {temp.nome}
+                        </Typography>
                       </Box>
 
-                      <Button
+                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                        <Typography variant="h3" sx={{ color: temp.color }}>
+                          {temp.temperatura}
+                        </Typography>
+                        <Typography variant="h5" color="text.secondary">
+                          °C
+                        </Typography>
+                      </Box>
+
+                      <Typography variant="caption" color="text.secondary">
+                        Range: {temp.minTemp}°C / {temp.maxTemp}°C
+                      </Typography>
+
+                      <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => rigeneraSingola(index)}
+                          title="Rigenera temperatura"
+                        >
+                          <RefreshIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+
+                      <Chip 
+                        icon={<CheckIcon />}
+                        label="CONFORME"
+                        color="success"
                         size="small"
-                        onClick={() => rigeneraTemperatura(temp.id)}
                         sx={{ mt: 1 }}
-                        disabled={saving}
-                      >
-                        🔄 Rigenera
-                      </Button>
+                      />
                     </Paper>
                   </Grid>
                 );
@@ -363,14 +371,18 @@ export default function HACCPAutoPopup({ onClose }) {
 
             <Divider sx={{ my: 3 }} />
 
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                Data registrazione: <strong>{new Date().toLocaleDateString('it-IT', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}</strong>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={rigeneraTutte}
+                disabled={saving}
+              >
+                Rigenera Tutte
+              </Button>
+
+              <Typography variant="caption" color="text.secondary">
+                {temperature.length} dispositivi monitorati
               </Typography>
             </Box>
           </>
@@ -378,23 +390,19 @@ export default function HACCPAutoPopup({ onClose }) {
       </DialogContent>
 
       {!saved && (
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button
-            variant="outlined"
-            color="inherit"
-            onClick={handleAnnulla}
-            startIcon={<CancelIcon />}
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button 
+            onClick={handleClose}
             disabled={saving}
           >
-            Non ora
+            Annulla
           </Button>
           <Button
             variant="contained"
             color="primary"
-            onClick={salvaTemperature}
-            startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <CheckIcon />}
+            onClick={handleConferma}
             disabled={saving}
-            sx={{ minWidth: 200 }}
+            startIcon={saving ? <CircularProgress size={20} /> : <CheckIcon />}
           >
             {saving ? 'Salvataggio...' : 'Conferma e Registra'}
           </Button>
@@ -402,36 +410,4 @@ export default function HACCPAutoPopup({ onClose }) {
       )}
     </Dialog>
   );
-}
-
-// ============================================
-// HOOK PER USARE IL POPUP AUTOMATICAMENTE
-// ============================================
-export function useHACCPAutoPopup() {
-  const [showPopup, setShowPopup] = useState(false);
-
-  useEffect(() => {
-    // Verifica se è Martedì
-    const oggi = new Date();
-    if (oggi.getDay() === 2) {
-      // Controlla se già mostrato oggi
-      const ultimaMostra = localStorage.getItem('haccp_popup_last_shown');
-      const dataOggi = oggi.toISOString().split('T')[0];
-      
-      if (ultimaMostra !== dataOggi) {
-        setShowPopup(true);
-        localStorage.setItem('haccp_popup_last_shown', dataOggi);
-      }
-    }
-  }, []);
-
-  const closePopup = () => setShowPopup(false);
-
-  // ✅ NUOVO: Funzione per forzare visualizzazione (per testing)
-  const forceShowPopup = () => {
-    setShowPopup(true);
-    localStorage.setItem('haccp_popup_last_shown', new Date().toISOString().split('T')[0]);
-  };
-
-  return { showPopup, closePopup, forceShowPopup };
 }
