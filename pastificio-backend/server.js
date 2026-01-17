@@ -325,7 +325,6 @@ app.use('/api/email-corrispettivi', emailCorrispettiviRoutes); // ✅ NUOVO - Ro
 app.use('/api/email', emailRoutes);
 app.use('/api/haccp', haccpRoutes);
 app.use('/api/fix', fixPrezziRoutes);
-app.use('/api/corrispettivi', corrispettiviRoutes);app.use('/api/email', emailRoutes);app.use('/api/haccp', haccpRoutes);
 
 // Route Danea
 
@@ -1114,7 +1113,8 @@ process.on('unhandledRejection', (err) => {
 
 startServer();
 
-export default app;-e 
+export default app;
+
 // ✅ Gestione shutdown graceful
 process.on('SIGTERM', () => {
   logger.info('⏹️ SIGTERM ricevuto, chiusura graceful...');
