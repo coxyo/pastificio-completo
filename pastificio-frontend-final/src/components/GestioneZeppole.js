@@ -1,788 +1,650 @@
-// src/components/GestioneZeppole.js
-// ✅ VERSIONE 15/01/2026 - Aggiunto selettore data per navigare tra i giorni
-
-import React, { useState, useEffect, useCallback } from 'react';
-import Pusher from 'pusher-js';
+// components/GestioneZeppole.js - ✅ FIX 17/01/2026: Usa totaleComplessivo per calcolo corretto
+import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Paper,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  IconButton,
   Typography,
+  Box,
   Button,
-  ButtonGroup,
-  TextField,
-  LinearProgress,
+  CircularProgress,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Grid,
-  Alert,
-  Snackbar,
-  Card,
-  CardContent,
-  Divider,
+  Paper,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
-  Tooltip
+  TextField,
+  Alert
 } from '@mui/material';
 import {
+  Close as CloseIcon,
   Refresh as RefreshIcon,
-  RestartAlt as ResetIcon,
   Add as AddIcon,
-  ShoppingCart as CartIcon,
-  LocalPizza as ZeppoleIcon,
-  AccessTime as TimeIcon,
-  TrendingUp as TrendingIcon,
-  Warning as WarningIcon,
-  Settings as SettingsIcon,
-  ChevronLeft as PrevIcon,
-  ChevronRight as NextIcon,
-  Today as TodayIcon
+  LocalFireDepartment as FireIcon
 } from '@mui/icons-material';
+import { format, parseISO } from 'date-fns';
+import { it } from 'date-fns/locale';
 
-// ✅ FIX: API_URL include già /api, quindi nelle chiamate NON aggiungiamo /api
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
-const PRODOTTO_NOME = 'Zeppole';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
 
-// Helper per formattare la data
-const formatDateForAPI = (date) => {
-  return date.toISOString().split('T')[0];
-};
-
-const formatDateDisplay = (date) => {
-  const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-  return date.toLocaleDateString('it-IT', options);
-};
-
-const isToday = (date) => {
-  const today = new Date();
-  return date.toDateString() === today.toDateString();
-};
-
-const GestioneZeppole = () => {
-  // ✅ NUOVO: State per la data selezionata
-  const [dataSelezionata, setDataSelezionata] = useState(new Date());
+// ✅ FIX: Converti unità in Kg (Zeppole: 24 pz/Kg, €21/Kg)
+const convertiInKg = (quantita, unita) => {
+  const qty = parseFloat(quantita) || 0;
+  const unit = (unita || 'Kg').toLowerCase();
   
-  const [limite, setLimite] = useState(null);
-  const [ordini, setOrdini] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [nuovoLimite, setNuovoLimite] = useState(20);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
-  const [dialogReset, setDialogReset] = useState(false);
-  const [dialogVendita, setDialogVendita] = useState(false);
-  const [dialogEditLimite, setDialogEditLimite] = useState(false);
+  if (unit === 'kg') return qty;
+  if (unit === 'g') return qty / 1000;
+  if (unit === 'pz' || unit === 'pezzi') return qty / 24; // ✅ 24 pezzi = 1 Kg
+  if (unit === '€' || unit === 'euro') return qty / 21;   // ✅ €21 = 1 Kg
+  
+  return qty;
+};
+
+// ✅ Calcola totale ordinato dalla tabella (solo per display)
+const calcolaTotaleOrdinato = (ordini) => {
+  return ordini.reduce((totale, ordine) => {
+    const quantitaKg = convertiInKg(ordine.quantita, ordine.unita);
+    return totale + quantitaKg;
+  }, 0);
+};
+
+const GestioneZeppole = ({ open, onClose }) => {
+  // 🎯 STATE
+  const [loading, setLoading] = useState(false);
+  const [limiteData, setLimiteData] = useState(null);
+  const [ordiniOggi, setOrdiniOggi] = useState([]);
+  const [dataSelezionata, setDataSelezionata] = useState(new Date().toISOString().split('T')[0]);
+  const [venditeRapide, setVenditeRapide] = useState({
+    '100': false,
+    '200': false,
+    '500': false,
+    '700': false,
+    '1000': false
+  });
   const [quantitaPersonalizzata, setQuantitaPersonalizzata] = useState('');
-  const [ultimoAggiornamento, setUltimoAggiornamento] = useState(new Date());
+  const [error, setError] = useState(null);
 
-  const getToken = () => localStorage.getItem('token');
-  
-  // Helper per fetch con auth (token opzionale)
-  const fetchWithAuth = async (url, options = {}) => {
-    const token = getToken();
-    
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-      ...options.headers
-    };
-    
-    const response = await fetch(url, {
-      ...options,
-      headers
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    return response.json();
-  };
-
-  const showSnackbar = (message, severity = 'info') => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const closeSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
-  };
-
-  // ✅ NUOVO: Funzioni per navigare tra le date
-  const goToPreviousDay = () => {
-    const newDate = new Date(dataSelezionata);
-    newDate.setDate(newDate.getDate() - 1);
-    setDataSelezionata(newDate);
-  };
-
-  const goToNextDay = () => {
-    const newDate = new Date(dataSelezionata);
-    newDate.setDate(newDate.getDate() + 1);
-    setDataSelezionata(newDate);
-  };
-
-  const goToToday = () => {
-    setDataSelezionata(new Date());
-  };
-
-  // ✅ FIX: Pusher useEffect SENZA dipendenze che causano loop
-  useEffect(() => {
-    console.log('🔌 [Zeppole] Inizializzazione Pusher...');
-    
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
-    if (!pusherKey) {
-      console.warn('⚠️ [Zeppole] PUSHER_KEY non configurata');
-      return;
-    }
-
-    const pusher = new Pusher(pusherKey, {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu',
-      encrypted: true
-    });
-
-    const channel = pusher.subscribe('limiti-channel');
-    const ordiniChannel = pusher.subscribe('ordini-channel');
-
-    channel.bind('limite-aggiornato', (data) => {
-      console.log('📡 [Zeppole] Pusher: limite-aggiornato', data);
-      if (data.prodotto === PRODOTTO_NOME) {
-        caricaDati();
-      }
-    });
-
-    ordiniChannel.bind('nuovo-ordine', (data) => {
-      console.log('📡 [Zeppole] Pusher: nuovo-ordine', data);
-      if (data.prodotti?.some(p => p.nome === PRODOTTO_NOME)) {
-        caricaDati();
-      }
-    });
-
-    ordiniChannel.bind('ordine-aggiornato', () => {
-      console.log('📡 [Zeppole] Pusher: ordine-aggiornato');
-      caricaDati();
-    });
-
-    console.log('✅ [Zeppole] Pusher connesso');
-
-    return () => {
-      console.log('🔌 [Zeppole] Disconnessione Pusher...');
-      channel.unbind_all();
-      channel.unsubscribe();
-      ordiniChannel.unbind_all();
-      ordiniChannel.unsubscribe();
-      pusher.disconnect();
-    };
-  }, []);
-
-  // ✅ MODIFICATO: Carica dati quando cambia la data selezionata
-  useEffect(() => {
-    console.log('📥 [Zeppole] Caricamento dati per data:', formatDateForAPI(dataSelezionata));
-    console.log('🔗 [Zeppole] API URL:', API_URL);
-    caricaDati();
-  }, [dataSelezionata]);
-
-  // Auto-refresh solo per oggi
-  useEffect(() => {
-    if (!isToday(dataSelezionata)) return;
-    
-    const interval = setInterval(() => {
-      console.log('🔄 [Zeppole] Refresh automatico...');
-      caricaDati();
-    }, 60000);
-    
-    return () => clearInterval(interval);
-  }, [dataSelezionata]);
-
-  const caricaDati = useCallback(async () => {
+  // 📊 CARICA DATI
+  const caricaDati = async () => {
     try {
       setLoading(true);
-      console.log('📡 [Zeppole] Chiamata API caricaDati per data:', formatDateForAPI(dataSelezionata));
-      await Promise.all([caricaLimite(), caricaOrdini()]);
-      setUltimoAggiornamento(new Date());
-      setLoading(false);
-      console.log('✅ [Zeppole] Dati caricati');
-    } catch (error) {
-      console.error('❌ [Zeppole] Errore caricamento dati:', error);
-      showSnackbar('Errore nel caricamento dati', 'error');
-      setLoading(false);
-    }
-  }, [dataSelezionata]);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
 
-  const caricaLimite = async () => {
-    try {
-      // ✅ MODIFICATO: Aggiungi data come query parameter
-      const dataParam = formatDateForAPI(dataSelezionata);
-      const url = `${API_URL}/limiti/prodotto/${PRODOTTO_NOME}?data=${dataParam}`;
-      console.log('📡 [Zeppole] GET', url);
+      // ✅ Carica limite con filtro data
+      const limiteUrl = `${API_URL}/api/limiti/prodotto/Zeppole?data=${dataSelezionata}`;
+      console.log('[ZEPPOLE] Carico limite da:', limiteUrl);
       
-      const data = await fetchWithAuth(url);
-      
-      const limiteData = data.data;
-      setLimite(limiteData);
-      setNuovoLimite(limiteData.limiteQuantita);
-      
-      console.log('✅ [Zeppole] Limite caricato:', limiteData);
-    } catch (error) {
-      console.error('❌ [Zeppole] Errore caricamento limite:', error);
-      // Se non esiste limite per quella data, crea uno di default
-      setLimite({
-        limiteQuantita: 50,
-        quantitaOrdinata: 0,
-        unitaMisura: 'Kg'
-      });
-    }
-  };
+      const limiteRes = await fetch(limiteUrl, { headers });
+      const limiteJson = await limiteRes.json();
 
-  const caricaOrdini = async () => {
-    try {
-      // ✅ MODIFICATO: Aggiungi data come query parameter
-      const dataParam = formatDateForAPI(dataSelezionata);
-      const url = `${API_URL}/limiti/ordini-prodotto/${PRODOTTO_NOME}?data=${dataParam}`;
-      console.log('📡 [Zeppole] GET', url);
-      
-      const data = await fetchWithAuth(url);
-      
-      setOrdini(data.data || []);
-      console.log(`✅ [Zeppole] Ordini caricati: ${data.count}`);
-    } catch (error) {
-      console.error('❌ [Zeppole] Errore caricamento ordini:', error);
-      setOrdini([]);
-    }
-  };
-
-  const salvaLimite = async () => {
-    try {
-      if (!limite?._id) {
-        showSnackbar('Limite non trovato', 'error');
-        return;
+      if (!limiteJson.success) {
+        throw new Error(limiteJson.message || 'Errore caricamento limite');
       }
-      
-      const url = `${API_URL}/limiti/${limite._id}`;
-      console.log('📡 [Zeppole] PUT', url);
-      
-      await fetchWithAuth(url, {
-        method: 'PUT',
-        body: JSON.stringify({ limiteQuantita: nuovoLimite })
-      });
 
-      showSnackbar(`Limite aggiornato a ${nuovoLimite} Kg`, 'success');
-      setDialogEditLimite(false);
-      await caricaDati();
-    } catch (error) {
-      console.error('❌ [Zeppole] Errore salvataggio limite:', error);
-      showSnackbar('Errore nel salvataggio', 'error');
+      console.log('[ZEPPOLE] Limite ricevuto:', limiteJson.data);
+      setLimiteData(limiteJson.data);
+
+      // ✅ Carica ordini con filtro data
+      const ordiniUrl = `${API_URL}/api/limiti/ordini-prodotto/Zeppole?data=${dataSelezionata}`;
+      console.log('[ZEPPOLE] Carico ordini da:', ordiniUrl);
+      
+      const ordiniRes = await fetch(ordiniUrl, { headers });
+      const ordiniJson = await ordiniRes.json();
+
+      if (ordiniJson.success) {
+        console.log('[ZEPPOLE] Ordini ricevuti:', ordiniJson.count, 'ordini');
+        setOrdiniOggi(ordiniJson.data || []);
+      }
+
+    } catch (err) {
+      console.error('[ZEPPOLE] Errore caricamento:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const resetDisponibilita = async () => {
-    try {
-      const dataParam = formatDateForAPI(dataSelezionata);
-      const url = `${API_URL}/limiti/reset-prodotto`;
-      console.log('📡 [Zeppole] POST', url);
-      
-      await fetchWithAuth(url, {
-        method: 'POST',
-        body: JSON.stringify({ prodotto: PRODOTTO_NOME, data: dataParam })
-      });
-
-      showSnackbar('Disponibilità resettata!', 'success');
-      setDialogReset(false);
-      await caricaDati();
-    } catch (error) {
-      console.error('❌ [Zeppole] Errore reset:', error);
-      showSnackbar('Errore nel reset', 'error');
+  // ✅ Effect per caricare dati quando cambia la data o si apre il dialog
+  useEffect(() => {
+    if (open) {
+      caricaDati();
     }
-  };
+  }, [open, dataSelezionata]);
 
-  const venditaRapida = async (quantitaKg) => {
+  // 📝 REGISTRA VENDITA DIRETTA
+  const registraVendita = async (quantitaGrammi) => {
     try {
-      const url = `${API_URL}/limiti/vendita-diretta`;
-      console.log('📡 [Zeppole] POST', url, { prodotto: PRODOTTO_NOME, quantitaKg });
+      setLoading(true);
+      setError(null);
+
+      const quantitaKg = quantitaGrammi / 1000;
       
-      await fetchWithAuth(url, {
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+
+      const response = await fetch(`${API_URL}/api/limiti/vendita-diretta`, {
         method: 'POST',
-        body: JSON.stringify({ 
-          prodotto: PRODOTTO_NOME, 
+        headers,
+        body: JSON.stringify({
+          prodotto: 'Zeppole',
           quantitaKg,
-          data: formatDateForAPI(dataSelezionata)
+          data: dataSelezionata
         })
       });
 
-      showSnackbar(`Vendita di ${quantitaKg} Kg registrata!`, 'success');
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Errore registrazione vendita');
+      }
+
+      console.log('[ZEPPOLE] Vendita registrata:', result.data);
+      
+      // ✅ Ricarica dati dopo vendita
       await caricaDati();
-    } catch (error) {
-      console.error('❌ [Zeppole] Errore vendita:', error);
-      showSnackbar(error.message || 'Errore nella vendita', 'error');
+
+      // Reset quantità personalizzata
+      setQuantitaPersonalizzata('');
+
+    } catch (err) {
+      console.error('[ZEPPOLE] Errore vendita:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const venditaPersonalizzata = async () => {
-    const quantita = parseFloat(quantitaPersonalizzata);
-    if (isNaN(quantita) || quantita <= 0) {
-      showSnackbar('Inserisci una quantità valida', 'warning');
+  // 🔄 RESET DISPONIBILITÀ
+  const resetDisponibilita = async () => {
+    if (!confirm('⚠️ Vuoi resettare la disponibilità a 0 Kg? (Solo vendite dirette, ordini restano)')) {
       return;
     }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+
+      const response = await fetch(`${API_URL}/api/limiti/reset-prodotto`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          prodotto: 'Zeppole',
+          data: dataSelezionata
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Errore reset');
+      }
+
+      console.log('[ZEPPOLE] Reset completato');
+      await caricaDati();
+
+    } catch (err) {
+      console.error('[ZEPPOLE] Errore reset:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ⚙️ MODIFICA LIMITE
+  const modificaLimite = async () => {
+    const nuovoLimite = prompt('Inserisci nuovo limite giornaliero (Kg):', limiteData?.limiteQuantita || 27);
     
-    setDialogVendita(false);
-    await venditaRapida(quantita);
-    setQuantitaPersonalizzata('');
+    if (!nuovoLimite || isNaN(nuovoLimite)) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
+
+      const response = await fetch(`${API_URL}/api/limiti/${limiteData._id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          limiteQuantita: parseFloat(nuovoLimite)
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Errore modifica limite');
+      }
+
+      console.log('[ZEPPOLE] Limite modificato');
+      await caricaDati();
+
+    } catch (err) {
+      console.error('[ZEPPOLE] Errore modifica:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Calcoli
-  const disponibile = limite ? Math.max(0, limite.limiteQuantita - limite.quantitaOrdinata) : 0;
-  const percentualeUsata = limite ? (limite.quantitaOrdinata / limite.limiteQuantita) * 100 : 0;
-  const totaleOrdini = ordini.reduce((acc, o) => acc + (o.quantitaKg || 0), 0);
+  // 📊 CALCOLI
+  // ✅ FIX 17/01/2026: Usa totaleComplessivo invece di quantitaOrdinata
+  const limiteKg = limiteData?.limiteQuantita || 0;
+  const ordinatoKg = limiteData?.totaleComplessivo || 0; // ✅ QUESTA È LA FIX!
+  const disponibileKg = limiteKg - ordinatoKg;
+  const percentualeUtilizzo = limiteKg > 0 ? (ordinatoKg / limiteKg) * 100 : 0;
 
-  const getProgressColor = (percent) => {
-    if (percent >= 90) return 'error';
-    if (percent >= 70) return 'warning';
-    return 'success';
+  // Per display separato (opzionale)
+  const totaleOrdini = limiteData?.totaleOrdini || 0;
+  const venditeDirette = limiteData?.quantitaOrdinata || 0;
+
+  // 🎨 Colore barra
+  const getColoreBarra = () => {
+    if (percentualeUtilizzo >= 90) return '#f44336'; // Rosso
+    if (percentualeUtilizzo >= 70) return '#ff9800'; // Arancione
+    return '#4caf50'; // Verde
   };
-
-  if (loading && !limite) {
-    return (
-      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        <LinearProgress sx={{ width: '100%' }} />
-        <Typography variant="body2" color="text.secondary">
-          Caricamento dati Zeppole...
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (!limite) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="warning">
-          Impossibile caricare i dati. Riprova più tardi.
-          <Button onClick={caricaDati} sx={{ ml: 2 }}>
-            Riprova
-          </Button>
-        </Alert>
-      </Box>
-    );
-  }
 
   return (
-    <Box sx={{ p: 2 }}>
-      {/* Header */}
-      <Paper 
-        elevation={3} 
-        sx={{ 
-          p: 2, 
-          mb: 3, 
-          background: 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)',
-          color: 'white'
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          bgcolor: '#fff',
+          borderRadius: 2,
+          maxHeight: '90vh'
+        }
+      }}
+    >
+      {/* HEADER */}
+      <DialogHeader
+        sx={{
+          background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+          color: 'white',
+          p: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <ZeppoleIcon sx={{ fontSize: 40 }} />
-            <Box>
-              <Typography variant="h5" fontWeight="bold">
-                🎂 Gestione Zeppole
-              </Typography>
-              <Typography variant="body2">
-                Monitoraggio disponibilità giornaliera
-              </Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title="Aggiorna dati">
-              <IconButton onClick={caricaDati} sx={{ color: 'white' }}>
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-      </Paper>
-
-      {/* ✅ NUOVO: Selettore Data */}
-      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          gap: 2,
-          flexWrap: 'wrap'
-        }}>
-          <Tooltip title="Giorno precedente">
-            <IconButton onClick={goToPreviousDay} color="primary" size="large">
-              <PrevIcon />
-            </IconButton>
-          </Tooltip>
-          
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2,
-            minWidth: 300
-          }}>
-            <TextField
-              type="date"
-              value={formatDateForAPI(dataSelezionata)}
-              onChange={(e) => setDataSelezionata(new Date(e.target.value + 'T00:00:00'))}
-              size="small"
-              sx={{ width: 160 }}
-            />
-            <Typography 
-              variant="subtitle1" 
-              sx={{ 
-                fontWeight: isToday(dataSelezionata) ? 'bold' : 'normal',
-                color: isToday(dataSelezionata) ? 'primary.main' : 'text.primary',
-                textTransform: 'capitalize'
-              }}
-            >
-              {formatDateDisplay(dataSelezionata)}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ fontSize: 32 }}>🍩</Box>
+          <Box>
+            <DialogTitle sx={{ p: 0, fontSize: 24, fontWeight: 700 }}>
+              Gestione Zeppole
+            </DialogTitle>
+            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+              Monitoraggio disponibilità giornaliera
             </Typography>
           </Box>
-
-          <Tooltip title="Giorno successivo">
-            <IconButton onClick={goToNextDay} color="primary" size="large">
-              <NextIcon />
-            </IconButton>
-          </Tooltip>
-
-          {!isToday(dataSelezionata) && (
-            <Tooltip title="Vai a oggi">
-              <Button 
-                variant="outlined" 
-                startIcon={<TodayIcon />}
-                onClick={goToToday}
-                size="small"
-              >
-                Oggi
-              </Button>
-            </Tooltip>
-          )}
-
-          {isToday(dataSelezionata) && (
-            <Chip 
-              label="📍 OGGI" 
-              color="primary" 
-              size="small"
-            />
-          )}
         </Box>
-      </Paper>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <IconButton
+            onClick={caricaDati}
+            disabled={loading}
+            sx={{ color: 'white' }}
+          >
+            <RefreshIcon />
+          </IconButton>
+          <IconButton onClick={onClose} sx={{ color: 'white' }}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogHeader>
 
-      <Grid container spacing={3}>
-        {/* Card Disponibilità */}
-        <Grid item xs={12} md={6}>
-          <Card elevation={3}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                📊 Disponibilità {isToday(dataSelezionata) ? 'Oggi' : formatDateDisplay(dataSelezionata).split(',')[0]}
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
+      <DialogContent sx={{ p: 3 }}>
+        {/* ERRORE */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        {/* LOADING */}
+        {loading && !limiteData ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            {/* SELETTORE DATA */}
+            <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button
+                onClick={() => {
+                  const oggi = new Date(dataSelezionata);
+                  oggi.setDate(oggi.getDate() - 1);
+                  setDataSelezionata(oggi.toISOString().split('T')[0]);
+                }}
+              >
+                ◀
+              </Button>
               
-              {/* Progress Bar */}
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Ordinato: {limite.quantitaOrdinata.toFixed(2)} Kg
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Limite: {limite.limiteQuantita} Kg
+              <TextField
+                type="date"
+                value={dataSelezionata}
+                onChange={(e) => setDataSelezionata(e.target.value)}
+                sx={{ flex: 1 }}
+                InputLabelProps={{ shrink: true }}
+              />
+
+              <Button
+                onClick={() => {
+                  const oggi = new Date(dataSelezionata);
+                  oggi.setDate(oggi.getDate() + 1);
+                  setDataSelezionata(oggi.toISOString().split('T')[0]);
+                }}
+              >
+                ▶
+              </Button>
+
+              <Button
+                variant="contained"
+                onClick={() => setDataSelezionata(new Date().toISOString().split('T')[0])}
+              >
+                OGGI
+              </Button>
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+              {/* DISPONIBILITÀ OGGI */}
+              <Paper
+                elevation={3}
+                sx={{
+                  p: 3,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  borderRadius: 2
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <Box sx={{ fontSize: 28, mr: 1 }}>📊</Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    Disponibilità Oggi
                   </Typography>
                 </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={Math.min(percentualeUsata, 100)} 
-                  color={getProgressColor(percentualeUsata)}
-                  sx={{ height: 20, borderRadius: 2 }}
-                />
-                <Typography 
-                  variant="body2" 
-                  align="center" 
-                  sx={{ mt: 1, fontWeight: 'bold' }}
+
+                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
+                  {format(parseISO(dataSelezionata), 'EEEE dd MMMM yyyy', { locale: it })}
+                </Typography>
+
+                {/* BARRA PROGRESSO */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    Ordinato: {ordinatoKg.toFixed(2)} Kg
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1, fontSize: 11 }}>
+                    📦 Ordini: {totaleOrdini.toFixed(2)} Kg | 🛒 Vendite dirette: {venditeDirette.toFixed(2)} Kg
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    Limite: {limiteKg} Kg
+                  </Typography>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 20,
+                      bgcolor: 'rgba(255,255,255,0.3)',
+                      borderRadius: 1,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: `${Math.min(percentualeUtilizzo, 100)}%`,
+                        height: '100%',
+                        bgcolor: getColoreBarra(),
+                        transition: 'width 0.3s ease'
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="body2" sx={{ mt: 1, textAlign: 'center', fontWeight: 600 }}>
+                    {percentualeUtilizzo.toFixed(1)}% utilizzato
+                  </Typography>
+                </Box>
+
+                {/* DISPONIBILE */}
+                <Box
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.2)',
+                    p: 2,
+                    borderRadius: 2,
+                    textAlign: 'center'
+                  }}
                 >
-                  {percentualeUsata.toFixed(1)}% utilizzato
-                </Typography>
-              </Box>
+                  <Typography variant="h2" fontWeight={700}>
+                    {disponibileKg.toFixed(1)}
+                  </Typography>
+                  <Typography variant="body1">
+                    Kg Disponibili
+                  </Typography>
+                </Box>
 
-              {/* Disponibilità grande */}
-              <Box sx={{ 
-                textAlign: 'center', 
-                p: 3, 
-                bgcolor: disponibile > 5 ? 'success.light' : disponibile > 0 ? 'warning.light' : 'error.light',
-                borderRadius: 2,
-                mb: 2
-              }}>
-                <Typography variant="h2" fontWeight="bold" color="white">
-                  {disponibile.toFixed(1)}
-                </Typography>
-                <Typography variant="h6" color="white">
-                  Kg Disponibili
-                </Typography>
-              </Box>
+                {/* ULTIMO AGGIORNAMENTO */}
+                {limiteData?.updatedAt && (
+                  <Typography variant="caption" sx={{ mt: 2, display: 'block', textAlign: 'center', opacity: 0.8 }}>
+                    ⏰ Ultimo aggiornamento: {format(parseISO(limiteData.updatedAt), 'HH:mm:ss')}
+                  </Typography>
+                )}
+              </Paper>
 
-              {/* Ultimo aggiornamento */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                <TimeIcon fontSize="small" color="action" />
-                <Typography variant="caption" color="text.secondary">
-                  Ultimo aggiornamento: {ultimoAggiornamento.toLocaleTimeString()}
+              {/* VENDITA RAPIDA */}
+              <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <FireIcon sx={{ fontSize: 28, mr: 1, color: '#ff6b35' }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Vendita Rapida
+                  </Typography>
+                </Box>
+
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Registra vendite dirette (non da ordini)
                 </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
 
-        {/* Card Vendita Rapida */}
-        <Grid item xs={12} md={6}>
-          <Card elevation={3}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                ⚡ Vendita Rapida
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Registra vendite dirette (non da ordini)
-              </Typography>
+                {/* BOTTONI RAPIDI */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1, mb: 2 }}>
+                  {[100, 200, 500, 700, 1000].map((grammi) => (
+                    <Button
+                      key={grammi}
+                      variant="contained"
+                      color="primary"
+                      onClick={() => registraVendita(grammi)}
+                      disabled={loading || disponibileKg <= 0}
+                      sx={{ height: 50, fontSize: 16, fontWeight: 600 }}
+                    >
+                      + {grammi}G
+                    </Button>
+                  ))}
+                  
+                  {/* BOTTONE 1 KG */}
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={() => registraVendita(1000)}
+                    disabled={loading || disponibileKg <= 0}
+                    sx={{ height: 50, fontSize: 16, fontWeight: 600, gridColumn: 'span 2' }}
+                  >
+                    + 1 KG
+                  </Button>
+                </Box>
 
-              {/* Pulsanti vendita rapida */}
-              <Grid container spacing={1} sx={{ mb: 3 }}>
-                {[
-                  { kg: 0.1, label: '100G' },
-                  { kg: 0.2, label: '200G' },
-                  { kg: 0.5, label: '500G' },
-                  { kg: 0.7, label: '700G' },
-                  { kg: 1, label: '1 KG' }
-                ].map((item) => (
-                  <Grid item key={item.kg}>
+                {/* VENDITA PERSONALIZZATA */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                    VENDITA PERSONALIZZATA
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      placeholder="Inserisci grammi..."
+                      value={quantitaPersonalizzata}
+                      onChange={(e) => setQuantitaPersonalizzata(e.target.value)}
+                      disabled={loading}
+                      inputProps={{ min: 1, step: 1 }}
+                    />
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={() => venditaRapida(item.kg)}
-                      disabled={disponibile < item.kg || !isToday(dataSelezionata)}
-                      startIcon={<AddIcon />}
+                      onClick={() => {
+                        const grammi = parseInt(quantitaPersonalizzata);
+                        if (grammi > 0) {
+                          registraVendita(grammi);
+                        }
+                      }}
+                      disabled={loading || !quantitaPersonalizzata || disponibileKg <= 0}
                     >
-                      {item.label}
+                      REGISTRA
                     </Button>
-                  </Grid>
-                ))}
-              </Grid>
+                  </Box>
+                </Box>
 
-              {/* Avviso se non è oggi */}
-              {!isToday(dataSelezionata) && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  Le vendite rapide sono disponibili solo per la data odierna
-                </Alert>
-              )}
+                {/* GESTIONE */}
+                <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid #eee' }}>
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                    🔧 Gestione
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={resetDisponibilita}
+                      disabled={loading}
+                      fullWidth
+                      startIcon={<RefreshIcon />}
+                    >
+                      RESET
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={modificaLimite}
+                      disabled={loading}
+                      fullWidth
+                    >
+                      MODIFICA LIMITE
+                    </Button>
+                  </Box>
+                </Box>
+              </Paper>
+            </Box>
 
-              {/* Pulsante vendita personalizzata */}
-              <Button
-                variant="outlined"
-                color="primary"
-                fullWidth
-                onClick={() => setDialogVendita(true)}
-                disabled={disponibile <= 0 || !isToday(dataSelezionata)}
-                sx={{ mb: 2 }}
-              >
-                Vendita Personalizzata
-              </Button>
+            {/* TABELLA ORDINI */}
+            <Paper elevation={3} sx={{ mt: 3, borderRadius: 2, overflow: 'hidden' }}>
+              <Box sx={{ p: 2, bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ fontSize: 24, mr: 1 }}>📋</Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    Ordini Registrati Oggi
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Chip
+                    icon={<Box>📦</Box>}
+                    label={`${ordiniOggi.length} ordini`}
+                    color="primary"
+                    variant="outlined"
+                  />
+                  <Chip
+                    icon={<Box>⚖️</Box>}
+                    label={`${calcolaTotaleOrdinato(ordiniOggi).toFixed(2)} Kg totali`}
+                    color="secondary"
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
 
-              <Divider sx={{ my: 2 }} />
-
-              {/* Azioni amministrative */}
-              <Typography variant="subtitle2" gutterBottom>
-                🛠️ Gestione
-              </Typography>
-              
-              <ButtonGroup fullWidth sx={{ mb: 1 }}>
-                <Button
-                  variant="outlined"
-                  color="warning"
-                  onClick={() => setDialogReset(true)}
-                  startIcon={<ResetIcon />}
-                  disabled={!isToday(dataSelezionata)}
-                >
-                  Reset
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="info"
-                  onClick={() => setDialogEditLimite(true)}
-                  startIcon={<SettingsIcon />}
-                >
-                  Modifica Limite
-                </Button>
-              </ButtonGroup>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Tabella Ordini */}
-      <Paper elevation={3} sx={{ mt: 3 }}>
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">
-            🛒 Ordini Registrati {isToday(dataSelezionata) ? 'Oggi' : formatDateDisplay(dataSelezionata).split(',')[0]}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Chip 
-              icon={<CartIcon />} 
-              label={`${ordini.length} ordini`}
-              color="primary"
-              variant="filled"
-            />
-            <Chip 
-              icon={<TrendingIcon />} 
-              label={`${totaleOrdini.toFixed(2)} Kg totali`}
-              color="secondary"
-              variant="filled"
-            />
-          </Box>
-        </Box>
-        
-        <TableContainer sx={{ maxHeight: 300 }}>
-          <Table stickyHeader size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Ora</TableCell>
-                <TableCell>Cliente</TableCell>
-                <TableCell>Codice</TableCell>
-                <TableCell align="right">Quantità</TableCell>
-                <TableCell>Note</TableCell>
-                <TableCell>Stato</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {ordini.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-                      Nessun ordine con Zeppole per {isToday(dataSelezionata) ? 'oggi' : 'questa data'}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
+              {ordiniOggi.length === 0 ? (
+                <Box sx={{ p: 4, textAlign: 'center' }}>
+                  <Typography variant="body1" color="text.secondary">
+                    Nessun ordine registrato per oggi
+                  </Typography>
+                </Box>
               ) : (
-                ordini.map((ordine, idx) => (
-                  <TableRow key={idx} hover>
-                    <TableCell>
-                      <Chip 
-                        icon={<TimeIcon />} 
-                        label={ordine.oraRitiro || '--:--'}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell>{ordine.cliente}</TableCell>
-                    <TableCell>{ordine.codiceCliente || '-'}</TableCell>
-                    <TableCell align="right">
-                      <Typography fontWeight="bold">
-                        {ordine.quantita} {ordine.unita}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{ordine.note || '-'}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={ordine.stato || 'nuovo'}
-                        size="small"
-                        color={ordine.stato === 'completato' ? 'success' : 'default'}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))
+                <TableContainer sx={{ maxHeight: 400 }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa' }}>Ora</TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa' }}>Cliente</TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa' }}>Codice</TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa' }} align="right">Quantità</TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa' }}>Note</TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa' }}>Stato</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {ordiniOggi.map((ordine, idx) => (
+                        <TableRow key={idx} hover>
+                          <TableCell>
+                            <Chip
+                              label={ordine.oraRitiro}
+                              size="small"
+                              sx={{ fontWeight: 600, minWidth: 60 }}
+                            />
+                          </TableCell>
+                          <TableCell>{ordine.cliente}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={ordine.codiceCliente || '-'}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                              <Typography variant="body2" fontWeight={600}>
+                                {ordine.quantita} {ordine.unita}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ({convertiInKg(ordine.quantita, ordine.unita).toFixed(3)} Kg)
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>{ordine.note || '-'}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={ordine.stato}
+                              size="small"
+                              color={ordine.stato === 'nuovo' ? 'primary' : 'default'}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        
-        {ordini.length > 0 && (
-          <Box sx={{ p: 2, bgcolor: 'grey.100', display: 'flex', justifyContent: 'flex-end' }}>
-            <Typography variant="subtitle1" fontWeight="bold">
-              TOTALE ORDINI: <span style={{ color: '#1976d2' }}>{totaleOrdini.toFixed(2)} Kg</span>
-            </Typography>
-          </Box>
+            </Paper>
+          </>
         )}
-      </Paper>
-
-      {/* Dialog Reset */}
-      <Dialog open={dialogReset} onClose={() => setDialogReset(false)}>
-        <DialogTitle>⚠️ Conferma Reset</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Sei sicuro di voler resettare la disponibilità di oggi?
-            Questa azione azzererà il contatore delle vendite.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogReset(false)}>Annulla</Button>
-          <Button onClick={resetDisponibilita} color="warning" variant="contained">
-            Conferma Reset
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog Vendita Personalizzata */}
-      <Dialog open={dialogVendita} onClose={() => setDialogVendita(false)}>
-        <DialogTitle>💰 Vendita Personalizzata</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 2 }}>
-            Inserisci la quantità in Kg da registrare come vendita diretta.
-          </Typography>
-          <TextField
-            autoFocus
-            label="Quantità (Kg)"
-            type="number"
-            fullWidth
-            value={quantitaPersonalizzata}
-            onChange={(e) => setQuantitaPersonalizzata(e.target.value)}
-            inputProps={{ step: 0.1, min: 0.1 }}
-            helperText={`Disponibile: ${disponibile.toFixed(2)} Kg`}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogVendita(false)}>Annulla</Button>
-          <Button onClick={venditaPersonalizzata} color="primary" variant="contained">
-            Registra Vendita
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog Modifica Limite */}
-      <Dialog open={dialogEditLimite} onClose={() => setDialogEditLimite(false)}>
-        <DialogTitle>⚙️ Modifica Limite Giornaliero</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 2 }}>
-            Imposta il limite massimo di Zeppole vendibili per {isToday(dataSelezionata) ? 'oggi' : 'questa data'}.
-          </Typography>
-          <TextField
-            autoFocus
-            label="Limite (Kg)"
-            type="number"
-            fullWidth
-            value={nuovoLimite}
-            onChange={(e) => setNuovoLimite(Number(e.target.value))}
-            inputProps={{ step: 1, min: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogEditLimite(false)}>Annulla</Button>
-          <Button onClick={salvaLimite} color="primary" variant="contained">
-            Salva Limite
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={closeSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled">
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+      </DialogContent>
+    </Dialog>
   );
 };
 
