@@ -1076,6 +1076,11 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const closeHACCPPopup = () => {
     setShowHACCPPopup(false);
   };
+  
+  // ✅ FIX 17/01/2026: Funzione per chiudere popup HACCP
+  const closeHACCPPopup = () => {
+    setShowHACCPPopup(false);
+  };
     
   // ----------------------------------------------------------------
   // REFS
