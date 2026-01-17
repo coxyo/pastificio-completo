@@ -1,7 +1,6 @@
-// app/ClientLayout.js - ✅ FIX SSR 17/01/2026
-// ✅ CallPopup caricato dinamicamente
-// ✅ useIncomingCall protetto con typeof window
-// ✅ Rimossa voce Zeppole (si accede da dialog in Ordini)
+// app/ClientLayout.js - ✅ FIX SSR DEFINITIVO 17/01/2026
+// ✅ TUTTO il codice client-side protetto con 'use client' + typeof window
+// ✅ CallPopup, useIncomingCall, localStorage: SOLO nel browser
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -45,7 +44,7 @@ const CallPopup = dynamic(
 
 const drawerWidth = 240;
 
-// ✅ Menu senza Zeppole (si accede dal pulsante in Ordini)
+// ✅ Menu completo
 const menuItems = [
   { id: 'dashboard', title: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/' },
@@ -67,41 +66,68 @@ export default function ClientLayout({ children }) {
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
   
-  // ✅ FIX SSR: Stati per chiamate (inizializzati solo client-side)
+  // ✅ Stati per chiamate (inizializzati null per SSR)
   const [chiamataCorrente, setChiamataCorrente] = useState(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [connected, setConnected] = useState(false);
 
-  // ✅ FIX SSR: Carica hook solo client-side
+  // ✅ FIX SSR: TUTTO il codice client-side qui
   useEffect(() => {
+    // Verifica che siamo nel browser
+    if (typeof window === 'undefined') {
+      console.log('⚠️ SSR detected, skipping client-side code');
+      return;
+    }
+
+    console.log('✅ Browser detected, initializing client-side code');
     setMounted(true);
 
-    // Importa dinamicamente il hook solo nel browser
-    if (typeof window !== 'undefined') {
-      import('@/hooks/useIncomingCall').then((module) => {
-        const useIncomingCall = module.default;
-        
-        // Inizializza il hook (solo nel browser)
-        const hookResult = useIncomingCall();
-        
-        // Aggiorna stati con i dati del hook
-        if (hookResult.chiamataCorrente) {
-          setChiamataCorrente(hookResult.chiamataCorrente);
-          setIsPopupOpen(hookResult.isPopupOpen);
-          setConnected(hookResult.connected);
-        }
-      }).catch(err => {
-        console.error('❌ Errore caricamento useIncomingCall:', err);
+    // ✅ Richiedi permessi notifiche (solo browser)
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log('🔔 Permesso notifiche:', permission);
       });
     }
 
-    // Richiedi permessi notifiche browser
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('🔔 [ClientLayout] Permesso notifiche:', permission);
+    // ✅ Carica hook chiamate (solo browser)
+    let cleanup = null;
+    
+    import('@/hooks/useIncomingCall')
+      .then((module) => {
+        const useIncomingCall = module.default;
+        
+        // Crea un mini-component per usare il hook
+        const IncomingCallHandler = () => {
+          const hookData = useIncomingCall();
+          
+          // Aggiorna stati quando cambiano
+          useEffect(() => {
+            if (hookData.chiamataCorrente) {
+              console.log('📞 Nuova chiamata rilevata:', hookData.chiamataCorrente);
+              setChiamataCorrente(hookData.chiamataCorrente);
+              setIsPopupOpen(hookData.isPopupOpen);
+            }
+            setConnected(hookData.connected);
+          }, [hookData.chiamataCorrente, hookData.isPopupOpen, hookData.connected]);
+
+          return null;
+        };
+
+        // Inizializza il handler
+        const handler = IncomingCallHandler();
+        cleanup = () => {
+          console.log('🧹 Cleanup chiamate');
+        };
+      })
+      .catch(err => {
+        console.error('❌ Errore caricamento useIncomingCall:', err);
       });
-    }
-  }, []);
+
+    // Cleanup al unmount
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []); // ✅ Esegui solo una volta al mount
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -117,49 +143,62 @@ export default function ClientLayout({ children }) {
     return pathname === path || pathname.startsWith(path + '/');
   };
 
-  // ✅ Handler accettazione chiamata
+  // ✅ Handler accettazione chiamata (protetto con typeof window)
   const handleAcceptAndNavigate = () => {
-    if (typeof window === 'undefined') return;
-    
-    console.log('📞 [ClientLayout] Accetta chiamata:', chiamataCorrente);
-    
-    if (chiamataCorrente?.cliente) {
-      localStorage.setItem('chiamataCliente', JSON.stringify({
-        clienteId: chiamataCorrente.cliente._id,
-        nome: chiamataCorrente.cliente.nome,
-        cognome: chiamataCorrente.cliente.cognome || '',
-        telefono: chiamataCorrente.numero,
-        email: chiamataCorrente.cliente.email || '',
-        timestamp: new Date().toISOString()
-      }));
-      console.log('✅ Dati cliente salvati:', chiamataCorrente.cliente.nome);
-    } else if (chiamataCorrente?.numero) {
-      localStorage.setItem('chiamataCliente', JSON.stringify({
-        clienteId: null,
-        nome: '',
-        cognome: '',
-        telefono: chiamataCorrente.numero,
-        email: '',
-        timestamp: new Date().toISOString()
-      }));
-      console.log('✅ Numero sconosciuto salvato:', chiamataCorrente.numero);
+    if (typeof window === 'undefined') {
+      console.warn('⚠️ handleAcceptAndNavigate chiamato su SSR, ignoro');
+      return;
     }
     
-    window.dispatchEvent(new Event('nuova-chiamata'));
-    console.log('📢 Evento nuova-chiamata dispatched');
+    console.log('📞 Accetta chiamata:', chiamataCorrente);
     
-    setIsPopupOpen(false);
-    setChiamataCorrente(null);
-    console.log('✅ Popup chiuso');
-    
-    router.push('/');
+    try {
+      // Salva dati cliente in localStorage
+      if (chiamataCorrente?.cliente) {
+        localStorage.setItem('chiamataCliente', JSON.stringify({
+          clienteId: chiamataCorrente.cliente._id,
+          nome: chiamataCorrente.cliente.nome,
+          cognome: chiamataCorrente.cliente.cognome || '',
+          telefono: chiamataCorrente.numero,
+          email: chiamataCorrente.cliente.email || '',
+          timestamp: new Date().toISOString()
+        }));
+        console.log('✅ Dati cliente salvati:', chiamataCorrente.cliente.nome);
+      } else if (chiamataCorrente?.numero) {
+        localStorage.setItem('chiamataCliente', JSON.stringify({
+          clienteId: null,
+          nome: '',
+          cognome: '',
+          telefono: chiamataCorrente.numero,
+          email: '',
+          timestamp: new Date().toISOString()
+        }));
+        console.log('✅ Numero sconosciuto salvato:', chiamataCorrente.numero);
+      }
+      
+      // Dispatch evento per GestoreOrdini
+      window.dispatchEvent(new Event('nuova-chiamata'));
+      console.log('📢 Evento nuova-chiamata dispatched');
+      
+      // Chiudi popup
+      setIsPopupOpen(false);
+      setChiamataCorrente(null);
+      console.log('✅ Popup chiuso, navigazione a /');
+      
+      // Vai a pagina ordini
+      router.push('/');
+    } catch (err) {
+      console.error('❌ Errore handleAcceptAndNavigate:', err);
+    }
   };
 
   const handleClosePopup = () => {
+    console.log('❌ Chiamata rifiutata/chiusa');
     setIsPopupOpen(false);
     setChiamataCorrente(null);
   };
 
+  // ✅ Drawer menu
   const drawer = (
     <Box>
       <Box sx={{ p: 2, backgroundColor: 'primary.main', color: 'white' }}>
@@ -207,7 +246,7 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* Indicatore Pusher Connection */}
+          {/* ✅ Indicatore connessione (solo se mounted) */}
           {mounted && (
             <Box
               sx={{
@@ -236,10 +275,12 @@ export default function ClientLayout({ children }) {
         </Toolbar>
       </AppBar>
       
+      {/* ✅ Sidebar */}
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
+        {/* Mobile drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -253,6 +294,7 @@ export default function ClientLayout({ children }) {
           {drawer}
         </Drawer>
         
+        {/* Desktop drawer */}
         <Drawer
           variant="permanent"
           sx={{
@@ -265,6 +307,7 @@ export default function ClientLayout({ children }) {
         </Drawer>
       </Box>
       
+      {/* ✅ Main content */}
       <Box
         component="main"
         sx={{
@@ -277,7 +320,7 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ✅ CALL POPUP CARICATO DINAMICAMENTE */}
+      {/* ✅ CALL POPUP - Caricato SOLO nel browser quando mounted */}
       {mounted && isPopupOpen && chiamataCorrente && (
         <CallPopup
           isOpen={isPopupOpen}
