@@ -15,7 +15,7 @@ import TagManager from './TagManager';
 // ✅ URL BACKEND CORRETTO - hardcoded per sicurezza
 const API_URL = 'https://pastificio-completo-production.up.railway.app';
 
-export function CallPopup({ isOpen, onClose, onAccept, callData }) {
+export function CallPopup({ chiamata, isOpen, onClose, onNuovoOrdine }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const [tags, setTags] = useState([]);
   const [countdown, setCountdown] = useState(60);
@@ -158,12 +158,12 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
     };
   }, [isOpen, showSaveForm]);
 
-  // Tags dal callData
+  // Tags dal chiamata
   useEffect(() => {
-    if (callData?.chiamataId && callData?.tags) {
-      setTags(callData.tags);
+    if (chiamata?.chiamataId && chiamata?.tags) {
+      setTags(chiamata.tags);
     }
-  }, [callData]);
+  }, [chiamata]);
 
   // ✅ HANDLER per salvare il cliente
   const handleSaveCliente = async () => {
@@ -188,7 +188,7 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
         body: JSON.stringify({
           nome: nomeCliente.trim(),
           cognome: cognomeCliente.trim() || '',
-          telefono: callData?.numero?.replace(/\D/g, '') || '',
+          telefono: chiamata?.numero?.replace(/\D/g, '') || '',
           email: '',
           note: `Cliente aggiunto da chiamata del ${new Date().toLocaleDateString('it-IT')}`
         })
@@ -201,9 +201,9 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
         setSavedCliente(data.cliente || data.data);
         setShowSaveForm(false);
         
-        // ✅ Aggiorna callData con il nuovo cliente
-        if (callData) {
-          callData.cliente = data.cliente || data.data;
+        // ✅ Aggiorna chiamata con il nuovo cliente
+        if (chiamata) {
+          chiamata.cliente = data.cliente || data.data;
         }
       } else {
         throw new Error(data.message || data.error || 'Errore durante il salvataggio');
@@ -227,19 +227,17 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   const handleAccept = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('📞 [CallPopup] Nuovo ordine');
+    console.log('[CallPopup] 📝 Apertura nuovo ordine con dati:', {
+      clienteId: cliente?._id,
+      clienteNome: cliente?.nome,
+      clienteTelefono: chiamata?.numero
+    });
     
-    // ✅ FIX 14/01/2026: Chiama onAccept E poi chiudi popup
-    if (onAccept) {
-      onAccept();
+    // ✅ FIX 17/01/2026: Chiama onNuovoOrdine con cliente e numero
+    if (onNuovoOrdine) {
+      onNuovoOrdine(cliente, chiamata?.numero);
     }
-    
-    // ✅ Chiudi popup dopo 300ms (tempo per aprire dialog)
-    setTimeout(() => {
-      console.log('✅ [CallPopup] Chiusura popup dopo apertura ordine');
-      onClose();
-    }, 300);
-  }, [onAccept, onClose]);
+  }, [onNuovoOrdine, cliente, chiamata]);
 
   const handleTagClick = useCallback((e) => {
     e.preventDefault();
@@ -265,11 +263,11 @@ export function CallPopup({ isOpen, onClose, onAccept, callData }) {
   }, []);
 
   // Se non aperto o senza dati, non renderizzare
-  if (!isOpen || !callData) {
+  if (!isOpen || !chiamata) {
     return null;
   }
 
-  const { numero, cliente, noteAutomatiche, chiamataId } = callData;
+  const { numero, cliente, noteAutomatiche, chiamataId } = chiamata;
   
   // Usa cliente salvato se disponibile
   const clienteAttuale = savedCliente || cliente;

@@ -292,6 +292,13 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
           return acc + (qty / config.pezziPerKg);
         }
       }
+      if (item.unita === '€') {
+        // ✅ FIX 17/01/2026: Calcola peso da importo in euro
+        // Formula: Peso(kg) = Importo(€) / Prezzo(€/kg)
+        const config = getProdottoConfigSafe(item.prodotto);
+        const prezzoKg = item.prezzoUnitario || config?.prezzoKg || 20;
+        return acc + (qty / prezzoKg);
+      }
       return acc;
     }, 0);
   }, [composizione]);
@@ -668,7 +675,22 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         
         // Abbrevia per la stringa
         const nomeAbbreviato = abbreviaNome(nomeCompleto);
-        return `${nomeAbbreviato}: ${parseFloat(item.quantita) || 0}`;
+        
+        // ✅ FIX 17/01/2026: Aggiungi unità di misura (versione 2)
+        const unitaItem = item.unita || 'Kg'; // Fallback a Kg se undefined
+        const unitaDisplay = unitaItem === 'Kg' ? '' : unitaItem;
+        const quantitaConUnita = unitaDisplay ? 
+          `${parseFloat(item.quantita) || 0}${unitaDisplay}` : 
+          `${parseFloat(item.quantita) || 0}`;
+        
+        console.log('🔍 Debug unità:', {
+          prodotto: item.prodotto,
+          unitaItem: unitaItem,
+          unitaDisplay: unitaDisplay,
+          quantitaConUnita: quantitaConUnita
+        });
+        
+        return `${nomeAbbreviato}: ${quantitaConUnita}`;
       })
       .join(', ');
 

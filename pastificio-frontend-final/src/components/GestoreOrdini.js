@@ -1008,6 +1008,8 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   
   const [prodottiDisponibili, setProdottiDisponibili] = useState({});
  const [clienteIdDaChiamata, setClienteIdDaChiamata] = useState(null); 
+  const [numeroDaChiamata, setNumeroDaChiamata] = useState(null); // ✅ FIX 17/01/2026
+  const [clienteDaChiamata, setClienteDaChiamata] = useState(null); // ✅ FIX 17/01/2026
   const [prodottiCaricati, setProdottiCaricati] = useState(false);
   
   
@@ -1027,6 +1029,9 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [periodoInizio, setPeriodoInizio] = useState(new Date().toISOString().split('T')[0]);
   const [periodoFine, setPeriodoFine] = useState(new Date().toISOString().split('T')[0]);
   
+  // ✅ FIX 17/01/2026: State per HACCP popup automatico
+  const [showHACCPPopup, setShowHACCPPopup] = useState(false);
+  
   // ✅ PUSHER: Hook per chiamate entranti real-time
   const {
     chiamataCorrente,
@@ -1043,10 +1048,17 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const handleAcceptIncomingCall = () => {
     console.log('🟢 [GestoreOrdini] Chiamata accettata, preparo dati per NuovoOrdine');
     
-    // Salva dati chiamata per pre-compilare il form
-    if (chiamataCorrente && chiamataCorrente.cliente) {
-      setClienteIdDaChiamata(chiamataCorrente.cliente._id);
-      localStorage.setItem('chiamataCliente', JSON.stringify(chiamataCorrente));
+    // ✅ FIX 17/01/2026: Salva cliente COMPLETO e numero per precompilazione
+    if (chiamataCorrente) {
+      if (chiamataCorrente.cliente) {
+        setClienteIdDaChiamata(chiamataCorrente.cliente._id);
+        setClienteDaChiamata(chiamataCorrente.cliente); // ✅ NUOVO
+        localStorage.setItem('chiamataCliente', JSON.stringify(chiamataCorrente));
+      }
+      // ✅ NUOVO: Salva numero anche se cliente non trovato
+      if (chiamataCorrente.numero) {
+        setNumeroDaChiamata(chiamataCorrente.numero);
+      }
     }
     
     // Apri dialogo nuovo ordine
@@ -1057,7 +1069,12 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     handleClosePopup();
     
     // Chiama anche hook (per consistenza)
-    handleAcceptCallFromHook();
+    handleAcceptCall();
+  };
+  
+  // ✅ FIX 17/01/2026: Funzione per chiudere popup HACCP
+  const closeHACCPPopup = () => {
+    setShowHACCPPopup(false);
   };
     
   // ----------------------------------------------------------------
@@ -2585,10 +2602,14 @@ return (
   onClose={() => {
     setDialogoNuovoOrdineAperto(false);
     setClienteIdDaChiamata(null);
+    setNumeroDaChiamata(null); // ✅ FIX 17/01/2026
+    setClienteDaChiamata(null); // ✅ FIX 17/01/2026
   }}
   onSave={salvaOrdine}
   ordineIniziale={ordineSelezionato}
   clienteIdPreselezionato={clienteIdDaChiamata}
+  clientePrecompilato={clienteDaChiamata} // ✅ FIX 17/01/2026
+  numeroPrecompilato={numeroDaChiamata} // ✅ FIX 17/01/2026
   isConnected={isConnected}
           />
         )}
@@ -2781,10 +2802,21 @@ return (
 
         {/* ✅ NUOVO: CallPopup per chiamate in arrivo da Pusher/3CX */}
         <CallPopup
+          chiamata={chiamataCorrente}
           isOpen={isPopupOpen}
           onClose={handleClosePopup}
-          onAccept={handleAcceptIncomingCall}
-          callData={chiamataCorrente}
+          onNuovoOrdine={(cliente, numero) => {
+            // ✅ FIX 17/01/2026: Salva cliente e numero
+            if (cliente) {
+              setClienteIdDaChiamata(cliente._id);
+              setClienteDaChiamata(cliente);
+            }
+            if (numero) {
+              setNumeroDaChiamata(numero);
+            }
+            setDialogoNuovoOrdineAperto(true);
+            handleClosePopup();
+          }}
 />
 
 {/* Dialog Zeppole */}
@@ -2824,12 +2856,13 @@ return (
   </DialogContent>
 </Dialog>
 
-{/* ✅ NUOVO 16/01/2026: Popup HACCP Automatico - Appare ogni Martedì */}
+{/* ✅ DISABILITATO 17/01/2026: Popup HACCP Automatico - Componente non trovato
 {showHACCPPopup && (
   <HACCPAutoPopup 
     onClose={closeHACCPPopup}
   />
 )}
+*/}
 
       </Container>
     </>
