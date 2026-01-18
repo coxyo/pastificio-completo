@@ -1,8 +1,7 @@
-// hooks/useIncomingCall.js - v2.2 - 17/01/2026 ore 18:45
-// ✅ FIX SSR: Pusher importato solo nel browser
-// ✅ FIX: Pulizia popup persistente al mount
-// ✅ FIX: Salvataggio DB disabilitato (errori CORS)
-// ✅ FIX: Solo localStorage per storico chiamate
+// hooks/useIncomingCall.js - v3.0 - 18/01/2026 ore 05:40
+// ✅ FIX SSR DEFINITIVO: Hook completamente SSR-safe
+// ✅ ZERO accessi a window/document/localStorage durante SSR
+// ✅ Import dinamico Pusher protetto
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -10,226 +9,165 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 export default function useIncomingCall() {
+  // ✅ Stati base (SSR-safe)
   const [chiamataCorrente, setChiamataCorrente] = useState(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   const [pusherService, setPusherService] = useState(null);
+  const [isMounted, setIsMounted] = useState(false);
   
   const lastCallIdRef = useRef(null);
   const resetTimeoutRef = useRef(null);
 
-  // ✅ FIX 15/01/2026: Pulizia popup persistente al mount
+  // ✅ Detect client-side mount
   useEffect(() => {
-    // ✅ FIX SSR: Esegui SOLO nel browser
-    if (typeof window === 'undefined') {
-      console.log('⚠️ [useIncomingCall] SSR rilevato, skip pulizia');
-      return;
-    }
-
-    console.log('[useIncomingCall] 🧹 Pulizia popup persistente al caricamento');
-    
-    // Resetta stato se ci sono popup fantasma
-    setIsPopupOpen(false);
-    setChiamataCorrente(null);
-    
-    // Pulisci eventuali timeout appesi
-    if (resetTimeoutRef.current) {
-      clearTimeout(resetTimeoutRef.current);
-      resetTimeoutRef.current = null;
-    }
-  }, []); // Solo al mount
-
-  // ✅ Log stati (solo nel browser)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    console.log('[useIncomingCall] STATE UPDATE:');
-    console.log('  - chiamataCorrente:', chiamataCorrente?.numero || null);
-    console.log('  - isPopupOpen:', isPopupOpen);
-    console.log('  - connected:', connected);
-  }, [chiamataCorrente, isPopupOpen, connected]);
-
-  // ✅ FIX 15/01/2026: Salvataggio DB disabilitato temporaneamente (causa errori CORS)
-  const salvaChiamataDB = useCallback(async (callData) => {
-    // DISABILITATO: causa errori CORS continui
-    console.log('[useIncomingCall] ℹ️ Salvataggio DB disabilitato (solo localStorage)');
-    return;
+    setIsMounted(true);
+    return () => setIsMounted(false);
   }, []);
 
-  // ✅ Salvataggio locale chiamate
+  // ✅ Salvataggio localStorage (SOLO client-side)
   const salvaChiamataLocale = useCallback((callData) => {
-    if (typeof window === 'undefined') return;
+    if (!isMounted || typeof window === 'undefined') return;
 
     try {
       const storageKey = 'pastificio_chiamate_recenti';
-      const chiamateEsistenti = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const esistenti = JSON.parse(localStorage.getItem(storageKey) || '[]');
       
-      const nuovaChiamata = {
+      const nuova = {
         ...callData,
         id: `${callData.numero}_${Date.now()}`,
         savedAt: new Date().toISOString(),
         status: 'ricevuta'
       };
       
-      const chiamateAggiornate = [nuovaChiamata, ...chiamateEsistenti].slice(0, 50);
-      localStorage.setItem(storageKey, JSON.stringify(chiamateAggiornate));
+      const aggiornate = [nuova, ...esistenti].slice(0, 50);
+      localStorage.setItem(storageKey, JSON.stringify(aggiornate));
       
-      console.log('OK [useIncomingCall] Chiamata salvata in localStorage');
+      console.log('[useIncomingCall] ✅ Chiamata salvata');
     } catch (error) {
-      console.error('ERROR [useIncomingCall] Errore salvataggio locale:', error);
+      console.error('[useIncomingCall] Errore salvataggio:', error);
     }
-  }, []);
+  }, [isMounted]);
 
-  // ✅ Main effect - Inizializzazione Pusher
-  useEffect(() => {
-    // ✅ FIX SSR: BLOCCA TUTTO se non siamo nel browser
-    if (typeof window === 'undefined') {
-      console.log('⚠️ [useIncomingCall] SSR rilevato, skip init Pusher');
+  // ✅ Handler chiamate in arrivo
+  const handleIncomingCall = useCallback((callData) => {
+    if (!isMounted) return;
+
+    console.log('[useIncomingCall] 📞 Chiamata ricevuta:', callData.numero);
+    
+    const chiamataId = `${callData.numero}_${callData.timestamp}`;
+    const now = Date.now();
+    
+    // Anti-duplicazione
+    if (lastCallIdRef.current?.id === chiamataId && 
+        now - lastCallIdRef.current.time < 2000) {
+      console.log('[useIncomingCall] ⏭️ Duplicato ignorato');
       return;
     }
+    
+    lastCallIdRef.current = { id: chiamataId, time: now };
+    
+    // Auto-reset dopo 30s
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+    }
+    resetTimeoutRef.current = setTimeout(() => {
+      lastCallIdRef.current = null;
+    }, 30000);
+    
+    // Salva e mostra popup
+    salvaChiamataLocale(callData);
+    setChiamataCorrente(callData);
+    setIsPopupOpen(true);
+  }, [isMounted, salvaChiamataLocale]);
 
-    console.log('INIT [useIncomingCall] Inizializzazione (BROWSER)...');
+  // ✅ Inizializzazione Pusher (SOLO client-side)
+  useEffect(() => {
+    if (!isMounted || typeof window === 'undefined') return;
 
-    // ✅ Handler visibilità tab
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('FOCUS [useIncomingCall] Tab visibile, verifico Pusher...');
-        
-        if (pusherService && pusherService.getStatus) {
-          const status = pusherService.getStatus();
-          console.log('Stato Pusher al focus:', status);
-          
-          if (!status.connected) {
-            console.warn('WARN Pusher disconnesso, tento riconnessione...');
+    console.log('[useIncomingCall] 🚀 Init Pusher (client-side)');
+
+    let pusher, channel, cleanupFn;
+
+    // Import dinamico Pusher
+    import('@/services/pusherService')
+      .then((module) => {
+        const service = module.default;
+        setPusherService(service);
+
+        // Check connessione ogni 2s
+        const checkConnection = () => {
+          const status = service.getStatus();
+          setConnected(status.connected && status.channelSubscribed);
+        };
+
+        checkConnection();
+        const interval = setInterval(checkConnection, 2000);
+
+        // Setup listener Pusher
+        const setupListener = () => {
+          const status = service.getStatus();
+          if (status.connected && status.channelSubscribed) {
+            console.log('[useIncomingCall] ✅ Pusher connesso');
+            service.onIncomingCall((data) => {
+              handleIncomingCall(data);
+            });
+            return true;
           }
+          return false;
+        };
+
+        // Retry setup se non pronto
+        if (!setupListener()) {
+          const retryInterval = setInterval(() => {
+            if (setupListener()) {
+              clearInterval(retryInterval);
+            }
+          }, 1000);
+          
+          setTimeout(() => clearInterval(retryInterval), 30000);
         }
-      }
-    };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // ✅ Import dinamico pusherService (solo nel browser)
-    import('@/services/pusherService').then((module) => {
-      const service = module.default;
-      console.log('OK [useIncomingCall] pusherService importato');
-      
-      setPusherService(service);
-
-      const checkConnection = () => {
-        const status = service.getStatus();
-        setConnected(status.connected && status.channelSubscribed);
-      };
-
-      checkConnection();
-      const interval = setInterval(checkConnection, 2000);
-
-      // ✅ Handler chiamate in arrivo
-      const handleIncomingCall = (event) => {
-        const callData = event.detail;
-        
-        console.log('CALL [useIncomingCall] Evento ricevuto:', callData);
-        
-        const chiamataUniqueId = `${callData.numero}_${callData.timestamp}`;
-        const now = Date.now();
-        
-        // Anti-duplicazione
-        if (lastCallIdRef.current?.id === chiamataUniqueId && 
-            now - lastCallIdRef.current.time < 2000) {
-          console.log('SKIP [useIncomingCall] Evento duplicato ignorato');
-          return;
-        }
-        
-        lastCallIdRef.current = {
-          id: chiamataUniqueId,
-          time: now
+        // Event listener per eventi custom
+        const customEventHandler = (event) => {
+          handleIncomingCall(event.detail);
         };
         
-        // Timeout auto-reset
-        if (resetTimeoutRef.current) {
-          clearTimeout(resetTimeoutRef.current);
-        }
-        resetTimeoutRef.current = setTimeout(() => {
-          if (lastCallIdRef.current?.id === chiamataUniqueId) {
-            console.log('RESET [useIncomingCall] Reset lastCallId dopo 30s');
-            lastCallIdRef.current = null;
-          }
-        }, 30000);
-        
-        // Salva chiamata
-        salvaChiamataLocale(callData);
-        salvaChiamataDB(callData);
-        
-        // Apri popup
-        setChiamataCorrente(callData);
-        setIsPopupOpen(true);
-        
-        console.log('OK [useIncomingCall] Popup aperto per:', callData.numero);
-      };
+        window.addEventListener('pusher-incoming-call', customEventHandler);
 
-      // Registra listener evento custom
-      window.addEventListener('pusher-incoming-call', handleIncomingCall);
+        cleanupFn = () => {
+          clearInterval(interval);
+          window.removeEventListener('pusher-incoming-call', customEventHandler);
+        };
+      })
+      .catch((err) => {
+        console.error('[useIncomingCall] ❌ Errore Pusher:', err);
+      });
 
-      // Setup listener Pusher
-      const setupPusherListener = () => {
-        const status = service.getStatus();
-        if (status.connected && status.channelSubscribed) {
-          console.log('OK [useIncomingCall] Registro listener Pusher');
-          service.onIncomingCall((data) => {
-            console.log('PUSHER [useIncomingCall] Chiamata Pusher:', data);
-            handleIncomingCall({ detail: data });
-          });
-          return true;
-        }
-        return false;
-      };
-
-      if (!setupPusherListener()) {
-        console.log('WAIT [useIncomingCall] Pusher non ancora pronto, attendo...');
-        
-        const retryInterval = setInterval(() => {
-          if (setupPusherListener()) {
-            clearInterval(retryInterval);
-          }
-        }, 1000);
-
-        setTimeout(() => clearInterval(retryInterval), 30000);
-      }
-
-      // ✅ Cleanup
-      return () => {
-        clearInterval(interval);
-        window.removeEventListener('pusher-incoming-call', handleIncomingCall);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    }).catch(err => {
-      console.error('❌ [useIncomingCall] Errore import pusherService:', err);
-    });
-
-    // ✅ Cleanup effect principale
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (cleanupFn) cleanupFn();
     };
-  }, [salvaChiamataDB, salvaChiamataLocale]);
+  }, [isMounted, handleIncomingCall]);
 
   // ✅ Handler chiusura popup
   const handleClosePopup = useCallback(() => {
-    if (typeof window === 'undefined') return;
+    if (!isMounted || typeof window === 'undefined') return;
 
-    console.log('CLOSE [useIncomingCall] Chiusura popup (Ignora)');
+    console.log('[useIncomingCall] ❌ Popup chiuso (ignorata)');
     
     if (chiamataCorrente) {
       try {
         const storageKey = 'pastificio_chiamate_recenti';
         const chiamate = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        const chiamateAggiornate = chiamate.map(c => {
+        const aggiornate = chiamate.map(c => {
           if (c.numero === chiamataCorrente.numero && c.status === 'ricevuta') {
             return { ...c, status: 'ignorata', closedAt: new Date().toISOString() };
           }
           return c;
         });
-        localStorage.setItem(storageKey, JSON.stringify(chiamateAggiornate));
+        localStorage.setItem(storageKey, JSON.stringify(aggiornate));
       } catch (error) {
-        console.error('Errore aggiornamento status:', error);
+        console.error('Errore update status:', error);
       }
     }
     
@@ -240,29 +178,27 @@ export default function useIncomingCall() {
     
     setIsPopupOpen(false);
     setChiamataCorrente(null);
-    
-    console.log('OK [useIncomingCall] Popup chiuso');
-  }, [chiamataCorrente]);
+  }, [isMounted, chiamataCorrente]);
 
   // ✅ Handler accettazione chiamata
   const handleAcceptCall = useCallback(() => {
-    if (typeof window === 'undefined') return;
+    if (!isMounted || typeof window === 'undefined') return;
 
-    console.log('ACCEPT [useIncomingCall] Chiamata accettata');
+    console.log('[useIncomingCall] ✅ Chiamata accettata');
     
     if (chiamataCorrente) {
       try {
         const storageKey = 'pastificio_chiamate_recenti';
         const chiamate = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        const chiamateAggiornate = chiamate.map(c => {
+        const aggiornate = chiamate.map(c => {
           if (c.numero === chiamataCorrente.numero && c.status === 'ricevuta') {
             return { ...c, status: 'accettata', acceptedAt: new Date().toISOString() };
           }
           return c;
         });
-        localStorage.setItem(storageKey, JSON.stringify(chiamateAggiornate));
+        localStorage.setItem(storageKey, JSON.stringify(aggiornate));
       } catch (error) {
-        console.error('Errore aggiornamento status:', error);
+        console.error('Errore update status:', error);
       }
     }
     
@@ -273,17 +209,17 @@ export default function useIncomingCall() {
     
     setIsPopupOpen(false);
     
+    // Reset chiamata dopo 10s
     resetTimeoutRef.current = setTimeout(() => {
-      console.log('CLEANUP [useIncomingCall] Auto-reset chiamataCorrente dopo accettazione');
       setChiamataCorrente(null);
     }, 10000);
-    
-    console.log('OK [useIncomingCall] Popup chiuso, dati mantenuti per 10s');
-  }, [chiamataCorrente]);
+  }, [isMounted, chiamataCorrente]);
 
-  // ✅ Clear manuale chiamata
+  // ✅ Clear chiamata manuale
   const clearChiamata = useCallback(() => {
-    console.log('CLEAR [useIncomingCall] Clear chiamata manuale');
+    if (!isMounted) return;
+
+    console.log('[useIncomingCall] 🧹 Clear chiamata');
     
     if (resetTimeoutRef.current) {
       clearTimeout(resetTimeoutRef.current);
@@ -292,11 +228,11 @@ export default function useIncomingCall() {
     
     setChiamataCorrente(null);
     setIsPopupOpen(false);
-  }, []);
+  }, [isMounted]);
 
   // ✅ Getter storico chiamate
   const getStoricoChiamateLocale = useCallback(() => {
-    if (typeof window === 'undefined') return [];
+    if (!isMounted || typeof window === 'undefined') return [];
 
     try {
       const storageKey = 'pastificio_chiamate_recenti';
@@ -305,7 +241,7 @@ export default function useIncomingCall() {
       console.error('Errore lettura storico:', error);
       return [];
     }
-  }, []);
+  }, [isMounted]);
 
   // ✅ Cleanup finale
   useEffect(() => {
@@ -316,6 +252,7 @@ export default function useIncomingCall() {
     };
   }, []);
 
+  // ✅ Return (SSR-safe: tutti i valori sono definiti)
   return {
     chiamataCorrente,
     isPopupOpen,
@@ -324,6 +261,7 @@ export default function useIncomingCall() {
     clearChiamata,
     connected,
     pusherService,
-    getStoricoChiamateLocale
+    getStoricoChiamateLocale,
+    isMounted // ✅ Esposto per debug
   };
 }
