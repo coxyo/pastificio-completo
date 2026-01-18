@@ -1,3 +1,5 @@
+'use client';
+
 // components/CallPopup.js - VERSIONE v3.6.1
 // ✅ FIX 15/01/2026 ore 05:36: Deploy forzato con modifica
 // ✅ FIX 14/01/2026: Popup si chiude dopo click "Nuovo Ordine"
