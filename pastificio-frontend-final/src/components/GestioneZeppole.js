@@ -1,5 +1,6 @@
-// components/GestioneZeppole.js - ✅ FIX 17/01/2026: Usa totaleComplessivo per calcolo corretto
+// components/GestioneZeppole.js - ✅ FIX 18/01/2026: Real-time con Pusher + Fix calcolo disponibilità
 import React, { useState, useEffect } from 'react';
+import Pusher from 'pusher-js';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,8 @@ import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY || '42b401f9d1043202d98a';
+const PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu';
 
 // ✅ FIX: Converti unità in Kg (Zeppole: 24 pz/Kg, €21/Kg)
 const convertiInKg = (quantita, unita) => {
@@ -120,6 +123,61 @@ const GestioneZeppole = ({ open, onClose }) => {
   useEffect(() => {
     if (open) {
       caricaDati();
+      
+      // ✅ FIX 18/01/2026: Polling automatico ogni 10 secondi
+      const intervalId = setInterval(() => {
+        caricaDati();
+      }, 10000);
+      
+      // ✅ FIX 18/01/2026: Pusher real-time events
+      let pusher, channel;
+      
+      if (typeof window !== 'undefined') {
+        try {
+          pusher = new Pusher(PUSHER_KEY, {
+            cluster: PUSHER_CLUSTER,
+            encrypted: true
+          });
+          
+          channel = pusher.subscribe('zeppole-channel');
+          
+          // Eventi che triggherano refresh
+          channel.bind('nuovo-ordine', () => {
+            console.log('[ZEPPOLE] Pusher: Nuovo ordine ricevuto');
+            caricaDati();
+          });
+          
+          channel.bind('vendita-diretta', () => {
+            console.log('[ZEPPOLE] Pusher: Vendita diretta registrata');
+            caricaDati();
+          });
+          
+          channel.bind('reset-disponibilita', () => {
+            console.log('[ZEPPOLE] Pusher: Disponibilità resettata');
+            caricaDati();
+          });
+          
+          channel.bind('limite-aggiornato', () => {
+            console.log('[ZEPPOLE] Pusher: Limite aggiornato');
+            caricaDati();
+          });
+          
+          console.log('[ZEPPOLE] Pusher connected to zeppole-channel');
+        } catch (err) {
+          console.warn('[ZEPPOLE] Pusher non disponibile:', err);
+        }
+      }
+      
+      return () => {
+        clearInterval(intervalId);
+        if (channel) {
+          channel.unbind_all();
+          channel.unsubscribe();
+        }
+        if (pusher) {
+          pusher.disconnect();
+        }
+      };
     }
   }, [open, dataSelezionata]);
 
@@ -253,11 +311,11 @@ const GestioneZeppole = ({ open, onClose }) => {
   };
 
   // 📊 CALCOLI
-  // ✅ FIX 17/01/2026: Usa totaleComplessivo invece di quantitaOrdinata
+  // ✅ FIX 18/01/2026: Usa SEMPRE i valori dall'API (backend calcola tutto correttamente)
   const limiteKg = limiteData?.limiteQuantita || 0;
-  const ordinatoKg = limiteData?.totaleComplessivo || 0; // ✅ QUESTA È LA FIX!
-  const disponibileKg = limiteKg - ordinatoKg;
-  const percentualeUtilizzo = limiteKg > 0 ? (ordinatoKg / limiteKg) * 100 : 0;
+  const ordinatoKg = limiteData?.totaleComplessivo || 0;
+  const disponibileKg = limiteData?.disponibile || 0; // ✅ CRITICAL: Usa valore calcolato dal backend
+  const percentualeUtilizzo = limiteData?.percentualeUtilizzo || 0; // ✅ CRITICAL: Usa valore calcolato dal backend
 
   // Per display separato (opzionale)
   const totaleOrdini = limiteData?.totaleOrdini || 0;
