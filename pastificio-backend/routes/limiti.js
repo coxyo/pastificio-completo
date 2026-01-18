@@ -1,10 +1,13 @@
-// routes/limiti.js - ✅ FIX 18/01/2026: Filtro data corretto per ordini
+// routes/limiti.js - ✅ FIX 18/01/2026: Filtro data + Auth opzionale
 import express from 'express';
-import { protect } from '../middleware/auth.js';
+import { optionalAuth } from '../middleware/auth.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
 import Ordine from '../models/Ordine.js';
 
 const router = express.Router();
+
+// ✅ Autenticazione OPZIONALE per compatibilità
+router.use(optionalAuth);
 
 /**
  * ✅ FIX: Helper per convertire quantità in Kg
@@ -25,7 +28,7 @@ const convertiInKg = (quantita, unita) => {
  * GET /api/limiti/prodotto/:nome
  * ✅ FIX: Filtra ordini SOLO per la data specificata
  */
-router.get('/prodotto/:nome', protect, async (req, res) => {
+router.get('/prodotto/:nome', async (req, res) => {
   try {
     const { nome } = req.params;
     const { data } = req.query;
@@ -140,7 +143,7 @@ router.get('/prodotto/:nome', protect, async (req, res) => {
  * GET /api/limiti/ordini-prodotto/:nome
  * ✅ FIX: Filtra ordini per data
  */
-router.get('/ordini-prodotto/:nome', protect, async (req, res) => {
+router.get('/ordini-prodotto/:nome', async (req, res) => {
   try {
     const { nome } = req.params;
     const { data } = req.query;
@@ -206,7 +209,7 @@ router.get('/ordini-prodotto/:nome', protect, async (req, res) => {
  * POST /api/limiti/vendita-diretta
  * Registra vendita diretta
  */
-router.post('/vendita-diretta', protect, async (req, res) => {
+router.post('/vendita-diretta', async (req, res) => {
   try {
     const { prodotto, quantitaKg, data } = req.body;
 
@@ -318,7 +321,7 @@ router.post('/vendita-diretta', protect, async (req, res) => {
  * POST /api/limiti/reset-prodotto
  * Reset disponibilità prodotto
  */
-router.post('/reset-prodotto', protect, async (req, res) => {
+router.post('/reset-prodotto', async (req, res) => {
   try {
     const { prodotto, data } = req.body;
 
@@ -385,7 +388,7 @@ router.post('/reset-prodotto', protect, async (req, res) => {
  * PUT /api/limiti/prodotto/:nome
  * Modifica limite prodotto
  */
-router.put('/prodotto/:nome', protect, async (req, res) => {
+router.put('/prodotto/:nome', async (req, res) => {
   try {
     const { nome } = req.params;
     const { limiteQuantita, data } = req.body;
