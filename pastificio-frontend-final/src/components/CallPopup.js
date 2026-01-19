@@ -43,7 +43,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-p
 function CallPopup({ chiamata, onClose, onSaveNote }) {
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
-const [ultimiOrdini, setUltimiOrdini] = useState([]);  // ✅ Senza spazio
+  const [ultimiOrdini, setUltimiOrdini] = useState([]);
   const [loadingOrdini, setLoadingOrdini] = useState(false);
 
   const { cliente, numero, callId, timestamp } = chiamata;
@@ -352,18 +352,16 @@ const [ultimiOrdini, setUltimiOrdini] = useState([]);  // ✅ Senza spazio
           </Button>
         )}
       </DialogActions>
+
+      {/* CSS per animazione pulse - inline nel componente */}
+      <style jsx global>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.1); }
+        }
+      `}</style>
     </Dialog>
   );
 }
-
-// Animazione pulse per icona telefono
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
-  }
-`;
-document.head.appendChild(style);
 
 export default CallPopup;
