@@ -18,14 +18,19 @@ class PusherClientService {
     // ✅ URL BACKEND CORRETTO
     this.BACKEND_URL = 'https://pastificio-completo-production.up.railway.app';
     
-    console.log('🚀 Pusher Service v5.3 creato (NO browser notifications)');
+    console.log('🚀 Pusher Service v5.4 creato (Lazy init)');
     console.log('🔗 Backend URL:', this.BACKEND_URL);
     
-    // ✅ AUTO-INIZIALIZZAZIONE solo in browser
+    // ✅ LAZY INIT - Inizializzazione SOLO quando chiamato esplicitamente
+    // Questo previene connessioni multiple quando importato da più componenti
+    console.log('💡 Usa .initialize() per inizializzare quando necessario');
+    
+    /* ❌ RIMOSSA AUTO-INIZIALIZZAZIONE PER EVITARE CONNESSIONI MULTIPLE
     if (typeof window !== 'undefined') {
       console.log('🌐 Ambiente browser rilevato, inizializzazione automatica...');
       this.initialize();
     }
+    */
   }
 
   // ✅ INIZIALIZZAZIONE
