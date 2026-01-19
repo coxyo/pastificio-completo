@@ -43,7 +43,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-p
 function CallPopup({ chiamata, onClose, onSaveNote }) {
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
-  const [ultimi Ordini, setUltimiOrdini] = useState([]);
+const [ultimiOrdini, setUltimiOrdini] = useState([]);  // ✅ Senza spazio
   const [loadingOrdini, setLoadingOrdini] = useState(false);
 
   const { cliente, numero, callId, timestamp } = chiamata;
