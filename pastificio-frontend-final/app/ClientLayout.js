@@ -1,12 +1,8 @@
-// app/ClientLayout.js - ✅ FIX DEFINITIVO 19/01/2026
-// ✅ useIncomingCall usato CORRETTAMENTE come hook React
-// ✅ CallPopup caricato con dynamic import (ssr: false)
-// ✅ ZERO errori "Cannot access X before initialization"
+// app/ClientLayout.js - VERSIONE FINALE CON CALLPOPUP
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import {
   Box,
   Drawer,
@@ -33,32 +29,19 @@ import {
   Notifications as NotificationsIcon,
   Phone as PhoneIcon
 } from '@mui/icons-material';
-
-// ✅ IMPORT DIRETTO del hook (funziona perché è 'use client')
 import useIncomingCall from '@/hooks/useIncomingCall';
-
-// ✅ CallPopup caricato dinamicamente (usa Audio, navigator)
-const CallPopup = dynamic(
-  () => import('@/components/CallPopup'),
-  { 
-    ssr: false,
-    loading: () => null
-  }
-);
+import CallPopup from '@/components/CallPopup';
 
 const drawerWidth = 240;
 
-// Menu completo
 const menuItems = [
   { id: 'dashboard', title: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/' },
   { id: 'clienti', title: 'Clienti', icon: <People />, path: '/clienti' },
   { id: 'magazzino', title: 'Magazzino', icon: <Inventory />, path: '/magazzino' },
-  { id: 'corrispettivi', title: '💰 Corrispettivi', icon: <Receipt />, path: '/corrispettivi' },
-  { id: 'haccp', title: '🌡️ HACCP', icon: <Assessment />, path: '/haccp' },
   { id: 'report', title: 'Report', icon: <Assessment />, path: '/report' },
   { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
-  { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
+  { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' }, // NUOVO!
   { id: 'fatturazione', title: 'Fatturazione', icon: <Receipt />, path: '/fatturazione' },
   { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni' }
 ];
@@ -70,30 +53,11 @@ export default function ClientLayout({ children }) {
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
 
-  // ✅ HOOK CHIAMATO CORRETTAMENTE - al top level del componente!
-  const {
-    chiamataCorrente,
-    isPopupOpen,
-    handleClosePopup,
-    handleAcceptCall,
-    connected,
-    isMounted: hookMounted
-  } = useIncomingCall();
+  // Hook per gestire chiamate in arrivo
+  const { chiamataCorrente, clearChiamata, connected } = useIncomingCall();
 
-  // ✅ Detect mount per evitare hydration mismatch
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  // ✅ Richiedi permessi notifiche (solo browser)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('🔔 Permesso notifiche:', permission);
-      });
-    }
   }, []);
 
   const handleDrawerToggle = () => {
@@ -110,51 +74,50 @@ export default function ClientLayout({ children }) {
     return pathname === path || pathname.startsWith(path + '/');
   };
 
-  // ✅ Handler accettazione chiamata con navigazione
-  const handleAcceptAndNavigate = () => {
-    if (typeof window === 'undefined') return;
-    
-    console.log('📞 Accetta chiamata:', chiamataCorrente);
-    
+  const handleSaveNote = async (callId, note) => {
     try {
-      // Salva dati cliente in localStorage per GestoreOrdini
-      if (chiamataCorrente?.cliente) {
-        localStorage.setItem('chiamataCliente', JSON.stringify({
-          clienteId: chiamataCorrente.cliente._id,
-          nome: chiamataCorrente.cliente.nome,
-          cognome: chiamataCorrente.cliente.cognome || '',
-          telefono: chiamataCorrente.numero,
-          email: chiamataCorrente.cliente.email || '',
-          timestamp: new Date().toISOString()
-        }));
-        console.log('✅ Dati cliente salvati:', chiamataCorrente.cliente.nome);
-      } else if (chiamataCorrente?.numero) {
-        localStorage.setItem('chiamataCliente', JSON.stringify({
-          clienteId: null,
-          nome: '',
-          cognome: '',
-          telefono: chiamataCorrente.numero,
-          email: '',
-          timestamp: new Date().toISOString()
-        }));
-        console.log('✅ Numero sconosciuto salvato:', chiamataCorrente.numero);
+      const token = localStorage.getItem('token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+
+      // Trova chiamata per callId
+      const responseHistory = await fetch(
+        `${API_URL}/cx3/history?limit=100`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (responseHistory.ok) {
+        const data = await responseHistory.json();
+        const chiamata = data.chiamate?.find(c => c.callId === callId);
+
+        if (chiamata) {
+          // Aggiorna nota
+          await fetch(
+            `${API_URL}/cx3/chiamate/${chiamata._id}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ note })
+            }
+          );
+
+          console.log('[CLIENT LAYOUT] Nota salvata per chiamata:', callId);
+        }
       }
-      
-      // Dispatch evento per GestoreOrdini
-      window.dispatchEvent(new Event('nuova-chiamata'));
-      console.log('📢 Evento nuova-chiamata dispatched');
-      
-      // Chiama handler del hook
-      handleAcceptCall();
-      
-      // Vai a pagina ordini
-      router.push('/');
-    } catch (err) {
-      console.error('❌ Errore handleAcceptAndNavigate:', err);
+
+      clearChiamata();
+
+    } catch (error) {
+      console.error('[CLIENT LAYOUT] Errore salvataggio nota:', error);
     }
   };
 
-  // ✅ Drawer menu
   const drawer = (
     <Box>
       <Box sx={{ p: 2, backgroundColor: 'primary.main', color: 'white' }}>
@@ -202,8 +165,8 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* ✅ Indicatore connessione (solo se mounted) */}
-          {mounted && (
+          {/* Indicatore WebSocket (solo development) */}
+          {mounted && process.env.NODE_ENV === 'development' && (
             <Box
               sx={{
                 mr: 2,
@@ -213,13 +176,10 @@ export default function ClientLayout({ children }) {
                 bgcolor: connected ? 'success.main' : 'error.main',
                 color: 'white',
                 fontSize: 12,
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5
+                fontWeight: 'bold'
               }}
             >
-              📞 {connected ? 'CONNECTED' : 'OFFLINE'}
+              📞 {connected ? 'ON' : 'OFF'}
             </Box>
           )}
 
@@ -231,7 +191,6 @@ export default function ClientLayout({ children }) {
         </Toolbar>
       </AppBar>
       
-      {/* Sidebar */}
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
@@ -263,7 +222,6 @@ export default function ClientLayout({ children }) {
         </Drawer>
       </Box>
       
-      {/* Main content */}
       <Box
         component="main"
         sx={{
@@ -276,13 +234,12 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ✅ CALL POPUP - Renderizzato solo quando serve */}
-      {mounted && isPopupOpen && chiamataCorrente && (
+      {/* Popup Chiamata in Arrivo */}
+      {mounted && chiamataCorrente && (
         <CallPopup
-          isOpen={isPopupOpen}
-          callData={chiamataCorrente}
-          onClose={handleClosePopup}
-          onAccept={handleAcceptAndNavigate}
+          chiamata={chiamataCorrente}
+          onClose={clearChiamata}
+          onSaveNote={handleSaveNote}
         />
       )}
     </Box>
