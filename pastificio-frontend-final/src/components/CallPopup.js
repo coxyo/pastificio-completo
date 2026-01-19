@@ -46,6 +46,11 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
   const [ultimiOrdini, setUltimiOrdini] = useState([]);
   const [loadingOrdini, setLoadingOrdini] = useState(false);
 
+  // ✅ PROTEZIONE: Se chiamata è null, non renderizzare nulla
+  if (!chiamata) {
+    return null;
+  }
+
   const { cliente, numero, callId, timestamp } = chiamata;
 
   // Carica ultimi ordini del cliente
@@ -56,6 +61,8 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
   }, [cliente]);
 
   const caricaUltimiOrdini = async () => {
+    if (typeof window === 'undefined') return;
+    
     setLoadingOrdini(true);
     try {
       const token = localStorage.getItem('token');
@@ -158,20 +165,22 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
                   fontSize: '1.5rem'
                 }}
               >
-                {cliente.nome[0]}{cliente.cognome[0]}
+                {cliente.nome?.[0] || '?'}{cliente.cognome?.[0] || '?'}
               </Avatar>
 
               <Box flex={1}>
                 <Typography variant="h5" fontWeight="bold">
-                  {cliente.nome} {cliente.cognome}
+                  {cliente.nome || ''} {cliente.cognome || ''}
                 </Typography>
 
                 <Box display="flex" gap={1} mt={0.5}>
-                  <Chip
-                    label={cliente.codiceCliente}
-                    size="small"
-                    icon={<PersonIcon />}
-                  />
+                  {cliente.codiceCliente && (
+                    <Chip
+                      label={cliente.codiceCliente}
+                      size="small"
+                      icon={<PersonIcon />}
+                    />
+                  )}
 
                   {cliente.livelloFedelta && (
                     <Chip
@@ -192,7 +201,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
             {/* Contatti */}
             <Box mb={2}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Telefono: <strong>{cliente.telefono}</strong>
+                Telefono: <strong>{cliente.telefono || numero}</strong>
               </Typography>
               {cliente.email && (
                 <Typography variant="body2" color="text.secondary">
@@ -278,7 +287,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
             </Typography>
 
             <Typography variant="h5" color="primary" fontWeight="bold" mb={1}>
-              {numero}
+              {numero || 'Numero non disponibile'}
             </Typography>
 
             <Alert severity="info" sx={{ mt: 2 }}>
@@ -316,18 +325,20 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
         </Box>
 
         {/* Info Timestamp */}
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          display="block"
-          textAlign="center"
-          mt={2}
-        >
-          Chiamata ricevuta {formatDistanceToNow(new Date(timestamp), { 
-            addSuffix: true,
-            locale: it 
-          })}
-        </Typography>
+        {timestamp && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            textAlign="center"
+            mt={2}
+          >
+            Chiamata ricevuta {formatDistanceToNow(new Date(timestamp), { 
+              addSuffix: true,
+              locale: it 
+            })}
+          </Typography>
+        )}
       </DialogContent>
 
       {/* Actions */}
@@ -353,7 +364,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
         )}
       </DialogActions>
 
-      {/* CSS per animazione pulse - inline nel componente */}
+      {/* CSS per animazione pulse */}
       <style jsx global>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
