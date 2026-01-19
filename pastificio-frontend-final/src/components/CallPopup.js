@@ -1,842 +1,369 @@
+// src/components/CallPopup.js
 'use client';
 
-// components/CallPopup.js - VERSIONE v3.6.1
-// ✅ FIX 15/01/2026 ore 05:36: Deploy forzato con modifica
-// ✅ FIX 14/01/2026: Popup si chiude dopo click "Nuovo Ordine"
-// ✅ FIX 12/12/2025: Campo input nome che non risponde
-// ✅ Click singolo sui pulsanti
-// ✅ Timeout 60 secondi (pausa durante salvataggio)
-// ✅ Mini-form per salvare cliente sconosciuto
-// ✅ URL backend hardcoded
-// ✅ NOME GRANDE per clienti conosciuti, telefono piccolo
-// ✅ Campo unico con autocomplete clienti esistenti
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Phone, X, User, AlertCircle, Tag as TagIcon, UserPlus, Save, Loader, Check } from 'lucide-react';
-import TagManager from './TagManager';
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Typography,
+  Box,
+  Avatar,
+  Chip,
+  IconButton,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  TextField,
+  Alert
+} from '@mui/material';
+import {
+  Phone as PhoneIcon,
+  Close as CloseIcon,
+  Person as PersonIcon,
+  ShoppingCart as OrderIcon,
+  Star as StarIcon,
+  History as HistoryIcon,
+  Notes as NotesIcon
+} from '@mui/icons-material';
+import { formatDistanceToNow } from 'date-fns';
+import { it } from 'date-fns/locale';
 
-// ✅ URL BACKEND CORRETTO - hardcoded per sicurezza
-const API_URL = 'https://pastificio-completo-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
-export function CallPopup({ chiamata, isOpen, onClose, onNuovoOrdine }) {
-  const [showTagManager, setShowTagManager] = useState(false);
-  const [tags, setTags] = useState([]);
-  const [countdown, setCountdown] = useState(60);
-  
-  // ✅ Stati per mini-form salva cliente con autocomplete
-  const [showSaveForm, setShowSaveForm] = useState(false);
-  const [nomeCompleto, setNomeCompleto] = useState(''); // Campo unico
-  const [nomeCliente, setNomeCliente] = useState('');
-  const [cognomeCliente, setCognomeCliente] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
-  const [savedCliente, setSavedCliente] = useState(null);
-  
-  // ✅ Stati per autocomplete clienti
-  const [clientiLista, setClientiLista] = useState([]);
-  const [suggerimenti, setSuggerimenti] = useState([]);
-  const [clienteEsistente, setClienteEsistente] = useState(null);
-  
-  // ✅ FIX: Ref per l'input
-  const inputRef = useRef(null);
+/**
+ * POPUP CHIAMATA IN ARRIVO
+ * 
+ * Si apre automaticamente quando arriva una chiamata
+ * Mostra info cliente, ultimi ordini, note
+ */
+function CallPopup({ chiamata, onClose, onSaveNote }) {
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState('');
+  const [ultimi Ordini, setUltimiOrdini] = useState([]);
+  const [loadingOrdini, setLoadingOrdini] = useState(false);
 
-  // ✅ Carica lista clienti quando si apre il form
+  const { cliente, numero, callId, timestamp } = chiamata;
+
+  // Carica ultimi ordini del cliente
   useEffect(() => {
-    if (showSaveForm && clientiLista.length === 0) {
-      const fetchClienti = async () => {
-        try {
-          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-          const response = await fetch(`${API_URL}/api/clienti`, {
-            headers: {
-              'Authorization': token ? `Bearer ${token}` : ''
-            }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            const lista = data.data || data || [];
-            setClientiLista(lista);
-            console.log(`✅ [CallPopup] Caricati ${lista.length} clienti per autocomplete`);
-          }
-        } catch (error) {
-          console.error('Errore caricamento clienti:', error);
-        }
-      };
-      fetchClienti();
+    if (cliente?.id) {
+      caricaUltimiOrdini();
     }
-  }, [showSaveForm, clientiLista.length]);
+  }, [cliente]);
 
-  // ✅ FIX: Focus sull'input quando si apre il form
-  useEffect(() => {
-    if (showSaveForm && inputRef.current) {
-      // Piccolo delay per assicurarsi che il DOM sia pronto
-      setTimeout(() => {
-        inputRef.current?.focus();
-        console.log('✅ [CallPopup] Focus impostato su input nome');
-      }, 100);
-    }
-  }, [showSaveForm]);
-
-  // ✅ Cerca clienti mentre si digita
-  useEffect(() => {
-    if (nomeCompleto.length < 2) {
-      setSuggerimenti([]);
-      setClienteEsistente(null);
-      return;
-    }
-    
-    const cerca = nomeCompleto.toLowerCase().trim();
-    const risultati = clientiLista.filter(c => {
-      const nomeC = `${c.nome || ''} ${c.cognome || ''}`.toLowerCase();
-      return nomeC.includes(cerca) || (c.nome || '').toLowerCase().includes(cerca);
-    }).slice(0, 5); // Max 5 suggerimenti
-    
-    setSuggerimenti(risultati);
-    
-    // Controlla se è un match esatto
-    const matchEsatto = risultati.find(c => {
-      const nomeC = `${c.nome || ''} ${c.cognome || ''}`.toLowerCase().trim();
-      return nomeC === cerca;
-    });
-    setClienteEsistente(matchEsatto || null);
-  }, [nomeCompleto, clientiLista]);
-
-  // Auto-close dopo 60 secondi + SUONO + VIBRAZIONE
-  useEffect(() => {
-    if (!isOpen) return;
-
-    setCountdown(60);
-    setShowSaveForm(false);
-    setNomeCompleto(''); // ✅ Campo unico
-    setNomeCliente('');
-    setCognomeCliente('');
-    setSaveError(null);
-    setSavedCliente(null);
-    setSuggerimenti([]); // ✅ Reset suggerimenti
-    setClienteEsistente(null); // ✅ Reset cliente esistente
-    
-    // 🔊 SUONO NOTIFICA
+  const caricaUltimiOrdini = async () => {
+    setLoadingOrdini(true);
     try {
-      const audio = new Audio('/sounds/phone-ring.mp3');
-      audio.volume = 0.7;
-      audio.play().catch(e => console.log('Audio bloccato dal browser:', e));
-    } catch (e) {
-      console.log('Errore audio:', e);
-    }
-
-    // 📳 VIBRAZIONE
-    if ('vibrate' in navigator) {
-      navigator.vibrate([200, 100, 200]);
-    }
-
-    // ⏰ TIMER AUTO-CLOSE (si ferma se form salva cliente è aperto)
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          console.log('⏰ [CallPopup] Auto-close per timeout');
-          onClose();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isOpen, onClose]);
-
-  // ✅ PAUSA COUNTDOWN quando form salva cliente è aperto
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    let pauseTimer;
-    if (showSaveForm) {
-      // Mantieni il countdown fermo resettandolo ogni secondo
-      pauseTimer = setInterval(() => {
-        setCountdown(prev => Math.max(prev, 30)); // Mantieni almeno 30 secondi
-      }, 1000);
-      console.log('⏸️ [CallPopup] Countdown in pausa - form salva cliente aperto');
-    }
-    
-    return () => {
-      if (pauseTimer) clearInterval(pauseTimer);
-    };
-  }, [isOpen, showSaveForm]);
-
-  // Tags dal chiamata
-  useEffect(() => {
-    if (chiamata?.chiamataId && chiamata?.tags) {
-      setTags(chiamata.tags);
-    }
-  }, [chiamata]);
-
-  // ✅ HANDLER per salvare il cliente
-  const handleSaveCliente = async () => {
-    if (!nomeCliente.trim()) {
-      setSaveError('Inserisci almeno il nome');
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    try {
-      // Recupera token per autenticazione
       const token = localStorage.getItem('token');
-      
-      const response = await fetch(`${API_URL}/api/clienti`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          nome: nomeCliente.trim(),
-          cognome: cognomeCliente.trim() || '',
-          telefono: chiamata?.numero?.replace(/\D/g, '') || '',
-          email: '',
-          note: `Cliente aggiunto da chiamata del ${new Date().toLocaleDateString('it-IT')}`
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        console.log('✅ [CallPopup] Cliente salvato:', data);
-        setSavedCliente(data.cliente || data.data);
-        setShowSaveForm(false);
-        
-        // ✅ Aggiorna chiamata con il nuovo cliente
-        if (chiamata) {
-          chiamata.cliente = data.cliente || data.data;
+      const response = await fetch(
+        `${API_URL}/ordini?clienteId=${cliente.id}&limit=5`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      } else {
-        throw new Error(data.message || data.error || 'Errore durante il salvataggio');
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setUltimiOrdini(data.ordini || []);
       }
     } catch (error) {
-      console.error('❌ [CallPopup] Errore salvataggio cliente:', error);
-      setSaveError(error.message || 'Errore di connessione');
+      console.error('[POPUP] Errore caricamento ordini:', error);
     } finally {
-      setIsSaving(false);
+      setLoadingOrdini(false);
     }
   };
 
-  // Handler ottimizzati
-  const handleIgnore = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('🚫 [CallPopup] Ignora chiamata');
-    onClose();
-  }, [onClose]);
+  const handleSaveNote = async () => {
+    if (!note.trim()) return;
 
-  const handleAccept = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('[CallPopup] 📝 Apertura nuovo ordine con dati:', {
-      clienteId: cliente?._id,
-      clienteNome: cliente?.nome,
-      clienteTelefono: chiamata?.numero
-    });
-    
-    // ✅ FIX 17/01/2026: Chiama onNuovoOrdine con cliente e numero
-    if (onNuovoOrdine) {
-      onNuovoOrdine(cliente, chiamata?.numero);
+    setLoading(true);
+    try {
+      await onSaveNote(callId, note);
+      setNote('');
+    } catch (error) {
+      console.error('[POPUP] Errore salvataggio nota:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [onNuovoOrdine, cliente, chiamata]);
-
-  const handleTagClick = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowTagManager(true);
-  }, []);
-
-  const handleOverlayClick = useCallback((e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }, [onClose]);
-
-  // ✅ FIX: Handler per input nome
-  const handleNomeChange = useCallback((e) => {
-    const value = e.target.value;
-    console.log('📝 [CallPopup] Input nome:', value);
-    setNomeCompleto(value);
-    // Splitta automaticamente nome/cognome
-    const parti = value.trim().split(' ');
-    setNomeCliente(parti[0] || '');
-    setCognomeCliente(parti.slice(1).join(' ') || '');
-  }, []);
-
-  // Se non aperto o senza dati, non renderizzare
-  if (!isOpen || !chiamata) {
-    return null;
-  }
-
-  const { numero, cliente, noteAutomatiche, chiamataId } = chiamata;
-  
-  // Usa cliente salvato se disponibile
-  const clienteAttuale = savedCliente || cliente;
-
-  const handleTagsUpdated = (nuoviTags) => {
-    setTags(nuoviTags);
-    console.log('✅ Tags aggiornati:', nuoviTags);
   };
 
-  // Stile pulsante base
-  const buttonBaseStyle = {
-    flex: '1 1 auto',
-    minWidth: '100px',
-    padding: '14px 16px',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '6px',
-    transition: 'transform 100ms, opacity 100ms',
-    touchAction: 'manipulation',
-    userSelect: 'none',
-    WebkitTapHighlightColor: 'transparent',
-    outline: 'none',
-    border: 'none',
+  // Colore badge fedeltà
+  const getLivelloColor = (livello) => {
+    const colors = {
+      bronzo: '#CD7F32',
+      argento: '#C0C0C0',
+      oro: '#FFD700',
+      platino: '#E5E4E2'
+    };
+    return colors[livello] || '#999';
   };
 
   return (
-    <>
-      {/* Overlay scuro */}
-      <div 
-        onClick={handleOverlayClick}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          zIndex: 999998,
+    <Dialog
+      open={true}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+        }
+      }}
+    >
+      {/* Header */}
+      <DialogTitle
+        sx={{
+          bgcolor: 'primary.main',
+          color: 'white',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
+          py: 2
         }}
       >
-        {/* Popup content */}
-        <div 
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'relative',
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '90%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-            zIndex: 999999,
-          }}
+        <Box display="flex" alignItems="center" gap={1}>
+          <PhoneIcon sx={{ animation: 'pulse 1.5s infinite' }} />
+          <Typography variant="h6" fontWeight="bold">
+            Chiamata in Arrivo
+          </Typography>
+        </Box>
+
+        <IconButton
+          onClick={onClose}
+          size="small"
+          sx={{ color: 'white' }}
         >
-          {/* Barra colorata countdown */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            backgroundColor: countdown > 20 ? '#22c55e' : countdown > 10 ? '#f59e0b' : '#ef4444',
-            transition: 'background-color 300ms'
-          }} />
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
 
-          {/* Countdown badge */}
-          <div style={{
-            position: 'absolute',
-            top: '8px',
-            right: '48px',
-            backgroundColor: countdown > 20 ? '#22c55e' : countdown > 10 ? '#f59e0b' : '#ef4444',
-            color: 'white',
-            padding: '4px 12px',
-            borderRadius: '12px',
-            fontSize: '13px',
-            fontWeight: 'bold',
-            zIndex: 10
-          }}>
-            {countdown}s
-          </div>
-
-          {/* Header */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '20px',
-            paddingTop: '8px'
-          }}>
-            <Phone style={{ width: '24px', height: '24px', color: '#22c55e' }} />
-            <h2 style={{ 
-              fontSize: '20px', 
-              fontWeight: 'bold',
-              margin: 0,
-              flex: 1
-            }}>
-              📞 Chiamata in arrivo
-            </h2>
-            <button
-              onClick={handleIgnore}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '8px',
-                color: '#666',
-                touchAction: 'manipulation',
-              }}
-            >
-              <X style={{ width: '24px', height: '24px' }} />
-            </button>
-          </div>
-
-          {/* ✅ SEZIONE PRINCIPALE: Cliente conosciuto vs Sconosciuto */}
-          {clienteAttuale ? (
-            /* CLIENTE CONOSCIUTO: Nome GRANDE, telefono piccolo */
-            <div style={{
-              textAlign: 'center',
-              padding: '20px',
-              backgroundColor: '#d1fae5',
-              border: '4px solid #10b981',
-              borderRadius: '8px',
-              marginBottom: '20px'
-            }}>
-              <p style={{
-                fontSize: '36px',
-                fontWeight: 'bold',
-                color: '#065f46',
-                margin: '0 0 8px 0'
-              }}>
-                {clienteAttuale.nome} {clienteAttuale.cognome || ''}
-              </p>
-              {clienteAttuale.codiceCliente && (
-                <p style={{ fontSize: '14px', color: '#047857', margin: '4px 0' }}>
-                  {clienteAttuale.codiceCliente} • {clienteAttuale.livelloFedelta || 'bronzo'}
-                </p>
-              )}
-              <p style={{
-                fontSize: '14px',
-                color: '#6b7280',
-                margin: '8px 0 0 0'
-              }}>
-                📞 {numero}
-              </p>
-              {savedCliente && (
-                <p style={{ fontSize: '12px', color: '#10b981', marginTop: '8px' }}>
-                  ✓ Appena salvato
-                </p>
-              )}
-            </div>
-          ) : (
-            /* CLIENTE SCONOSCIUTO: Numero GRANDE + form salvataggio */
-            <>
-              <div style={{
-                textAlign: 'center',
-                padding: '20px',
-                backgroundColor: '#fef3c7',
-                border: '4px solid #f59e0b',
-                borderRadius: '8px',
-                marginBottom: '20px'
-              }}>
-                <p style={{
-                  fontSize: '32px',
-                  fontWeight: 'bold',
-                  color: '#dc2626',
-                  margin: 0
-                }}>
-                  {numero || 'Numero sconosciuto'}
-                </p>
-                <p style={{
-                  fontSize: '14px',
-                  color: '#92400e',
-                  margin: '8px 0 0 0'
-                }}>
-                  Cliente non trovato nel database
-                </p>
-              </div>
-
-              {/* Mini-form salva cliente */}
-              <div style={{
-                backgroundColor: '#f3f4f6',
-                borderRadius: '8px',
-                padding: '16px',
-                marginBottom: '16px'
-              }}>
-                {!showSaveForm ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowSaveForm(true)}
-                    style={{
-                      padding: '12px 20px',
-                      backgroundColor: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '16px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      width: '100%',
-                      justifyContent: 'center',
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    <UserPlus style={{ width: '20px', height: '20px' }} />
-                    Salva Cliente
-                  </button>
-                ) : (
-                  <div>
-                    {/* ✅ FIX: CAMPO UNICO con autocomplete - attributi corretti */}
-                    <div style={{ position: 'relative', marginBottom: '12px' }}>
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        name="nuovo-cliente-nome"
-                        id="nuovo-cliente-nome"
-                        placeholder="Nome e Cognome *"
-                        value={nomeCompleto}
-                        onChange={handleNomeChange}
-                        onInput={handleNomeChange}
-                        disabled={isSaving}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="words"
-                        spellCheck="false"
-                        data-lpignore="true"
-                        data-form-type="other"
-                        style={{
-                          width: '100%',
-                          padding: '14px 16px',
-                          border: clienteEsistente ? '2px solid #f59e0b' : '2px solid #d1d5db',
-                          borderRadius: '8px',
-                          fontSize: '18px',
-                          outline: 'none',
-                          backgroundColor: clienteEsistente ? '#fef3c7' : 'white',
-                          boxSizing: 'border-box',
-                          WebkitAppearance: 'none',
-                          MozAppearance: 'none',
-                          appearance: 'none'
-                        }}
-                        onFocus={(e) => {
-                          console.log('🎯 [CallPopup] Input focus');
-                          if (!clienteEsistente) {
-                            e.target.style.borderColor = '#3b82f6';
-                          }
-                        }}
-                        onBlur={(e) => {
-                          if (!clienteEsistente) {
-                            e.target.style.borderColor = '#d1d5db';
-                          }
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          console.log('🖱️ [CallPopup] Input click');
-                        }}
-                      />
-                      
-                      {/* ✅ Lista suggerimenti */}
-                      {suggerimenti.length > 0 && !clienteEsistente && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          right: 0,
-                          backgroundColor: 'white',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '8px',
-                          marginTop: '4px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                          zIndex: 100,
-                          maxHeight: '200px',
-                          overflowY: 'auto'
-                        }}>
-                          {suggerimenti.map((cliente, idx) => (
-                            <div
-                              key={cliente._id || idx}
-                              onClick={() => {
-                                setClienteEsistente(cliente);
-                                setNomeCompleto(`${cliente.nome} ${cliente.cognome || ''}`.trim());
-                                setSuggerimenti([]);
-                              }}
-                              style={{
-                                padding: '12px 16px',
-                                cursor: 'pointer',
-                                borderBottom: idx < suggerimenti.length - 1 ? '1px solid #e5e7eb' : 'none',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                              }}
-                              onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
-                              onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                            >
-                              <span style={{ fontWeight: 500 }}>
-                                {cliente.nome} {cliente.cognome || ''}
-                              </span>
-                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
-                                {cliente.codiceCliente || cliente.telefono || ''}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* ✅ Avviso cliente esistente */}
-                    {clienteEsistente && (
-                      <div style={{
-                        backgroundColor: '#fef3c7',
-                        border: '1px solid #f59e0b',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        marginBottom: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <Check style={{ width: '20px', height: '20px', color: '#d97706' }} />
-                        <div>
-                          <p style={{ fontWeight: 600, color: '#92400e', margin: 0 }}>
-                            Cliente già esistente!
-                          </p>
-                          <p style={{ fontSize: '14px', color: '#78350f', margin: '4px 0 0 0' }}>
-                            {clienteEsistente.codiceCliente} - Tel: {clienteEsistente.telefono || 'N/D'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setClienteEsistente(null);
-                            setNomeCompleto('');
-                            setNomeCliente('');
-                            setCognomeCliente('');
-                            // Focus sull'input dopo il reset
-                            setTimeout(() => inputRef.current?.focus(), 50);
-                          }}
-                          style={{
-                            marginLeft: 'auto',
-                            padding: '6px 12px',
-                            backgroundColor: 'white',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          Nuovo
-                        </button>
-                      </div>
-                    )}
-                    
-                    {saveError && (
-                      <p style={{ color: '#dc2626', fontSize: '14px', margin: '0 0 12px 0' }}>
-                        ⚠️ {saveError}
-                      </p>
-                    )}
-                    
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSaveForm(false);
-                          setNomeCompleto('');
-                          setNomeCliente('');
-                          setCognomeCliente('');
-                          setSaveError(null);
-                          setSuggerimenti([]);
-                          setClienteEsistente(null);
-                        }}
-                        disabled={isSaving}
-                        style={{
-                          flex: 1,
-                          padding: '12px 14px',
-                          backgroundColor: 'white',
-                          color: '#374151',
-                          border: '2px solid #d1d5db',
-                          borderRadius: '8px',
-                          fontSize: '16px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          touchAction: 'manipulation',
-                        }}
-                      >
-                        Annulla
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveCliente}
-                        disabled={isSaving || !nomeCliente.trim() || clienteEsistente}
-                        style={{
-                          flex: 1,
-                          padding: '12px 14px',
-                          backgroundColor: (isSaving || clienteEsistente) ? '#9ca3af' : '#22c55e',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '16px',
-                          fontWeight: 600,
-                          cursor: (isSaving || clienteEsistente) ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          touchAction: 'manipulation',
-                        }}
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} />
-                            Salvo...
-                          </>
-                        ) : (
-                          <>
-                            <Save style={{ width: '18px', height: '18px' }} />
-                            {clienteEsistente ? 'Già salvato' : 'Salva'}
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Tags (se presenti) */}
-          {tags && tags.length > 0 && (
-            <div style={{
-              backgroundColor: '#f3f4f6',
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '16px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <TagIcon style={{ width: '16px', height: '16px', color: '#6b7280' }} />
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>Tag</span>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      backgroundColor: '#3b82f6',
-                      color: 'white',
-                      padding: '4px 10px',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      fontWeight: 600
-                    }}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Note automatiche */}
-          {noteAutomatiche && noteAutomatiche.length > 0 && (
-            <div style={{
-              backgroundColor: '#dbeafe',
-              border: '1px solid #3b82f6',
-              borderRadius: '8px',
-              padding: '16px',
-              marginBottom: '16px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <AlertCircle style={{ width: '20px', height: '20px', color: '#2563eb' }} />
-                <p style={{ fontWeight: 600, color: '#1e40af', margin: 0 }}>
-                  Note Automatiche
-                </p>
-              </div>
-              {noteAutomatiche.map((nota, index) => (
-                <div key={index} style={{
-                  fontSize: '14px',
-                  color: '#1e3a8a',
-                  marginLeft: '28px',
-                  marginTop: '4px'
-                }}>
-                  • {nota.messaggio}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* PULSANTI AZIONE */}
-          <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
-            
-            {/* Pulsante Tag */}
-            {chiamataId && (
-              <button
-                type="button"
-                onClick={handleTagClick}
-                style={{
-                  ...buttonBaseStyle,
-                  backgroundColor: '#f3f4f6',
-                  color: '#3b82f6',
+      <DialogContent sx={{ pt: 3 }}>
+        {/* Info Cliente */}
+        {cliente ? (
+          <Box>
+            {/* Avatar e Nome */}
+            <Box display="flex" alignItems="center" gap={2} mb={2}>
+              <Avatar
+                sx={{
+                  width: 64,
+                  height: 64,
+                  bgcolor: 'primary.main',
+                  fontSize: '1.5rem'
                 }}
               >
-                <TagIcon style={{ width: '16px', height: '16px' }} />
-                Tag
-              </button>
-            )}
+                {cliente.nome[0]}{cliente.cognome[0]}
+              </Avatar>
 
-            {/* Pulsante Ignora */}
-            <button
-              type="button"
-              onClick={handleIgnore}
-              style={{
-                ...buttonBaseStyle,
-                backgroundColor: '#f3f4f6',
-                color: '#374151',
+              <Box flex={1}>
+                <Typography variant="h5" fontWeight="bold">
+                  {cliente.nome} {cliente.cognome}
+                </Typography>
+
+                <Box display="flex" gap={1} mt={0.5}>
+                  <Chip
+                    label={cliente.codiceCliente}
+                    size="small"
+                    icon={<PersonIcon />}
+                  />
+
+                  {cliente.livelloFedelta && (
+                    <Chip
+                      label={cliente.livelloFedelta.toUpperCase()}
+                      size="small"
+                      icon={<StarIcon />}
+                      sx={{
+                        bgcolor: getLivelloColor(cliente.livelloFedelta),
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}
+                    />
+                  )}
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Contatti */}
+            <Box mb={2}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Telefono: <strong>{cliente.telefono}</strong>
+              </Typography>
+              {cliente.email && (
+                <Typography variant="body2" color="text.secondary">
+                  Email: <strong>{cliente.email}</strong>
+                </Typography>
+              )}
+              {cliente.punti > 0 && (
+                <Typography variant="body2" color="primary" fontWeight="bold">
+                  Punti Fedeltà: {cliente.punti}
+                </Typography>
+              )}
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Ultimi Ordini */}
+            <Box>
+              <Typography
+                variant="subtitle2"
+                fontWeight="bold"
+                display="flex"
+                alignItems="center"
+                gap={1}
+                mb={1}
+              >
+                <HistoryIcon fontSize="small" />
+                Ultimi Ordini
+              </Typography>
+
+              {loadingOrdini ? (
+                <Typography variant="body2" color="text.secondary">
+                  Caricamento...
+                </Typography>
+              ) : ultimiOrdini.length > 0 ? (
+                <List dense sx={{ bgcolor: 'grey.50', borderRadius: 1 }}>
+                  {ultimiOrdini.slice(0, 3).map((ordine) => (
+                    <ListItem key={ordine._id} divider>
+                      <ListItemText
+                        primary={
+                          <Typography variant="body2" fontWeight="bold">
+                            {new Date(ordine.dataConsegna).toLocaleDateString('it-IT')}
+                          </Typography>
+                        }
+                        secondary={
+                          <Typography variant="caption">
+                            {ordine.prodotti?.length || 0} prodotti - €{ordine.totale?.toFixed(2) || '0.00'}
+                          </Typography>
+                        }
+                      />
+                      <Chip
+                        label={ordine.stato}
+                        size="small"
+                        color={ordine.stato === 'completato' ? 'success' : 'default'}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Nessun ordine precedente
+                </Typography>
+              )}
+            </Box>
+
+          </Box>
+        ) : (
+          /* Numero Sconosciuto */
+          <Box textAlign="center" py={2}>
+            <Avatar
+              sx={{
+                width: 64,
+                height: 64,
+                bgcolor: 'grey.400',
+                margin: '0 auto',
+                mb: 2
               }}
             >
-              <X style={{ width: '16px', height: '16px' }} />
-              Ignora ({countdown}s)
-            </button>
+              <PhoneIcon sx={{ fontSize: 32 }} />
+            </Avatar>
 
-            {/* Pulsante Nuovo Ordine */}
-            <button
-              type="button"
-              onClick={handleAccept}
-              style={{
-                ...buttonBaseStyle,
-                flex: '2 1 auto',
-                backgroundColor: '#22c55e',
-                color: 'white',
-              }}
-            >
-              <Phone style={{ width: '16px', height: '16px' }} />
-              Nuovo Ordine
-            </button>
-          </div>
-        </div>
-      </div>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Numero Sconosciuto
+            </Typography>
 
-      {/* TagManager Dialog */}
-      {chiamataId && (
-        <TagManager
-          isOpen={showTagManager}
-          onClose={() => setShowTagManager(false)}
-          chiamataId={chiamataId}
-          tagsAttuali={tags}
-          onTagsUpdated={handleTagsUpdated}
-        />
-      )}
+            <Typography variant="h5" color="primary" fontWeight="bold" mb={1}>
+              {numero}
+            </Typography>
 
-      {/* CSS per animazione spinner */}
-      <style jsx global>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </>
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Questo numero non è associato a nessun cliente. Puoi creare un nuovo cliente dopo la chiamata.
+            </Alert>
+          </Box>
+        )}
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Note Chiamata */}
+        <Box>
+          <Typography
+            variant="subtitle2"
+            fontWeight="bold"
+            display="flex"
+            alignItems="center"
+            gap={1}
+            mb={1}
+          >
+            <NotesIcon fontSize="small" />
+            Note Chiamata
+          </Typography>
+
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            placeholder="Aggiungi note sulla chiamata..."
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            variant="outlined"
+            size="small"
+          />
+        </Box>
+
+        {/* Info Timestamp */}
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          display="block"
+          textAlign="center"
+          mt={2}
+        >
+          Chiamata ricevuta {formatDistanceToNow(new Date(timestamp), { 
+            addSuffix: true,
+            locale: it 
+          })}
+        </Typography>
+      </DialogContent>
+
+      {/* Actions */}
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          color="inherit"
+        >
+          Chiudi
+        </Button>
+
+        {note.trim() && (
+          <Button
+            onClick={handleSaveNote}
+            variant="contained"
+            color="primary"
+            disabled={loading}
+            startIcon={<NotesIcon />}
+          >
+            {loading ? 'Salvataggio...' : 'Salva Nota'}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 }
+
+// Animazione pulse per icona telefono
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.1); }
+  }
+`;
+document.head.appendChild(style);
 
 export default CallPopup;
