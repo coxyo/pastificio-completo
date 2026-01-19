@@ -1,28 +1,34 @@
-// hooks/useIncomingCall.js - v3.0 - 18/01/2026 ore 05:40
-// ✅ FIX SSR DEFINITIVO: Hook completamente SSR-safe
-// ✅ ZERO accessi a window/document/localStorage durante SSR
-// ✅ Import dinamico Pusher protetto
+// hooks/useIncomingCall.js - v3.1 FINAL - 19/01/2026
+// ✅ Hook completamente SSR-safe
+// ✅ Export default + named export per compatibilità
+// ✅ ZERO errori "Cannot access X before initialization"
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
-export default function useIncomingCall() {
-  // ✅ Stati base (SSR-safe)
+function useIncomingCall() {
+  // ✅ Stati base (SSR-safe - tutti hanno valori iniziali)
   const [chiamataCorrente, setChiamataCorrente] = useState(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   const [pusherService, setPusherService] = useState(null);
   const [isMounted, setIsMounted] = useState(false);
   
+  // ✅ Refs (SSR-safe)
   const lastCallIdRef = useRef(null);
   const resetTimeoutRef = useRef(null);
+  const pusherCleanupRef = useRef(null);
 
   // ✅ Detect client-side mount
   useEffect(() => {
     setIsMounted(true);
-    return () => setIsMounted(false);
+    console.log('[useIncomingCall] ✅ Hook montato');
+    return () => {
+      setIsMounted(false);
+      console.log('[useIncomingCall] 🔴 Hook smontato');
+    };
   }, []);
 
   // ✅ Salvataggio localStorage (SOLO client-side)
@@ -43,31 +49,39 @@ export default function useIncomingCall() {
       const aggiornate = [nuova, ...esistenti].slice(0, 50);
       localStorage.setItem(storageKey, JSON.stringify(aggiornate));
       
-      console.log('[useIncomingCall] ✅ Chiamata salvata');
+      console.log('[useIncomingCall] ✅ Chiamata salvata in localStorage');
     } catch (error) {
-      console.error('[useIncomingCall] Errore salvataggio:', error);
+      console.error('[useIncomingCall] ❌ Errore salvataggio:', error);
     }
   }, [isMounted]);
 
-  // ✅ Handler chiamate in arrivo
+  // ✅ Handler chiamate in arrivo (memoizzato)
   const handleIncomingCall = useCallback((callData) => {
-    if (!isMounted) return;
+    if (!isMounted) {
+      console.log('[useIncomingCall] ⚠️ Ignorato: hook non montato');
+      return;
+    }
 
-    console.log('[useIncomingCall] 📞 Chiamata ricevuta:', callData.numero);
+    console.log('[useIncomingCall] 📞 Chiamata ricevuta:', callData?.numero);
     
-    const chiamataId = `${callData.numero}_${callData.timestamp}`;
+    if (!callData || !callData.numero) {
+      console.log('[useIncomingCall] ⚠️ Dati chiamata invalidi');
+      return;
+    }
+    
+    const chiamataId = `${callData.numero}_${callData.timestamp || Date.now()}`;
     const now = Date.now();
     
-    // Anti-duplicazione
+    // Anti-duplicazione (2 secondi)
     if (lastCallIdRef.current?.id === chiamataId && 
         now - lastCallIdRef.current.time < 2000) {
-      console.log('[useIncomingCall] ⏭️ Duplicato ignorato');
+      console.log('[useIncomingCall] ⭕ Duplicato ignorato');
       return;
     }
     
     lastCallIdRef.current = { id: chiamataId, time: now };
     
-    // Auto-reset dopo 30s
+    // Auto-reset ref dopo 30s
     if (resetTimeoutRef.current) {
       clearTimeout(resetTimeoutRef.current);
     }
@@ -79,73 +93,108 @@ export default function useIncomingCall() {
     salvaChiamataLocale(callData);
     setChiamataCorrente(callData);
     setIsPopupOpen(true);
+    
+    console.log('[useIncomingCall] ✅ Popup aperto');
   }, [isMounted, salvaChiamataLocale]);
 
   // ✅ Inizializzazione Pusher (SOLO client-side)
   useEffect(() => {
-    if (!isMounted || typeof window === 'undefined') return;
+    // Guard SSR
+    if (!isMounted || typeof window === 'undefined') {
+      return;
+    }
 
-    console.log('[useIncomingCall] 🚀 Init Pusher (client-side)');
+    console.log('[useIncomingCall] 🚀 Inizializzazione Pusher...');
 
-    let pusher, channel, cleanupFn;
+    let intervalId = null;
+    let retryIntervalId = null;
 
-    // Import dinamico Pusher
+    // Import dinamico Pusher (evita errori SSR)
     import('@/services/pusherService')
       .then((module) => {
+        if (!isMounted) return; // Check se ancora montato
+        
         const service = module.default;
         setPusherService(service);
+        console.log('[useIncomingCall] ✅ pusherService caricato');
 
         // Check connessione ogni 2s
         const checkConnection = () => {
-          const status = service.getStatus();
-          setConnected(status.connected && status.channelSubscribed);
+          try {
+            const status = service.getStatus();
+            setConnected(status.connected && status.channelSubscribed);
+          } catch (e) {
+            setConnected(false);
+          }
         };
 
         checkConnection();
-        const interval = setInterval(checkConnection, 2000);
+        intervalId = setInterval(checkConnection, 2000);
 
         // Setup listener Pusher
         const setupListener = () => {
-          const status = service.getStatus();
-          if (status.connected && status.channelSubscribed) {
-            console.log('[useIncomingCall] ✅ Pusher connesso');
-            service.onIncomingCall((data) => {
-              handleIncomingCall(data);
-            });
-            return true;
+          try {
+            const status = service.getStatus();
+            if (status.connected && status.channelSubscribed) {
+              console.log('[useIncomingCall] ✅ Pusher connesso, registro listener');
+              service.onIncomingCall((data) => {
+                console.log('[useIncomingCall] 📡 Evento Pusher ricevuto');
+                handleIncomingCall(data);
+              });
+              return true;
+            }
+          } catch (e) {
+            console.error('[useIncomingCall] ❌ Errore setup listener:', e);
           }
           return false;
         };
 
         // Retry setup se non pronto
         if (!setupListener()) {
-          const retryInterval = setInterval(() => {
+          console.log('[useIncomingCall] ⏳ Pusher non pronto, retry...');
+          retryIntervalId = setInterval(() => {
             if (setupListener()) {
-              clearInterval(retryInterval);
+              clearInterval(retryIntervalId);
+              retryIntervalId = null;
             }
           }, 1000);
           
-          setTimeout(() => clearInterval(retryInterval), 30000);
+          // Stop retry dopo 30s
+          setTimeout(() => {
+            if (retryIntervalId) {
+              clearInterval(retryIntervalId);
+              retryIntervalId = null;
+              console.log('[useIncomingCall] ⚠️ Timeout connessione Pusher');
+            }
+          }, 30000);
         }
 
-        // Event listener per eventi custom
+        // Event listener per eventi custom (backup)
         const customEventHandler = (event) => {
+          console.log('[useIncomingCall] 📡 Evento custom ricevuto');
           handleIncomingCall(event.detail);
         };
         
         window.addEventListener('pusher-incoming-call', customEventHandler);
 
-        cleanupFn = () => {
-          clearInterval(interval);
+        // Salva cleanup function
+        pusherCleanupRef.current = () => {
+          console.log('[useIncomingCall] 🧹 Cleanup Pusher');
+          if (intervalId) clearInterval(intervalId);
+          if (retryIntervalId) clearInterval(retryIntervalId);
           window.removeEventListener('pusher-incoming-call', customEventHandler);
         };
       })
       .catch((err) => {
-        console.error('[useIncomingCall] ❌ Errore Pusher:', err);
+        console.error('[useIncomingCall] ❌ Errore caricamento Pusher:', err);
+        setConnected(false);
       });
 
+    // Cleanup
     return () => {
-      if (cleanupFn) cleanupFn();
+      if (pusherCleanupRef.current) {
+        pusherCleanupRef.current();
+      }
     };
   }, [isMounted, handleIncomingCall]);
 
@@ -155,6 +204,7 @@ export default function useIncomingCall() {
 
     console.log('[useIncomingCall] ❌ Popup chiuso (ignorata)');
     
+    // Aggiorna status in localStorage
     if (chiamataCorrente) {
       try {
         const storageKey = 'pastificio_chiamate_recenti';
@@ -167,10 +217,11 @@ export default function useIncomingCall() {
         });
         localStorage.setItem(storageKey, JSON.stringify(aggiornate));
       } catch (error) {
-        console.error('Errore update status:', error);
+        console.error('[useIncomingCall] Errore update status:', error);
       }
     }
     
+    // Clear timeout
     if (resetTimeoutRef.current) {
       clearTimeout(resetTimeoutRef.current);
       resetTimeoutRef.current = null;
@@ -186,6 +237,7 @@ export default function useIncomingCall() {
 
     console.log('[useIncomingCall] ✅ Chiamata accettata');
     
+    // Aggiorna status in localStorage
     if (chiamataCorrente) {
       try {
         const storageKey = 'pastificio_chiamate_recenti';
@@ -198,10 +250,11 @@ export default function useIncomingCall() {
         });
         localStorage.setItem(storageKey, JSON.stringify(aggiornate));
       } catch (error) {
-        console.error('Errore update status:', error);
+        console.error('[useIncomingCall] Errore update status:', error);
       }
     }
     
+    // Clear timeout
     if (resetTimeoutRef.current) {
       clearTimeout(resetTimeoutRef.current);
       resetTimeoutRef.current = null;
@@ -209,7 +262,7 @@ export default function useIncomingCall() {
     
     setIsPopupOpen(false);
     
-    // Reset chiamata dopo 10s
+    // Reset chiamata dopo 10s (per permettere a GestoreOrdini di usarla)
     resetTimeoutRef.current = setTimeout(() => {
       setChiamataCorrente(null);
     }, 10000);
@@ -238,7 +291,7 @@ export default function useIncomingCall() {
       const storageKey = 'pastificio_chiamate_recenti';
       return JSON.parse(localStorage.getItem(storageKey) || '[]');
     } catch (error) {
-      console.error('Errore lettura storico:', error);
+      console.error('[useIncomingCall] Errore lettura storico:', error);
       return [];
     }
   }, [isMounted]);
@@ -252,7 +305,7 @@ export default function useIncomingCall() {
     };
   }, []);
 
-  // ✅ Return (SSR-safe: tutti i valori sono definiti)
+  // ✅ Return oggetto con tutti i valori (sempre definiti per SSR)
   return {
     chiamataCorrente,
     isPopupOpen,
@@ -262,6 +315,10 @@ export default function useIncomingCall() {
     connected,
     pusherService,
     getStoricoChiamateLocale,
-    isMounted // ✅ Esposto per debug
+    isMounted
   };
 }
+
+// ✅ Export default E named per massima compatibilità
+export default useIncomingCall;
+export { useIncomingCall };

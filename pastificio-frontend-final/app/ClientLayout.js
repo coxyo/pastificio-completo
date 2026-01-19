@@ -1,6 +1,7 @@
-// app/ClientLayout.js - ✅ FIX SSR DEFINITIVO 17/01/2026
-// ✅ TUTTO il codice client-side protetto con 'use client' + typeof window
-// ✅ CallPopup, useIncomingCall, localStorage: SOLO nel browser
+// app/ClientLayout.js - ✅ FIX DEFINITIVO 19/01/2026
+// ✅ useIncomingCall usato CORRETTAMENTE come hook React
+// ✅ CallPopup caricato con dynamic import (ssr: false)
+// ✅ ZERO errori "Cannot access X before initialization"
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -33,7 +34,10 @@ import {
   Phone as PhoneIcon
 } from '@mui/icons-material';
 
-// ✅ FIX SSR: Dynamic import per CallPopup (usa localStorage)
+// ✅ IMPORT DIRETTO del hook (funziona perché è 'use client')
+import useIncomingCall from '@/hooks/useIncomingCall';
+
+// ✅ CallPopup caricato dinamicamente (usa Audio, navigator)
 const CallPopup = dynamic(
   () => import('@/components/CallPopup'),
   { 
@@ -44,7 +48,7 @@ const CallPopup = dynamic(
 
 const drawerWidth = 240;
 
-// ✅ Menu completo
+// Menu completo
 const menuItems = [
   { id: 'dashboard', title: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/' },
@@ -65,69 +69,32 @@ export default function ClientLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
-  
-  // ✅ Stati per chiamate (inizializzati null per SSR)
-  const [chiamataCorrente, setChiamataCorrente] = useState(null);
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [connected, setConnected] = useState(false);
 
-  // ✅ FIX SSR: TUTTO il codice client-side qui
+  // ✅ HOOK CHIAMATO CORRETTAMENTE - al top level del componente!
+  const {
+    chiamataCorrente,
+    isPopupOpen,
+    handleClosePopup,
+    handleAcceptCall,
+    connected,
+    isMounted: hookMounted
+  } = useIncomingCall();
+
+  // ✅ Detect mount per evitare hydration mismatch
   useEffect(() => {
-    // Verifica che siamo nel browser
-    if (typeof window === 'undefined') {
-      console.log('⚠️ SSR detected, skipping client-side code');
-      return;
-    }
-
-    console.log('✅ Browser detected, initializing client-side code');
     setMounted(true);
+  }, []);
 
-    // ✅ Richiedi permessi notifiche (solo browser)
+  // ✅ Richiedi permessi notifiche (solo browser)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().then(permission => {
         console.log('🔔 Permesso notifiche:', permission);
       });
     }
-
-    // ✅ Carica hook chiamate (solo browser)
-    let cleanup = null;
-    
-    import('@/hooks/useIncomingCall')
-      .then((module) => {
-        const useIncomingCall = module.default;
-        
-        // Crea un mini-component per usare il hook
-        const IncomingCallHandler = () => {
-          const hookData = useIncomingCall();
-          
-          // Aggiorna stati quando cambiano
-          useEffect(() => {
-            if (hookData.chiamataCorrente) {
-              console.log('📞 Nuova chiamata rilevata:', hookData.chiamataCorrente);
-              setChiamataCorrente(hookData.chiamataCorrente);
-              setIsPopupOpen(hookData.isPopupOpen);
-            }
-            setConnected(hookData.connected);
-          }, [hookData.chiamataCorrente, hookData.isPopupOpen, hookData.connected]);
-
-          return null;
-        };
-
-        // Inizializza il handler
-        const handler = IncomingCallHandler();
-        cleanup = () => {
-          console.log('🧹 Cleanup chiamate');
-        };
-      })
-      .catch(err => {
-        console.error('❌ Errore caricamento useIncomingCall:', err);
-      });
-
-    // Cleanup al unmount
-    return () => {
-      if (cleanup) cleanup();
-    };
-  }, []); // ✅ Esegui solo una volta al mount
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -143,17 +110,14 @@ export default function ClientLayout({ children }) {
     return pathname === path || pathname.startsWith(path + '/');
   };
 
-  // ✅ Handler accettazione chiamata (protetto con typeof window)
+  // ✅ Handler accettazione chiamata con navigazione
   const handleAcceptAndNavigate = () => {
-    if (typeof window === 'undefined') {
-      console.warn('⚠️ handleAcceptAndNavigate chiamato su SSR, ignoro');
-      return;
-    }
+    if (typeof window === 'undefined') return;
     
     console.log('📞 Accetta chiamata:', chiamataCorrente);
     
     try {
-      // Salva dati cliente in localStorage
+      // Salva dati cliente in localStorage per GestoreOrdini
       if (chiamataCorrente?.cliente) {
         localStorage.setItem('chiamataCliente', JSON.stringify({
           clienteId: chiamataCorrente.cliente._id,
@@ -180,22 +144,14 @@ export default function ClientLayout({ children }) {
       window.dispatchEvent(new Event('nuova-chiamata'));
       console.log('📢 Evento nuova-chiamata dispatched');
       
-      // Chiudi popup
-      setIsPopupOpen(false);
-      setChiamataCorrente(null);
-      console.log('✅ Popup chiuso, navigazione a /');
+      // Chiama handler del hook
+      handleAcceptCall();
       
       // Vai a pagina ordini
       router.push('/');
     } catch (err) {
       console.error('❌ Errore handleAcceptAndNavigate:', err);
     }
-  };
-
-  const handleClosePopup = () => {
-    console.log('❌ Chiamata rifiutata/chiusa');
-    setIsPopupOpen(false);
-    setChiamataCorrente(null);
   };
 
   // ✅ Drawer menu
@@ -275,7 +231,7 @@ export default function ClientLayout({ children }) {
         </Toolbar>
       </AppBar>
       
-      {/* ✅ Sidebar */}
+      {/* Sidebar */}
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
@@ -307,7 +263,7 @@ export default function ClientLayout({ children }) {
         </Drawer>
       </Box>
       
-      {/* ✅ Main content */}
+      {/* Main content */}
       <Box
         component="main"
         sx={{
@@ -320,7 +276,7 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ✅ CALL POPUP - Caricato SOLO nel browser quando mounted */}
+      {/* ✅ CALL POPUP - Renderizzato solo quando serve */}
       {mounted && isPopupOpen && chiamataCorrente && (
         <CallPopup
           isOpen={isPopupOpen}
