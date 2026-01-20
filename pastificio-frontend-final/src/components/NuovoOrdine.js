@@ -1,5 +1,5 @@
 // components/NuovoOrdine.js - ✅ CON CHECKBOX MULTIPLE PER RAVIOLI + OPZIONI EXTRA
-// ✅ AGGIORNATO 19/11/2025: Opzioni extra (più piccoli, più grandi, etc.) vanno automaticamente in noteCottura
+// ✅ AGGIORNATO 19/11/2025: Opzioni extra (più piccoli, più grandi, etc.) vanno automaticamente in noteProdotto
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -78,6 +78,22 @@ const VALORI_RAPIDI = {
 // ✅ NUOVO: Dimensioni vassoi disponibili
 const DIMENSIONI_VASSOIO = ['2', '3', '4', '4.5', '5', '6', '7', '8'];
 
+
+// ✅ HELPER: Normalizza input decimali (accetta sia virgola che punto)
+const normalizzaDecimale = (value) => {
+  if (typeof value === 'number') return value;
+  if (!value) return '';
+  // Sostituisci virgola con punto
+  const normalized = String(value).replace(',', '.');
+  return normalized;
+};
+
+// ✅ HELPER: Capitalizza prima lettera
+const capitalizeFirst = (str) => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
 export default function NuovoOrdine({ 
   open, 
   onClose, 
@@ -121,7 +137,7 @@ clienteIdPreselezionato,
   prezzo: 0,
   varianti: [], // ✅ Array varianti per nuovo sistema checkbox
   opzioniExtra: [], // ✅ NUOVO: Array opzioni extra (più piccoli, più grandi, etc.)
-  noteCottura: ''
+  noteProdotto: ''
 });
 
   // ✅ STATI PER GESTIONE VASSOIO
@@ -624,7 +640,7 @@ clienteIdPreselezionato,
       prezzo: 0,
       varianti: [],
       opzioniExtra: [], // ✅ NUOVO: Reset opzioni extra
-      noteCottura: ''
+      noteProdotto: ''
     });
     
     // ✅ NUOVO: Reset numero vassoi e dimensione
@@ -771,7 +787,7 @@ clienteIdPreselezionato,
       prezzo: 0,
       varianti: [],
       opzioniExtra: [],
-      noteCottura: ''
+      noteProdotto: ''
     });
     setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
     setNumeroVassoi(1);
@@ -804,7 +820,7 @@ clienteIdPreselezionato,
         prezzo: 0,
         varianti: [],
         opzioniExtra: [],
-        noteCottura: ''
+        noteProdotto: ''
       });
       return;
     }
@@ -867,7 +883,7 @@ clienteIdPreselezionato,
         prezzo: 0,
         varianti: [],
         opzioniExtra: [],
-        noteCottura: ''
+        noteProdotto: ''
       });
       setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
       setNumeroVassoi(1);
@@ -929,7 +945,7 @@ clienteIdPreselezionato,
         prezzo: 0,
         varianti: [],
         opzioniExtra: [],
-        noteCottura: ''
+        noteProdotto: ''
       });
       setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
       setNumeroVassoi(1);
@@ -969,17 +985,17 @@ clienteIdPreselezionato,
       console.log('✅ Nome con variante (dropdown):', nomeProdottoCompleto);
     }
 
-    // ✅ NUOVO: Combina noteCottura esistenti con opzioni extra
-    let noteCotturaCombinate = prodottoCorrente.noteCottura || '';
+    // ✅ NUOVO: Combina noteProdotto esistenti con opzioni extra
+    let noteProdottoCombinate = prodottoCorrente.noteProdotto || '';
     
     if (prodottoCorrente.opzioniExtra && prodottoCorrente.opzioniExtra.length > 0) {
       const opzioniExtraStr = prodottoCorrente.opzioniExtra.join(', ');
       console.log('📝 Opzioni extra da aggiungere alle note:', opzioniExtraStr);
       
-      if (noteCotturaCombinate) {
-        noteCotturaCombinate = `${noteCotturaCombinate}, ${opzioniExtraStr}`;
+      if (noteProdottoCombinate) {
+        noteProdottoCombinate = `${noteProdottoCombinate}, ${opzioniExtraStr}`;
       } else {
-        noteCotturaCombinate = opzioniExtraStr;
+        noteProdottoCombinate = opzioniExtraStr;
       }
     }
     
@@ -987,10 +1003,10 @@ clienteIdPreselezionato,
     console.log('🔍 DEBUG dimensioneVassoio:', dimensioneVassoio, 'tipo:', typeof dimensioneVassoio);
     if (dimensioneVassoio) {
       const dimensioneNote = `Vassoio nr ${dimensioneVassoio}`;
-      if (noteCotturaCombinate) {
-        noteCotturaCombinate = `${noteCotturaCombinate}, ${dimensioneNote}`;
+      if (noteProdottoCombinate) {
+        noteProdottoCombinate = `${noteProdottoCombinate}, ${dimensioneNote}`;
       } else {
-        noteCotturaCombinate = dimensioneNote;
+        noteProdottoCombinate = dimensioneNote;
       }
       console.log('📦 Dimensione vassoio aggiunta alle note:', dimensioneNote);
     }
@@ -1007,7 +1023,7 @@ clienteIdPreselezionato,
         categoria: prodottoConfig?.categoria || 'Altro',
         variante: prodottoCorrente.variante,
         varianti: prodottoCorrente.varianti,
-        noteCottura: noteCotturaCombinate
+        noteProdotto: noteProdottoCombinate
       });
     }
 
@@ -1026,7 +1042,7 @@ clienteIdPreselezionato,
       prezzo: 0,
       varianti: [],
       opzioniExtra: [],
-      noteCottura: ''
+      noteProdotto: ''
     });
     
     // ✅ NUOVO: Reset numero vassoi e dimensione
@@ -1062,7 +1078,7 @@ clienteIdPreselezionato,
       prezzo: prodottoDaModificare.prezzo || 0,
       varianti: prodottoDaModificare.varianti || [],
       opzioniExtra: prodottoDaModificare.opzioniExtra || [],
-      noteCottura: prodottoDaModificare.noteCottura || ''
+      noteProdotto: prodottoDaModificare.noteProdotto || ''
     });
     
     // 4. Aggiorna il carrello senza il prodotto
@@ -1158,8 +1174,23 @@ clienteIdPreselezionato,
       console.log('⚠️ Utente ha confermato override limiti');
     }
 
+    // ✅ Raccogli tutte le note prodotto
+    const noteProdotti = formData.prodotti
+      .filter(p => p.noteProdotto && p.noteProdotto.trim() !== '')
+      .map(p => `${p.nome}: ${p.noteProdotto}`)
+      .join(' | ');
+    
+    // ✅ Combina note ordine + note prodotti
+    let noteFinali = formData.note || '';
+    if (noteProdotti) {
+      noteFinali = noteFinali 
+        ? `${noteFinali}\n\n📝 Note prodotti: ${noteProdotti}`
+        : `📝 Note prodotti: ${noteProdotti}`;
+    }
+
     const ordineData = {
       ...formData,
+      note: noteFinali,  // ✅ Note combinate
       nomeCliente: nomeClienteCompleto,  // ✅ Usa nome completo calcolato
       // ✅ FIX 15/01/2026 v2: Salva nome/cognome/telefono separati per modifica
       nome: formData.nome || nomeClienteCompleto.split(' ')[0] || '',
@@ -1345,12 +1376,15 @@ clienteIdPreselezionato,
                     <Grid item xs={6} sm={3}>
                       <TextField
                         fullWidth
-                        type="number"
+                        type="text"
                         label="Quantità"
                         placeholder="0"
                         value={prodottoCorrente.quantita}
                         onChange={(e) => {
-                          const value = e.target.value;
+                          let value = e.target.value;
+                          // ✅ Normalizza virgola → punto
+                          value = normalizzaDecimale(value);
+                          
                           if (value === '') {
                             setProdottoCorrente({ ...prodottoCorrente, quantita: '' });
                             return;
@@ -1398,71 +1432,19 @@ clienteIdPreselezionato,
                       </FormControl>
                     </Grid>
 
-                    {/* Campo Note Cottura */}
+                    {/* Campo Note Prodotto */}
                     <Grid item xs={12} sm={6}>
                       <TextField
                         fullWidth
-                        label="Note Cottura"
+                        label="Note Prodotto"
                         placeholder="Es: ben cotte, poco dorate..."
-                        value={prodottoCorrente.noteCottura}
+                        value={prodottoCorrente.noteProdotto}
                         onChange={(e) => setProdottoCorrente({ 
                           ...prodottoCorrente, 
-                          noteCottura: e.target.value 
+                          noteProdotto: e.target.value 
                         })}
                         size="small"
                       />
-                    </Grid>
-
-                    {/* ✅ NUOVO: Numero Vassoi Uguali - CHIP CLICCABILI PER TABLET */}
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
-                        🔢 Nr vassoi uguali:
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                          <Chip
-                            key={num}
-                            label={num}
-                            onClick={() => setNumeroVassoiProdotto(num)}
-                            color={numeroVassoiProdotto === num ? 'primary' : 'default'}
-                            variant={numeroVassoiProdotto === num ? 'filled' : 'outlined'}
-                            sx={{
-                              fontSize: '1.1rem',
-                              fontWeight: 'bold',
-                              minWidth: '50px',
-                              height: '48px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s',
-                              '&:hover': { transform: 'scale(1.05)' },
-                              '&:active': { transform: 'scale(0.95)' },
-                              ...(numeroVassoiProdotto === num ? {
-                                backgroundColor: '#1976d2',
-                                color: 'white'
-                              } : {})
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    </Grid>
-
-                    {/* ✅ NUOVO: Dimensione Vassoio */}
-                    <Grid item xs={6} sm={3}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Dim. Vassoio</InputLabel>
-                        <Select
-                          value={dimensioneVassoio}
-                          onChange={(e) => {
-                            console.log('🎯 Dimensione vassoio selezionata:', e.target.value);
-                            setDimensioneVassoio(e.target.value);
-                          }}
-                          label="Dim. Vassoio"
-                        >
-                          <MenuItem value="">-</MenuItem>
-                          {DIMENSIONI_VASSOIO.map((dim) => (
-                            <MenuItem key={dim} value={dim}>Nr {dim}</MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
                     </Grid>
 
                     {/* Griglia Valori Rapidi */}
@@ -1558,6 +1540,60 @@ clienteIdPreselezionato,
                               />
                             </Grid>
                           </Grid>
+
+
+
+                    {/* ✅ NUOVO: Dimensione Vassoio */}
+                    <Grid item xs={6} sm={3}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Dim. Vassoio</InputLabel>
+                        <Select
+                          value={dimensioneVassoio}
+                          onChange={(e) => {
+                            console.log('🎯 Dimensione vassoio selezionata:', e.target.value);
+                            setDimensioneVassoio(e.target.value);
+                          }}
+                          label="Dim. Vassoio"
+                        >
+                          <MenuItem value="">-</MenuItem>
+                          {DIMENSIONI_VASSOIO.map((dim) => (
+                            <MenuItem key={dim} value={dim}>Nr {dim}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+
+                    {/* ✅ NUOVO: Numero Vassoi Uguali - CHIP CLICCABILI PER TABLET */}
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                        🔢 Nr vassoi uguali:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <Chip
+                            key={num}
+                            label={num}
+                            onClick={() => setNumeroVassoiProdotto(num)}
+                            color={numeroVassoiProdotto === num ? 'primary' : 'default'}
+                            variant={numeroVassoiProdotto === num ? 'filled' : 'outlined'}
+                            sx={{
+                              fontSize: '1.1rem',
+                              fontWeight: 'bold',
+                              minWidth: '50px',
+                              height: '48px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': { transform: 'scale(1.05)' },
+                              '&:active': { transform: 'scale(0.95)' },
+                              ...(numeroVassoiProdotto === num ? {
+                                backgroundColor: '#1976d2',
+                                color: 'white'
+                              } : {})
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    </Grid>
                         </Box>
                       </Grid>
                     )}
@@ -1758,9 +1794,9 @@ clienteIdPreselezionato,
                                 📦 Variante: {String(p.variante)}
                               </Typography>
                             )}
-                            {p.noteCottura && (
+                            {p.noteProdotto && (
                               <Typography variant="caption" color="text.secondary" display="block">
-                                🔥 {String(p.noteCottura)}
+                                🔥 {String(p.noteProdotto)}
                               </Typography>
                             )}
                             {p.dettagliCalcolo?.dettagli && (
@@ -1865,8 +1901,8 @@ clienteIdPreselezionato,
                   onInputChange={(event, newInputValue) => {
                     setFormData(prev => ({
                       ...prev,
-                      nome: newInputValue,
-                      nomeCliente: `${newInputValue} ${prev.cognome || ''}`.trim(),
+                      nome: capitalizeFirst(newInputValue), // ✅ Auto-capitalizza
+                      nomeCliente: `${capitalizeFirst(newInputValue)} ${prev.cognome || ''}`.trim(),
                       cliente: null
                     }));
                   }}
@@ -1942,8 +1978,8 @@ clienteIdPreselezionato,
                   onInputChange={(event, newInputValue) => {
                     setFormData(prev => ({
                       ...prev,
-                      cognome: newInputValue,
-                      nomeCliente: `${prev.nome || ''} ${newInputValue}`.trim(),
+                      cognome: capitalizeFirst(newInputValue), // ✅ Auto-capitalizza
+                      nomeCliente: `${prev.nome || ''} ${capitalizeFirst(newInputValue)}`.trim(),
                       cliente: null
                     }));
                   }}

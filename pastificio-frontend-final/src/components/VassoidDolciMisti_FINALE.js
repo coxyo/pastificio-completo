@@ -155,6 +155,18 @@ const MODALITA = {
 };
 
 // ==========================================
+// 🔧 HELPER FUNCTIONS
+// ==========================================
+// ✅ Normalizza input decimali (accetta sia virgola che punto)
+const normalizzaDecimale = (value) => {
+  if (typeof value === 'number') return value;
+  if (!value) return '';
+  // Sostituisci virgola con punto
+  const normalized = String(value).replace(/,/g, '.');
+  return normalized;
+};
+
+// ==========================================
 // 🎂 COMPONENTE PRINCIPALE
 // ==========================================
 const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili }) => {
