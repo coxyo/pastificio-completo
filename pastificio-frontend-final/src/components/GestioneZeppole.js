@@ -30,7 +30,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY || '42b401f9d1043202d98a';
 const PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu';
 
@@ -85,7 +85,7 @@ const GestioneZeppole = ({ open, onClose }) => {
       };
 
       // ✅ Carica limite con filtro data
-      const limiteUrl = `${API_URL}/api/limiti/prodotto/Zeppole?data=${dataSelezionata}`;
+      const limiteUrl = `${API_URL}/limiti/prodotto/Zeppole?data=${dataSelezionata}`;
       console.log('[ZEPPOLE] Carico limite da:', limiteUrl);
       
       const limiteRes = await fetch(limiteUrl, { headers });
@@ -99,7 +99,7 @@ const GestioneZeppole = ({ open, onClose }) => {
       setLimiteData(limiteJson.data);
 
       // ✅ Carica ordini con filtro data
-      const ordiniUrl = `${API_URL}/api/limiti/ordini-prodotto/Zeppole?data=${dataSelezionata}`;
+      const ordiniUrl = `${API_URL}/limiti/ordini-prodotto/Zeppole?data=${dataSelezionata}`;
       console.log('[ZEPPOLE] Carico ordini da:', ordiniUrl);
       
       const ordiniRes = await fetch(ordiniUrl, { headers });
@@ -194,7 +194,7 @@ const GestioneZeppole = ({ open, onClose }) => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch(`${API_URL}/api/limiti/vendita-diretta`, {
+      const response = await fetch(`${API_URL}/limiti/vendita-diretta`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -242,7 +242,7 @@ const GestioneZeppole = ({ open, onClose }) => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch(`${API_URL}/api/limiti/reset-prodotto`, {
+      const response = await fetch(`${API_URL}/limiti/reset-prodotto`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -284,7 +284,7 @@ const GestioneZeppole = ({ open, onClose }) => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch(`${API_URL}/api/limiti/${limiteData._id}`, {
+      const response = await fetch(`${API_URL}/limiti/${limiteData._id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({
