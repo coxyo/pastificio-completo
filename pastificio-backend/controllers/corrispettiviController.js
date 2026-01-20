@@ -1,5 +1,5 @@
 // controllers/corrispettiviController.js
-// ✅ VERSIONE CORRETTA - COMPATIBILE CON ROUTES
+// ✅ VERSIONE CORRETTA - CON INVIO EMAIL
 import Corrispettivo from '../models/Corrispettivo.js';
 import logger from '../config/logger.js';
 
@@ -110,11 +110,14 @@ const eliminaCorrispettivo = async (req, res) => {
   }
 };
 
-// POST - Chiusura mensile
+// POST - Chiusura mensile CON INVIO EMAIL
 const chiusuraMensile = async (req, res) => {
   try {
     const { anno, mese } = req.body;
     
+    logger.info(`📊 Chiusura mese ${mese}/${anno}...`);
+    
+    // Segna come chiuso
     await Corrispettivo.updateMany(
       { anno: parseInt(anno), mese: parseInt(mese) },
       { 
@@ -130,6 +133,13 @@ const chiusuraMensile = async (req, res) => {
       anno: parseInt(anno),
       mese: parseInt(mese)
     });
+    
+    if (corrispettivi.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `Nessun corrispettivo trovato per ${mese}/${anno}`
+      });
+    }
     
     const totali = {
       totaleMese: 0,
@@ -149,11 +159,72 @@ const chiusuraMensile = async (req, res) => {
       }
     });
     
-    res.json({
-      success: true,
-      message: `Mese ${mese}/${anno} chiuso con successo`,
-      data: totali
-    });
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ✅ NUOVO: INVIO EMAIL AUTOMATICO
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    try {
+      logger.info('📧 Invio email report corrispettivi...');
+      
+      // Importa servizi
+      const pdfService = (await import('../services/pdfCorrispettivi.js')).default;
+      const emailService = (await import('../services/emailService.js')).default;
+      
+      // Genera PDF
+      const pdfBuffer = await pdfService.generaPdfCorrispettivi(parseInt(anno), parseInt(mese));
+      
+      // Genera CSV
+      const csvBuffer = await pdfService.generaCsvCorrispettivi(parseInt(anno), parseInt(mese));
+      
+      // Invia email
+      const emailResult = await emailService.inviaReportCorrispettiviMensile(
+        parseInt(anno),
+        parseInt(mese),
+        pdfBuffer,
+        csvBuffer
+      );
+      
+      if (emailResult.success) {
+        logger.info(`✅ Email inviata con successo! MessageID: ${emailResult.messageId}`);
+        
+        res.json({
+          success: true,
+          message: `Mese ${mese}/${anno} chiuso e email inviata con successo`,
+          data: totali,
+          email: {
+            sent: true,
+            messageId: emailResult.messageId,
+            recipient: emailResult.recipient
+          }
+        });
+      } else {
+        logger.error(`❌ Errore invio email: ${emailResult.error}`);
+        
+        res.json({
+          success: true,
+          message: `Mese ${mese}/${anno} chiuso, ma errore invio email`,
+          data: totali,
+          email: {
+            sent: false,
+            error: emailResult.error
+          }
+        });
+      }
+      
+    } catch (emailError) {
+      logger.error('❌ Errore invio email:', emailError);
+      
+      // Mese chiuso comunque, ma email fallita
+      res.json({
+        success: true,
+        message: `Mese ${mese}/${anno} chiuso, ma errore invio email: ${emailError.message}`,
+        data: totali,
+        email: {
+          sent: false,
+          error: emailError.message
+        }
+      });
+    }
+    
   } catch (error) {
     logger.error('Errore chiusuraMensile:', error);
     res.status(500).json({
@@ -186,16 +257,8 @@ const reportAnnuale = async (req, res) => {
     
     const mesi = await Corrispettivo.aggregate(pipeline);
     
-    const totaleAnno = mesi.reduce((sum, m) => sum + (m.totaleMese || 0), 0);
+    res.json(mesi);  // ✅ Modificato: Ritorna array diretto per grafici
     
-    res.json({
-      success: true,
-      data: {
-        anno: parseInt(anno),
-        totaleAnno,
-        mesi
-      }
-    });
   } catch (error) {
     logger.error('Errore reportAnnuale:', error);
     res.status(500).json({
