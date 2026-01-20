@@ -965,7 +965,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
               
               {/* ⚡ CHIP VALORI RAPIDI PER TOTALE */}
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                {VALORI_RAPIDI_TOTALI[totaleTarget.unita] || [].map((valore) => (
+                {(VALORI_RAPIDI_TOTALI[totaleTarget.unita] || []).map((valore) => (
                   <Chip
                     key={valore}
                     label={valore}
@@ -1083,7 +1083,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
 
               {/* ⚡ CHIP VALORI RAPIDI PER PESO TOTALE */}
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {VALORI_RAPIDI_TOTALI.Kg || [].map((valore) => (
+                {(VALORI_RAPIDI_TOTALI.Kg || []).map((valore) => (
                   <Chip
                     key={valore}
                     label={`${valore} Kg`}
