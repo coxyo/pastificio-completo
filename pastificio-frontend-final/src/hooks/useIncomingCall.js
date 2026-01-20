@@ -1,8 +1,13 @@
+// hooks/useIncomingCall.js - v2.0 ANTI-SPAM AGGRESSIVO
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+
+// ✅ CONFIGURAZIONE ANTI-SPAM
+const DEBOUNCE_TIME = 5000; // 5 secondi tra chiamate stesso numero
+const RESET_TIMEOUT = 60000; // Reset dopo 60 secondi
 
 export default function useIncomingCall() {
   const [chiamataCorrente, setChiamataCorrente] = useState(null);
@@ -10,7 +15,8 @@ export default function useIncomingCall() {
   const [connected, setConnected] = useState(false);
   const [pusherService, setPusherService] = useState(null);
   
-  const lastCallIdRef = useRef(null);
+  // ✅ ANTI-SPAM: Traccia ultima chiamata per numero
+  const lastCallByNumberRef = useRef(new Map()); // numero -> { time, callId }
   const resetTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -20,7 +26,24 @@ export default function useIncomingCall() {
     console.log('  - connected:', connected);
   }, [chiamataCorrente, isPopupOpen, connected]);
 
-  // FIX: Rimuovo campo sorgente dal payload
+  // ✅ PULIZIA PERIODICA CACHE ANTI-SPAM
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const map = lastCallByNumberRef.current;
+      
+      // Rimuovi entries più vecchie di RESET_TIMEOUT
+      for (const [numero, data] of map.entries()) {
+        if (now - data.time > RESET_TIMEOUT) {
+          map.delete(numero);
+          console.log('[useIncomingCall] Cleanup cache per numero:', numero);
+        }
+      }
+    }, 30000); // Ogni 30 secondi
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
   const salvaChiamataDB = useCallback(async (callData) => {
     try {
       const response = await fetch(`${API_URL}/chiamate/webhook`, {
@@ -32,10 +55,9 @@ export default function useIncomingCall() {
         body: JSON.stringify({
           numero: callData.numero,
           timestamp: callData.timestamp || new Date().toISOString(),
-          callId: `call_${Date.now()}`,
+          callId: callData.callId || `call_${Date.now()}`,
           cliente: callData.cliente || null,
           clienteTrovato: !!callData.cliente
-          // RIMOSSO: sorgente (causa errore validation)
         })
       });
       
@@ -50,6 +72,8 @@ export default function useIncomingCall() {
   }, []);
 
   const salvaChiamataLocale = useCallback((callData) => {
+    if (typeof window === 'undefined') return;
+    
     try {
       const storageKey = 'pastificio_chiamate_recenti';
       const chiamateEsistenti = JSON.parse(localStorage.getItem(storageKey) || '[]');
@@ -111,30 +135,34 @@ export default function useIncomingCall() {
         
         console.log('CALL [useIncomingCall] Evento ricevuto:', callData);
         
-        const chiamataUniqueId = `${callData.numero}_${callData.timestamp}`;
+        // ✅ ANTI-SPAM AGGRESSIVO: Controlla per numero
+        const numero = callData.numero;
         const now = Date.now();
+        const lastCall = lastCallByNumberRef.current.get(numero);
         
-        if (lastCallIdRef.current?.id === chiamataUniqueId && 
-            now - lastCallIdRef.current.time < 2000) {
-          console.log('SKIP [useIncomingCall] Evento duplicato ignorato');
+        if (lastCall && (now - lastCall.time) < DEBOUNCE_TIME) {
+          console.log('🚫 SPAM BLOCKED [useIncomingCall] Stesso numero entro 5s:', {
+            numero,
+            ultimaChiamata: new Date(lastCall.time).toISOString(),
+            tempoTrascorso: `${((now - lastCall.time) / 1000).toFixed(1)}s`,
+            soglia: `${DEBOUNCE_TIME / 1000}s`
+          });
           return;
         }
         
-        lastCallIdRef.current = {
-          id: chiamataUniqueId,
-          time: now
-        };
+        // ✅ Registra questa chiamata
+        lastCallByNumberRef.current.set(numero, {
+          time: now,
+          callId: callData.callId
+        });
         
-        if (resetTimeoutRef.current) {
-          clearTimeout(resetTimeoutRef.current);
-        }
-        resetTimeoutRef.current = setTimeout(() => {
-          if (lastCallIdRef.current?.id === chiamataUniqueId) {
-            console.log('RESET [useIncomingCall] Reset lastCallId dopo 30s');
-            lastCallIdRef.current = null;
-          }
-        }, 30000);
+        console.log('✅ CHIAMATA ACCETTATA [useIncomingCall]:', {
+          numero,
+          timestamp: new Date(now).toISOString(),
+          cliente: callData.cliente?.nome || 'Sconosciuto'
+        });
         
+        // ✅ Salva e mostra popup
         salvaChiamataLocale(callData);
         salvaChiamataDB(callData);
         
@@ -182,7 +210,7 @@ export default function useIncomingCall() {
   const handleClosePopup = useCallback(() => {
     console.log('CLOSE [useIncomingCall] Chiusura popup (Ignora)');
     
-    if (chiamataCorrente) {
+    if (chiamataCorrente && typeof window !== 'undefined') {
       try {
         const storageKey = 'pastificio_chiamate_recenti';
         const chiamate = JSON.parse(localStorage.getItem(storageKey) || '[]');
@@ -212,7 +240,7 @@ export default function useIncomingCall() {
   const handleAcceptCall = useCallback(() => {
     console.log('ACCEPT [useIncomingCall] Chiamata accettata');
     
-    if (chiamataCorrente) {
+    if (chiamataCorrente && typeof window !== 'undefined') {
       try {
         const storageKey = 'pastificio_chiamate_recenti';
         const chiamate = JSON.parse(localStorage.getItem(storageKey) || '[]');
@@ -256,6 +284,8 @@ export default function useIncomingCall() {
   }, []);
 
   const getStoricoChiamateLocale = useCallback(() => {
+    if (typeof window === 'undefined') return [];
+    
     try {
       const storageKey = 'pastificio_chiamate_recenti';
       return JSON.parse(localStorage.getItem(storageKey) || '[]');

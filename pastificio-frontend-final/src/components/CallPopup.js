@@ -1,4 +1,4 @@
-// src/components/CallPopup.js
+// src/components/CallPopup.js - v2.0 SSR-SAFE + CRASH PROTECTION
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -24,7 +24,6 @@ import {
   Phone as PhoneIcon,
   Close as CloseIcon,
   Person as PersonIcon,
-  ShoppingCart as OrderIcon,
   Star as StarIcon,
   History as HistoryIcon,
   Notes as NotesIcon
@@ -32,33 +31,42 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 /**
- * POPUP CHIAMATA IN ARRIVO
+ * POPUP CHIAMATA IN ARRIVO - SSR-SAFE
  * 
- * Si apre automaticamente quando arriva una chiamata
- * Mostra info cliente, ultimi ordini, note
+ * ✅ Protezione da crash hydration
+ * ✅ Gestione sicura props null/undefined
+ * ✅ Caricamento ordini async sicuro
  */
 function CallPopup({ chiamata, onClose, onSaveNote }) {
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
   const [ultimiOrdini, setUltimiOrdini] = useState([]);
   const [loadingOrdini, setLoadingOrdini] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // ✅ PROTEZIONE: Se chiamata è null, non renderizzare nulla
-  if (!chiamata) {
+  // ✅ PROTEZIONE SSR: Monta solo client-side
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // ✅ PROTEZIONE: Se chiamata è null/undefined, non renderizzare
+  if (!chiamata || !mounted) {
     return null;
   }
 
   const { cliente, numero, callId, timestamp } = chiamata;
 
-  // Carica ultimi ordini del cliente
+  // Carica ultimi ordini del cliente (SOLO client-side)
   useEffect(() => {
-    if (cliente?.id) {
+    if (!mounted || typeof window === 'undefined') return;
+    
+    if (cliente?._id || cliente?.id) {
       caricaUltimiOrdini();
     }
-  }, [cliente]);
+  }, [cliente, mounted]);
 
   const caricaUltimiOrdini = async () => {
     if (typeof window === 'undefined') return;
@@ -66,8 +74,19 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     setLoadingOrdini(true);
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('[POPUP] Token non trovato, skip caricamento ordini');
+        return;
+      }
+
+      const clienteId = cliente?._id || cliente?.id;
+      if (!clienteId) {
+        console.warn('[POPUP] Cliente ID non trovato');
+        return;
+      }
+
       const response = await fetch(
-        `${API_URL}/ordini?clienteId=${cliente.id}&limit=5`,
+        `${API_URL}/ordini?clienteId=${clienteId}&limit=5`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -78,6 +97,8 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
       if (response.ok) {
         const data = await response.json();
         setUltimiOrdini(data.ordini || []);
+      } else {
+        console.warn('[POPUP] Errore caricamento ordini:', response.status);
       }
     } catch (error) {
       console.error('[POPUP] Errore caricamento ordini:', error);
@@ -108,7 +129,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
       oro: '#FFD700',
       platino: '#E5E4E2'
     };
-    return colors[livello] || '#999';
+    return colors[livello?.toLowerCase()] || '#999';
   };
 
   return (
@@ -165,7 +186,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
                   fontSize: '1.5rem'
                 }}
               >
-                {cliente.nome?.[0] || '?'}{cliente.cognome?.[0] || '?'}
+                {(cliente.nome?.[0] || '?')}{(cliente.cognome?.[0] || '')}
               </Avatar>
 
               <Box flex={1}>
@@ -173,7 +194,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
                   {cliente.nome || ''} {cliente.cognome || ''}
                 </Typography>
 
-                <Box display="flex" gap={1} mt={0.5}>
+                <Box display="flex" gap={1} mt={0.5} flexWrap="wrap">
                   {cliente.codiceCliente && (
                     <Chip
                       label={cliente.codiceCliente}
@@ -201,14 +222,14 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
             {/* Contatti */}
             <Box mb={2}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Telefono: <strong>{cliente.telefono || numero}</strong>
+                Telefono: <strong>{cliente.telefono || cliente.cellulare || numero}</strong>
               </Typography>
               {cliente.email && (
                 <Typography variant="body2" color="text.secondary">
                   Email: <strong>{cliente.email}</strong>
                 </Typography>
               )}
-              {cliente.punti > 0 && (
+              {(cliente.punti > 0) && (
                 <Typography variant="body2" color="primary" fontWeight="bold">
                   Punti Fedeltà: {cliente.punti}
                 </Typography>
@@ -242,7 +263,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
                       <ListItemText
                         primary={
                           <Typography variant="body2" fontWeight="bold">
-                            {new Date(ordine.dataConsegna).toLocaleDateString('it-IT')}
+                            {new Date(ordine.dataConsegna || ordine.dataRitiro).toLocaleDateString('it-IT')}
                           </Typography>
                         }
                         secondary={
