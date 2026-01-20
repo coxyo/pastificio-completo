@@ -1,4 +1,4 @@
-// routes/webhook.js - VERSIONE CON CORS FIX
+// routes/webhook.js - v2.0 CON DEBOUNCE BACKEND
 import express from 'express';
 import cors from 'cors';
 import Pusher from 'pusher';
@@ -8,7 +8,7 @@ import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// ✅ CORS SPECIFICO PER WEBHOOK (permette richieste dal frontend per test)
+// ✅ CORS SPECIFICO PER WEBHOOK
 const webhookCors = cors({
   origin: [
     'http://localhost:3000',
@@ -17,12 +17,25 @@ const webhookCors = cors({
     'https://pastificio-nonna-claudia.vercel.app'
   ],
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-KEY'],
   credentials: true
 });
 
-// Applica CORS a tutte le route del webhook
 router.use(webhookCors);
+
+// ✅ ANTI-SPAM BACKEND: Cache chiamate recenti
+const recentCalls = new Map(); // numero -> { timestamp, callId }
+const DEBOUNCE_TIME = 3000; // 3 secondi
+
+// ✅ Pulizia periodica cache (ogni minuto)
+setInterval(() => {
+  const now = Date.now();
+  for (const [numero, data] of recentCalls.entries()) {
+    if (now - data.timestamp > 60000) { // Rimuovi dopo 60 secondi
+      recentCalls.delete(numero);
+    }
+  }
+}, 60000);
 
 // ===== INIZIALIZZA PUSHER =====
 const pusher = new Pusher({
@@ -36,6 +49,7 @@ const pusher = new Pusher({
 /**
  * POST /api/webhook/chiamata-entrante
  * Riceve chiamate dalla extension 3CX + salva storico
+ * ✅ CON DEBOUNCE BACKEND
  */
 router.post('/chiamata-entrante', async (req, res) => {
   try {
@@ -56,9 +70,40 @@ router.post('/chiamata-entrante', async (req, res) => {
       });
     }
     
-    // Pulisci numero
-    const numeroPulito = numero.replace(/[\s\-\(\)]/g, '');
-    const numeroNormalizzato = numeroPulito.replace(/^\+/, '');
+    // ✅ DEBOUNCE: Controlla se chiamata duplicata
+    const now = Date.now();
+    const numeroPulito = numero.replace(/[\s\-\(\)\+]/g, '');
+    
+    const lastCall = recentCalls.get(numeroPulito);
+    if (lastCall && (now - lastCall.timestamp) < DEBOUNCE_TIME) {
+      logger.warn('🚫 SPAM BLOCKED - Chiamata duplicata ignorata', {
+        numero: numeroPulito,
+        ultimaChiamata: new Date(lastCall.timestamp).toISOString(),
+        tempoTrascorso: `${((now - lastCall.timestamp) / 1000).toFixed(1)}s`,
+        soglia: `${DEBOUNCE_TIME / 1000}s`
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Chiamata duplicata ignorata (debounce)',
+        duplicate: true,
+        tempoTrascorso: now - lastCall.timestamp
+      });
+    }
+    
+    // ✅ Registra chiamata
+    recentCalls.set(numeroPulito, {
+      timestamp: now,
+      callId: callId || `call_${now}`
+    });
+    
+    logger.info('✅ Chiamata accettata (debounce OK)', {
+      numero: numeroPulito,
+      timestamp: new Date(now).toISOString()
+    });
+    
+    // Normalizzazione numero
+    const numeroNormalizzato = numeroPulito;
     
     logger.info('🔄 Normalizzazione numero', {
       originale: numero,
@@ -70,7 +115,6 @@ router.post('/chiamata-entrante', async (req, res) => {
     let clienteTrovato = null;
     
     try {
-      // Cerca per telefono o cellulare
       clienteTrovato = await Cliente.findOne({
         $or: [
           { telefono: numeroNormalizzato },
@@ -109,8 +153,7 @@ router.post('/chiamata-entrante', async (req, res) => {
       
       logger.info('✅ Chiamata salvata in storico', {
         chiamataId: chiamataStorico._id,
-        clienteId: clienteTrovato?._id,
-        noteCount: chiamataStorico.noteAutomatiche?.length || 0
+        clienteId: clienteTrovato?._id
       });
     } catch (storageError) {
       logger.error('⚠️ Errore salvataggio storico (continuo comunque)', storageError);
@@ -134,15 +177,8 @@ router.post('/chiamata-entrante', async (req, res) => {
         email: clienteTrovato.email,
         livelloFedelta: clienteTrovato.livelloFedelta,
         punti: clienteTrovato.punti,
-        totaleSpesoStorico: clienteTrovato.totaleSpesoStorico,
-        codice: clienteTrovato.codice,
-        livello: clienteTrovato.livello,
-        totaleFatturato: clienteTrovato.totaleFatturato,
-        numeroOrdini: clienteTrovato.numeroOrdini,
-        dataUltimoOrdine: clienteTrovato.dataUltimoOrdine,
-        note: clienteTrovato.note
-      } : null,
-      noteAutomatiche: chiamataStorico?.noteAutomatiche || []
+        totaleSpesoStorico: clienteTrovato.totaleSpesoStorico
+      } : null
     };
     
     // ===== INVIA EVENTO PUSHER =====
@@ -153,8 +189,7 @@ router.post('/chiamata-entrante', async (req, res) => {
         canale: 'chiamate',
         evento: 'nuova-chiamata',
         cliente: clienteTrovato?.nome || 'Sconosciuto',
-        numeroNormalizzato: numeroNormalizzato,
-        noteCount: chiamataStorico?.noteAutomatiche?.length || 0
+        numeroNormalizzato: numeroNormalizzato
       });
       
     } catch (pusherError) {
@@ -180,7 +215,6 @@ router.post('/chiamata-entrante', async (req, res) => {
         cognome: clienteTrovato.cognome,
         telefono: clienteTrovato.telefono
       } : null,
-      noteAutomatiche: chiamataStorico?.noteAutomatiche || [],
       timestamp: new Date().toISOString()
     });
     
@@ -201,6 +235,11 @@ router.get('/health', (req, res) => {
   res.json({
     success: true,
     service: 'webhook-chiamate',
+    debounce: {
+      enabled: true,
+      time: `${DEBOUNCE_TIME / 1000}s`,
+      activeCalls: recentCalls.size
+    },
     pusher: {
       configured: !!(process.env.PUSHER_APP_ID && process.env.PUSHER_KEY && process.env.PUSHER_SECRET),
       cluster: process.env.PUSHER_CLUSTER || 'eu'
@@ -258,8 +297,7 @@ router.post('/test', async (req, res) => {
         email: cliente.email,
         livelloFedelta: cliente.livelloFedelta,
         punti: cliente.punti
-      } : null,
-      noteAutomatiche: chiamataTest.noteAutomatiche || []
+      } : null
     };
     
     // Invia evento Pusher
@@ -285,7 +323,7 @@ router.post('/test', async (req, res) => {
 
 /**
  * GET /api/webhook/history
- * Ottiene storico chiamate per cliente
+ * Ottiene storico chiamate
  */
 router.get('/history', async (req, res) => {
   try {
@@ -333,34 +371,20 @@ router.get('/history', async (req, res) => {
 });
 
 /**
- * GET /api/webhook/stats
- * Statistiche chiamate per cliente
+ * DELETE /api/webhook/clear-cache
+ * Svuota cache anti-spam (solo per debug)
  */
-router.get('/stats', async (req, res) => {
-  try {
-    const { clienteId } = req.query;
-    
-    if (!clienteId) {
-      return res.status(400).json({
-        success: false,
-        error: 'clienteId richiesto'
-      });
-    }
-    
-    const stats = await ChiamataStorico.getStatisticheCliente(clienteId);
-    
-    res.json({
-      success: true,
-      data: stats
-    });
-    
-  } catch (error) {
-    logger.error('❌ Errore calcolo statistiche', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
+router.delete('/clear-cache', (req, res) => {
+  const size = recentCalls.size;
+  recentCalls.clear();
+  
+  logger.info('🗑️ Cache anti-spam svuotata', { chiamateRimosse: size });
+  
+  res.json({
+    success: true,
+    message: 'Cache svuotata',
+    chiamateRimosse: size
+  });
 });
 
 export default router;
