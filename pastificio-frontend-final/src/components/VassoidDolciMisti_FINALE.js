@@ -179,6 +179,14 @@ const VALORI_RAPIDI_VASSOIO = {
 };
 
 
+
+// ✅ VALORI RAPIDI PER TOTALI VASSOIO (più grandi)
+const VALORI_RAPIDI_TOTALI = {
+  Kg: [0.25, 0.5, 0.6, 0.7, 0.8, 1, 1.2, 1.3, 1.5, 1.7, 2, 2.5, 3],
+  Pezzi: [4, 6, 8, 10, 12, 16, 20, 24, 30, 50],
+  '€': [5, 10, 15, 20, 25, 30]
+};
+
 // ✅ STILE CHIP PER VASSOIO
 const chipStyleVassoio = {
   fontSize: '1.1rem',
@@ -957,7 +965,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
               
               {/* ⚡ CHIP VALORI RAPIDI PER TOTALE */}
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                {VALORI_RAPIDI_VASSOIO[totaleTarget.unita]?.slice(0, 10).map((valore) => (
+                {VALORI_RAPIDI_TOTALI[totaleTarget.unita] || [].map((valore) => (
                   <Chip
                     key={valore}
                     label={valore}
@@ -1075,7 +1083,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
 
               {/* ⚡ CHIP VALORI RAPIDI PER PESO TOTALE */}
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {VALORI_RAPIDI_VASSOIO.Kg?.slice(0, 10).map((valore) => (
+                {VALORI_RAPIDI_TOTALI.Kg || [].map((valore) => (
                   <Chip
                     key={valore}
                     label={`${valore} Kg`}
