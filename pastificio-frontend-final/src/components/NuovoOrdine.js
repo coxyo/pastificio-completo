@@ -1466,6 +1466,58 @@ clienteIdPreselezionato,
                       </Box>
                     </Grid>
 
+                    {/* ✅ NUMERO VASSOI UGUALI - CHIP CLICCABILI PER TABLET */}
+                    <Grid item xs={12}>
+                      <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                        🔢 Nr vassoi uguali:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <Chip
+                            key={num}
+                            label={num}
+                            onClick={() => setNumeroVassoiProdotto(num)}
+                            color={numeroVassoiProdotto === num ? 'primary' : 'default'}
+                            variant={numeroVassoiProdotto === num ? 'filled' : 'outlined'}
+                            sx={{
+                              fontSize: '1.1rem',
+                              fontWeight: 'bold',
+                              minWidth: '50px',
+                              height: '48px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': { transform: 'scale(1.05)' },
+                              '&:active': { transform: 'scale(0.95)' },
+                              ...(numeroVassoiProdotto === num ? {
+                                backgroundColor: '#1976d2',
+                                color: 'white'
+                              } : {})
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    </Grid>
+
+                    {/* ✅ Dimensione Vassoio */}
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Dim. Vassoio</InputLabel>
+                        <Select
+                          value={dimensioneVassoio}
+                          onChange={(e) => {
+                            console.log('🎯 Dimensione vassoio selezionata:', e.target.value);
+                            setDimensioneVassoio(e.target.value);
+                          }}
+                          label="Dim. Vassoio"
+                        >
+                          <MenuItem value="">-</MenuItem>
+                          {DIMENSIONI_VASSOIO.map((dim) => (
+                            <MenuItem key={dim} value={dim}>Nr {dim}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+
                     <Grid item xs={8} sm={hasVarianti ? 8 : 4}>
                       <TextField
                         fullWidth
@@ -1540,60 +1592,6 @@ clienteIdPreselezionato,
                               />
                             </Grid>
                           </Grid>
-
-
-
-                    {/* ✅ NUOVO: Dimensione Vassoio */}
-                    <Grid item xs={6} sm={3}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Dim. Vassoio</InputLabel>
-                        <Select
-                          value={dimensioneVassoio}
-                          onChange={(e) => {
-                            console.log('🎯 Dimensione vassoio selezionata:', e.target.value);
-                            setDimensioneVassoio(e.target.value);
-                          }}
-                          label="Dim. Vassoio"
-                        >
-                          <MenuItem value="">-</MenuItem>
-                          {DIMENSIONI_VASSOIO.map((dim) => (
-                            <MenuItem key={dim} value={dim}>Nr {dim}</MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-
-                    {/* ✅ NUOVO: Numero Vassoi Uguali - CHIP CLICCABILI PER TABLET */}
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
-                        🔢 Nr vassoi uguali:
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                          <Chip
-                            key={num}
-                            label={num}
-                            onClick={() => setNumeroVassoiProdotto(num)}
-                            color={numeroVassoiProdotto === num ? 'primary' : 'default'}
-                            variant={numeroVassoiProdotto === num ? 'filled' : 'outlined'}
-                            sx={{
-                              fontSize: '1.1rem',
-                              fontWeight: 'bold',
-                              minWidth: '50px',
-                              height: '48px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s',
-                              '&:hover': { transform: 'scale(1.05)' },
-                              '&:active': { transform: 'scale(0.95)' },
-                              ...(numeroVassoiProdotto === num ? {
-                                backgroundColor: '#1976d2',
-                                color: 'white'
-                              } : {})
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    </Grid>
                         </Box>
                       </Grid>
                     )}
