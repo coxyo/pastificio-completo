@@ -169,6 +169,28 @@ const normalizzaDecimale = (value) => {
 // ==========================================
 // 🎂 COMPONENTE PRINCIPALE
 // ==========================================
+
+// ✅ VALORI RAPIDI PER COMPOSITORE VASSOIO
+const VALORI_RAPIDI_VASSOIO = {
+  Kg: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.2, 1.5, 2],
+  Pezzi: [2, 4, 6, 8, 10, 12, 15, 20, 24, 30],
+  g: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+  '€': [5, 10, 15, 20, 25, 30]
+};
+
+
+// ✅ STILE CHIP PER VASSOIO
+const chipStyleVassoio = {
+  fontSize: '1.1rem',
+  fontWeight: 'bold',
+  minWidth: '70px',
+  height: '48px',
+  cursor: 'pointer',
+  transition: 'all 0.2s',
+  '&:hover': { transform: 'scale(1.05)' },
+  '&:active': { transform: 'scale(0.95)' }
+};
+
 const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili }) => {
   // ========== STATE ==========
   const [modalita, setModalita] = useState(MODALITA.LIBERA);
@@ -1089,30 +1111,47 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                           </Typography>
                         </Box>
                       ) : (
-                        /* MODALITÀ LIBERA: Controlli quantità normali */
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => incrementaQuantita(item.id, -1)}
-                          >
-                            <Minus size={16} />
-                          </IconButton>
+                        /* MODALITÀ LIBERA: Controlli quantità con CHIP */
+                        <Box sx={{ width: '100%' }}>
+                          {/* Input manuale (piccolo) */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                            <TextField
+                              type="text"
+                              placeholder="0"
+                              value={item.quantita || ''}
+                              onChange={(e) => aggiornaQuantita(item.id, normalizzaDecimale(e.target.value))}
+                              size="small"
+                              sx={{ width: 100 }}
+                              inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
+                            />
+                            <Typography variant="body2" color="text.secondary">
+                              {item.unita}
+                            </Typography>
+                          </Box>
 
-                          <TextField
-                            type="number"
-                            value={item.quantita || 0}
-                            onChange={(e) => aggiornaQuantita(item.id, e.target.value)}
-                            size="small"
-                            sx={{ width: 80 }}
-                            inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
-                          />
-
-                          <IconButton 
-                            size="small" 
-                            onClick={() => incrementaQuantita(item.id, 1)}
-                          >
-                            <Plus size={16} />
-                          </IconButton>
+                          {/* ⚡ CHIP VALORI RAPIDI */}
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {VALORI_RAPIDI_VASSOIO[item.unita]?.map((valore) => (
+                              <Chip
+                                key={valore}
+                                label={valore}
+                                onClick={() => aggiornaQuantita(item.id, valore)}
+                                color={parseFloat(item.quantita) === valore ? 'primary' : 'default'}
+                                variant={parseFloat(item.quantita) === valore ? 'filled' : 'outlined'}
+                                size="small"
+                                sx={{
+                                  ...chipStyleVassoio,
+                                  fontSize: '1rem',
+                                  minWidth: '55px',
+                                  height: '42px',
+                                  ...(parseFloat(item.quantita) === valore ? {
+                                    backgroundColor: '#1976d2',
+                                    color: 'white'
+                                  } : {})
+                                }}
+                              />
+                            ))}
+                          </Box>
                         </Box>
                       )}
 
