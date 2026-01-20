@@ -70,8 +70,8 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
 
 // ✅ VALORI PREIMPOSTATI PER GRIGLIA RAPIDA
 const VALORI_RAPIDI = {
-  Kg: [0.5, 0.7, 1, 1.5, 2, 2.5, 3],
-  Pezzi: [4, 6, 8, 12, 16, 24, 50],
+  Kg: [0.5, 0.6, 0.7, 0.8, 1, 1.2, 1.3, 1.5, 1.7, 2, 2.5, 3],
+  Pezzi: [4, 6, 8, 10, 12, 16, 20, 24, 30, 50],
   '€': [5, 10, 15, 20, 25, 30]
 };
 
@@ -1460,7 +1460,20 @@ clienteIdPreselezionato,
                             onClick={() => handleValoreRapido(valore)}
                             color={prodottoCorrente.quantita === valore ? "primary" : "default"}
                             variant={prodottoCorrente.quantita === valore ? "filled" : "outlined"}
-                            sx={{ cursor: 'pointer' }}
+                            sx={{
+                              fontSize: '1.1rem',
+                              fontWeight: 'bold',
+                              minWidth: '70px',
+                              height: '48px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': { transform: 'scale(1.05)' },
+                              '&:active': { transform: 'scale(0.95)' },
+                              ...(prodottoCorrente.quantita === valore ? {
+                                backgroundColor: '#1976d2',
+                                color: 'white'
+                              } : {})
+                            }}
                           />
                         ))}
                       </Box>
@@ -1480,10 +1493,10 @@ clienteIdPreselezionato,
                             color={numeroVassoiProdotto === num ? 'primary' : 'default'}
                             variant={numeroVassoiProdotto === num ? 'filled' : 'outlined'}
                             sx={{
-                              fontSize: '1.1rem',
-                              fontWeight: 'bold',
-                              minWidth: '50px',
-                              height: '48px',
+                              fontSize: '0.95rem',
+                              fontWeight: '500',
+                              minWidth: '40px',
+                              height: '36px',
                               cursor: 'pointer',
                               transition: 'all 0.2s',
                               '&:hover': { transform: 'scale(1.05)' },
