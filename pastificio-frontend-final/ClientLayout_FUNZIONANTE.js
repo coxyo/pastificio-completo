@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE FINALE CON CALLPOPUP + PUSHER INIT
+// app/ClientLayout.js - VERSIONE FINALE CON CALLPOPUP
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -41,7 +41,7 @@ const menuItems = [
   { id: 'magazzino', title: 'Magazzino', icon: <Inventory />, path: '/magazzino' },
   { id: 'report', title: 'Report', icon: <Assessment />, path: '/report' },
   { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
-  { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
+  { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' }, // NUOVO!
   { id: 'fatturazione', title: 'Fatturazione', icon: <Receipt />, path: '/fatturazione' },
   { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni' }
 ];
@@ -53,39 +53,12 @@ export default function ClientLayout({ children }) {
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
 
-  // ✅ Hook per gestire chiamate in arrivo
-  const { chiamataCorrente, clearChiamata, connected, pusherService } = useIncomingCall();
+  // Hook per gestire chiamate in arrivo
+  const { chiamataCorrente, clearChiamata, connected } = useIncomingCall();
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // ✅ INIZIALIZZAZIONE ESPLICITA PUSHER
-  useEffect(() => {
-    if (!mounted || typeof window === 'undefined') return;
-
-    console.log('[CLIENT LAYOUT] Mounted, verifico Pusher...');
-
-    // Delay per evitare race condition
-    const timer = setTimeout(() => {
-      if (pusherService) {
-        const status = pusherService.getStatus();
-        console.log('[CLIENT LAYOUT] Pusher status:', status);
-
-        // Se non connesso, forza inizializzazione
-        if (!status.connected && !status.initialized) {
-          console.log('[CLIENT LAYOUT] Pusher non inizializzato, forzo init...');
-          pusherService.initialize().catch(err => {
-            console.error('[CLIENT LAYOUT] Errore init Pusher:', err);
-          });
-        }
-      } else {
-        console.warn('[CLIENT LAYOUT] pusherService non disponibile');
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [mounted, pusherService]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -104,11 +77,11 @@ export default function ClientLayout({ children }) {
   const handleSaveNote = async (callId, note) => {
     try {
       const token = localStorage.getItem('token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-backend-production.up.railway.app/api';
 
       // Trova chiamata per callId
       const responseHistory = await fetch(
-        `${API_URL}/chiamate/history?limit=100`,
+        `${API_URL}/cx3/history?limit=100`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -123,7 +96,7 @@ export default function ClientLayout({ children }) {
         if (chiamata) {
           // Aggiorna nota
           await fetch(
-            `${API_URL}/chiamate/${chiamata._id}`,
+            `${API_URL}/cx3/chiamate/${chiamata._id}`,
             {
               method: 'PUT',
               headers: {
@@ -192,25 +165,21 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* ✅ Indicatore Pusher WebSocket */}
-          {mounted && (
+          {/* Indicatore WebSocket (solo development) */}
+          {mounted && process.env.NODE_ENV === 'development' && (
             <Box
               sx={{
                 mr: 2,
-                px: 1.5,
+                px: 1,
                 py: 0.5,
                 borderRadius: 1,
                 bgcolor: connected ? 'success.main' : 'error.main',
                 color: 'white',
-                fontSize: 11,
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5
+                fontSize: 12,
+                fontWeight: 'bold'
               }}
-              title={connected ? 'Sistema chiamate connesso' : 'Sistema chiamate disconnesso'}
             >
-              📞 {connected ? 'ONLINE' : 'OFFLINE'}
+              📞 {connected ? 'ON' : 'OFF'}
             </Box>
           )}
 
@@ -265,7 +234,7 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ✅ Popup Chiamata in Arrivo */}
+      {/* Popup Chiamata in Arrivo */}
       {mounted && chiamataCorrente && (
         <CallPopup
           chiamata={chiamataCorrente}

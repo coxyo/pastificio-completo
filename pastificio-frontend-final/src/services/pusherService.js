@@ -1,6 +1,7 @@
-// services/pusherService.js - FRONTEND v5.3 - SENZA NOTIFICHE BROWSER
+// services/pusherService.js - FRONTEND v5.4 - FIX AUTO-INIT
 // ✅ INIZIALIZZAZIONE AUTOMATICA + DEBUG COMPLETO + URL CORRETTO
 // ✅ RIMOSSA NOTIFICA BROWSER (usa solo popup)
+// 🔧 FIX: Auto-init con protezione connessioni multiple
 
 import Pusher from 'pusher-js';
 
@@ -18,19 +19,24 @@ class PusherClientService {
     // ✅ URL BACKEND CORRETTO
     this.BACKEND_URL = 'https://pastificio-completo-production.up.railway.app';
     
-    console.log('🚀 Pusher Service v5.4 creato (Lazy init)');
+    console.log('🚀 Pusher Service v5.4 creato');
     console.log('🔗 Backend URL:', this.BACKEND_URL);
     
-    // ✅ LAZY INIT - Inizializzazione SOLO quando chiamato esplicitamente
-    // Questo previene connessioni multiple quando importato da più componenti
-    console.log('💡 Usa .initialize() per inizializzare quando necessario');
-    
-    /* ❌ RIMOSSA AUTO-INIZIALIZZAZIONE PER EVITARE CONNESSIONI MULTIPLE
+    // ✅ AUTO-INIZIALIZZAZIONE INTELLIGENTE
+    // Si inizializza SOLO la prima volta che viene importato
     if (typeof window !== 'undefined') {
-      console.log('🌐 Ambiente browser rilevato, inizializzazione automatica...');
-      this.initialize();
+      console.log('🌐 Ambiente browser rilevato, auto-inizializzazione...');
+      
+      // Delay per evitare race condition con altri servizi
+      setTimeout(() => {
+        if (!this.pusher) {
+          console.log('🚀 Avvio inizializzazione Pusher...');
+          this.initialize().catch(err => {
+            console.error('❌ Errore inizializzazione automatica:', err);
+          });
+        }
+      }, 100);
     }
-    */
   }
 
   // ✅ INIZIALIZZAZIONE
