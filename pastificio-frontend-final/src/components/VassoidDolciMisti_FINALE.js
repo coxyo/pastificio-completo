@@ -172,7 +172,7 @@ const normalizzaDecimale = (value) => {
 
 // ✅ VALORI RAPIDI PER COMPOSITORE VASSOIO
 const VALORI_RAPIDI_VASSOIO = {
-  Kg: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.2, 1.5, 2],
+  Kg: [0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.2, 1.5, 2],
   Pezzi: [2, 4, 6, 8, 10, 12, 15, 20, 24, 30],
   g: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
   '€': [5, 10, 15, 20, 25, 30]
@@ -553,14 +553,82 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
    * Aggiorna quantità prodotto
    */
   const aggiornaQuantita = (id, nuovaQuantita) => {
-    setComposizione(prev => prev.map(item => {
-      if (item.id === id) {
-        const quantita = parseFloat(nuovaQuantita) || 0;
-        const prezzo = calcolaPrezzoProdotto(item.prodotto, quantita, item.unita, item.varianteSelezionata);
-        return { ...item, quantita, prezzo: prezzo || 0 };
+    setComposizione(prev => {
+      const updated = prev.map(item => {
+        if (item.id === id) {
+          const quantita = parseFloat(nuovaQuantita) || 0;
+          const prezzo = calcolaPrezzoProdotto(item.prodotto, quantita, item.unita, item.varianteSelezionata);
+          return { ...item, quantita, prezzo: prezzo || 0 };
+        }
+        return item;
+      });
+
+      // ✅ Se in modalità TOTALE_PRIMA, ricalcola distribuzione per mantenere il totale
+      if (modalita === MODALITA.TOTALE_PRIMA && totaleTarget.attivo) {
+        const unitaMisura = totaleTarget.unita;
+        const targetValue = parseFloat(totaleTarget.valore) || 0;
+        
+        // Calcola totale attuale dei prodotti con autoCalc
+        const totaleAutoCalc = updated
+          .filter(item => item.autoCalc)
+          .reduce((sum, item) => {
+            if (item.unita === unitaMisura) {
+              return sum + (parseFloat(item.quantita) || 0);
+            } else if (unitaMisura === 'Kg' && item.unita === 'Pezzi') {
+              return sum + ((parseFloat(item.quantita) || 0) * 0.05);
+            } else if (unitaMisura === 'Pezzi' && item.unita === 'Kg') {
+              return sum + ((parseFloat(item.quantita) || 0) / 0.05);
+            }
+            return sum;
+          }, 0);
+        
+        // Calcola totale manuali
+        const totaleManuali = updated
+          .filter(item => !item.autoCalc)
+          .reduce((sum, item) => {
+            if (item.unita === unitaMisura) {
+              return sum + (parseFloat(item.quantita) || 0);
+            } else if (unitaMisura === 'Kg' && item.unita === 'Pezzi') {
+              return sum + ((parseFloat(item.quantita) || 0) * 0.05);
+            } else if (unitaMisura === 'Pezzi' && item.unita === 'Kg') {
+              return sum + ((parseFloat(item.quantita) || 0) / 0.05);
+            }
+            return sum;
+          }, 0);
+        
+        // Ricalcola solo se necessario (evita loop infiniti)
+        const differenza = Math.abs(totaleAutoCalc + totaleManuali - targetValue);
+        if (differenza > 0.01) {
+          const prodottiAutoCalc = updated.filter(item => item.autoCalc);
+          if (prodottiAutoCalc.length > 0) {
+            const rimanente = Math.max(0, targetValue - totaleManuali);
+            const percentualiTotali = prodottiAutoCalc.reduce((sum, item) => 
+              sum + (parseFloat(item.percentuale) || 0), 0);
+            
+            return updated.map(item => {
+              if (item.autoCalc && percentualiTotali > 0) {
+                const percentuale = parseFloat(item.percentuale) || 0;
+                let nuovaQta = (rimanente * percentuale) / percentualiTotali;
+                
+                // Converti se necessario
+                if (item.unita === 'Pezzi' && unitaMisura === 'Kg') {
+                  nuovaQta = nuovaQta / 0.05;
+                } else if (item.unita === 'Kg' && unitaMisura === 'Pezzi') {
+                  nuovaQta = nuovaQta * 0.05;
+                }
+                
+                nuovaQta = item.unita === 'Pezzi' ? Math.floor(nuovaQta) : nuovaQta;
+                const nuovoPrezzo = calcolaPrezzoProdotto(item.prodotto, nuovaQta, item.unita, item.varianteSelezionata);
+                return { ...item, quantita: nuovaQta, prezzo: nuovoPrezzo || 0 };
+              }
+              return item;
+            });
+          }
+        }
       }
-      return item;
-    }));
+
+      return updated;
+    });
   };
 
   /**

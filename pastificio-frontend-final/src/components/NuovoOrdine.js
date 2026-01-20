@@ -70,7 +70,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minuti
 
 // ✅ VALORI PREIMPOSTATI PER GRIGLIA RAPIDA
 const VALORI_RAPIDI = {
-  Kg: [0.5, 0.6, 0.7, 0.8, 1, 1.2, 1.3, 1.5, 1.7, 2, 2.5, 3],
+  Kg: [0.25, 0.5, 0.6, 0.7, 0.8, 1, 1.2, 1.3, 1.5, 1.7, 2, 2.5, 3],
   Pezzi: [4, 6, 8, 10, 12, 16, 20, 24, 30, 50],
   '€': [5, 10, 15, 20, 25, 30]
 };
