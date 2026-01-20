@@ -65,10 +65,14 @@ limiteGiornalieroSchema.pre('save', function(next) {
 });
 
 // ✅ METODO STATICO: Verifica se ordine supera limiti
+// FIX 20/01/2026: Calcola totale ordini DINAMICAMENTE invece di usare quantitaOrdinata
 limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prodotti) {
   try {
     const data = new Date(dataRitiro);
     data.setHours(0, 0, 0, 0);
+    
+    const dataFine = new Date(data);
+    dataFine.setDate(dataFine.getDate() + 1);
     
     // Trova tutti i limiti attivi per quella data
     const limiti = await this.find({
@@ -84,11 +88,27 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
       };
     }
     
+    // ✅ FIX: Importa il model Ordine per calcolare totali dinamici
+    const Ordine = mongoose.model('Ordine');
+    
     const errori = [];
     
-    // Raggruppa prodotti dell'ordine
+    // Raggruppa prodotti dell'ordine corrente
     const prodottiMap = {};
     const categorieMap = {};
+    
+    // Helper per convertire in Kg
+    const convertiInKg = (quantita, unita) => {
+      const qty = parseFloat(quantita) || 0;
+      const unit = (unita || 'Kg').toLowerCase();
+      
+      if (unit === 'kg') return qty;
+      if (unit === 'g') return qty / 1000;
+      if (unit === 'pz' || unit === 'pezzi') return qty / 24; // Zeppole: 24 pz = 1 Kg
+      if (unit === '€' || unit === 'euro') return qty / 21;   // Zeppole: €21 = 1 Kg
+      
+      return qty;
+    };
     
     prodotti.forEach(p => {
       // Skip vassoi (già espansi nei dettagli)
@@ -98,14 +118,7 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
       
       const nome = p.nome;
       const categoria = p.categoria || 'Altro';
-      const quantita = parseFloat(p.quantita) || 0;
-      const unita = p.unita || p.unitaMisura || 'Kg';
-      
-      // Converti in Kg se necessario
-      let quantitaKg = quantita;
-      if (unita === 'g') {
-        quantitaKg = quantita / 1000;
-      }
+      const quantitaKg = convertiInKg(p.quantita, p.unita || p.unitaMisura);
       
       // Raggruppa per prodotto
       prodottiMap[nome] = (prodottiMap[nome] || 0) + quantitaKg;
@@ -118,17 +131,37 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
     for (const limite of limiti) {
       // Limite per prodotto specifico
       if (limite.prodotto) {
-        const quantitaOrdine = prodottiMap[limite.prodotto] || 0;
-        const quantitaTotale = limite.quantitaOrdinata + quantitaOrdine;
-        const disponibile = limite.limiteQuantita - limite.quantitaOrdinata;
+        const quantitaOrdineNuovo = prodottiMap[limite.prodotto] || 0;
         
-        if (quantitaTotale > limite.limiteQuantita) {
+        // ✅ FIX: Calcola totale ordini ESISTENTI dinamicamente
+        const ordiniEsistenti = await Ordine.find({
+          dataRitiro: { $gte: data, $lt: dataFine },
+          'prodotti.nome': { $regex: new RegExp(`^${limite.prodotto}$`, 'i') }
+        }).lean();
+        
+        let totaleOrdiniEsistenti = 0;
+        ordiniEsistenti.forEach(ordine => {
+          ordine.prodotti.forEach(prod => {
+            if (prod.nome && prod.nome.toLowerCase() === limite.prodotto.toLowerCase()) {
+              totaleOrdiniEsistenti += convertiInKg(prod.quantita, prod.unita);
+            }
+          });
+        });
+        
+        // Totale = ordini esistenti + vendite dirette + nuovo ordine
+        const venditeDirette = limite.quantitaOrdinata || 0;
+        const quantitaTotale = totaleOrdiniEsistenti + venditeDirette + quantitaOrdineNuovo;
+        const disponibile = limite.limiteQuantita - totaleOrdiniEsistenti - venditeDirette;
+        
+        console.log(`[VERIFICA] ${limite.prodotto}: esistenti=${totaleOrdiniEsistenti.toFixed(2)}, dirette=${venditeDirette.toFixed(2)}, nuovo=${quantitaOrdineNuovo.toFixed(2)}, disponibile=${disponibile.toFixed(2)}`);
+        
+        if (quantitaOrdineNuovo > disponibile) {
           errori.push({
             tipo: 'prodotto',
             nome: limite.prodotto,
             messaggio: `Limite superato per ${limite.prodotto}`,
-            quantitaRichiesta: quantitaOrdine,
-            quantitaDisponibile: disponibile,
+            quantitaRichiesta: quantitaOrdineNuovo,
+            quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
             unitaMisura: limite.unitaMisura,
             superato: true
@@ -138,8 +171,8 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
             tipo: 'prodotto',
             nome: limite.prodotto,
             messaggio: `Attenzione: ${limite.prodotto} vicino al limite`,
-            quantitaRichiesta: quantitaOrdine,
-            quantitaDisponibile: disponibile,
+            quantitaRichiesta: quantitaOrdineNuovo,
+            quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
             unitaMisura: limite.unitaMisura,
             superato: false
@@ -147,19 +180,23 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
         }
       }
       
-      // Limite per categoria
+      // Limite per categoria (stesso fix)
       if (limite.categoria) {
-        const quantitaOrdine = categorieMap[limite.categoria] || 0;
-        const quantitaTotale = limite.quantitaOrdinata + quantitaOrdine;
-        const disponibile = limite.limiteQuantita - limite.quantitaOrdinata;
+        const quantitaOrdineNuovo = categorieMap[limite.categoria] || 0;
         
-        if (quantitaTotale > limite.limiteQuantita) {
+        // Per categoria, calcolo semplificato (usa quantitaOrdinata come prima)
+        // TODO: implementare calcolo dinamico anche per categorie se necessario
+        const venditeDirette = limite.quantitaOrdinata || 0;
+        const disponibile = limite.limiteQuantita - venditeDirette;
+        const quantitaTotale = venditeDirette + quantitaOrdineNuovo;
+        
+        if (quantitaOrdineNuovo > disponibile) {
           errori.push({
             tipo: 'categoria',
             nome: limite.categoria,
             messaggio: `Limite superato per categoria ${limite.categoria}`,
-            quantitaRichiesta: quantitaOrdine,
-            quantitaDisponibile: disponibile,
+            quantitaRichiesta: quantitaOrdineNuovo,
+            quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
             unitaMisura: limite.unitaMisura,
             superato: true
@@ -169,8 +206,8 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
             tipo: 'categoria',
             nome: limite.categoria,
             messaggio: `Attenzione: categoria ${limite.categoria} vicina al limite`,
-            quantitaRichiesta: quantitaOrdine,
-            quantitaDisponibile: disponibile,
+            quantitaRichiesta: quantitaOrdineNuovo,
+            quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
             unitaMisura: limite.unitaMisura,
             superato: false
