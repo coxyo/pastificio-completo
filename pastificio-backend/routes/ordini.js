@@ -470,14 +470,15 @@ router.post('/', async (req, res, next) => {
       });
     }
     
-    // ✅ Aggiorna limiti
-    if (ordineData.dataRitiro && prodottiConPrezzi.length > 0) {
-      try {
-        await LimiteGiornaliero.aggiornaDopoOrdine(ordineData.dataRitiro, prodottiConPrezzi);
-      } catch (limiteError) {
-        logger.warn('⚠️ Errore aggiornamento limiti:', limiteError.message);
-      }
-    }
+    // ✅ FIX 20/01/2026: RIMOSSO aggiornaDopoOrdine
+    // Il totale degli ordini viene calcolato DINAMICAMENTE in routes/limiti.js
+    // La chiamata a aggiornaDopoOrdine aggiungeva la quantità ANCHE a quantitaOrdinata,
+    // causando il DOPPIO CONTEGGIO (una volta dagli ordini, una volta da quantitaOrdinata)
+    // 
+    // Ora:
+    // - totaleOrdini = calcolato dinamicamente dalla query degli ordini
+    // - quantitaOrdinata = SOLO vendite dirette (bottoni +100G, +500G, etc.)
+    // - totaleComplessivo = totaleOrdini + quantitaOrdinata (senza duplicazioni)
     
     // Passa al middleware per aggiornamento giacenze
     req.ordineCreato = nuovoOrdine;
@@ -516,26 +517,15 @@ router.put('/:id', async (req, res) => {
     
     const skipVerificaLimiti = ordineData.forceOverride === true || ordineData.forceOverride === 'true';
     
-    // ✅ VERIFICA LIMITI (se cambiano prodotti o data)
+    // ✅ FIX 20/01/2026: RIMOSSO aggiornaDopoOrdine anche dall'update
+    // Il totale viene calcolato dinamicamente, non serve aggiornare quantitaOrdinata
+    // Manteniamo solo la verifica dei limiti (verificaOrdine)
     const dataVerifica = ordineData.dataRitiro || ordineEsistente.dataRitiro;
     const prodottiVerifica = ordineData.prodotti || ordineEsistente.prodotti;
     
     if (dataVerifica && prodottiVerifica && prodottiVerifica.length > 0 && !skipVerificaLimiti) {
       try {
-        // Prima ripristina i limiti dell'ordine precedente
-        if (ordineEsistente.dataRitiro && ordineEsistente.prodotti) {
-          await LimiteGiornaliero.aggiornaDopoOrdine(
-            ordineEsistente.dataRitiro,
-            ordineEsistente.prodotti.map(p => ({
-              nome: p.nome,
-              quantita: -p.quantita,
-              unita: p.unita || p.unitaMisura,
-              categoria: p.categoria
-            }))
-          );
-        }
-        
-        // Verifica nuovo ordine
+        // Verifica nuovo ordine (senza modificare quantitaOrdinata)
         const verificaLimiti = await LimiteGiornaliero.verificaOrdine(
           dataVerifica,
           prodottiVerifica
@@ -545,9 +535,6 @@ router.put('/:id', async (req, res) => {
           const erroriBloccanti = verificaLimiti.errori.filter(e => e.superato);
           
           if (erroriBloccanti.length > 0) {
-            // Ripristina quantità vecchio ordine
-            await LimiteGiornaliero.aggiornaDopoOrdine(ordineEsistente.dataRitiro, ordineEsistente.prodotti);
-            
             return res.status(400).json({
               success: false,
               message: 'Modifica supera i limiti di capacità produttiva',
@@ -556,12 +543,8 @@ router.put('/:id', async (req, res) => {
             });
           }
         }
-        
-        // Aggiungi quantità nuovo ordine
-        await LimiteGiornaliero.aggiornaDopoOrdine(dataVerifica, prodottiVerifica);
-        
       } catch (limiteError) {
-        logger.warn('⚠️ Errore verifica/aggiornamento limiti:', limiteError.message);
+        logger.warn('⚠️ Errore verifica limiti:', limiteError.message);
       }
     } else if (skipVerificaLimiti) {
       logger.warn('⚠️ Ordine aggiornato con FORCE OVERRIDE (limiti ignorati)');
@@ -665,23 +648,9 @@ router.delete('/:id', async (req, res) => {
       });
     }
     
-    // ✅ RIPRISTINA LIMITI SOTTRAENDO QUANTITÀ
-    if (ordine.dataRitiro && ordine.prodotti && ordine.prodotti.length > 0) {
-      try {
-        await LimiteGiornaliero.aggiornaDopoOrdine(
-          ordine.dataRitiro,
-          ordine.prodotti.map(p => ({
-            nome: p.nome,
-            quantita: -p.quantita,
-            unita: p.unita || p.unitaMisura,
-            categoria: p.categoria
-          }))
-        );
-        logger.info(`📊 Limiti ripristinati dopo eliminazione ordine ${ordine._id}`);
-      } catch (limiteError) {
-        logger.error('⚠️ Errore ripristino limiti:', limiteError.message);
-      }
-    }
+    // ✅ FIX 20/01/2026: RIMOSSO aggiornaDopoOrdine dalla DELETE
+    // Il totale viene calcolato dinamicamente dalla query ordini,
+    // non serve sottrarre da quantitaOrdinata quando si elimina un ordine
     
     await ordine.deleteOne();
     
