@@ -174,7 +174,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
   const [esclusioni, setEsclusioni] = useState([]);
   
   // Opzioni vassoio
-  const [numeroVassoi, setNumeroVassoi] = useState(1);
+  const [numeroVassoi, setNumeroVassoi] = useState(''); // ✅ VUOTO DI DEFAULT
   const [numeroVassoioDimensione, setNumeroVassoioDimensione] = useState(4);
   const [packaging, setPackaging] = useState('vassoio_carta');
   
@@ -1187,32 +1187,37 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         <Grid container spacing={3}>
           {/* Numero Vassoi */}
           <Grid item xs={12} md={6}>
-            <Typography variant="body2" gutterBottom>
-              Numero Vassoi (uguali)
+            <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold' }}>
+              🔢 Numero Vassoi (uguali):
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <IconButton 
-                onClick={() => setNumeroVassoi(Math.max(1, numeroVassoi - 1))}
-                disabled={numeroVassoi <= 1}
-              >
-                <Minus />
-              </IconButton>
-              
-              <TextField
-                type="number"
-                value={numeroVassoi}
-                onChange={(e) => setNumeroVassoi(Math.max(1, parseInt(e.target.value) || 1))}
-                size="small"
-                sx={{ width: 80 }}
-                inputProps={{ min: 1, max: 50 }}
-              />
-              
-              <IconButton onClick={() => setNumeroVassoi(numeroVassoi + 1)}>
-                <Plus />
-              </IconButton>
-              
+            <Box sx={{ mb: 2 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                  <Chip
+                    key={num}
+                    label={num}
+                    onClick={() => setNumeroVassoi(num)}
+                    color={parseInt(numeroVassoi) === num ? 'primary' : 'default'}
+                    variant={parseInt(numeroVassoi) === num ? 'filled' : 'outlined'}
+                    sx={{
+                      fontSize: '1.1rem',
+                      fontWeight: 'bold',
+                      minWidth: '50px',
+                      height: '48px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      '&:hover': { transform: 'scale(1.05)' },
+                      '&:active': { transform: 'scale(0.95)' },
+                      ...(parseInt(numeroVassoi) === num ? {
+                        backgroundColor: '#1976d2',
+                        color: 'white'
+                      } : {})
+                    }}
+                  />
+                ))}
+              </Box>
               <Typography variant="caption" color="text.secondary">
-                Totale: €{formatNumber(totaleVassoio * numeroVassoi)}
+                Totale: €{formatNumber(totaleVassoio * (parseInt(numeroVassoi) || 1))}
               </Typography>
             </Box>
           </Grid>

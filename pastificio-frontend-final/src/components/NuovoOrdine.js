@@ -134,13 +134,13 @@ clienteIdPreselezionato,
     aglio: 'con_aglio',
     contorno: 'con_patate'
   });
-  const [numeroVassoi, setNumeroVassoi] = useState(1);
+  const [numeroVassoi, setNumeroVassoi] = useState(''); // ✅ VUOTO DI DEFAULT
   const [gustiPanadine, setGustiPanadine] = useState([]);
   const [modalitaPanadine, setModalitaPanadine] = useState('rapida');
   const [panadineRapide, setPanadineRapide] = useState({ carne: 0, verdura: 0 });
 
   // ✅ NUOVO: States per vassoi multipli e dimensione vassoio
-  const [numeroVassoiProdotto, setNumeroVassoiProdotto] = useState(1);
+  const [numeroVassoiProdotto, setNumeroVassoiProdotto] = useState(''); // ✅ VUOTO DI DEFAULT
   const [dimensioneVassoio, setDimensioneVassoio] = useState('');
 
   // ✅ FIX 17/01/2026: Sposto caricaProdotti PRIMA degli useEffect per evitare hoisting error
@@ -1413,17 +1413,36 @@ clienteIdPreselezionato,
                       />
                     </Grid>
 
-                    {/* ✅ NUOVO: Numero Vassoi Uguali */}
-                    <Grid item xs={6} sm={3}>
-                      <TextField
-                        fullWidth
-                        type="number"
-                        label="Nr vassoi uguali"
-                        value={numeroVassoiProdotto}
-                        onChange={(e) => setNumeroVassoiProdotto(Math.max(1, parseInt(e.target.value) || 1))}
-                        size="small"
-                        inputProps={{ min: 1 }}
-                      />
+                    {/* ✅ NUOVO: Numero Vassoi Uguali - CHIP CLICCABILI PER TABLET */}
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                        🔢 Nr vassoi uguali:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <Chip
+                            key={num}
+                            label={num}
+                            onClick={() => setNumeroVassoiProdotto(num)}
+                            color={numeroVassoiProdotto === num ? 'primary' : 'default'}
+                            variant={numeroVassoiProdotto === num ? 'filled' : 'outlined'}
+                            sx={{
+                              fontSize: '1.1rem',
+                              fontWeight: 'bold',
+                              minWidth: '50px',
+                              height: '48px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': { transform: 'scale(1.05)' },
+                              '&:active': { transform: 'scale(0.95)' },
+                              ...(numeroVassoiProdotto === num ? {
+                                backgroundColor: '#1976d2',
+                                color: 'white'
+                              } : {})
+                            }}
+                          />
+                        ))}
+                      </Box>
                     </Grid>
 
                     {/* ✅ NUOVO: Dimensione Vassoio */}
