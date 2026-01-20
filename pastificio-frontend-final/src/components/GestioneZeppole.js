@@ -1,10 +1,9 @@
-// components/GestioneZeppole.js - ✅ FIX 18/01/2026: Real-time con Pusher + Fix calcolo disponibilità
+// components/GestioneZeppole.js - ✅ FIX 20/01/2026: Rimosso DialogHeader (non esiste in MUI)
 import React, { useState, useEffect } from 'react';
 import Pusher from 'pusher-js';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   IconButton,
   Typography,
@@ -86,7 +85,7 @@ const GestioneZeppole = ({ open, onClose }) => {
       };
 
       // ✅ Carica limite con filtro data
-      const limiteUrl = `${API_URL}/limiti/prodotto/Zeppole?data=${dataSelezionata}`;
+      const limiteUrl = `${API_URL}/api/limiti/prodotto/Zeppole?data=${dataSelezionata}`;
       console.log('[ZEPPOLE] Carico limite da:', limiteUrl);
       
       const limiteRes = await fetch(limiteUrl, { headers });
@@ -100,7 +99,7 @@ const GestioneZeppole = ({ open, onClose }) => {
       setLimiteData(limiteJson.data);
 
       // ✅ Carica ordini con filtro data
-      const ordiniUrl = `${API_URL}/limiti/ordini-prodotto/Zeppole?data=${dataSelezionata}`;
+      const ordiniUrl = `${API_URL}/api/limiti/ordini-prodotto/Zeppole?data=${dataSelezionata}`;
       console.log('[ZEPPOLE] Carico ordini da:', ordiniUrl);
       
       const ordiniRes = await fetch(ordiniUrl, { headers });
@@ -195,7 +194,7 @@ const GestioneZeppole = ({ open, onClose }) => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch(`${API_URL}/limiti/vendita-diretta`, {
+      const response = await fetch(`${API_URL}/api/limiti/vendita-diretta`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -243,7 +242,7 @@ const GestioneZeppole = ({ open, onClose }) => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch(`${API_URL}/limiti/reset-prodotto`, {
+      const response = await fetch(`${API_URL}/api/limiti/reset-prodotto`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -285,7 +284,7 @@ const GestioneZeppole = ({ open, onClose }) => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch(`${API_URL}/limiti/${limiteData._id}`, {
+      const response = await fetch(`${API_URL}/api/limiti/${limiteData._id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({
@@ -342,8 +341,8 @@ const GestioneZeppole = ({ open, onClose }) => {
         }
       }}
     >
-      {/* HEADER */}
-      <DialogHeader
+      {/* ✅ FIX 20/01/2026: HEADER - Sostituito DialogHeader con Box */}
+      <Box
         sx={{
           background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
           color: 'white',
@@ -356,9 +355,9 @@ const GestioneZeppole = ({ open, onClose }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Box sx={{ fontSize: 32 }}>🍩</Box>
           <Box>
-            <DialogTitle sx={{ p: 0, fontSize: 24, fontWeight: 700 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
               Gestione Zeppole
-            </DialogTitle>
+            </Typography>
             <Typography variant="caption" sx={{ opacity: 0.9 }}>
               Monitoraggio disponibilità giornaliera
             </Typography>
@@ -376,7 +375,7 @@ const GestioneZeppole = ({ open, onClose }) => {
             <CloseIcon />
           </IconButton>
         </Box>
-      </DialogHeader>
+      </Box>
 
       <DialogContent sx={{ p: 3 }}>
         {/* ERRORE */}
@@ -424,65 +423,53 @@ const GestioneZeppole = ({ open, onClose }) => {
               </Button>
 
               <Button
-                variant="contained"
+                variant="outlined"
                 onClick={() => setDataSelezionata(new Date().toISOString().split('T')[0])}
               >
                 OGGI
               </Button>
             </Box>
 
+            {/* CARDS PRINCIPALI */}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-              {/* DISPONIBILITÀ OGGI */}
+              {/* DISPONIBILITÀ */}
               <Paper
                 elevation={3}
                 sx={{
                   p: 3,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  borderRadius: 2
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${getColoreBarra()}22 0%, ${getColoreBarra()}11 100%)`,
+                  border: `2px solid ${getColoreBarra()}`
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box sx={{ fontSize: 28, mr: 1 }}>📊</Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    Disponibilità Oggi
-                  </Typography>
-                </Box>
-
-                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
-                  {format(parseISO(dataSelezionata), 'EEEE dd MMMM yyyy', { locale: it })}
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                  📊 Disponibilità Giornaliera
                 </Typography>
 
                 {/* BARRA PROGRESSO */}
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Ordinato: {ordinatoKg.toFixed(2)} Kg
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 1, fontSize: 11 }}>
-                    📦 Ordini: {totaleOrdini.toFixed(2)} Kg | 🛒 Vendite dirette: {venditeDirette.toFixed(2)} Kg
-                  </Typography>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Limite: {limiteKg} Kg
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="body2">Ordinato: {ordinatoKg.toFixed(1)} Kg</Typography>
+                    <Typography variant="body2">Limite: {limiteKg} Kg</Typography>
+                  </Box>
                   <Box
                     sx={{
-                      width: '100%',
                       height: 20,
-                      bgcolor: 'rgba(255,255,255,0.3)',
+                      bgcolor: '#e0e0e0',
                       borderRadius: 1,
                       overflow: 'hidden'
                     }}
                   >
                     <Box
                       sx={{
-                        width: `${Math.min(percentualeUtilizzo, 100)}%`,
                         height: '100%',
+                        width: `${Math.min(percentualeUtilizzo, 100)}%`,
                         bgcolor: getColoreBarra(),
-                        transition: 'width 0.3s ease'
+                        transition: 'width 0.5s ease'
                       }}
                     />
                   </Box>
-                  <Typography variant="body2" sx={{ mt: 1, textAlign: 'center', fontWeight: 600 }}>
+                  <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 0.5 }}>
                     {percentualeUtilizzo.toFixed(1)}% utilizzato
                   </Typography>
                 </Box>
@@ -490,10 +477,10 @@ const GestioneZeppole = ({ open, onClose }) => {
                 {/* DISPONIBILE */}
                 <Box
                   sx={{
-                    bgcolor: 'rgba(255,255,255,0.2)',
-                    p: 2,
-                    borderRadius: 2,
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    py: 2,
+                    bgcolor: disponibileKg > 0 ? '#e8f5e9' : '#ffebee',
+                    borderRadius: 2
                   }}
                 >
                   <Typography variant="h2" fontWeight={700}>
