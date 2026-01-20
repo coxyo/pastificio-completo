@@ -944,15 +944,41 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                type="number"
+                type="text"
                 label="Quantità Target"
-                value={totaleTarget.valore}
+                placeholder="0"
+                value={totaleTarget.valore || ''}
                 onChange={(e) => setTotaleTarget(prev => ({ 
                   ...prev, 
-                  valore: parseFloat(e.target.value) || 0 
+                  valore: parseFloat(normalizzaDecimale(e.target.value)) || 0 
                 }))}
                 inputProps={{ min: 0, step: 0.1 }}
               />
+              
+              {/* ⚡ CHIP VALORI RAPIDI PER TOTALE */}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                {VALORI_RAPIDI_VASSOIO[totaleTarget.unita]?.slice(0, 10).map((valore) => (
+                  <Chip
+                    key={valore}
+                    label={valore}
+                    onClick={() => setTotaleTarget(prev => ({ ...prev, valore }))}
+                    color={parseFloat(totaleTarget.valore) === valore ? 'primary' : 'default'}
+                    variant={parseFloat(totaleTarget.valore) === valore ? 'filled' : 'outlined'}
+                    size="small"
+                    sx={{
+                      ...chipStyleVassoio,
+                      fontSize: '1rem',
+                      minWidth: '55px',
+                      height: '42px',
+                      ...(parseFloat(totaleTarget.valore) === valore ? {
+                        backgroundColor: '#1976d2',
+                        color: 'white'
+                      } : {})
+                    }}
+                  />
+                ))}
+              </Box>
+
               <Button
                 fullWidth
                 variant="contained"
@@ -998,51 +1024,105 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
               ⚖️ Peso Totale Vassoio
             </Typography>
             
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <TextField
-                type="number"
-                label="Peso totale desiderato (Kg)"
-                value={totaleTarget.valore}
-                onChange={(e) => {
-                  const nuovoPeso = parseFloat(e.target.value) || 1.0;
-                  setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso, unita: 'Kg' }));
-                  
-                  // Ricalcola composizione con nuovo peso
-                  const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
-                    .filter(([nome]) => !esclusioni.includes(nome));
-                  
-                  const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
-                  
-                  if (sommaPercentuali > 0) {
-                    const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
-                      const pesoRicalcolato = (info.percentuale / sommaPercentuali) * nuovoPeso;
-                      const prezzo = calcolaPrezzoProdotto(nome, pesoRicalcolato, 'Kg');
-                      
-                      return {
-                        id: Date.now() + Math.random(),
-                        prodotto: nome,
-                        quantita: pesoRicalcolato,
-                        unita: 'Kg',
-                        prezzo: prezzo || 0,
-                        percentuale: (info.percentuale / sommaPercentuali) * 100
-                      };
-                    });
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <TextField
+                  type="text"
+                  label="Peso totale desiderato (Kg)"
+                  placeholder="1"
+                  value={totaleTarget.valore || ''}
+                  onChange={(e) => {
+                    const nuovoPeso = parseFloat(normalizzaDecimale(e.target.value)) || 1.0;
+                    setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso, unita: 'Kg' }));
                     
-                    setComposizione(nuovaComposizione);
-                  }
-                }}
-                inputProps={{ min: 0.1, step: 0.1 }}
-                sx={{ minWidth: 200 }}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">Kg</InputAdornment>
-                }}
-              />
-              
-              <Typography variant="body2" color="text.secondary">
-                {esclusioni.length > 0 
-                  ? `Stai escludendo ${esclusioni.length} prodotto/i. Le percentuali sono ricalcolate automaticamente.`
-                  : 'Mix equilibrato standard. Escludi prodotti se desiderato.'}
-              </Typography>
+                    // Ricalcola composizione con nuovo peso
+                    const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
+                      .filter(([nome]) => !esclusioni.includes(nome));
+                    
+                    const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
+                    
+                    if (sommaPercentuali > 0) {
+                      const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
+                        const pesoRicalcolato = (info.percentuale / sommaPercentuali) * nuovoPeso;
+                        const prezzo = calcolaPrezzoProdotto(nome, pesoRicalcolato, 'Kg');
+                        
+                        return {
+                          id: Date.now() + Math.random(),
+                          prodotto: nome,
+                          quantita: pesoRicalcolato,
+                          unita: 'Kg',
+                          prezzo: prezzo || 0,
+                          percentuale: (info.percentuale / sommaPercentuali) * 100
+                        };
+                      });
+                      
+                      setComposizione(nuovaComposizione);
+                    }
+                  }}
+                  inputProps={{ min: 0.1, step: 0.1 }}
+                  sx={{ minWidth: 200 }}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">Kg</InputAdornment>
+                  }}
+                />
+                
+                <Typography variant="body2" color="text.secondary">
+                  {esclusioni.length > 0 
+                    ? `Stai escludendo ${esclusioni.length} prodotto/i. Le percentuali sono ricalcolate automaticamente.`
+                    : 'Mix equilibrato standard. Escludi prodotti se desiderato.'}
+                </Typography>
+              </Box>
+
+              {/* ⚡ CHIP VALORI RAPIDI PER PESO TOTALE */}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {VALORI_RAPIDI_VASSOIO.Kg?.slice(0, 10).map((valore) => (
+                  <Chip
+                    key={valore}
+                    label={`${valore} Kg`}
+                    onClick={() => {
+                      const nuovoPeso = valore;
+                      setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso, unita: 'Kg' }));
+                      
+                      // Ricalcola composizione
+                      const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
+                        .filter(([nome]) => !esclusioni.includes(nome));
+                      
+                      const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
+                      
+                      if (sommaPercentuali > 0) {
+                        const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
+                          const pesoRicalcolato = (info.percentuale / sommaPercentuali) * nuovoPeso;
+                          const prezzo = calcolaPrezzoProdotto(nome, pesoRicalcolato, 'Kg');
+                          
+                          return {
+                            id: Date.now() + Math.random(),
+                            prodotto: nome,
+                            quantita: pesoRicalcolato,
+                            unita: 'Kg',
+                            prezzo: prezzo || 0,
+                            percentuale: (info.percentuale / sommaPercentuali) * 100
+                          };
+                        });
+                        
+                        setComposizione(nuovaComposizione);
+                      }
+                    }}
+                    color={parseFloat(totaleTarget.valore) === valore ? 'primary' : 'default'}
+                    variant={parseFloat(totaleTarget.valore) === valore ? 'filled' : 'outlined'}
+                    size="small"
+                    sx={{
+                      ...chipStyleVassoio,
+                      fontSize: '1rem',
+                      minWidth: '60px',
+                      height: '42px',
+                      ...(parseFloat(totaleTarget.valore) === valore ? {
+                        backgroundColor: '#1976d2',
+                        color: 'white'
+                      } : {})
+                    }}
+                  />
+                ))}
+              </Box>
             </Box>
           </Paper>
         
