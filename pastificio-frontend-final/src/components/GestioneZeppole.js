@@ -284,11 +284,13 @@ const GestioneZeppole = ({ open, onClose }) => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch(`${API_URL}/limiti/${limiteData._id}`, {
+      // ✅ FIX: Usa /prodotto/Zeppole invece di /:id
+      const response = await fetch(`${API_URL}/limiti/prodotto/Zeppole`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({
-          limiteQuantita: parseFloat(nuovoLimite)
+          limiteQuantita: parseFloat(nuovoLimite),
+          data: dataSelezionata
         })
       });
 
