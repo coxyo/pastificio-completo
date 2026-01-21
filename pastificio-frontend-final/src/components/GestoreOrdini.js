@@ -995,6 +995,41 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     };
   }, []);
   
+  // ✅ NUOVO 21/01/2026: Apertura automatica Nuovo Ordine da CallPopup
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Controlla se dobbiamo aprire il form nuovo ordine
+    const shouldOpen = localStorage.getItem('_openNuovoOrdineOnLoad');
+    
+    if (shouldOpen === 'true') {
+      console.log('📞 Apertura automatica Nuovo Ordine da CallPopup');
+      
+      // Rimuovi flag
+      localStorage.removeItem('_openNuovoOrdineOnLoad');
+      
+      // Aspetta che il componente sia montato (300ms)
+      setTimeout(() => {
+        // Apri il dialog nuovo ordine
+        setDialogoNuovoOrdineAperto(true);
+        console.log('✅ Dialog Nuovo Ordine aperto');
+      }, 300);
+    }
+    
+    // Listener per evento custom (se già in /ordini)
+    const handleOpenNuovoOrdine = () => {
+      console.log('📞 Evento open-nuovo-ordine ricevuto');
+      setDialogoNuovoOrdineAperto(true);
+    };
+    
+    window.addEventListener('open-nuovo-ordine', handleOpenNuovoOrdine);
+    
+    return () => {
+      window.removeEventListener('open-nuovo-ordine', handleOpenNuovoOrdine);
+    };
+  }, []); // Esegui solo al mount
+
+  
   const [isConnected, setIsConnected] = useState(false);
   const [ultimaSync, setUltimaSync] = useState(null);
   const [storageUsed, setStorageUsed] = useState(0);

@@ -128,9 +128,18 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     // Chiudi popup
     onClose();
     
-    // Vai alla pagina ordini con window.location (compatibile con tutti i router)
-    console.log('📍 Navigazione a /ordini...');
-    window.location.href = '/ordini';
+    // OPZIONE A: Vai a /ordini e triggera evento custom
+    console.log('📍 Navigazione a /ordini + trigger nuovo ordine...');
+    
+    // Se siamo già in /ordini, triggera evento
+    if (window.location.pathname === '/ordini') {
+      console.log('✅ Già in /ordini, triggerando evento apertura form...');
+      window.dispatchEvent(new CustomEvent('open-nuovo-ordine'));
+    } else {
+      // Vai a /ordini e salva flag per aprire form
+      localStorage.setItem('_openNuovoOrdineOnLoad', 'true');
+      window.location.href = '/ordini';
+    }
   };
 
   // ✅ AZIONE 2: VEDI ORDINI ATTIVI (1-CLICK)
