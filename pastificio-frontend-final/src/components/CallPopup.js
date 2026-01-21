@@ -131,7 +131,9 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
 
   // ✅ AZIONE 1: NUOVO ORDINE (1-CLICK)
   const handleNuovoOrdine = () => {
-    console.log('🆕 Nuovo Ordine per cliente:', chiamata?.cliente);
+    console.log('🆕 Nuovo Ordine - chiamata completa:', chiamata);
+    console.log('  - cliente:', chiamata?.cliente);
+    console.log('  - numero:', chiamata?.numero);
     
     if (typeof window === 'undefined') return;
     
@@ -141,6 +143,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     
     // Salva cliente in localStorage per pre-compilazione
     if (chiamata?.cliente) {
+      console.log('✅ CASO 1: Cliente registrato trovato');
       localStorage.setItem('nuovoOrdine_clientePreselezionato', JSON.stringify({
         _id: chiamata.cliente._id || chiamata.cliente.id,
         nome: chiamata.cliente.nome,
@@ -152,16 +155,26 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
       console.log('✅ Cliente salvato in localStorage per pre-compilazione');
     } else if (chiamata?.numero) {
       // ✅ NUOVO: Numero sconosciuto - salva solo il numero
-      localStorage.setItem('nuovoOrdine_clientePreselezionato', JSON.stringify({
+      console.log('✅ CASO 2: Numero sconosciuto');
+      const numeroSenzaPrefisso = chiamata.numero.replace(/^\+39/, '');
+      const datiDaSalvare = {
         _id: null,
         nome: '',
         cognome: '',
-        telefono: chiamata.numero.replace(/^\+39/, ''), // Rimuovi +39
+        telefono: numeroSenzaPrefisso,
         email: '',
         codiceCliente: null
-      }));
+      };
+      console.log('  Dati da salvare:', datiDaSalvare);
+      localStorage.setItem('nuovoOrdine_clientePreselezionato', JSON.stringify(datiDaSalvare));
       console.log('✅ Numero sconosciuto salvato per pre-compilazione:', chiamata.numero);
+    } else {
+      console.warn('⚠️ CASO 3: Nessun cliente e nessun numero trovato!');
     }
+    
+    // Verifica cosa è stato salvato
+    const verificaSalvataggio = localStorage.getItem('nuovoOrdine_clientePreselezionato');
+    console.log('🔍 Verifica localStorage dopo salvataggio:', verificaSalvataggio);
     
     // Chiudi popup
     onClose();
