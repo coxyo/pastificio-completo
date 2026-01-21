@@ -1008,6 +1008,24 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
       // Rimuovi flag
       localStorage.removeItem('_openNuovoOrdineOnLoad');
       
+      // ✅ NUOVO: Leggi cliente da localStorage e imposta negli stati
+      const clientePreselezionato = localStorage.getItem('nuovoOrdine_clientePreselezionato');
+      if (clientePreselezionato) {
+        try {
+          const cliente = JSON.parse(clientePreselezionato);
+          console.log('✅ Cliente da localStorage:', cliente);
+          
+          // Imposta gli stati che verranno passati come props a NuovoOrdine
+          setClienteIdDaChiamata(cliente._id || cliente.id);
+          setClienteDaChiamata(cliente);
+          setNumeroDaChiamata(cliente.telefono);
+          
+          // NON rimuovere ancora da localStorage, lo farà NuovoOrdine
+        } catch (error) {
+          console.error('Errore parsing cliente:', error);
+        }
+      }
+      
       // Aspetta che il componente sia montato (300ms)
       setTimeout(() => {
         // Apri il dialog nuovo ordine
@@ -1019,6 +1037,20 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     // Listener per evento custom (se già in /ordini)
     const handleOpenNuovoOrdine = () => {
       console.log('📞 Evento open-nuovo-ordine ricevuto');
+      
+      // ✅ NUOVO: Leggi cliente anche qui
+      const clientePreselezionato = localStorage.getItem('nuovoOrdine_clientePreselezionato');
+      if (clientePreselezionato) {
+        try {
+          const cliente = JSON.parse(clientePreselezionato);
+          setClienteIdDaChiamata(cliente._id || cliente.id);
+          setClienteDaChiamata(cliente);
+          setNumeroDaChiamata(cliente.telefono);
+        } catch (error) {
+          console.error('Errore parsing cliente:', error);
+        }
+      }
+      
       setDialogoNuovoOrdineAperto(true);
     };
     
