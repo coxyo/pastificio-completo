@@ -135,6 +135,10 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     
     if (typeof window === 'undefined') return;
     
+    // ✅ NUOVO: Pulisci PRIMA i vecchi dati
+    localStorage.removeItem('nuovoOrdine_clientePreselezionato');
+    console.log('🧹 localStorage pulito prima di salvare nuovi dati');
+    
     // Salva cliente in localStorage per pre-compilazione
     if (chiamata?.cliente) {
       localStorage.setItem('nuovoOrdine_clientePreselezionato', JSON.stringify({
@@ -146,6 +150,17 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
         codiceCliente: chiamata.cliente.codiceCliente
       }));
       console.log('✅ Cliente salvato in localStorage per pre-compilazione');
+    } else if (chiamata?.numero) {
+      // ✅ NUOVO: Numero sconosciuto - salva solo il numero
+      localStorage.setItem('nuovoOrdine_clientePreselezionato', JSON.stringify({
+        _id: null,
+        nome: '',
+        cognome: '',
+        telefono: chiamata.numero.replace(/^\+39/, ''), // Rimuovi +39
+        email: '',
+        codiceCliente: null
+      }));
+      console.log('✅ Numero sconosciuto salvato per pre-compilazione:', chiamata.numero);
     }
     
     // Chiudi popup

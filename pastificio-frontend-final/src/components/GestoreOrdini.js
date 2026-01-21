@@ -2666,6 +2666,12 @@ return (
     setClienteIdDaChiamata(null);
     setNumeroDaChiamata(null); // ✅ FIX 17/01/2026
     setClienteDaChiamata(null); // ✅ FIX 17/01/2026
+    
+    // ✅ NUOVO 21/01/2026: Pulisci localStorage per evitare dati vecchi
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('nuovoOrdine_clientePreselezionato');
+      console.log('🧹 localStorage pulito alla chiusura dialog');
+    }
   }}
   onSave={salvaOrdine}
   ordineIniziale={ordineSelezionato}
