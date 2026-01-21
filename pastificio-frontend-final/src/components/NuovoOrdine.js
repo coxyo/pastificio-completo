@@ -529,6 +529,8 @@ clienteIdPreselezionato,
       setLoadingClienti(false);
     }
 
+  };
+
   // ✅ NUOVO 21/01/2026: Pre-selezione cliente da CallPopup
   useEffect(() => {
     if (typeof window === 'undefined' || !open) return;
@@ -562,7 +564,6 @@ clienteIdPreselezionato,
       }
     }
   }, [open]); // Dipende solo da open
-
 
   // ✅ Leggi dati chiamata da localStorage
   useEffect(() => {
