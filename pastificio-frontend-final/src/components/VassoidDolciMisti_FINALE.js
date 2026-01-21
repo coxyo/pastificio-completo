@@ -700,8 +700,41 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
       return;
     }
 
+    // ✅ FIX 21/01/2026: Valida che tutti i prodotti abbiano quantità > 0
+    const prodottiSenzaQuantita = composizione.filter(item => 
+      !item.quantita || parseFloat(item.quantita) <= 0
+    );
+    
+    if (prodottiSenzaQuantita.length > 0) {
+      const nomi = prodottiSenzaQuantita.map(item => item.prodotto).join(', ');
+      setErrore(`❌ Prodotti con quantità 0: ${nomi}. Rimuovili o imposta una quantità.`);
+      console.error('❌ Prodotti senza quantità:', prodottiSenzaQuantita);
+      return;
+    }
+    
+    // ✅ Valida che tutti abbiano prezzo > 0
+    const prodottiSenzaPrezzo = composizione.filter(item => 
+      !item.prezzo || parseFloat(item.prezzo) <= 0
+    );
+    
+    if (prodottiSenzaPrezzo.length > 0) {
+      console.error('❌ Prodotti senza prezzo:', prodottiSenzaPrezzo);
+      alert(`⚠️ Alcuni prodotti hanno prezzo €0. Verifica le quantità e riprova.`);
+      return;
+    }
+
+
     // Prepara dati vassoio
     const dettagliComposizione = composizione.map(item => {
+      // ✅ LOG DEBUG 21/01/2026
+      console.log('🔍 Elaborazione prodotto per salvataggio:', {
+        prodotto: item.prodotto,
+        quantita: item.quantita,
+        unita: item.unita,
+        prezzo: item.prezzo,
+        variante: item.varianteSelezionata
+      });
+      
       // ✅ Ottieni label variante (sempre stringa)
       const varianteLabel = item.varianteSelezionata ? 
         getVarianteLabel(item.prodotto, item.varianteSelezionata) : 
@@ -721,11 +754,23 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         nomeCompleto = item.prodotto || "";
       }
       
+      // ✅ FIX 21/01/2026: Assicura valori numerici validi
+      const quantitaFinal = parseFloat(item.quantita);
+      const prezzoFinal = parseFloat(item.prezzo);
+      
+      if (isNaN(quantitaFinal) || quantitaFinal <= 0) {
+        console.error('❌ ERRORE: Quantità invalida per', nomeCompleto, ':', item.quantita);
+      }
+      
+      if (isNaN(prezzoFinal) || prezzoFinal <= 0) {
+        console.error('❌ ERRORE: Prezzo invalido per', nomeCompleto, ':', item.prezzo);
+      }
+      
       return {
         nome: nomeCompleto,
-        quantita: parseFloat(item.quantita) || 0,
+        quantita: quantitaFinal,
         unita: item.unita || "Kg",
-        prezzo: parseFloat(item.prezzo) || 0,
+        prezzo: prezzoFinal,
         variante: varianteLabel || null
       };
     });
