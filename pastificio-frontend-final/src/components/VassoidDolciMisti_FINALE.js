@@ -1322,10 +1322,13 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                               value={item.quantita || ''}
                               onFocus={(e) => e.target.select()}
                               onBlur={(e) => {
-                                // ✅ Quando finisci di digitare, normalizza e aggiorna
-                                const value = e.target.value;
+                                // ✅ Quando finisci di digitare, normalizza e RICALCOLA PREZZO
+                                let value = e.target.value;
                                 if (value && value.trim() !== '') {
+                                  // Rimuovi caratteri non validi
+                                  value = value.replace(/[^\d.,]/g, '');
                                   const normalized = normalizzaDecimale(value);
+                                  // ✅ Questa funzione RICALCOLA il prezzo automaticamente!
                                   aggiornaQuantita(item.id, normalized);
                                 }
                               }}
@@ -1347,7 +1350,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                                   return;
                                 }
                                 
-                                // ✅ Aggiorna TEMPORANEAMENTE (senza normalizzare)
+                                // ✅ Aggiorna SOLO quantità (TEMPORANEO, senza ricalcolare prezzo)
+                                // Il prezzo verrà ricalcolato in onBlur tramite aggiornaQuantita()
                                 setComposizione(prev => prev.map(p => 
                                   p.id === item.id ? { ...p, quantita: value } : p
                                 ));
