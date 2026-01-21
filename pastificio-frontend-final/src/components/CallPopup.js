@@ -54,11 +54,34 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     telefono: ''
   });
   const [salvandoCliente, setSalvandoCliente] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(45); // ✅ NUOVO: Timer 45 secondi
 
   // ✅ Hook SSR protection
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ✅ NUOVO: Timer auto-chiusura 45 secondi
+  useEffect(() => {
+    if (!mounted) return;
+    
+    // Reset timer quando popup si apre
+    setSecondsLeft(45);
+    
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          console.log('⏱️ Timer scaduto, chiudo popup automaticamente');
+          onClose();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [mounted, onClose]);
 
   // ✅ Hook caricamento ordini attivi
   useEffect(() => {
@@ -285,13 +308,27 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
           </Typography>
         </Box>
 
-        <IconButton
-          onClick={onClose}
-          size="small"
-          sx={{ color: 'white' }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <Box display="flex" alignItems="center" gap={2}>
+          {/* ✅ NUOVO: Timer countdown */}
+          <Chip
+            label={`${secondsLeft}s`}
+            size="small"
+            sx={{
+              bgcolor: secondsLeft <= 10 ? 'error.main' : 'rgba(255,255,255,0.2)',
+              color: 'white',
+              fontWeight: 'bold',
+              animation: secondsLeft <= 10 ? 'pulse 0.5s infinite' : 'none'
+            }}
+          />
+          
+          <IconButton
+            onClick={onClose}
+            size="small"
+            sx={{ color: 'white' }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>
