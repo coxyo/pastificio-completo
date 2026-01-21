@@ -1321,17 +1321,26 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                               placeholder="0"
                               value={item.quantita || ''}
                               onChange={(e) => {
-                                const value = e.target.value;
-                                // ✅ Accetta solo numeri, virgola e punto
-                                if (/^\d*[.,]?\d*$/.test(value) || value === '') {
-                                  aggiornaQuantita(item.id, normalizzaDecimale(value));
+                                let value = e.target.value;
+                                
+                                // ✅ Permetti solo: numeri, virgola, punto
+                                // Rimuovi tutto ciò che non è numero, virgola o punto
+                                value = value.replace(/[^\d.,]/g, '');
+                                
+                                // ✅ Previeni virgole/punti multipli
+                                const separatori = value.match(/[.,]/g);
+                                if (separatori && separatori.length > 1) {
+                                  return; // Blocca input
                                 }
+                                
+                                // ✅ Normalizza e aggiorna
+                                const normalized = normalizzaDecimale(value);
+                                aggiornaQuantita(item.id, normalized);
                               }}
                               size="small"
                               sx={{ width: 100 }}
                               inputProps={{ 
-                                inputMode: 'decimal',
-                                pattern: '[0-9]*[.,]?[0-9]*'
+                                inputMode: 'decimal'
                               }}
                             />
                             <Typography variant="body2" color="text.secondary">
