@@ -1,4 +1,4 @@
-// src/components/CallPopup.js - v2.0 SSR-SAFE + CRASH PROTECTION
+// src/components/CallPopup.js - v2.1 FIX HOOKS SSR-SAFE
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -34,40 +34,35 @@ import { it } from 'date-fns/locale';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 /**
- * POPUP CHIAMATA IN ARRIVO - SSR-SAFE
+ * POPUP CHIAMATA IN ARRIVO - v2.1 FIX HOOKS
  * 
- * ✅ Protezione da crash hydration
- * ✅ Gestione sicura props null/undefined
- * ✅ Caricamento ordini async sicuro
+ * ✅ Hooks sempre eseguiti nello stesso ordine
+ * ✅ Return condizionale DOPO tutti gli hooks
+ * ✅ Protezione SSR completa
  */
 function CallPopup({ chiamata, onClose, onSaveNote }) {
+  // ✅ TUTTI GLI HOOKS PRIMA DI QUALSIASI RETURN
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
   const [ultimiOrdini, setUltimiOrdini] = useState([]);
   const [loadingOrdini, setLoadingOrdini] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // ✅ PROTEZIONE SSR: Monta solo client-side
+  // ✅ Hook SSR protection
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // ✅ PROTEZIONE: Se chiamata è null/undefined, non renderizzare
-  if (!chiamata || !mounted) {
-    return null;
-  }
-
-  const { cliente, numero, callId, timestamp } = chiamata;
-
-  // Carica ultimi ordini del cliente (SOLO client-side)
+  // ✅ Hook caricamento ordini - SEMPRE eseguito
   useEffect(() => {
+    // Controlli di sicurezza DENTRO l'useEffect
     if (!mounted || typeof window === 'undefined') return;
+    if (!chiamata?.cliente?._id && !chiamata?.cliente?.id) return;
     
-    if (cliente?._id || cliente?.id) {
-      caricaUltimiOrdini();
-    }
-  }, [cliente, mounted]);
+    caricaUltimiOrdini();
+  }, [chiamata?.cliente, mounted]); // ← Dipendenze sicure
 
+  // ✅ Funzione caricamento ordini
   const caricaUltimiOrdini = async () => {
     if (typeof window === 'undefined') return;
     
@@ -79,7 +74,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
         return;
       }
 
-      const clienteId = cliente?._id || cliente?.id;
+      const clienteId = chiamata?.cliente?._id || chiamata?.cliente?.id;
       if (!clienteId) {
         console.warn('[POPUP] Cliente ID non trovato');
         return;
@@ -112,7 +107,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
 
     setLoading(true);
     try {
-      await onSaveNote(callId, note);
+      await onSaveNote(chiamata?.callId, note);
       setNote('');
     } catch (error) {
       console.error('[POPUP] Errore salvataggio nota:', error);
@@ -131,6 +126,14 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     };
     return colors[livello?.toLowerCase()] || '#999';
   };
+
+  // ✅ RETURN CONDIZIONALE DOPO TUTTI GLI HOOKS
+  if (!chiamata || !mounted) {
+    return null;
+  }
+
+  // ✅ Destructuring sicuro DOPO il check
+  const { cliente, numero, callId, timestamp } = chiamata;
 
   return (
     <Dialog
