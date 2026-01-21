@@ -1046,10 +1046,21 @@ clienteIdPreselezionato,
       console.log('📦 Dimensione vassoio aggiunta alle note:', dimensioneNote);
     }
 
-    // ✅ VALIDAZIONE STRETTA QUANTITÀ (FIX 21/01/2026)
-    const quantitaNormalizzata = parseFloat(normalizzaDecimale(prodottoCorrente.quantita));
+    // ✅ VALIDAZIONE STRETTA QUANTITÀ (FIX 21/01/2026 - AGGIORNATO)
+    let quantitaNormalizzata = parseFloat(normalizzaDecimale(prodottoCorrente.quantita));
     
-    if (isNaN(quantitaNormalizzata) || quantitaNormalizzata <= 0) {
+    // 💶 CASO SPECIALE: Ordini in EURO
+    // Quando l'unità è € e quantità è vuota/invalida, usa il prezzo come quantità
+    if ((isNaN(quantitaNormalizzata) || quantitaNormalizzata <= 0) && prodottoCorrente.unita === '€') {
+      if (prodottoCorrente.prezzo > 0) {
+        quantitaNormalizzata = prodottoCorrente.prezzo;
+        console.log('💶 Ordine in EURO: quantità auto-impostata a €', quantitaNormalizzata);
+      } else {
+        alert('❌ Inserisci un importo in euro valido.');
+        console.error('❌ Prezzo euro invalido:', prodottoCorrente.prezzo);
+        return;
+      }
+    } else if (isNaN(quantitaNormalizzata) || quantitaNormalizzata <= 0) {
       alert('❌ Quantità non valida. Inserisci un numero maggiore di 0.');
       console.error('❌ Quantità invalida:', prodottoCorrente.quantita, '→', quantitaNormalizzata);
       return;
