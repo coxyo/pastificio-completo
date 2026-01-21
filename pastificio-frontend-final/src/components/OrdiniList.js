@@ -161,6 +161,7 @@ const OrdiniList = ({
     ALTRI: true
   });
   const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
+  const [filtroClienteId, setFiltroClienteId] = useState(null); // ✅ NUOVO: Filtro cliente da CallPopup
 
   // ✅ NUOVO 16/01/2026: Funzione per calcolare se ordine è IMMINENTE (1 ora prima e non completato/consegnato)
   const isOrdineImminente = (ordine, prodotto) => {
@@ -194,6 +195,33 @@ const OrdiniList = ({
     // Evidenzia se siamo nell'intervallo: 1 ora prima -> 30 min dopo
     return now >= unOraPrima && now <= tolleranzaDopo;
   };
+
+  // ✅ NUOVO 21/01/2026: Pre-filtra ordini cliente da CallPopup
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Controlla se c'è un filtro cliente da CallPopup
+    const filtroClienteStr = localStorage.getItem('ordini_filtroCliente');
+    
+    if (filtroClienteStr) {
+      try {
+        const filtroCliente = JSON.parse(filtroClienteStr);
+        console.log('📞 Filtro cliente da CallPopup:', filtroCliente);
+        
+        // Imposta il filtro cliente ID
+        setFiltroClienteId(filtroCliente._id);
+        
+        // Rimuovi da localStorage (uso una-tantum)
+        localStorage.removeItem('ordini_filtroCliente');
+        
+        console.log(`✅ Filtro applicato: ordini di ${filtroCliente.nome} ${filtroCliente.cognome}`);
+        
+      } catch (error) {
+        console.error('Errore parsing filtro cliente:', error);
+        localStorage.removeItem('ordini_filtroCliente');
+      }
+    }
+  }, []); // Esegui solo al mount
 
   const handleDateChange = (e) => {
     const newDate = e.target.value;
@@ -499,6 +527,14 @@ Pastificio Nonna Claudia`;
     };
 
     const ordiniFiltrati = ordini.filter(ordine => {
+      // ✅ NUOVO: Filtro per cliente da CallPopup
+      if (filtroClienteId) {
+        const clienteId = ordine.cliente?._id || ordine.cliente;
+        if (clienteId !== filtroClienteId) {
+          return false; // Escludi ordini di altri clienti
+        }
+      }
+      
       // ✅ NUOVO: Se ricerca attiva, mostra tutti gli ordini (già filtrati per cliente in GestoreOrdini)
       if (mostraTutteLeDate || ricercaCliente) {
         return true;
@@ -576,7 +612,7 @@ Pastificio Nonna Claudia`;
     });
 
     return result;
-  }, [ordini, dataFiltro, mostraTutteLeDate, ricercaCliente]);
+  }, [ordini, dataFiltro, mostraTutteLeDate, ricercaCliente, filtroClienteId]); // ✅ AGGIUNTO: filtroClienteId
 
   const totaleRigheOggi = useMemo(() => {
     return Object.values(ordiniPerCategoria).reduce((acc, cat) => acc + cat.length, 0);

@@ -528,6 +528,41 @@ clienteIdPreselezionato,
     } finally {
       setLoadingClienti(false);
     }
+
+  // ✅ NUOVO 21/01/2026: Pre-selezione cliente da CallPopup
+  useEffect(() => {
+    if (typeof window === 'undefined' || !open) return;
+    
+    // Controlla se c'è un cliente pre-selezionato da CallPopup
+    const clientePreselezionato = localStorage.getItem('nuovoOrdine_clientePreselezionato');
+    
+    if (clientePreselezionato) {
+      try {
+        const cliente = JSON.parse(clientePreselezionato);
+        console.log('📞 Cliente pre-selezionato da CallPopup:', cliente);
+        
+        // Imposta il cliente nel formData
+        setFormData(prev => ({
+          ...prev,
+          cliente: cliente,
+          nome: cliente.nome || '',
+          cognome: cliente.cognome || '',
+          nomeCliente: `${cliente.nome || ''} ${cliente.cognome || ''}`.trim(),
+          telefono: cliente.telefono || ''
+        }));
+        
+        // Rimuovi da localStorage (uso una-tantum)
+        localStorage.removeItem('nuovoOrdine_clientePreselezionato');
+        
+        console.log('✅ Cliente pre-compilato da chiamata');
+        
+      } catch (error) {
+        console.error('Errore parsing cliente pre-selezionato:', error);
+        localStorage.removeItem('nuovoOrdine_clientePreselezionato');
+      }
+    }
+  }, [open]); // Dipende solo da open
+
   };
 
   // ✅ Leggi dati chiamata da localStorage

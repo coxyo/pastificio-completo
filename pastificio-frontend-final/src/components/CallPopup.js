@@ -1,4 +1,4 @@
-// src/components/CallPopup.js - v2.1 FIX HOOKS SSR-SAFE
+// src/components/CallPopup.js - v3.0 AZIONI RAPIDE 1-CLICK
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -14,74 +14,77 @@ import {
   Chip,
   IconButton,
   Divider,
-  List,
-  ListItem,
-  ListItemText,
+  Alert,
+  CircularProgress,
   TextField,
-  Alert
+  Grid
 } from '@mui/material';
 import {
   Phone as PhoneIcon,
   Close as CloseIcon,
   Person as PersonIcon,
   Star as StarIcon,
-  History as HistoryIcon,
-  Notes as NotesIcon
+  Add as AddIcon,
+  ShoppingCart as ShoppingCartIcon,
+  PersonAdd as PersonAddIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 /**
- * POPUP CHIAMATA IN ARRIVO - v2.1 FIX HOOKS
+ * POPUP CHIAMATA IN ARRIVO - v3.0 AZIONI RAPIDE
  * 
- * ✅ Hooks sempre eseguiti nello stesso ordine
- * ✅ Return condizionale DOPO tutti gli hooks
- * ✅ Protezione SSR completa
+ * ✅ Hooks order compliant
+ * ✅ Nuovo Ordine (1-click) → Vai a /ordini con cliente pre-selezionato
+ * ✅ Ordini Attivi (1-click) → Mostra badge + click per vedere lista
+ * ✅ Salva Cliente (1-click) → Form rapido nome/cognome/telefono
  */
 function CallPopup({ chiamata, onClose, onSaveNote }) {
-  // ✅ TUTTI GLI HOOKS PRIMA DI QUALSIASI RETURN
+  const router = useRouter();
+  
+  // ✅ TUTTI GLI HOOKS PRIMA
   const [loading, setLoading] = useState(false);
-  const [note, setNote] = useState('');
-  const [ultimiOrdini, setUltimiOrdini] = useState([]);
+  const [ordiniAttivi, setOrdiniAttivi] = useState([]);
   const [loadingOrdini, setLoadingOrdini] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showSalvaCliente, setShowSalvaCliente] = useState(false);
+  const [nuovoCliente, setNuovoCliente] = useState({
+    nome: '',
+    cognome: '',
+    telefono: ''
+  });
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
 
   // ✅ Hook SSR protection
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // ✅ Hook caricamento ordini - SEMPRE eseguito
+  // ✅ Hook caricamento ordini attivi
   useEffect(() => {
-    // Controlli di sicurezza DENTRO l'useEffect
     if (!mounted || typeof window === 'undefined') return;
     if (!chiamata?.cliente?._id && !chiamata?.cliente?.id) return;
     
-    caricaUltimiOrdini();
-  }, [chiamata?.cliente, mounted]); // ← Dipendenze sicure
+    caricaOrdiniAttivi();
+  }, [chiamata?.cliente, mounted]);
 
-  // ✅ Funzione caricamento ordini
-  const caricaUltimiOrdini = async () => {
+  // Carica ordini attivi (non completati/annullati)
+  const caricaOrdiniAttivi = async () => {
     if (typeof window === 'undefined') return;
     
     setLoadingOrdini(true);
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        console.warn('[POPUP] Token non trovato, skip caricamento ordini');
-        return;
-      }
+      if (!token) return;
 
       const clienteId = chiamata?.cliente?._id || chiamata?.cliente?.id;
-      if (!clienteId) {
-        console.warn('[POPUP] Cliente ID non trovato');
-        return;
-      }
+      if (!clienteId) return;
 
       const response = await fetch(
-        `${API_URL}/ordini?clienteId=${clienteId}&limit=5`,
+        `${API_URL}/ordini?clienteId=${clienteId}&limit=20`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -91,9 +94,13 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
 
       if (response.ok) {
         const data = await response.json();
-        setUltimiOrdini(data.ordini || []);
-      } else {
-        console.warn('[POPUP] Errore caricamento ordini:', response.status);
+        // Filtra solo ordini attivi (non completati/annullati)
+        const attivi = (data.ordini || []).filter(o => 
+          o.stato && 
+          o.stato !== 'completato' && 
+          o.stato !== 'annullato'
+        );
+        setOrdiniAttivi(attivi);
       }
     } catch (error) {
       console.error('[POPUP] Errore caricamento ordini:', error);
@@ -102,17 +109,120 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     }
   };
 
-  const handleSaveNote = async () => {
-    if (!note.trim()) return;
+  // ✅ AZIONE 1: NUOVO ORDINE (1-CLICK)
+  const handleNuovoOrdine = () => {
+    console.log('🆕 Nuovo Ordine per cliente:', chiamata?.cliente);
+    
+    if (typeof window === 'undefined') return;
+    
+    // Salva cliente in localStorage per pre-compilazione
+    if (chiamata?.cliente) {
+      localStorage.setItem('nuovoOrdine_clientePreselezionato', JSON.stringify({
+        _id: chiamata.cliente._id || chiamata.cliente.id,
+        nome: chiamata.cliente.nome,
+        cognome: chiamata.cliente.cognome,
+        telefono: chiamata.cliente.telefono || chiamata.cliente.cellulare || chiamata.numero,
+        email: chiamata.cliente.email,
+        codiceCliente: chiamata.cliente.codiceCliente
+      }));
+    }
+    
+    // Chiudi popup
+    onClose();
+    
+    // Vai alla pagina ordini
+    router.push('/ordini');
+  };
 
-    setLoading(true);
+  // ✅ AZIONE 2: VEDI ORDINI ATTIVI (1-CLICK)
+  const handleVediOrdiniAttivi = () => {
+    console.log('📦 Vedi ordini attivi:', ordiniAttivi);
+    
+    if (typeof window === 'undefined') return;
+    
+    // Salva filtro cliente per la pagina ordini
+    if (chiamata?.cliente) {
+      localStorage.setItem('ordini_filtroCliente', JSON.stringify({
+        _id: chiamata.cliente._id || chiamata.cliente.id,
+        nome: chiamata.cliente.nome,
+        cognome: chiamata.cliente.cognome
+      }));
+    }
+    
+    // Chiudi popup
+    onClose();
+    
+    // Vai alla pagina ordini con filtro attivo
+    router.push('/ordini?tab=lista');
+  };
+
+  // ✅ AZIONE 3: SALVA CLIENTE (1-CLICK) - MOSTRA FORM
+  const handleMostraSalvaCliente = () => {
+    console.log('👤 Mostra form salva cliente');
+    
+    // Pre-compila telefono
+    setNuovoCliente({
+      nome: '',
+      cognome: '',
+      telefono: chiamata?.numero?.replace(/^\+39/, '') || ''
+    });
+    
+    setShowSalvaCliente(true);
+  };
+
+  // Salva nuovo cliente
+  const handleSalvaClienteDB = async () => {
+    if (!nuovoCliente.nome || !nuovoCliente.telefono) {
+      alert('Nome e Telefono sono obbligatori');
+      return;
+    }
+
+    setSalvandoCliente(true);
     try {
-      await onSaveNote(chiamata?.callId, note);
-      setNote('');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Token non trovato');
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/clienti`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nome: nuovoCliente.nome,
+          cognome: nuovoCliente.cognome,
+          telefono: nuovoCliente.telefono,
+          cellulare: nuovoCliente.telefono,
+          attivo: true
+        })
+      });
+
+      if (response.ok) {
+        const clienteCreato = await response.json();
+        console.log('✅ Cliente salvato:', clienteCreato);
+        
+        // Aggiorna chiamata con nuovo cliente
+        if (chiamata && clienteCreato.cliente) {
+          chiamata.cliente = clienteCreato.cliente;
+        }
+        
+        alert(`✅ Cliente "${nuovoCliente.nome} ${nuovoCliente.cognome}" salvato!`);
+        setShowSalvaCliente(false);
+        
+        // Ricarica popup con nuovo cliente
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`❌ Errore: ${error.message || 'Impossibile salvare cliente'}`);
+      }
     } catch (error) {
-      console.error('[POPUP] Errore salvataggio nota:', error);
+      console.error('Errore salvataggio cliente:', error);
+      alert('❌ Errore di rete');
     } finally {
-      setLoading(false);
+      setSalvandoCliente(false);
     }
   };
 
@@ -132,7 +242,6 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     return null;
   }
 
-  // ✅ Destructuring sicuro DOPO il check
   const { cliente, numero, callId, timestamp } = chiamata;
 
   return (
@@ -176,7 +285,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>
-        {/* Info Cliente */}
+        {/* CLIENTE REGISTRATO */}
         {cliente ? (
           <Box>
             {/* Avatar e Nome */}
@@ -225,166 +334,229 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
             {/* Contatti */}
             <Box mb={2}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Telefono: <strong>{cliente.telefono || cliente.cellulare || numero}</strong>
+                📞 {cliente.telefono || cliente.cellulare || numero}
               </Typography>
               {cliente.email && (
                 <Typography variant="body2" color="text.secondary">
-                  Email: <strong>{cliente.email}</strong>
+                  📧 {cliente.email}
                 </Typography>
               )}
               {(cliente.punti > 0) && (
                 <Typography variant="body2" color="primary" fontWeight="bold">
-                  Punti Fedeltà: {cliente.punti}
+                  ⭐ Punti Fedeltà: {cliente.punti}
                 </Typography>
               )}
             </Box>
 
             <Divider sx={{ my: 2 }} />
 
-            {/* Ultimi Ordini */}
-            <Box>
-              <Typography
-                variant="subtitle2"
-                fontWeight="bold"
-                display="flex"
-                alignItems="center"
-                gap={1}
-                mb={1}
-              >
-                <HistoryIcon fontSize="small" />
-                Ultimi Ordini
-              </Typography>
-
+            {/* Ordini Attivi Badge */}
+            <Box mb={2}>
               {loadingOrdini ? (
-                <Typography variant="body2" color="text.secondary">
-                  Caricamento...
-                </Typography>
-              ) : ultimiOrdini.length > 0 ? (
-                <List dense sx={{ bgcolor: 'grey.50', borderRadius: 1 }}>
-                  {ultimiOrdini.slice(0, 3).map((ordine) => (
-                    <ListItem key={ordine._id} divider>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body2" fontWeight="bold">
-                            {new Date(ordine.dataConsegna || ordine.dataRitiro).toLocaleDateString('it-IT')}
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="caption">
-                            {ordine.prodotti?.length || 0} prodotti - €{ordine.totale?.toFixed(2) || '0.00'}
-                          </Typography>
-                        }
-                      />
-                      <Chip
-                        label={ordine.stato}
-                        size="small"
-                        color={ordine.stato === 'completato' ? 'success' : 'default'}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <CircularProgress size={16} />
+                  <Typography variant="body2" color="text.secondary">
+                    Caricamento ordini...
+                  </Typography>
+                </Box>
+              ) : ordiniAttivi.length > 0 ? (
+                <Alert 
+                  severity="info" 
+                  icon={<ShoppingCartIcon />}
+                  sx={{ cursor: 'pointer' }}
+                  onClick={handleVediOrdiniAttivi}
+                >
+                  <Typography variant="body2" fontWeight="bold">
+                    🛒 {ordiniAttivi.length} ordine{ordiniAttivi.length !== 1 ? 'i' : ''} attivo{ordiniAttivi.length !== 1 ? 'i' : ''}
+                  </Typography>
+                  <Typography variant="caption">
+                    Click per vedere dettagli
+                  </Typography>
+                </Alert>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  Nessun ordine precedente
+                  ✅ Nessun ordine attivo
                 </Typography>
               )}
             </Box>
 
+            {/* Info Timestamp */}
+            {timestamp && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                textAlign="center"
+                mb={2}
+              >
+                📅 {formatDistanceToNow(new Date(timestamp), { 
+                  addSuffix: true,
+                  locale: it 
+                })}
+              </Typography>
+            )}
           </Box>
         ) : (
-          /* Numero Sconosciuto */
-          <Box textAlign="center" py={2}>
-            <Avatar
-              sx={{
-                width: 64,
-                height: 64,
-                bgcolor: 'grey.400',
-                margin: '0 auto',
-                mb: 2
-              }}
-            >
-              <PhoneIcon sx={{ fontSize: 32 }} />
-            </Avatar>
+          /* NUMERO SCONOSCIUTO */
+          <Box>
+            <Box textAlign="center" py={2} mb={2}>
+              <Avatar
+                sx={{
+                  width: 64,
+                  height: 64,
+                  bgcolor: 'grey.400',
+                  margin: '0 auto',
+                  mb: 2
+                }}
+              >
+                <PhoneIcon sx={{ fontSize: 32 }} />
+              </Avatar>
 
-            <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Numero Sconosciuto
-            </Typography>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                Numero Sconosciuto
+              </Typography>
 
-            <Typography variant="h5" color="primary" fontWeight="bold" mb={1}>
-              {numero || 'Numero non disponibile'}
-            </Typography>
+              <Typography variant="h5" color="primary" fontWeight="bold" mb={2}>
+                {numero || 'Numero non disponibile'}
+              </Typography>
+            </Box>
 
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Questo numero non è associato a nessun cliente. Puoi creare un nuovo cliente dopo la chiamata.
-            </Alert>
+            {/* Form Salva Cliente (se attivato) */}
+            {showSalvaCliente ? (
+              <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
+                <Typography variant="subtitle2" fontWeight="bold" mb={2}>
+                  👤 Salva Nuovo Cliente
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Nome *"
+                      value={nuovoCliente.nome}
+                      onChange={(e) => setNuovoCliente({...nuovoCliente, nome: e.target.value})}
+                      autoFocus
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Cognome"
+                      value={nuovoCliente.cognome}
+                      onChange={(e) => setNuovoCliente({...nuovoCliente, cognome: e.target.value})}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Telefono *"
+                      value={nuovoCliente.telefono}
+                      onChange={(e) => setNuovoCliente({...nuovoCliente, telefono: e.target.value})}
+                    />
+                  </Grid>
+                </Grid>
+
+                <Box display="flex" gap={1} mt={2}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => setShowSalvaCliente(false)}
+                    disabled={salvandoCliente}
+                  >
+                    Annulla
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={handleSalvaClienteDB}
+                    disabled={salvandoCliente || !nuovoCliente.nome || !nuovoCliente.telefono}
+                    startIcon={salvandoCliente ? <CircularProgress size={16} /> : <PersonAddIcon />}
+                  >
+                    {salvandoCliente ? 'Salvataggio...' : 'Salva'}
+                  </Button>
+                </Box>
+              </Box>
+            ) : (
+              <Alert severity="warning">
+                Questo numero non è associato a nessun cliente. 
+                Usa il bottone "Salva Cliente" per registrarlo.
+              </Alert>
+            )}
+
+            {/* Info Timestamp */}
+            {timestamp && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                textAlign="center"
+                mt={2}
+              >
+                📅 {formatDistanceToNow(new Date(timestamp), { 
+                  addSuffix: true,
+                  locale: it 
+                })}
+              </Typography>
+            )}
           </Box>
-        )}
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* Note Chiamata */}
-        <Box>
-          <Typography
-            variant="subtitle2"
-            fontWeight="bold"
-            display="flex"
-            alignItems="center"
-            gap={1}
-            mb={1}
-          >
-            <NotesIcon fontSize="small" />
-            Note Chiamata
-          </Typography>
-
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            placeholder="Aggiungi note sulla chiamata..."
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            variant="outlined"
-            size="small"
-          />
-        </Box>
-
-        {/* Info Timestamp */}
-        {timestamp && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            textAlign="center"
-            mt={2}
-          >
-            Chiamata ricevuta {formatDistanceToNow(new Date(timestamp), { 
-              addSuffix: true,
-              locale: it 
-            })}
-          </Typography>
         )}
       </DialogContent>
 
-      {/* Actions */}
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      {/* ✅ ACTIONS - PULSANTI RAPIDI 1-CLICK */}
+      <DialogActions sx={{ px: 3, pb: 2, flexWrap: 'wrap', gap: 1 }}>
+        {/* Bottone CHIUDI (sempre visibile) */}
         <Button
           onClick={onClose}
           variant="outlined"
           color="inherit"
+          sx={{ minWidth: '100px' }}
         >
           Chiudi
         </Button>
 
-        {note.trim() && (
-          <Button
-            onClick={handleSaveNote}
-            variant="contained"
-            color="primary"
-            disabled={loading}
-            startIcon={<NotesIcon />}
-          >
-            {loading ? 'Salvataggio...' : 'Salva Nota'}
-          </Button>
+        {cliente ? (
+          <>
+            {/* Cliente Registrato: Nuovo Ordine + Ordini Attivi */}
+            <Button
+              onClick={handleNuovoOrdine}
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              sx={{ minWidth: '140px' }}
+            >
+              Nuovo Ordine
+            </Button>
+
+            {ordiniAttivi.length > 0 && (
+              <Button
+                onClick={handleVediOrdiniAttivi}
+                variant="outlined"
+                color="info"
+                startIcon={<ShoppingCartIcon />}
+                sx={{ minWidth: '140px' }}
+              >
+                Ordini Attivi ({ordiniAttivi.length})
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Numero Sconosciuto: Salva Cliente */}
+            {!showSalvaCliente && (
+              <Button
+                onClick={handleMostraSalvaCliente}
+                variant="contained"
+                color="success"
+                startIcon={<PersonAddIcon />}
+                sx={{ minWidth: '140px' }}
+              >
+                Salva Cliente
+              </Button>
+            )}
+          </>
         )}
       </DialogActions>
 
