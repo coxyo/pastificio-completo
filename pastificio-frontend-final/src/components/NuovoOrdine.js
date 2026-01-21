@@ -1210,6 +1210,44 @@ clienteIdPreselezionato,
       return;
     }
 
+    // ✅ FIX 21/01/2026: VALIDAZIONE STRETTA PRODOTTI
+    // Controlla che TUTTI i prodotti abbiano quantità > 0
+    const prodottiInvalidi = formData.prodotti.filter(p => {
+      const quantita = parseFloat(p.quantita);
+      return isNaN(quantita) || quantita <= 0;
+    });
+
+    if (prodottiInvalidi.length > 0) {
+      const nomiProdotti = prodottiInvalidi.map(p => p.nome).join(', ');
+      console.error('❌ PRODOTTI CON QUANTITÀ INVALIDA:', prodottiInvalidi);
+      alert(
+        `❌ ERRORE: I seguenti prodotti hanno quantità 0 o invalida:\n\n` +
+        `${nomiProdotti}\n\n` +
+        `Rimuovi questi prodotti o correggi le quantità prima di salvare.`
+      );
+      return;
+    }
+
+    // ✅ Controlla anche che abbiano prezzo > 0
+    const prodottiSenzaPrezzo = formData.prodotti.filter(p => {
+      const prezzo = parseFloat(p.prezzo);
+      return isNaN(prezzo) || prezzo <= 0;
+    });
+
+    if (prodottiSenzaPrezzo.length > 0) {
+      const nomiProdotti = prodottiSenzaPrezzo.map(p => p.nome).join(', ');
+      console.error('❌ PRODOTTI CON PREZZO €0:', prodottiSenzaPrezzo);
+      alert(
+        `❌ ERRORE: I seguenti prodotti hanno prezzo €0:\n\n` +
+        `${nomiProdotti}\n\n` +
+        `Verifica le quantità e riprova.`
+      );
+      return;
+    }
+
+    console.log('✅ Validazione prodotti OK - tutti hanno quantità e prezzo validi');
+
+
     const erroriCritici = alertLimiti.filter(a => a.tipo === 'error');
     let forceOverride = false;
     
