@@ -1320,22 +1320,37 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                               type="text"
                               placeholder="0"
                               value={item.quantita || ''}
+                              onFocus={(e) => e.target.select()}
+                              onBlur={(e) => {
+                                // ✅ Quando finisci di digitare, normalizza e aggiorna
+                                const value = e.target.value;
+                                if (value && value.trim() !== '') {
+                                  const normalized = normalizzaDecimale(value);
+                                  aggiornaQuantita(item.id, normalized);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                // ✅ Se premi Enter, conferma il valore
+                                if (e.key === 'Enter') {
+                                  e.target.blur();
+                                }
+                              }}
                               onChange={(e) => {
                                 let value = e.target.value;
                                 
                                 // ✅ Permetti solo: numeri, virgola, punto
-                                // Rimuovi tutto ciò che non è numero, virgola o punto
                                 value = value.replace(/[^\d.,]/g, '');
                                 
                                 // ✅ Previeni virgole/punti multipli
                                 const separatori = value.match(/[.,]/g);
                                 if (separatori && separatori.length > 1) {
-                                  return; // Blocca input
+                                  return;
                                 }
                                 
-                                // ✅ Normalizza e aggiorna
-                                const normalized = normalizzaDecimale(value);
-                                aggiornaQuantita(item.id, normalized);
+                                // ✅ Aggiorna TEMPORANEAMENTE (senza normalizzare)
+                                setComposizione(prev => prev.map(p => 
+                                  p.id === item.id ? { ...p, quantita: value } : p
+                                ));
                               }}
                               size="small"
                               sx={{ width: 100 }}
