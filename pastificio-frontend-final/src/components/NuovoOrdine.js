@@ -1489,23 +1489,30 @@ clienteIdPreselezionato,
                         label="Quantità"
                         placeholder="0"
                         value={prodottoCorrente.quantita}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => {
                           let value = e.target.value;
-                          // ✅ Normalizza virgola → punto
-                          value = normalizzaDecimale(value);
-                          
-                          if (value === '') {
+                          value = value.replace(/[^\d.,]/g, '');
+                          const separatori = value.match(/[.,]/g);
+                          if (separatori && separatori.length > 1) return;
+                          setProdottoCorrente({ ...prodottoCorrente, quantita: value });
+                        }}
+                        onBlur={(e) => {
+                          let value = e.target.value;
+                          if (value === '' || value === ',' || value === '.') {
                             setProdottoCorrente({ ...prodottoCorrente, quantita: '' });
                             return;
                           }
-                          const parsedValue = prodottoCorrente.unita === 'Kg' 
-                            ? parseFloat(value) || 0
-                            : parseInt(value) || 0;
+                          const normalized = normalizzaDecimale(value);
+                          const parsedValue = parseFloat(normalized);
+                          if (isNaN(parsedValue) || parsedValue <= 0) {
+                            setProdottoCorrente({ ...prodottoCorrente, quantita: '' });
+                            return;
+                          }
                           setProdottoCorrente({ ...prodottoCorrente, quantita: parsedValue });
                         }}
                         inputProps={{ 
-                          min: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
-                          step: prodottoCorrente.unita === 'Kg' ? 0.1 : 1,
+                          inputMode: 'decimal',
                           style: { MozAppearance: 'textfield' }
                         }}
                         sx={{
