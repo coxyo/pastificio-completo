@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE AGGIORNATA CON HACCP E CORRISPETTIVI
+// app/ClientLayout.js - VERSIONE AGGIORNATA CON GRAFICI CORRISPETTIVI
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,8 +28,9 @@ import {
   Settings,
   Notifications as NotificationsIcon,
   Phone as PhoneIcon,
-  HealthAndSafety,  // ✅ NUOVO: Icona HACCP
-  AccountBalance    // ✅ NUOVO: Icona Corrispettivi
+  HealthAndSafety,
+  AccountBalance,
+  TrendingUp  // ✅ NUOVO: Icona Grafici
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
@@ -45,8 +46,9 @@ const menuItems = [
   { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
   { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
   { id: 'fatturazione', title: 'Fatturazione', icon: <Receipt />, path: '/fatturazione' },
-  { id: 'haccp', title: 'HACCP', icon: <HealthAndSafety />, path: '/haccp' },                    // ✅ RIPRISTINATO
-  { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi' }, // ✅ RIPRISTINATO
+  { id: 'haccp', title: 'HACCP', icon: <HealthAndSafety />, path: '/haccp' },
+  { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi' },
+  { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici' },  // ✅ NUOVO
   { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni' }
 ];
 

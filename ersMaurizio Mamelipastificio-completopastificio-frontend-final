@@ -1,0 +1,8 @@
+[33mcommit 7882d085eb60571b8ed22837c1c4463b1a3fae4c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: coxyo <tua-email@esempio.com>
+Date:   Mon Jan 19 18:41:04 2026 +0100
+
+    Fix: rimosso /api/ dagli URL in GestioneZeppole.js
+
+ pastificio-frontend-final/src/components/GestioneZeppole.js | 10 [32m+++++[m[31m-----[m
+ 1 file changed, 5 insertions(+), 5 deletions(-)
