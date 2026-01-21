@@ -859,11 +859,14 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
       `📏 Dimensione: Nr ${numeroVassoioDimensione} (${DIMENSIONI_VASSOIO[numeroVassoioDimensione]?.range || ''})`
     ].filter(Boolean).join(' | ');
 
+    // ✅ FIX: Se numeroVassoi è vuoto, usa 1 come default
+    const numeroVassoiFinal = parseInt(numeroVassoi) || 1;
+
     const vassoioData = {
       nome: 'Vassoio Dolci Misti',
-      quantita: numeroVassoi,
+      quantita: numeroVassoiFinal,
       unita: 'vassoio',
-      prezzo: totaleVassoio * numeroVassoi,
+      prezzo: totaleVassoio * numeroVassoiFinal,
       categoria: 'Dolci',
       note: noteComplete,
       dettagliCalcolo: {
