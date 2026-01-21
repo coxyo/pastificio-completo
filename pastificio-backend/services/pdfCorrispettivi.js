@@ -1,7 +1,6 @@
 // services/pdfCorrispettivi.js
-// 🎨 VERSIONE CORRETTA - CON LOGO REALE
+// 🎯 VERSIONE FINALE - CSV SEMPLICE + PDF PERFETTO
 import PDFDocument from 'pdfkit';
-import ExcelJS from 'exceljs';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -18,7 +17,7 @@ class PdfCorrispettiviService {
    */
   async generaPdfCorrispettivi(anno, mese) {
     try {
-      logger.info(`📄 Generazione PDF professionale ${mese}/${anno}...`);
+      logger.info(`📄 Generazione PDF ${mese}/${anno}...`);
 
       const corrispettivi = await Corrispettivo.find({ anno, mese }).sort({ giorno: 1 });
 
@@ -42,46 +41,53 @@ class PdfCorrispettiviService {
         doc.on('error', reject);
       });
 
-      const pageWidth = doc.page.width - 80;
-
-      // ━━━ HEADER CON LOGO ━━━
-      // Background header
-      doc.rect(40, 40, pageWidth, 110).fill('#2196F3');
+      // ━━━ HEADER CON LOGO E LAYOUT CORRETTO ━━━
+      const pageWidth = doc.page.width;
+      
+      // Background blu
+      doc.rect(0, 0, pageWidth, 130).fill('#2196F3');
 
       // Logo (se esiste)
       const logoPath = path.join(__dirname, '../assets/logo.jpg');
       if (fs.existsSync(logoPath)) {
         try {
-          doc.image(logoPath, 50, 50, { width: 120, height: 80 });
+          doc.image(logoPath, 50, 45, { width: 140, height: 90 });
         } catch (err) {
-          // Fallback emoji se logo non carica
-          doc.fontSize(40).fillColor('#FFFFFF').text('🍰', 50, 55);
+          doc.fontSize(50).fillColor('#FFFFFF').text('🍰', 50, 50);
         }
       } else {
-        doc.fontSize(40).fillColor('#FFFFFF').text('🍰', 50, 55);
+        doc.fontSize(50).fillColor('#FFFFFF').text('🍰', 50, 50);
       }
 
-      // Titolo azienda
-      doc.fontSize(22)
+      // Testo azienda (spostato a destra del logo)
+      doc.fontSize(24)
          .font('Helvetica-Bold')
          .fillColor('#FFFFFF')
-         .text('Pastificio Nonna Claudia', 190, 55);
+         .text('Pastificio Nonna Claudia', 210, 50);
 
       doc.fontSize(11)
          .font('Helvetica')
          .fillColor('#E3F2FD')
-         .text('Via Carmine 20/B, Assemini (CA)', 190, 85);
+         .text('Via Carmine 20/B, Assemini (CA)', 210, 80);
       
-      doc.text('Tel: 389 887 9833', 190, 100);
+      doc.text('Tel: 389 887 9833', 210, 95);
 
-      // Titolo report (destra)
-      doc.fontSize(16)
+      // Titolo report (box giallo a destra)
+      doc.rect(pageWidth - 250, 45, 200, 70).fill('#FFEB3B');
+      
+      doc.fontSize(12)
          .font('Helvetica-Bold')
-         .fillColor('#FFEB3B')
-         .text(`CORRISPETTIVI ${nomeMese.toUpperCase()} ${anno}`, 
-               pageWidth - 220, 70, { width: 200, align: 'right' });
+         .fillColor('#000000')
+         .text('CORRISPETTIVI', pageWidth - 240, 55, { width: 180, align: 'center' });
+      
+      doc.fontSize(18)
+         .fillColor('#2196F3')
+         .text(`${nomeMese.toUpperCase()}`, pageWidth - 240, 75, { width: 180, align: 'center' });
+      
+      doc.fontSize(16)
+         .text(`${anno}`, pageWidth - 240, 95, { width: 180, align: 'center' });
 
-      doc.y = 170;
+      doc.y = 150;
 
       // ━━━ KPI CARDS ━━━
       const cardY = doc.y;
@@ -136,11 +142,9 @@ class PdfCorrispettiviService {
       let currentY = tabellaY + rowH;
 
       // Righe IVA
-      const righe = [
-        { label: '10% (Ridotta)', totale: totali.iva10, div: 1.10 }
-      ];
-
-      if (totali.iva22 > 0) righe.unshift({ label: '22% (Ord.)', totale: totali.iva22, div: 1.22 });
+      const righe = [];
+      if (totali.iva22 > 0) righe.push({ label: '22% (Ord.)', totale: totali.iva22, div: 1.22 });
+      if (totali.iva10 > 0) righe.push({ label: '10% (Rid.)', totale: totali.iva10, div: 1.10 });
       if (totali.iva4 > 0) righe.push({ label: '4% (Super)', totale: totali.iva4, div: 1.04 });
       if (totali.esente > 0) righe.push({ label: 'Esente', totale: totali.esente, div: 1 });
 
@@ -252,11 +256,11 @@ class PdfCorrispettiviService {
   }
 
   /**
-   * GENERA EXCEL PULITO
+   * GENERA CSV SEMPLICE (NO EXCELJS)
    */
   async generaCsvCorrispettivi(anno, mese) {
     try {
-      logger.info(`📊 Generazione Excel ${mese}/${anno}...`);
+      logger.info(`📊 Generazione CSV ${mese}/${anno}...`);
 
       const corrispettivi = await Corrispettivo.find({ anno, mese }).sort({ giorno: 1 });
 
@@ -264,75 +268,35 @@ class PdfCorrispettiviService {
         throw new Error(`Nessun corrispettivo trovato`);
       }
 
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet('Corrispettivi');
+      const totali = this.calcolaTotali(corrispettivi);
 
-      // Header
-      const headerRow = sheet.addRow([
-        'Data', 'Giorno', 'Totale', 'IVA 22%', 'IVA 10%', 'IVA 4%', 'Esente', 'Note'
-      ]);
+      // Header CSV
+      let csv = 'Data,Giorno,Totale,IVA 22%,IVA 10%,IVA 4%,Esente,Note\n';
 
-      headerRow.eachCell(cell => {
-        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2196F3' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      // Righe dati
+      corrispettivi.forEach(c => {
+        const data = `${c.giorno}/${mese}/${anno}`;
+        const giorno = c.giorno;
+        const totale = (c.totale || 0).toFixed(2);
+        const iva22 = (c.dettaglioIva?.iva22 || 0).toFixed(2);
+        const iva10 = (c.dettaglioIva?.iva10 || 0).toFixed(2);
+        const iva4 = (c.dettaglioIva?.iva4 || 0).toFixed(2);
+        const esente = (c.dettaglioIva?.esente || 0).toFixed(2);
+        const note = c.note ? `"${c.note.replace(/"/g, '""')}"` : '';
+
+        csv += `${data},${giorno},${totale},${iva22},${iva10},${iva4},${esente},${note}\n`;
       });
 
-      // Dati
-      corrispettivi.forEach((c, i) => {
-        const row = sheet.addRow([
-          `${c.giorno}/${mese}/${anno}`,
-          c.giorno,
-          c.totale || 0,
-          c.dettaglioIva?.iva22 || 0,
-          c.dettaglioIva?.iva10 || 0,
-          c.dettaglioIva?.iva4 || 0,
-          c.dettaglioIva?.esente || 0,
-          c.note || ''
-        ]);
+      // Riga totale
+      csv += `\nTOTALE,,${totali.totaleMese.toFixed(2)},${totali.iva22.toFixed(2)},${totali.iva10.toFixed(2)},${totali.iva4.toFixed(2)},${totali.esente.toFixed(2)},\n`;
 
-        [3, 4, 5, 6, 7].forEach(col => {
-          row.getCell(col).numFmt = '"€"#,##0.00';
-        });
+      const buffer = Buffer.from(csv, 'utf-8');
 
-        if (i % 2 === 0) {
-          row.eachCell(cell => {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
-          });
-        }
-      });
-
-      // Totale
-      const totRow = sheet.addRow([
-        'TOTALE', '',
-        { formula: `SUM(C2:C${corrispettivi.length + 1})` },
-        { formula: `SUM(D2:D${corrispettivi.length + 1})` },
-        { formula: `SUM(E2:E${corrispettivi.length + 1})` },
-        { formula: `SUM(F2:F${corrispettivi.length + 1})` },
-        { formula: `SUM(G2:G${corrispettivi.length + 1})` },
-        ''
-      ]);
-
-      totRow.eachCell((cell, col) => {
-        cell.font = { bold: true };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEB3B' } };
-        if (col >= 3 && col <= 7) {
-          cell.numFmt = '"€"#,##0.00';
-        }
-      });
-
-      // Larghezze
-      sheet.columns = [
-        { width: 12 }, { width: 8 }, { width: 12 }, { width: 12 },
-        { width: 12 }, { width: 12 }, { width: 12 }, { width: 30 }
-      ];
-
-      const buffer = await workbook.xlsx.writeBuffer();
-      logger.info(`✅ Excel generato: ${buffer.length} bytes`);
+      logger.info(`✅ CSV generato: ${buffer.length} bytes`);
       return buffer;
 
     } catch (error) {
-      logger.error('❌ Errore Excel:', error);
+      logger.error('❌ Errore CSV:', error);
       throw error;
     }
   }
