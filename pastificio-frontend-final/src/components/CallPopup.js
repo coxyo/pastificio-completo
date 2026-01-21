@@ -30,7 +30,6 @@ import {
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
@@ -43,8 +42,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-
  * ✅ Salva Cliente (1-click) → Form rapido nome/cognome/telefono
  */
 function CallPopup({ chiamata, onClose, onSaveNote }) {
-  const router = useRouter();
-  
   // ✅ TUTTI GLI HOOKS PRIMA
   const [loading, setLoading] = useState(false);
   const [ordiniAttivi, setOrdiniAttivi] = useState([]);
@@ -125,13 +122,15 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
         email: chiamata.cliente.email,
         codiceCliente: chiamata.cliente.codiceCliente
       }));
+      console.log('✅ Cliente salvato in localStorage per pre-compilazione');
     }
     
     // Chiudi popup
     onClose();
     
-    // Vai alla pagina ordini
-    router.push('/ordini');
+    // Vai alla pagina ordini con window.location (compatibile con tutti i router)
+    console.log('📍 Navigazione a /ordini...');
+    window.location.href = '/ordini';
   };
 
   // ✅ AZIONE 2: VEDI ORDINI ATTIVI (1-CLICK)
@@ -147,13 +146,15 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
         nome: chiamata.cliente.nome,
         cognome: chiamata.cliente.cognome
       }));
+      console.log('✅ Filtro cliente salvato in localStorage');
     }
     
     // Chiudi popup
     onClose();
     
     // Vai alla pagina ordini con filtro attivo
-    router.push('/ordini?tab=lista');
+    console.log('📍 Navigazione a /ordini?tab=lista...');
+    window.location.href = '/ordini?tab=lista';
   };
 
   // ✅ AZIONE 3: SALVA CLIENTE (1-CLICK) - MOSTRA FORM
