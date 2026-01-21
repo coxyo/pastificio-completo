@@ -591,7 +591,17 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
           </>
         ) : (
           <>
-            {/* Numero Sconosciuto: Salva Cliente */}
+            {/* Numero Sconosciuto: Nuovo Ordine + Salva Cliente */}
+            <Button
+              onClick={handleNuovoOrdine}
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              sx={{ minWidth: '140px' }}
+            >
+              Nuovo Ordine
+            </Button>
+            
             {!showSalvaCliente && (
               <Button
                 onClick={handleMostraSalvaCliente}
