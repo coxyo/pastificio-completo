@@ -142,7 +142,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
     console.log('🧹 localStorage pulito prima di salvare nuovi dati');
     
     // Salva cliente in localStorage per pre-compilazione
-    if (chiamata?.cliente) {
+    if (chiamata?.cliente && typeof chiamata.cliente === 'object' && chiamata.cliente._id) {
       console.log('✅ CASO 1: Cliente registrato trovato');
       localStorage.setItem('nuovoOrdine_clientePreselezionato', JSON.stringify({
         _id: chiamata.cliente._id || chiamata.cliente.id,
@@ -154,7 +154,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
       }));
       console.log('✅ Cliente salvato in localStorage per pre-compilazione');
     } else if (chiamata?.numero) {
-      // ✅ NUOVO: Numero sconosciuto - salva solo il numero
+      // ✅ Numero sconosciuto (o cliente è stringa 'sconosciuto')
       console.log('✅ CASO 2: Numero sconosciuto');
       const numeroSenzaPrefisso = chiamata.numero.replace(/^\+39/, '');
       const datiDaSalvare = {
