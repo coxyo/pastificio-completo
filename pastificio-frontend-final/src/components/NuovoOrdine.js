@@ -946,12 +946,20 @@ clienteIdPreselezionato,
       
       const nuoviProdotti = [];
       for (let i = 0; i < numeroVassoi; i++) {
+        // ✅ FIX 21/01/2026: Calcola prezzo per Panade
+        const calcoloPrezzo = calcolaPrezzoOrdine(
+          prodottoCorrente.nome,
+          prodottoCorrente.quantita,
+          prodottoCorrente.unita,
+          prodottoCorrente.prezzo
+        );
+        
         nuoviProdotti.push({
           nome: nomeCompleto,
           quantita: prodottoCorrente.quantita,
           unita: prodottoCorrente.unita,
           unitaMisura: prodottoCorrente.unita,
-          prezzo: prodottoCorrente.prezzo,
+          prezzo: calcoloPrezzo.prezzoTotale,
           categoria: 'Panadas',
           note: '',
           dettagliCalcolo: {
@@ -1069,12 +1077,20 @@ clienteIdPreselezionato,
     // ✅ NUOVO: Crea più prodotti se numeroVassoiProdotto > 1
     const nuoviProdotti = [];
     for (let i = 0; i < numeroVassoiProdotto; i++) {
+      // ✅ FIX 21/01/2026: Calcola prezzo usando calcolaPrezzoOrdine
+      const calcoloPrezzo = calcolaPrezzoOrdine(
+        prodottoCorrente.nome,
+        quantitaNormalizzata,
+        prodottoCorrente.unita,
+        prodottoCorrente.prezzo
+      );
+      
       nuoviProdotti.push({
         nome: nomeProdottoCompleto,
-        quantita: quantitaNormalizzata,  // ✅ USA quantità validata
+        quantita: quantitaNormalizzata,
         unita: prodottoCorrente.unita,
         unitaMisura: prodottoCorrente.unita,
-        prezzo: prodottoCorrente.prezzo,
+        prezzo: calcoloPrezzo.prezzoTotale,
         categoria: prodottoConfig?.categoria || 'Altro',
         variante: prodottoCorrente.variante,
         varianti: prodottoCorrente.varianti,
