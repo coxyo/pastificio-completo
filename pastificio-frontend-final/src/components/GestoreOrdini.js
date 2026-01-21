@@ -1014,11 +1014,18 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
         try {
           const cliente = JSON.parse(clientePreselezionato);
           console.log('✅ Cliente da localStorage:', cliente);
+          console.log('  - cliente._id:', cliente._id);
+          console.log('  - cliente.telefono:', cliente.telefono);
           
           // Imposta gli stati che verranno passati come props a NuovoOrdine
           setClienteIdDaChiamata(cliente._id || cliente.id);
           setClienteDaChiamata(cliente);
           setNumeroDaChiamata(cliente.telefono);
+          
+          console.log('✅ Stati impostati:');
+          console.log('  - clienteIdDaChiamata:', cliente._id || cliente.id);
+          console.log('  - clienteDaChiamata:', cliente);
+          console.log('  - numeroDaChiamata:', cliente.telefono);
           
           // NON rimuovere ancora da localStorage, lo farà NuovoOrdine
         } catch (error) {
