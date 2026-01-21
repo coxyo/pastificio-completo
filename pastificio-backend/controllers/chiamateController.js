@@ -1,8 +1,22 @@
-// controllers/chiamateController.js - VERSIONE FINAL CON PUSHER
+// controllers/chiamateController.js - v2.0 CON DEBOUNCE ANTI-SPAM
 import Chiamata from '../models/Chiamata.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
-import pusher from '../services/pusherService.js';  // ✅ AGGIUNTO
+import pusher from '../services/pusherService.js';
+
+// ✅ ANTI-SPAM: Cache chiamate recenti
+const recentCalls = new Map(); // numero -> { timestamp, callId }
+const DEBOUNCE_TIME = 3000; // 3 secondi
+
+// ✅ Pulizia periodica cache (ogni minuto)
+setInterval(() => {
+  const now = Date.now();
+  for (const [numero, data] of recentCalls.entries()) {
+    if (now - data.timestamp > 60000) { // Rimuovi dopo 60 secondi
+      recentCalls.delete(numero);
+    }
+  }
+}, 60000);
 
 /**
  * @desc    Ottieni tutte le chiamate con filtri opzionali
@@ -18,16 +32,14 @@ export const getChiamate = async (req, res) => {
       esito, 
       clienteId,
       numeroTelefono,
-      numero,  // ✅ FIX: accetta anche "numero"
+      numero,
       limit = 100,
       skip = 0,
-      sort = '-timestamp' // ✅ FIX: usa "timestamp" (campo corretto schema)
+      sort = '-timestamp'
     } = req.query;
 
-    // Costruisci filtri dinamici
     const filtri = {};
 
-    // ✅ FIX: Filtro per periodo usa "timestamp" (campo schema)
     if (dataInizio || dataFine) {
       filtri.timestamp = {};
       if (dataInizio) filtri.timestamp.$gte = new Date(dataInizio);
@@ -46,7 +58,6 @@ export const getChiamate = async (req, res) => {
       filtri.cliente = clienteId;
     }
 
-    // ✅ FIX: Accetta sia "numero" che "numeroTelefono"
     const numeroRicerca = numero || numeroTelefono;
     if (numeroRicerca) {
       filtri.numero = { $regex: numeroRicerca.replace(/[^\d+]/g, ''), $options: 'i' };
@@ -109,7 +120,6 @@ export const getChiamata = async (req, res) => {
   }
 };
 
-// Alias per compatibilità con routes
 export const getChiamataById = getChiamata;
 
 /**
@@ -121,7 +131,7 @@ export const creaChiamata = async (req, res) => {
   try {
     const {
       numero,
-      numeroTelefono,  // ✅ FIX: supporta anche questo
+      numeroTelefono,
       cliente,
       timestamp,
       source = 'manual',
@@ -131,10 +141,8 @@ export const creaChiamata = async (req, res) => {
       tags
     } = req.body;
 
-    // ✅ FIX: Accetta sia "numero" che "numeroTelefono"
     const telefonoRaw = numero || numeroTelefono;
 
-    // Validazione
     if (!telefonoRaw) {
       return res.status(400).json({
         success: false,
@@ -142,13 +150,9 @@ export const creaChiamata = async (req, res) => {
       });
     }
 
-    // Normalizza numero
     const numeroNormalizzato = telefonoRaw.replace(/[^\d+]/g, '');
-
-    // ✅ FIX: Genera callId univoco
     const callId = `CALL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // ✅ FIX: Usa campi corretti schema
     const chiamata = await Chiamata.create({
       callId,
       numero: numeroNormalizzato,
@@ -162,7 +166,6 @@ export const creaChiamata = async (req, res) => {
       tags: tags || []
     });
 
-    // Popola cliente
     await chiamata.populate('cliente', 'nome cognome telefono codiceCliente');
 
     logger.info('Chiamata creata:', { id: chiamata._id, numero: numeroNormalizzato });
@@ -380,9 +383,9 @@ export const rimuoviTag = async (req, res) => {
   }
 };
 
-// ✅ WEBHOOK ENDPOINT CON PUSHER!
+// ✅ ✅ ✅ WEBHOOK CON DEBOUNCE ANTI-SPAM ✅ ✅ ✅
 /**
- * @desc    Registra chiamata da estensione Chrome o frontend Pusher
+ * @desc    Registra chiamata da estensione Chrome
  * @route   POST /api/chiamate/webhook
  * @access  Pubblico (con X-API-KEY header)
  */
@@ -422,8 +425,38 @@ export const webhookChiamata = async (req, res) => {
       });
     }
 
+    // ✅ DEBOUNCE: Controlla se chiamata duplicata
     const numeroNormalizzato = telefonoRaw.replace(/[^\d+]/g, '');
+    const now = Date.now();
+    
+    const lastCall = recentCalls.get(numeroNormalizzato);
+    if (lastCall && (now - lastCall.timestamp) < DEBOUNCE_TIME) {
+      logger.warn('🚫 SPAM BLOCKED - Chiamata duplicata ignorata', {
+        numero: numeroNormalizzato,
+        ultimaChiamata: new Date(lastCall.timestamp).toISOString(),
+        tempoTrascorso: `${((now - lastCall.timestamp) / 1000).toFixed(1)}s`,
+        soglia: `${DEBOUNCE_TIME / 1000}s`
+      });
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Chiamata duplicata ignorata (debounce)',
+        duplicate: true,
+        tempoTrascorso: now - lastCall.timestamp
+      });
+    }
+    
+    // ✅ Registra chiamata nella cache
     const callId = `CALL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    recentCalls.set(numeroNormalizzato, {
+      timestamp: now,
+      callId: callId
+    });
+    
+    logger.info('✅ Chiamata accettata (debounce OK)', {
+      numero: numeroNormalizzato,
+      timestamp: new Date(now).toISOString()
+    });
 
     // Cerca cliente
     let clienteId = clienteFromBody || null;
@@ -454,7 +487,7 @@ export const webhookChiamata = async (req, res) => {
       }
     }
 
-    // ✅ Valida source
+    // Valida source
     const sourceValidi = ['3cx-extension', '3cx-webhook', 'test-manual', 'manual'];
     const sourceRaw = sorgente || source;
     const sourceValidato = sourceValidi.includes(sourceRaw) ? sourceRaw : '3cx-extension';
@@ -486,7 +519,7 @@ export const webhookChiamata = async (req, res) => {
       source: sourceValidato
     });
 
-    // ✅ ✅ ✅ INVIA EVENTO PUSHER ✅ ✅ ✅
+    // ✅ INVIA EVENTO PUSHER
     try {
       const pusherData = {
         _id: chiamata._id.toString(),
@@ -622,7 +655,6 @@ export const getStatistiche = async (req, res) => {
   }
 };
 
-// ✅ Default export per compatibilità con routes
 export default {
   getAllTags,
   getChiamate,
