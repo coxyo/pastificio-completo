@@ -563,7 +563,6 @@ clienteIdPreselezionato,
     }
   }, [open]); // Dipende solo da open
 
-  };
 
   // ✅ Leggi dati chiamata da localStorage
   useEffect(() => {
