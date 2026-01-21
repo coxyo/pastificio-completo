@@ -1320,10 +1320,19 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                               type="text"
                               placeholder="0"
                               value={item.quantita || ''}
-                              onChange={(e) => aggiornaQuantita(item.id, normalizzaDecimale(e.target.value))}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // ✅ Accetta solo numeri, virgola e punto
+                                if (/^\d*[.,]?\d*$/.test(value) || value === '') {
+                                  aggiornaQuantita(item.id, normalizzaDecimale(value));
+                                }
+                              }}
                               size="small"
                               sx={{ width: 100 }}
-                              inputProps={{ min: 0, step: item.unita === 'Kg' ? 0.1 : 1 }}
+                              inputProps={{ 
+                                inputMode: 'decimal',
+                                pattern: '[0-9]*[.,]?[0-9]*'
+                              }}
                             />
                             <Typography variant="body2" color="text.secondary">
                               {item.unita}
