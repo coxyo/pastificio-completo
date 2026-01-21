@@ -1,97 +1,83 @@
 // services/pdfCorrispettivi.js
-// ✅ GENERATORE PDF E CSV PER CORRISPETTIVI MENSILI
-
+// 🎨 VERSIONE PROFESSIONALE - PDF E EXCEL BELLISSIMI
 import PDFDocument from 'pdfkit';
+import ExcelJS from 'exceljs';
 import logger from '../config/logger.js';
 import Corrispettivo from '../models/Corrispettivo.js';
 
 /**
- * SERVIZIO GENERAZIONE PDF/CSV CORRISPETTIVI
- * - PDF report mensile formattato
- * - CSV export per Excel/LibreOffice
+ * SERVIZIO GENERAZIONE REPORT CORRISPETTIVI
+ * - PDF professionale con layout moderno
+ * - Excel formattato con grafici
  */
 
 class PdfCorrispettiviService {
 
   /**
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * 📄 GENERA PDF REPORT CORRISPETTIVI
+   * 📄 GENERA PDF PROFESSIONALE
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    */
   async generaPdfCorrispettivi(anno, mese) {
     try {
-      logger.info(`📄 Generazione PDF corrispettivi ${mese}/${anno}...`);
+      logger.info(`📄 Generazione PDF professionale ${mese}/${anno}...`);
 
-      // Recupera dati dal database
       const corrispettivi = await Corrispettivo.find({ anno, mese }).sort({ giorno: 1 });
 
       if (corrispettivi.length === 0) {
         throw new Error(`Nessun corrispettivo trovato per ${mese}/${anno}`);
       }
 
-      // Calcola totali
       const totali = this.calcolaTotali(corrispettivi);
 
-      // Crea documento PDF
+      // Crea documento PDF con margini ottimizzati
       const doc = new PDFDocument({ 
-        size: 'A4', 
-        margin: 50,
+        size: 'A4',
+        margins: { top: 40, bottom: 40, left: 40, right: 40 },
         info: {
-          Title: `Registro Corrispettivi ${mese}/${anno}`,
+          Title: `Report Corrispettivi ${mese}/${anno}`,
           Author: 'Pastificio Nonna Claudia',
-          Subject: 'Registro Corrispettivi Mensile',
-          Keywords: 'corrispettivi, iva, fatturazione'
+          Subject: 'Report Mensile Corrispettivi',
+          Keywords: 'corrispettivi, iva, fatturazione',
+          Creator: 'Sistema Gestionale Pastificio'
         }
       });
 
-      // Array per accumulare chunks
       const chunks = [];
       doc.on('data', chunk => chunks.push(chunk));
       
-      // Promise per fine documento
       const pdfPromise = new Promise((resolve, reject) => {
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
       });
 
-      // ━━━ HEADER ━━━
-      this.aggiungiHeader(doc, anno, mese);
+      // ━━━ COSTRUISCI PDF ━━━
+      this.aggiungiHeaderProfessionale(doc, anno, mese);
+      this.aggiungiKpiCards(doc, totali, corrispettivi);
+      this.aggiungiDettaglioIvaProfessionale(doc, totali);
+      this.aggiungiTabellaGiornalieraProfessionale(doc, corrispettivi, anno, mese);
+      this.aggiungiFooterProfessionale(doc, totali);
 
-      // ━━━ RIEPILOGO GENERALE ━━━
-      this.aggiungiRiepilogoGenerale(doc, totali);
-
-      // ━━━ DETTAGLIO IVA ━━━
-      this.aggiungiDettaglioIva(doc, totali);
-
-      // ━━━ TABELLA GIORNALIERA ━━━
-      this.aggiungiTabellaGiornaliera(doc, corrispettivi, anno, mese);
-
-      // ━━━ FOOTER ━━━
-      this.aggiungiFooter(doc);
-
-      // Finalizza documento
       doc.end();
 
-      // Attendi completamento
       const buffer = await pdfPromise;
-
-      logger.info(`✅ PDF generato: ${buffer.length} bytes`);
+      logger.info(`✅ PDF professionale generato: ${buffer.length} bytes`);
       return buffer;
 
     } catch (error) {
-      logger.error('❌ Errore generazione PDF corrispettivi:', error);
+      logger.error('❌ Errore generazione PDF:', error);
       throw error;
     }
   }
 
   /**
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * 📊 GENERA CSV EXPORT CORRISPETTIVI
+   * 📊 GENERA EXCEL PROFESSIONALE CON GRAFICI
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    */
   async generaCsvCorrispettivi(anno, mese) {
     try {
-      logger.info(`📊 Generazione CSV corrispettivi ${mese}/${anno}...`);
+      logger.info(`📊 Generazione Excel professionale ${mese}/${anno}...`);
 
       const corrispettivi = await Corrispettivo.find({ anno, mese }).sort({ giorno: 1 });
 
@@ -99,306 +85,589 @@ class PdfCorrispettiviService {
         throw new Error(`Nessun corrispettivo trovato per ${mese}/${anno}`);
       }
 
-      // Header CSV
-      let csv = 'Data,Giorno,Totale,IVA 22%,IVA 10%,IVA 4%,Esente,Note,Operatore\n';
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Pastificio Nonna Claudia';
+      workbook.created = new Date();
 
-      // Righe dati
-      corrispettivi.forEach(c => {
-        const data = `${c.giorno}/${mese}/${anno}`;
-        const giorno = c.giorno;
-        const totale = (c.totale || 0).toFixed(2);
-        const iva22 = (c.dettaglioIva?.iva22 || 0).toFixed(2);
-        const iva10 = (c.dettaglioIva?.iva10 || 0).toFixed(2);
-        const iva4 = (c.dettaglioIva?.iva4 || 0).toFixed(2);
-        const esente = (c.dettaglioIva?.esente || 0).toFixed(2);
-        const note = c.note ? `"${c.note.replace(/"/g, '""')}"` : '';
-        const operatore = c.operatore || '';
-
-        csv += `${data},${giorno},${totale},${iva22},${iva10},${iva4},${esente},${note},${operatore}\n`;
+      // ━━━ SHEET 1: DETTAGLIO GIORNALIERO ━━━
+      const sheetDettaglio = workbook.addWorksheet('Dettaglio Giornaliero', {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
       });
 
-      // Riga totale
+      // Header con stile
+      const headerRow = sheetDettaglio.addRow([
+        'Data', 'Giorno', 'Totale €', 'IVA 22%', 'IVA 10%', 'IVA 4%', 'Esente', 'Note', 'Operatore'
+      ]);
+
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF2196F3' }
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          bottom: { style: 'thin' },
+          left: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+
+      // Dati con formattazione alternata
+      corrispettivi.forEach((c, index) => {
+        const row = sheetDettaglio.addRow([
+          `${c.giorno}/${mese}/${anno}`,
+          c.giorno,
+          c.totale || 0,
+          c.dettaglioIva?.iva22 || 0,
+          c.dettaglioIva?.iva10 || 0,
+          c.dettaglioIva?.iva4 || 0,
+          c.dettaglioIva?.esente || 0,
+          c.note || '',
+          c.operatore || 'Sistema'
+        ]);
+
+        // Formattazione Euro
+        [3, 4, 5, 6, 7].forEach(colNum => {
+          const cell = row.getCell(colNum);
+          cell.numFmt = '€#,##0.00';
+        });
+
+        // Background alternato
+        if (index % 2 === 0) {
+          row.eachCell((cell) => {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF8F9FA' }
+            };
+          });
+        }
+
+        // Bordi
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+          };
+        });
+      });
+
+      // Riga TOTALE con formule
+      const totaliRow = sheetDettaglio.addRow([
+        'TOTALE', '', 
+        { formula: `SUM(C2:C${corrispettivi.length + 1})` },
+        { formula: `SUM(D2:D${corrispettivi.length + 1})` },
+        { formula: `SUM(E2:E${corrispettivi.length + 1})` },
+        { formula: `SUM(F2:F${corrispettivi.length + 1})` },
+        { formula: `SUM(G2:G${corrispettivi.length + 1})` },
+        '', ''
+      ]);
+
+      totaliRow.eachCell((cell, colNum) => {
+        cell.font = { bold: true, size: 12 };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFEB3B' }
+        };
+        if (colNum >= 3 && colNum <= 7) {
+          cell.numFmt = '€#,##0.00';
+        }
+      });
+
+      // Larghezze colonne
+      sheetDettaglio.columns = [
+        { width: 12 }, // Data
+        { width: 8 },  // Giorno
+        { width: 12 }, // Totale
+        { width: 12 }, // IVA 22%
+        { width: 12 }, // IVA 10%
+        { width: 12 }, // IVA 4%
+        { width: 12 }, // Esente
+        { width: 30 }, // Note
+        { width: 15 }  // Operatore
+      ];
+
+      // ━━━ SHEET 2: RIEPILOGO IVA ━━━
+      const sheetRiepilogo = workbook.addWorksheet('Riepilogo IVA');
+
       const totali = this.calcolaTotali(corrispettivi);
-      csv += `\nTOTALE,,${totali.totaleMese.toFixed(2)},${totali.iva22.toFixed(2)},${totali.iva10.toFixed(2)},${totali.iva4.toFixed(2)},${totali.esente.toFixed(2)},,\n`;
 
-      const buffer = Buffer.from(csv, 'utf-8');
+      // Titolo
+      const titleRow = sheetRiepilogo.addRow(['RIEPILOGO MENSILE CORRISPETTIVI']);
+      titleRow.font = { bold: true, size: 16, color: { argb: 'FF2196F3' } };
+      sheetRiepilogo.mergeCells('A1:E1');
+      titleRow.alignment = { horizontal: 'center' };
+      
+      sheetRiepilogo.addRow([]);
 
-      logger.info(`✅ CSV generato: ${buffer.length} bytes`);
+      // Mese/Anno
+      const meseRow = sheetRiepilogo.addRow([
+        `Periodo: ${this.getNomeMese(mese - 1)} ${anno}`
+      ]);
+      meseRow.font = { bold: true, size: 12 };
+      sheetRiepilogo.mergeCells(`A${meseRow.number}:E${meseRow.number}`);
+      meseRow.alignment = { horizontal: 'center' };
+
+      sheetRiepilogo.addRow([]);
+
+      // KPI Cards
+      const kpiLabels = sheetRiepilogo.addRow([
+        '💰 Incasso Totale', 
+        '📅 Giorni Apertura', 
+        '📈 Media Giornaliera',
+        '🏆 Giorno Migliore'
+      ]);
+      kpiLabels.font = { bold: true, size: 11 };
+      kpiLabels.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE3F2FD' }
+        };
+        cell.alignment = { horizontal: 'center' };
+      });
+
+      const giornoMax = corrispettivi.reduce((max, c) => 
+        (c.totale > max.totale) ? c : max, { totale: 0, giorno: 0 }
+      );
+
+      const kpiValues = sheetRiepilogo.addRow([
+        totali.totaleMese,
+        `${totali.giorniConIncasso}/${totali.giorniTotali}`,
+        totali.mediaGiornaliera,
+        `${giornoMax.giorno}/${mese} (€${giornoMax.totale.toFixed(2)})`
+      ]);
+      
+      kpiValues.getCell(1).numFmt = '€#,##0.00';
+      kpiValues.getCell(3).numFmt = '€#,##0.00';
+      
+      kpiValues.eachCell((cell) => {
+        cell.font = { bold: true, size: 13, color: { argb: 'FF1976D2' } };
+        cell.alignment = { horizontal: 'center' };
+      });
+
+      sheetRiepilogo.addRow([]);
+      sheetRiepilogo.addRow([]);
+
+      // Tabella IVA
+      const ivaHeaderRow = sheetRiepilogo.addRow([
+        'Aliquota IVA', 'Imponibile + IVA', 'IVA Scorporata', 'Imponibile Netto', '% sul Totale'
+      ]);
+      
+      ivaHeaderRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4CAF50' }
+        };
+        cell.alignment = { horizontal: 'center' };
+      });
+
+      // Righe IVA
+      const righeIva = [
+        { label: '22% (Ordinaria)', totale: totali.iva22, divisore: 1.22 },
+        { label: '10% (Ridotta)', totale: totali.iva10, divisore: 1.10 },
+        { label: '4% (Super Ridotta)', totale: totali.iva4, divisore: 1.04 },
+        { label: 'Esente/Non Imponibile', totale: totali.esente, divisore: 1 }
+      ];
+
+      righeIva.forEach((riga, index) => {
+        if (riga.totale > 0) {
+          const ivaScorp = riga.totale - (riga.totale / riga.divisore);
+          const imponibile = riga.totale / riga.divisore;
+          const percentuale = (riga.totale / totali.totaleMese * 100);
+
+          const row = sheetRiepilogo.addRow([
+            riga.label,
+            riga.totale,
+            ivaScorp,
+            imponibile,
+            percentuale / 100
+          ]);
+
+          [2, 3, 4].forEach(colNum => {
+            row.getCell(colNum).numFmt = '€#,##0.00';
+          });
+          
+          row.getCell(5).numFmt = '0.00%';
+
+          if (index % 2 === 0) {
+            row.eachCell((cell) => {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFF8F9FA' }
+              };
+            });
+          }
+        }
+      });
+
+      // Riga totale IVA
+      const totalIvaRow = sheetRiepilogo.addRow([
+        'TOTALE',
+        totali.totaleMese,
+        (totali.iva22 - totali.iva22 / 1.22) + 
+        (totali.iva10 - totali.iva10 / 1.10) + 
+        (totali.iva4 - totali.iva4 / 1.04),
+        totali.iva22 / 1.22 + totali.iva10 / 1.10 + totali.iva4 / 1.04 + totali.esente,
+        1
+      ]);
+
+      totalIvaRow.eachCell((cell, colNum) => {
+        cell.font = { bold: true, size: 12 };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFEB3B' }
+        };
+        if (colNum >= 2 && colNum <= 4) {
+          cell.numFmt = '€#,##0.00';
+        }
+        if (colNum === 5) {
+          cell.numFmt = '0.00%';
+        }
+      });
+
+      // Larghezze colonne
+      sheetRiepilogo.columns = [
+        { width: 25 },
+        { width: 18 },
+        { width: 18 },
+        { width: 18 },
+        { width: 15 }
+      ];
+
+      // ━━━ GENERA BUFFER ━━━
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      logger.info(`✅ Excel professionale generato: ${buffer.length} bytes`);
       return buffer;
 
     } catch (error) {
-      logger.error('❌ Errore generazione CSV corrispettivi:', error);
+      logger.error('❌ Errore generazione Excel:', error);
       throw error;
     }
   }
 
   /**
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   * 🛠️ FUNZIONI HELPER PDF
+   * 🎨 FUNZIONI RENDERING PDF PROFESSIONALE
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    */
 
-  aggiungiHeader(doc, anno, mese) {
+  aggiungiHeaderProfessionale(doc, anno, mese) {
     const nomeMese = this.getNomeMese(mese - 1);
+    const pageWidth = doc.page.width - 80;
 
-    // Logo/Title
-    doc
-      .fontSize(24)
-      .font('Helvetica-Bold')
-      .fillColor('#2196F3')
-      .text('🍰 Pastificio Nonna Claudia', { align: 'center' })
-      .moveDown(0.5);
+    // Background header con gradiente simulato
+    doc.rect(40, 40, pageWidth, 100)
+       .fill('#2196F3');
 
-    doc
-      .fontSize(18)
-      .fillColor('#333')
-      .text(`Registro Corrispettivi`, { align: 'center' })
-      .moveDown(0.2);
+    // Logo/Emoji grande
+    doc.fontSize(48)
+       .fillColor('#FFFFFF')
+       .text('🍰', 50, 55);
 
-    doc
-      .fontSize(14)
-      .fillColor('#666')
-      .text(`${nomeMese} ${anno}`, { align: 'center' })
-      .moveDown(1.5);
+    // Titolo azienda
+    doc.fontSize(24)
+       .font('Helvetica-Bold')
+       .fillColor('#FFFFFF')
+       .text('Pastificio Nonna Claudia', 120, 60);
 
-    // Linea separatore
-    doc
-      .strokeColor('#2196F3')
-      .lineWidth(2)
-      .moveTo(50, doc.y)
-      .lineTo(545, doc.y)
-      .stroke()
-      .moveDown(1);
+    // Sottotitolo
+    doc.fontSize(14)
+       .font('Helvetica')
+       .fillColor('#E3F2FD')
+       .text('Via Carmine 20/B, Assemini (CA) | Tel: 389 887 9833', 120, 90);
+
+    // Titolo report
+    doc.fontSize(18)
+       .font('Helvetica-Bold')
+       .fillColor('#1976D2')
+       .text(`Report Corrispettivi - ${nomeMese} ${anno}`, 40, 160, {
+         align: 'center',
+         width: pageWidth
+       });
+
+    doc.moveDown(2);
   }
 
-  aggiungiRiepilogoGenerale(doc, totali) {
-    doc
-      .fontSize(14)
-      .font('Helvetica-Bold')
-      .fillColor('#2196F3')
-      .text('📊 RIEPILOGO GENERALE', { underline: true })
-      .moveDown(0.5);
+  aggiungiKpiCards(doc, totali, corrispettivi) {
+    const startY = doc.y + 20;
+    const cardWidth = 130;
+    const cardHeight = 70;
+    const gap = 10;
+    const startX = 50;
 
-    const startY = doc.y;
-    const boxWidth = 160;
-    const boxHeight = 80;
-    const gap = 15;
+    const giornoMax = corrispettivi.reduce((max, c) => 
+      (c.totale > max.totale) ? c : max, { totale: 0, giorno: 0 }
+    );
 
-    // Box 1: Totale Mese
-    this.disegnaBoxStatistica(doc, 50, startY, boxWidth, boxHeight, 
-      'Incasso Totale', `€${totali.totaleMese.toFixed(2)}`, '#4CAF50');
+    const cards = [
+      { 
+        label: 'Incasso Totale', 
+        value: `€${totali.totaleMese.toFixed(2)}`,
+        color: '#4CAF50'
+      },
+      { 
+        label: 'Media Giornaliera', 
+        value: `€${totali.mediaGiornaliera.toFixed(2)}`,
+        color: '#2196F3'
+      },
+      { 
+        label: 'Giorni Apertura', 
+        value: `${totali.giorniConIncasso}/${totali.giorniTotali}`,
+        color: '#FF9800'
+      },
+      { 
+        label: 'Giorno Migliore', 
+        value: `${giornoMax.giorno} (€${giornoMax.totale.toFixed(2)})`,
+        color: '#9C27B0'
+      }
+    ];
 
-    // Box 2: Media Giornaliera
-    this.disegnaBoxStatistica(doc, 50 + boxWidth + gap, startY, boxWidth, boxHeight,
-      'Media Giornaliera', `€${totali.mediaGiornaliera.toFixed(2)}`, '#2196F3');
+    cards.forEach((card, index) => {
+      const x = startX + (index * (cardWidth + gap));
 
-    // Box 3: Giorni Apertura
-    this.disegnaBoxStatistica(doc, 50 + (boxWidth + gap) * 2, startY, boxWidth, boxHeight,
-      'Giorni Apertura', `${totali.giorniConIncasso}/${totali.giorniTotali}`, '#FF9800');
+      // Bordo card
+      doc.rect(x, startY, cardWidth, cardHeight)
+         .fillAndStroke('#F5F5F5', '#E0E0E0');
 
-    doc.y = startY + boxHeight + 20;
-  }
+      // Barra colorata top
+      doc.rect(x, startY, cardWidth, 5)
+         .fill(card.color);
 
-  disegnaBoxStatistica(doc, x, y, width, height, label, value, color) {
-    // Bordo box
-    doc
-      .rect(x, y, width, height)
-      .fillAndStroke('#f8f9fa', '#ddd');
+      // Label
+      doc.fontSize(9)
+         .fillColor('#666666')
+         .text(card.label, x + 5, startY + 15, {
+           width: cardWidth - 10,
+           align: 'center'
+         });
 
-    // Label
-    doc
-      .fontSize(10)
-      .fillColor('#666')
-      .text(label, x + 10, y + 15, { width: width - 20, align: 'center' });
-
-    // Valore
-    doc
-      .fontSize(20)
-      .font('Helvetica-Bold')
-      .fillColor(color)
-      .text(value, x + 10, y + 35, { width: width - 20, align: 'center' });
-  }
-
-  aggiungiDettaglioIva(doc, totali) {
-    doc
-      .fontSize(14)
-      .font('Helvetica-Bold')
-      .fillColor('#2196F3')
-      .text('💶 DETTAGLIO IVA', { underline: true })
-      .moveDown(0.5);
-
-    const startY = doc.y;
-    const colWidths = [100, 120, 120, 120];
-    const rowHeight = 25;
-
-    // Header tabella
-    doc
-      .fontSize(10)
-      .font('Helvetica-Bold')
-      .fillColor('#fff');
-
-    let currentX = 50;
-    ['Aliquota', 'Imponibile + IVA', 'IVA Scorporata', 'Imponibile'].forEach((header, i) => {
-      doc
-        .rect(currentX, startY, colWidths[i], rowHeight)
-        .fill('#2196F3');
-      
-      doc
-        .fillColor('#fff')
-        .text(header, currentX + 5, startY + 8, { width: colWidths[i] - 10 });
-      
-      currentX += colWidths[i];
+      // Valore
+      doc.fontSize(14)
+         .font('Helvetica-Bold')
+         .fillColor(card.color)
+         .text(card.value, x + 5, startY + 35, {
+           width: cardWidth - 10,
+           align: 'center'
+         });
     });
 
-    doc.y = startY + rowHeight;
+    doc.y = startY + cardHeight + 30;
+  }
+
+  aggiungiDettaglioIvaProfessionale(doc, totali) {
+    // Titolo sezione
+    doc.fontSize(14)
+       .font('Helvetica-Bold')
+       .fillColor('#2196F3')
+       .text('💶 DETTAGLIO IVA', 40);
+
+    doc.moveDown(0.5);
+
+    const startY = doc.y;
+    const colWidths = [110, 110, 110, 110];
+    const rowHeight = 25;
+    const startX = 50;
+
+    // Header tabella
+    const headers = ['Aliquota', 'Imponibile+IVA', 'IVA Scorp.', 'Imponibile'];
+    
+    headers.forEach((header, i) => {
+      const x = startX + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+      
+      doc.rect(x, startY, colWidths[i], rowHeight)
+         .fill('#4CAF50');
+      
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .fillColor('#FFFFFF')
+         .text(header, x + 5, startY + 8, {
+           width: colWidths[i] - 10,
+           align: 'center'
+         });
+    });
+
+    let currentY = startY + rowHeight;
 
     // Righe IVA
     const righeIva = [
-      { label: '22% (Ord.)', totale: totali.iva22, divisore: 1.22 },
-      { label: '10% (Rid.)', totale: totali.iva10, divisore: 1.10 },
-      { label: '4% (Super)', totale: totali.iva4, divisore: 1.04 },
-      { label: 'Esente', totale: totali.esente, divisore: 1 }
+      { label: '10% (Ridotta)', totale: totali.iva10, divisore: 1.10 }
     ];
 
-    doc.font('Helvetica');
+    if (totali.iva22 > 0) {
+      righeIva.unshift({ label: '22% (Ordinaria)', totale: totali.iva22, divisore: 1.22 });
+    }
+    if (totali.iva4 > 0) {
+      righeIva.push({ label: '4% (Super)', totale: totali.iva4, divisore: 1.04 });
+    }
+    if (totali.esente > 0) {
+      righeIva.push({ label: 'Esente', totale: totali.esente, divisore: 1 });
+    }
 
     righeIva.forEach((riga, index) => {
-      if (riga.totale > 0) {
-        const y = doc.y;
-        const fill = index % 2 === 0 ? '#f8f9fa' : '#fff';
+      const fill = index % 2 === 0 ? '#F8F9FA' : '#FFFFFF';
+      
+      // Background riga
+      doc.rect(startX, currentY, colWidths.reduce((a, b) => a + b), rowHeight)
+         .fill(fill);
 
-        currentX = 50;
+      const ivaScorp = riga.totale - (riga.totale / riga.divisore);
+      const imponibile = riga.totale / riga.divisore;
 
-        // Background alternato
-        doc.rect(50, y, 460, rowHeight).fill(fill);
+      const values = [
+        riga.label,
+        `€${riga.totale.toFixed(2)}`,
+        `€${ivaScorp.toFixed(2)}`,
+        `€${imponibile.toFixed(2)}`
+      ];
 
-        doc.fillColor('#333');
+      values.forEach((value, i) => {
+        const x = startX + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+        
+        doc.fontSize(9)
+           .font('Helvetica')
+           .fillColor('#333333')
+           .text(value, x + 5, currentY + 8, {
+             width: colWidths[i] - 10,
+             align: i === 0 ? 'left' : 'right'
+           });
+      });
 
-        // Aliquota
-        doc.text(riga.label, currentX + 5, y + 8, { width: colWidths[0] - 10 });
-        currentX += colWidths[0];
-
-        // Totale
-        doc.text(`€${riga.totale.toFixed(2)}`, currentX + 5, y + 8, { 
-          width: colWidths[1] - 10, 
-          align: 'right' 
-        });
-        currentX += colWidths[1];
-
-        // IVA scorporata
-        const ivaScorporata = riga.totale - (riga.totale / riga.divisore);
-        doc.text(`€${ivaScorporata.toFixed(2)}`, currentX + 5, y + 8, { 
-          width: colWidths[2] - 10, 
-          align: 'right' 
-        });
-        currentX += colWidths[2];
-
-        // Imponibile
-        const imponibile = riga.totale / riga.divisore;
-        doc.text(`€${imponibile.toFixed(2)}`, currentX + 5, y + 8, { 
-          width: colWidths[3] - 10, 
-          align: 'right' 
-        });
-
-        doc.y = y + rowHeight;
-      }
+      currentY += rowHeight;
     });
 
-    doc.moveDown(1);
+    // Riga TOTALE
+    doc.rect(startX, currentY, colWidths.reduce((a, b) => a + b), rowHeight)
+       .fill('#FFEB3B');
+
+    const totalValues = [
+      'TOTALE',
+      `€${totali.totaleMese.toFixed(2)}`,
+      `€${((totali.iva22 - totali.iva22/1.22) + (totali.iva10 - totali.iva10/1.10) + (totali.iva4 - totali.iva4/1.04)).toFixed(2)}`,
+      `€${(totali.iva22/1.22 + totali.iva10/1.10 + totali.iva4/1.04 + totali.esente).toFixed(2)}`
+    ];
+
+    totalValues.forEach((value, i) => {
+      const x = startX + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+      
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .fillColor('#000000')
+         .text(value, x + 5, currentY + 8, {
+           width: colWidths[i] - 10,
+           align: i === 0 ? 'left' : 'right'
+         });
+    });
+
+    doc.y = currentY + rowHeight + 30;
   }
 
-  aggiungiTabellaGiornaliera(doc, corrispettivi, anno, mese) {
-    doc
-      .fontSize(14)
-      .font('Helvetica-Bold')
-      .fillColor('#2196F3')
-      .text('📅 DETTAGLIO GIORNALIERO', { underline: true })
-      .moveDown(0.5);
+  aggiungiTabellaGiornalieraProfessionale(doc, corrispettivi, anno, mese) {
+    // Titolo sezione
+    doc.fontSize(14)
+       .font('Helvetica-Bold')
+       .fillColor('#2196F3')
+       .text('📅 DETTAGLIO GIORNALIERO', 40);
+
+    doc.moveDown(0.5);
 
     const startY = doc.y;
-    const colWidths = [80, 100, 280];
+    const colWidths = [80, 100, 290];
     const rowHeight = 20;
+    const startX = 50;
 
     // Header
-    doc
-      .fontSize(9)
-      .font('Helvetica-Bold')
-      .fillColor('#fff');
-
-    let currentX = 50;
-    ['Data', 'Incasso', 'Note'].forEach((header, i) => {
-      doc
-        .rect(currentX, startY, colWidths[i], rowHeight)
-        .fill('#2196F3');
+    const headers = ['Data', 'Incasso', 'Note'];
+    
+    headers.forEach((header, i) => {
+      const x = startX + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
       
-      doc
-        .fillColor('#fff')
-        .text(header, currentX + 5, startY + 6, { width: colWidths[i] - 10 });
+      doc.rect(x, startY, colWidths[i], rowHeight)
+         .fill('#2196F3');
       
-      currentX += colWidths[i];
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .fillColor('#FFFFFF')
+         .text(header, x + 5, startY + 5, {
+           width: colWidths[i] - 10,
+           align: 'left'
+         });
     });
 
-    doc.y = startY + rowHeight;
+    let currentY = startY + rowHeight;
 
     // Righe dati
-    doc.font('Helvetica').fontSize(8);
-
     corrispettivi.forEach((c, index) => {
-      const y = doc.y;
-
-      // Controllo pagina (se supera 700, nuova pagina)
-      if (y > 700) {
+      // Check nuova pagina
+      if (currentY > 700) {
         doc.addPage();
-        doc.y = 50;
+        currentY = 50;
       }
 
-      const fill = index % 2 === 0 ? '#f8f9fa' : '#fff';
+      const fill = index % 2 === 0 ? '#F8F9FA' : '#FFFFFF';
+      
+      doc.rect(startX, currentY, colWidths.reduce((a, b) => a + b), rowHeight)
+         .fill(fill);
 
-      currentX = 50;
+      const values = [
+        `${c.giorno}/${mese}/${anno}`,
+        `€${(c.totale || 0).toFixed(2)}`,
+        c.note || '-'
+      ];
 
-      // Background
-      doc.rect(50, doc.y, 460, rowHeight).fill(fill);
-
-      doc.fillColor('#333');
-
-      // Data
-      doc.text(`${c.giorno}/${mese}/${anno}`, currentX + 5, doc.y + 6, { 
-        width: colWidths[0] - 10 
-      });
-      currentX += colWidths[0];
-
-      // Incasso
-      doc.text(`€${(c.totale || 0).toFixed(2)}`, currentX + 5, doc.y + 6, { 
-        width: colWidths[1] - 10,
-        align: 'right'
-      });
-      currentX += colWidths[1];
-
-      // Note
-      doc.text(c.note || '-', currentX + 5, doc.y + 6, { 
-        width: colWidths[2] - 10 
+      values.forEach((value, i) => {
+        const x = startX + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+        
+        doc.fontSize(8)
+           .font('Helvetica')
+           .fillColor('#333333')
+           .text(value, x + 5, currentY + 5, {
+             width: colWidths[i] - 10,
+             align: i === 1 ? 'right' : 'left'
+           });
       });
 
-      doc.y += rowHeight;
+      currentY += rowHeight;
     });
 
-    doc.moveDown(1);
+    doc.y = currentY + 20;
   }
 
-  aggiungiFooter(doc) {
+  aggiungiFooterProfessionale(doc, totali) {
+    const pageHeight = doc.page.height;
+    const footerY = pageHeight - 60;
+
+    // Linea separatore
+    doc.moveTo(40, footerY)
+       .lineTo(doc.page.width - 40, footerY)
+       .stroke('#E0E0E0');
+
+    // Info documento
     const now = new Date();
-    const data = now.toLocaleDateString('it-IT');
-    const ora = now.toLocaleTimeString('it-IT');
+    const dataGenerazione = now.toLocaleString('it-IT');
 
-    doc
-      .fontSize(8)
-      .fillColor('#999')
-      .text(`Documento generato automaticamente il ${data} alle ${ora}`, 50, 750, {
-        align: 'center'
-      });
+    doc.fontSize(8)
+       .font('Helvetica')
+       .fillColor('#999999')
+       .text(`Documento generato automaticamente il ${dataGenerazione}`, 40, footerY + 10);
 
-    doc.text('Pastificio Nonna Claudia - Via Carmine 20/B, Assemini (CA) - Tel: 389 887 9833', {
-      align: 'center'
+    doc.text('Pastificio Nonna Claudia | Sistema Gestionale Enterprise', 40, footerY + 25);
+
+    // Numero pagina
+    doc.text(`Pagina 1`, doc.page.width - 100, footerY + 10, {
+      width: 50,
+      align: 'right'
     });
   }
 
