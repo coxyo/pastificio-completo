@@ -1293,6 +1293,34 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                         </FormControl>
                       )}
 
+                      {/* ✅ NUOVO: Dropdown Unità Misura */}
+                      {config?.unitaMisuraDisponibili && config.unitaMisuraDisponibili.length > 1 && (
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
+                          <Select
+                            value={item.unita || 'Kg'}
+                            onChange={(e) => {
+                              const nuovaUnita = e.target.value;
+                              // Ricalcola prezzo con nuova unità
+                              setComposizione(prev => prev.map(p => {
+                                if (p.id === item.id) {
+                                  const nuovoPrezzo = calcolaPrezzoProdotto(
+                                    p.prodotto,
+                                    p.quantita,
+                                    nuovaUnita
+                                  );
+                                  return { ...p, unita: nuovaUnita, prezzo: nuovoPrezzo };
+                                }
+                                return p;
+                              }));
+                            }}
+                          >
+                            {config.unitaMisuraDisponibili.map(unita => (
+                              <MenuItem key={unita} value={unita}>{unita}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+
                       {/* MODALITÀ TOTALE_PRIMA: Mostra solo quantità calcolata */}
                       {modalita === MODALITA.TOTALE_PRIMA && item.autoCalc ? (
                         <Box sx={{ 
