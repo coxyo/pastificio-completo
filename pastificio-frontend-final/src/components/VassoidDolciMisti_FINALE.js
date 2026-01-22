@@ -1080,16 +1080,30 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
               ⚖️ Peso Totale Vassoio
             </Typography>
             
+            {/* ✅ Radio Buttons per scegliere unità */}
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Ordina per:</FormLabel>
+              <RadioGroup
+                row
+                value={totaleTarget.unita || 'Kg'}
+                onChange={(e) => setTotaleTarget(prev => ({ ...prev, unita: e.target.value }))}
+              >
+                <FormControlLabel value="Kg" control={<Radio />} label="Peso (Kg)" />
+                <FormControlLabel value="Pezzi" control={<Radio />} label="Pezzi" />
+                <FormControlLabel value="€" control={<Radio />} label="Euro (€)" />
+              </RadioGroup>
+            </FormControl>
+
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                 <TextField
                   type="text"
-                  label="Peso totale desiderato (Kg)"
+                  label={`Quantità Target (${totaleTarget.unita || 'Kg'})`}
                   placeholder="1"
                   value={totaleTarget.valore || ''}
                   onChange={(e) => {
                     const nuovoPeso = parseFloat(normalizzaDecimale(e.target.value)) || 1.0;
-                    setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso, unita: 'Kg' }));
+                    setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso }));
                     
                     // Ricalcola composizione con nuovo peso
                     const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
@@ -1121,6 +1135,28 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                     endAdornment: <InputAdornment position="end">Kg</InputAdornment>
                   }}
                 />
+
+                {/* ⚡ CHIP VALORI RAPIDI PER TOTALE */}
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                  {(VALORI_RAPIDI_TOTALI[totaleTarget.unita] || []).map((valore) => (
+                    <Chip
+                      key={valore}
+                      label={valore}
+                      onClick={() => setTotaleTarget(prev => ({ ...prev, valore }))}
+                      color={parseFloat(totaleTarget.valore) === valore ? 'primary' : 'default'}
+                      variant={parseFloat(totaleTarget.valore) === valore ? 'filled' : 'outlined'}
+                      size="small"
+                      sx={{
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        height: '32px',
+                        transition: 'all 0.2s',
+                        '&:hover': { transform: 'scale(1.05)' },
+                        '&:active': { transform: 'scale(0.95)' }
+                      }}
+                    />
+                  ))}
+                </Box>
                 
                 <Typography variant="body2" color="text.secondary">
                   {esclusioni.length > 0 
@@ -1137,7 +1173,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                     label={`${valore} Kg`}
                     onClick={() => {
                       const nuovoPeso = valore;
-                      setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso, unita: 'Kg' }));
+                      setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso }));
                       
                       // Ricalcola composizione
                       const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
