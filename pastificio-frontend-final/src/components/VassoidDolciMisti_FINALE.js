@@ -1132,31 +1132,35 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                   inputProps={{ min: 0.1, step: 0.1 }}
                   sx={{ minWidth: 200 }}
                   InputProps={{
-                    endAdornment: <InputAdornment position="end">Kg</InputAdornment>
+                    endAdornment: <InputAdornment position="end">{totaleTarget.unita || 'Kg'}</InputAdornment>
                   }}
                 />
 
-                {/* ⚡ CHIP VALORI RAPIDI PER TOTALE */}
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                  {(VALORI_RAPIDI_TOTALI[totaleTarget.unita] || []).map((valore) => (
-                    <Chip
-                      key={valore}
-                      label={valore}
-                      onClick={() => setTotaleTarget(prev => ({ ...prev, valore }))}
-                      color={parseFloat(totaleTarget.valore) === valore ? 'primary' : 'default'}
-                      variant={parseFloat(totaleTarget.valore) === valore ? 'filled' : 'outlined'}
-                      size="small"
-                      sx={{
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        height: '32px',
-                        transition: 'all 0.2s',
-                        '&:hover': { transform: 'scale(1.05)' },
-                        '&:active': { transform: 'scale(0.95)' }
-                      }}
-                    />
-                  ))}
-                </Box>
+              </Box>
+
+              {/* ⚡ CHIP VALORI RAPIDI */}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                {(VALORI_RAPIDI_TOTALI[totaleTarget.unita] || []).map((valore) => (
+                  <Chip
+                    key={valore}
+                    label={valore}
+                    onClick={() => setTotaleTarget(prev => ({ ...prev, valore }))}
+                    color={parseFloat(totaleTarget.valore) === valore ? 'primary' : 'default'}
+                    variant={parseFloat(totaleTarget.valore) === valore ? 'filled' : 'outlined'}
+                    size="small"
+                    sx={{
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      height: '32px',
+                      transition: 'all 0.2s',
+                      '&:hover': { transform: 'scale(1.05)' },
+                      '&:active': { transform: 'scale(0.95)' }
+                    }}
+                  />
+                ))}
+              </Box>
+
+              <Box>
                 
                 <Typography variant="body2" color="text.secondary">
                   {esclusioni.length > 0 
