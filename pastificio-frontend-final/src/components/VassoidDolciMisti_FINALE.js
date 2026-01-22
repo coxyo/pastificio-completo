@@ -1266,20 +1266,21 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
               return (
                 <Card key={item.id} variant="outlined">
                   <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    {/* ✅ RIGA 1: Tutto inline (NO wrap) */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
                       {/* Nome Prodotto */}
-                      <Typography variant="subtitle1" sx={{ minWidth: 150, fontWeight: 'bold' }}>
+                      <Typography variant="subtitle1" sx={{ minWidth: 120, fontWeight: 'bold', fontSize: '0.95rem' }}>
                         {String(item.prodotto || 'N/D')}
                         {item.varianteSelezionata && (
-                          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
                             ({String(getVarianteLabel(item.prodotto, item.varianteSelezionata) || "")})
                           </Typography>
                         )}
                       </Typography>
 
                       {/* Dropdown Varianti */}
-                      {config?.varianti && config.varianti.length > 0 &&  (
-                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                      {config?.varianti && config.varianti.length > 0 && (
+                        <FormControl size="small" sx={{ minWidth: 130 }}>
                           <Select
                             value={item.varianteSelezionata || (config.varianti[0]?.nome || config.varianti[0])}
                             onChange={(e) => cambiaVariante(item.id, e.target.value)}
@@ -1293,165 +1294,71 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                         </FormControl>
                       )}
 
-                      {config?.unitaMisuraDisponibili && config.unitaMisuraDisponibili.length > 1 && (
-                        <FormControl size="small" sx={{ minWidth: 100 }}>
-                          <Select
-                            value={item.unita || 'Kg'}
-                            onChange={(e) => {
-                              const nuovaUnita = e.target.value;
-                              // Ricalcola prezzo con nuova unità
-                              setComposizione(prev => prev.map(p => {
-                                if (p.id === item.id) {
-                                  const nuovoPrezzo = calcolaPrezzoProdotto(
-                                    p.prodotto,
-                                    p.quantita,
-                                    nuovaUnita
-                                  );
-                                  return { ...p, unita: nuovaUnita, prezzo: nuovoPrezzo };
-                                }
-                                return p;
-                              }));
-                            }}
-                          >
-                            {config.unitaMisuraDisponibili.map(unita => (
-                              <MenuItem key={unita} value={unita}>{unita}</MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
-
-                      {/* MODALITÀ TOTALE_PRIMA: Mostra solo quantità calcolata */}
-                      {modalita === MODALITA.TOTALE_PRIMA && item.autoCalc ? (
-                        <Box sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 1,
-                          bgcolor: '#E8F5E9',
-                          px: 2,
-                          py: 1,
-                          borderRadius: 1
-                        }}>
-                          <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                            {item.unita === 'Pezzi' 
-                              ? `${Math.floor(parseFloat(item.quantita) || 0)} ${item.unita}`
-                              : `${formatNumber(item.quantita)} ${item.unita}`
+                      {/* Input Quantità + Dropdown Unità */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <TextField
+                          type="text"
+                          placeholder="0"
+                          value={item.quantita || ''}
+                          onFocus={(e) => e.target.select()}
+                          onBlur={(e) => {
+                            let value = e.target.value;
+                            if (value && value.trim() !== '') {
+                              value = value.replace(/[^\d.,]/g, '');
+                              const normalized = normalizzaDecimale(value);
+                              aggiornaQuantita(item.id, normalized);
                             }
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            (calcolato automaticamente)
-                          </Typography>
-                        </Box>
-                      ) : (
-                        /* MODALITÀ LIBERA: Controlli quantità con CHIP */
-                        <Box sx={{ width: '100%' }}>
-                          {/* Input manuale (piccolo) */}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                            <TextField
-                              type="text"
-                              placeholder="0"
-                              value={item.quantita || ''}
-                              onFocus={(e) => e.target.select()}
-                              onBlur={(e) => {
-                                // ✅ Quando finisci di digitare, normalizza e RICALCOLA PREZZO
-                                let value = e.target.value;
-                                if (value && value.trim() !== '') {
-                                  // Rimuovi caratteri non validi
-                                  value = value.replace(/[^\d.,]/g, '');
-                                  const normalized = normalizzaDecimale(value);
-                                  // ✅ Questa funzione RICALCOLA il prezzo automaticamente!
-                                  aggiornaQuantita(item.id, normalized);
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                // ✅ Se premi Enter, conferma il valore
-                                if (e.key === 'Enter') {
-                                  e.target.blur();
-                                }
-                              }}
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.target.blur();
+                          }}
+                          onChange={(e) => {
+                            let value = e.target.value;
+                            value = value.replace(/[^\d.,]/g, '');
+                            const separatori = value.match(/[.,]/g);
+                            if (separatori && separatori.length > 1) return;
+                            setComposizione(prev => prev.map(p => 
+                              p.id === item.id ? { ...p, quantita: value } : p
+                            ));
+                          }}
+                          size="small"
+                          sx={{ width: 80 }}
+                          inputProps={{ inputMode: 'decimal' }}
+                        />
+                        
+                        {/* Dropdown Unità */}
+                        {config?.unitaMisuraDisponibili && config.unitaMisuraDisponibili.length > 1 ? (
+                          <FormControl size="small" sx={{ minWidth: 80 }}>
+                            <Select
+                              value={item.unita || "Kg"}
                               onChange={(e) => {
-                                let value = e.target.value;
-                                
-                                // ✅ Permetti solo: numeri, virgola, punto
-                                value = value.replace(/[^\d.,]/g, '');
-                                
-                                // ✅ Previeni virgole/punti multipli
-                                const separatori = value.match(/[.,]/g);
-                                if (separatori && separatori.length > 1) {
-                                  return;
-                                }
-                                
-                                // ✅ Aggiorna SOLO quantità (TEMPORANEO, senza ricalcolare prezzo)
-                                // Il prezzo verrà ricalcolato in onBlur tramite aggiornaQuantita()
-                                setComposizione(prev => prev.map(p => 
-                                  p.id === item.id ? { ...p, quantita: value } : p
-                                ));
+                                const nuovaUnita = e.target.value;
+                                setComposizione(prev => prev.map(p => {
+                                  if (p.id === item.id) {
+                                    const nuovoPrezzo = calcolaPrezzoProdotto(p.prodotto, p.quantita, nuovaUnita);
+                                    return { ...p, unita: nuovaUnita, prezzo: nuovoPrezzo };
+                                  }
+                                  return p;
+                                }));
                               }}
-                              size="small"
-                              sx={{ width: 100 }}
-                              inputProps={{ 
-                                inputMode: 'decimal'
-                              }}
-                            />
-                            {/* ✅ Dropdown Unità Misura */}
-                            {config?.unitaMisuraDisponibili && config.unitaMisuraDisponibili.length > 1 ? (
-                              <FormControl size="small" sx={{ minWidth: 100 }}>
-                                <Select
-                                  value={item.unita || "Kg"}
-                                  onChange={(e) => {
-                                    const nuovaUnita = e.target.value;
-                                    setComposizione(prev => prev.map(p => {
-                                      if (p.id === item.id) {
-                                        const nuovoPrezzo = calcolaPrezzoProdotto(p.prodotto, p.quantita, nuovaUnita);
-                                        return { ...p, unita: nuovaUnita, prezzo: nuovoPrezzo };
-                                      }
-                                      return p;
-                                    }));
-                                  }}
-                                >
-                                  {config.unitaMisuraDisponibili.map(unita => (
-                                    <MenuItem key={unita} value={unita}>{unita}</MenuItem>
-                                  ))}
-                                </Select>
-                              </FormControl>
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">
-                                {item.unita}
-                              </Typography>
-                            )}
-                          </Box>
+                            >
+                              {config.unitaMisuraDisponibili.map(unita => (
+                                <MenuItem key={unita} value={unita}>{unita}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 50 }}>
+                            {item.unita}
+                          </Typography>
+                        )}
+                      </Box>
 
-                          {/* ⚡ CHIP VALORI RAPIDI */}
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {VALORI_RAPIDI_VASSOIO[item.unita]?.map((valore) => (
-                              <Chip
-                                key={valore}
-                                label={valore}
-                                onClick={() => aggiornaQuantita(item.id, valore)}
-                                color={parseFloat(item.quantita) === valore ? 'primary' : 'default'}
-                                variant={parseFloat(item.quantita) === valore ? 'filled' : 'outlined'}
-                                size="small"
-                                sx={{
-                                  ...chipStyleVassoio,
-                                  fontSize: '1rem',
-                                  minWidth: '55px',
-                                  height: '42px',
-                                  ...(parseFloat(item.quantita) === valore ? {
-                                    backgroundColor: '#1976d2',
-                                    color: 'white'
-                                  } : {})
-                                }}
-                              />
-                            ))}
-                          </Box>
-                        </Box>
-                      )}
-
-
-                      {/* ✅ Prezzo (con protezione) */}
+                      {/* Prezzo */}
                       <Typography 
                         variant="h6" 
                         color="primary"
-                        sx={{ ml: 'auto', minWidth: 80, textAlign: 'right' }}
+                        sx={{ ml: 'auto', minWidth: 70, textAlign: 'right', fontSize: '1.1rem' }}
                       >
                         €{formatNumber(item.prezzo)}
                       </Typography>
@@ -1466,13 +1373,26 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                       </IconButton>
                     </Box>
 
-                    {/* Info Percentuale (solo per Mix Completo) */}
-                    {item.percentuale && (
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                        {formatNumber(item.percentuale, 0)}% del mix
-                      </Typography>
-                    )}
-                  </CardContent>
+                    {/* ✅ RIGA 2: Chip valori rapidi */}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {VALORI_RAPIDI_VASSOIO[item.unita]?.map((valore) => (
+                        <Chip
+                          key={valore}
+                          label={valore}
+                          onClick={() => aggiornaQuantita(item.id, valore)}
+                          color={parseFloat(item.quantita) === valore ? 'primary' : 'default'}
+                          variant={parseFloat(item.quantita) === valore ? 'filled' : 'outlined'}
+                          size="small"
+                          sx={{
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            '&:hover': { transform: 'scale(1.05)' },
+                            '&:active': { transform: 'scale(0.95)' }
+                          }}
+                        />
+                      ))}
+                    </Box>
+</CardContent>
                 </Card>
               );
             })}
