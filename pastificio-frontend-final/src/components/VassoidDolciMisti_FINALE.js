@@ -981,93 +981,86 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
             ⚖️ Totale Vassoio Target
           </Typography>
           
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth>
-                <FormLabel>Ordina per:</FormLabel>
-                <RadioGroup
-                  row
-                  value={totaleTarget.unita}
+          {/* ✅ TABLET FRIENDLY: Dropdown + Input inline */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Riga 1: Dropdown + Input */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <Select
+                  value={totaleTarget.unita || 'Kg'}
                   onChange={(e) => setTotaleTarget(prev => ({ ...prev, unita: e.target.value }))}
                 >
-                  <FormControlLabel value="Kg" control={<Radio />} label="Peso (Kg)" />
-                  <FormControlLabel value="Pezzi" control={<Radio />} label="Pezzi" />
-                  <FormControlLabel value="€" control={<Radio />} label="Euro (€)" />
-                </RadioGroup>
+                  <MenuItem value="Kg">Kg</MenuItem>
+                  <MenuItem value="Pezzi">Pezzi</MenuItem>
+                  <MenuItem value="€">Euro</MenuItem>
+                </Select>
               </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
+
               <TextField
-                fullWidth
                 type="text"
-                label="Quantità Target"
-                placeholder="0"
+                placeholder="1"
                 value={totaleTarget.valore || ''}
-                onChange={(e) => setTotaleTarget(prev => ({ 
-                  ...prev, 
-                  valore: parseFloat(normalizzaDecimale(e.target.value)) || 0 
-                }))}
-                inputProps={{ min: 0, step: 0.1 }}
+                onChange={(e) => {
+                  const value = normalizzaDecimale(e.target.value);
+                  setTotaleTarget(prev => ({ ...prev, valore: parseFloat(value) || 0 }));
+                }}
+                onFocus={(e) => e.target.select()}
+                size="small"
+                sx={{ width: 100 }}
+                inputProps={{ inputMode: 'decimal' }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">{totaleTarget.unita || 'Kg'}</InputAdornment>
+                }}
               />
-              
-              {/* ⚡ CHIP VALORI RAPIDI PER TOTALE */}
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                {(VALORI_RAPIDI_TOTALI[totaleTarget.unita] || []).map((valore) => (
-                  <Chip
-                    key={valore}
-                    label={valore}
-                    onClick={() => setTotaleTarget(prev => ({ ...prev, valore }))}
-                    color={parseFloat(totaleTarget.valore) === valore ? 'primary' : 'default'}
-                    variant={parseFloat(totaleTarget.valore) === valore ? 'filled' : 'outlined'}
-                    size="small"
-                    sx={{
-                      ...chipStyleVassoio,
-                      fontSize: '1rem',
-                      minWidth: '55px',
-                      height: '42px',
-                      ...(parseFloat(totaleTarget.valore) === valore ? {
-                        backgroundColor: '#1976d2',
-                        color: 'white'
-                      } : {})
-                    }}
-                  />
-                ))}
-              </Box>
 
               <Button
-                fullWidth
                 variant="contained"
                 color="primary"
                 onClick={calcolaDistribuzioneTotale}
                 disabled={!totaleTarget.valore || totaleTarget.valore <= 0 || composizione.length === 0}
-                sx={{ mt: 2 }}
                 startIcon={<Calculator size={20} />}
+                size="small"
               >
-                Calcola Distribuzione
+                Calcola
               </Button>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Box>
+
+              {/* Progresso inline */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
                 <Typography variant="caption" color="text.secondary">
                   Progresso:
                 </Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={Math.min(progressoTarget, 100)}
-                  sx={{ mb: 1 }}
-                />
-                <Typography variant="body2">
-                  {progressoTarget >= 100 ? (
-                    <Chip label="✅ Raggiunto!" color="success" size="small" />
-                  ) : (
-                    `${formatNumber(progressoTarget, 1)}% raggiunto`
-                  )}
-                </Typography>
+                {progressoTarget >= 100 ? (
+                  <Chip label="✅ Raggiunto!" color="success" size="small" />
+                ) : (
+                  <Typography variant="body2">
+                    {formatNumber(progressoTarget, 1)}%
+                  </Typography>
+                )}
               </Box>
-            </Grid>
-          </Grid>
+            </Box>
+
+            {/* Riga 2: Chip valori rapidi */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+              {(VALORI_RAPIDI_TOTALI[totaleTarget.unita] || []).map((valore) => (
+                <Chip
+                  key={valore}
+                  label={valore}
+                  onClick={() => setTotaleTarget(prev => ({ ...prev, valore }))}
+                  color={parseFloat(totaleTarget.valore) === valore ? 'primary' : 'default'}
+                  variant={parseFloat(totaleTarget.valore) === valore ? 'filled' : 'outlined'}
+                  size="small"
+                  sx={{
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    height: '32px',
+                    transition: 'all 0.2s',
+                    '&:hover': { transform: 'scale(1.05)' },
+                    '&:active': { transform: 'scale(0.95)' }
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
         </Paper>
       )}
 
