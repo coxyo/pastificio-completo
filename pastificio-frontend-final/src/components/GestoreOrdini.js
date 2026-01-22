@@ -35,7 +35,8 @@ import {
   Search as SearchIcon,  // ✅ NUOVO per ricerca
   DateRange as DateRangeIcon,  // ✅ NUOVO per periodo
   Clear as ClearIcon,  // ✅ NUOVO per pulire ricerca
-  Calculate as CalculateIcon  // ✅ NUOVO per calcolo totali
+  Calculate as CalculateIcon,
+  Timer as TimerIcon  // ✅ NUOVO per calcolo totali
 } from '@mui/icons-material';
 
 import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
@@ -66,6 +67,25 @@ import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } fr
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🆕 AGGIUNTO 22/01/2026: AUTO-REFRESH INTELLIGENTE + POLLING OTTIMIZZATO
+// ═══════════════════════════════════════════════════════════════════════════
+const AUTO_REFRESH_CONFIG = {
+  INACTIVITY_TIMEOUT: 30 * 60 * 1000, // 30 minuti
+  WARNING_TIME: 60 * 1000, // Avviso 1 minuto prima
+  POSTPONE_TIME: 10 * 60 * 1000, // Posticipa 10 minuti
+  ENABLED: true,
+  SAVE_STATE_BEFORE_REFRESH: true,
+};
+
+const POLLING_CONFIG = {
+  SYNC_INTERVAL: 5 * 60 * 1000, // 5 minuti (ridotto da continuo)
+  KEEP_ALIVE_INTERVAL: 10 * 60 * 1000, // 10 minuti
+  LIMITI_CACHE_TIME: 2 * 60 * 1000, // Cache limiti 2 minuti
+  DEBOUNCE_TIME: 1000, // 1 secondo debounce
+};
+
 
 // =============================================================
 // COMPONENTE RIEPILOGO SEMPLICE
@@ -1093,6 +1113,8 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [statisticheChiamateAperto, setStatisticheChiamateAperto] = useState(false);
   const [dialogLimitiOpen, setDialogLimitiOpen] = useState(false);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
+  const [autoRefreshCountdown, setAutoRefreshCountdown] = useState(null); // 🆕 22/01
+  const [showRefreshDialog, setShowRefreshDialog] = useState(false); // 🆕 22/01
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   
@@ -1150,6 +1172,9 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   // REFS
   // ----------------------------------------------------------------
   const wsRef = useRef(null);
+  const lastActivityRef = useRef(Date.now()); // 🆕 22/01
+  const warningTimerRef = useRef(null); // 🆕 22/01
+  const limitsDebounceRef = useRef(null); // 🆕 22/01
   const reconnectTimeoutRef = useRef(null);
   const syncIntervalRef = useRef(null);
   
@@ -2344,6 +2369,34 @@ useEffect(() => {
   // =============================================================  // RENDER JSX PRINCIPALE
   // =============================================================  
 
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🆕 22/01/2026: FUNZIONI AUTO-REFRESH INTELLIGENTE
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const registerActivity = React.useCallback(() => {
+    if (!AUTO_REFRESH_CONFIG.ENABLED) return;
+    lastActivityRef.current = Date.now();
+    setAutoRefreshCountdown(null);
+    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    warningTimerRef.current = setTimeout(() => {
+      if (Date.now() - lastActivityRef.current >= (AUTO_REFRESH_CONFIG.INACTIVITY_TIMEOUT - AUTO_REFRESH_CONFIG.WARNING_TIME)) {
+        setShowRefreshDialog(true);
+        let s = 60; setAutoRefreshCountdown(s);
+        const iv = setInterval(() => { s--; setAutoRefreshCountdown(s); if(s <= 0) { clearInterval(iv); setTimeout(() => window.location.reload(), 500); } }, 1000);
+      }
+    }, AUTO_REFRESH_CONFIG.INACTIVITY_TIMEOUT - AUTO_REFRESH_CONFIG.WARNING_TIME);
+  }, []);
+
+  React.useEffect(() => {
+    if (!AUTO_REFRESH_CONFIG.ENABLED) return;
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, registerActivity));
+    registerActivity();
+    return () => { events.forEach(e => window.removeEventListener(e, registerActivity)); if (warningTimerRef.current) clearTimeout(warningTimerRef.current); };
+  }, [registerActivity]);
+
+
 return (
     <>
       <style jsx global>{`
@@ -2858,6 +2911,27 @@ return (
             <Button onClick={() => setDialogTotaliPeriodo(false)}>Chiudi</Button>
           </DialogActions>
         </Dialog>
+
+        {/* 🆕 22/01/2026: Dialog Auto-Refresh */}
+        <Dialog open={showRefreshDialog} onClose={() => { setShowRefreshDialog(false); registerActivity(); }}>
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TimerIcon color="warning" /> Aggiornamento Sistema
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ py: 2 }}>
+              <Typography>Il sistema verrà aggiornato per:</Typography>
+              <ul><li>Prevenire problemi cache</li><li>Sincronizzare dati</li><li>Ottimizzare performance</li></ul>
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1, textAlign: 'center' }}>
+                <strong>Aggiornamento tra: {autoRefreshCountdown} secondi</strong>
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setShowRefreshDialog(false); registerActivity(); }}>⏰ Posticipa 10 min</Button>
+            <Button onClick={() => { setShowRefreshDialog(false); window.location.reload(); }} variant="contained">🔄 Ora</Button>
+          </DialogActions>
+        </Dialog>
+
                
         <Snackbar
           open={notifica.aperta}
