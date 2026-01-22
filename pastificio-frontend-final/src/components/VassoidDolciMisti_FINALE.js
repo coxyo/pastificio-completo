@@ -1113,13 +1113,14 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                     if (sommaPercentuali > 0) {
                       const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
                         const pesoRicalcolato = (info.percentuale / sommaPercentuali) * nuovoPeso;
-                        const prezzo = calcolaPrezzoProdotto(nome, pesoRicalcolato, 'Kg');
+                        const unitaTarget = totaleTarget.unita || 'Kg';
+                        const prezzo = calcolaPrezzoProdotto(nome, pesoRicalcolato, unitaTarget);
                         
                         return {
                           id: Date.now() + Math.random(),
                           prodotto: nome,
                           quantita: pesoRicalcolato,
-                          unita: 'Kg',
+                          unita: unitaTarget,
                           prezzo: prezzo || 0,
                           percentuale: (info.percentuale / sommaPercentuali) * 100
                         };
