@@ -988,7 +988,36 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
               <FormControl size="small" sx={{ minWidth: 100 }}>
                 <Select
                   value={totaleTarget.unita || 'Kg'}
-                  onChange={(e) => setTotaleTarget(prev => ({ ...prev, unita: e.target.value }))}
+                  onChange={(e) => {
+                    const nuovaUnita = e.target.value;
+                    setTotaleTarget(prev => ({ ...prev, unita: nuovaUnita }));
+                    
+                    // Ricalcola composizione con nuova unità
+                    if (totaleTarget.valore > 0) {
+                      const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
+                        .filter(([nome]) => !esclusioni.includes(nome));
+                      
+                      const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
+                      
+                      if (sommaPercentuali > 0) {
+                        const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
+                          const quantitaRicalcolata = (info.percentuale / sommaPercentuali) * totaleTarget.valore;
+                          const prezzo = calcolaPrezzoProdotto(nome, quantitaRicalcolata, nuovaUnita);
+                          
+                          return {
+                            id: Date.now() + Math.random(),
+                            prodotto: nome,
+                            quantita: quantitaRicalcolata,
+                            unita: nuovaUnita,
+                            prezzo: prezzo || 0,
+                            percentuale: (info.percentuale / sommaPercentuali) * 100
+                          };
+                        });
+                        
+                        setComposizione(nuovaComposizione);
+                      }
+                    }
+                  }}
                 >
                   <MenuItem value="Kg">Kg</MenuItem>
                   <MenuItem value="Pezzi">Pezzi</MenuItem>
@@ -1162,56 +1191,6 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                 </Typography>
               </Box>
 
-              {/* ⚡ CHIP VALORI RAPIDI PER PESO TOTALE */}
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {(VALORI_RAPIDI_TOTALI.Kg || []).map((valore) => (
-                  <Chip
-                    key={valore}
-                    label={`${valore} Kg`}
-                    onClick={() => {
-                      const nuovoPeso = valore;
-                      setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso }));
-                      
-                      // Ricalcola composizione
-                      const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
-                        .filter(([nome]) => !esclusioni.includes(nome));
-                      
-                      const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
-                      
-                      if (sommaPercentuali > 0) {
-                        const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
-                          const pesoRicalcolato = (info.percentuale / sommaPercentuali) * nuovoPeso;
-                          const prezzo = calcolaPrezzoProdotto(nome, pesoRicalcolato, 'Kg');
-                          
-                          return {
-                            id: Date.now() + Math.random(),
-                            prodotto: nome,
-                            quantita: pesoRicalcolato,
-                            unita: 'Kg',
-                            prezzo: prezzo || 0,
-                            percentuale: (info.percentuale / sommaPercentuali) * 100
-                          };
-                        });
-                        
-                        setComposizione(nuovaComposizione);
-                      }
-                    }}
-                    color={parseFloat(totaleTarget.valore) === valore ? 'primary' : 'default'}
-                    variant={parseFloat(totaleTarget.valore) === valore ? 'filled' : 'outlined'}
-                    size="small"
-                    sx={{
-                      ...chipStyleVassoio,
-                      fontSize: '1rem',
-                      minWidth: '60px',
-                      height: '42px',
-                      ...(parseFloat(totaleTarget.valore) === valore ? {
-                        backgroundColor: '#1976d2',
-                        color: 'white'
-                      } : {})
-                    }}
-                  />
-                ))}
-              </Box>
             </Box>
           </Paper>
         
