@@ -1080,25 +1080,24 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
               ⚖️ Peso Totale Vassoio
             </Typography>
             
-            {/* ✅ Radio Buttons per scegliere unità */}
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <FormLabel>Ordina per:</FormLabel>
-              <RadioGroup
-                row
-                value={totaleTarget.unita || 'Kg'}
-                onChange={(e) => setTotaleTarget(prev => ({ ...prev, unita: e.target.value }))}
-              >
-                <FormControlLabel value="Kg" control={<Radio />} label="Peso (Kg)" />
-                <FormControlLabel value="Pezzi" control={<Radio />} label="Pezzi" />
-                <FormControlLabel value="€" control={<Radio />} label="Euro (€)" />
-              </RadioGroup>
-            </FormControl>
-
+            {/* ✅ TABLET FRIENDLY: Dropdown + Input + Chip */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                {/* Dropdown Unità */}
+                <FormControl size="small" sx={{ minWidth: 100 }}>
+                  <Select
+                    value={totaleTarget.unita || 'Kg'}
+                    onChange={(e) => setTotaleTarget(prev => ({ ...prev, unita: e.target.value }))}
+                  >
+                    <MenuItem value="Kg">Kg</MenuItem>
+                    <MenuItem value="Pezzi">Pezzi</MenuItem>
+                    <MenuItem value="€">Euro</MenuItem>
+                  </Select>
+                </FormControl>
+
+                {/* Input Quantità */}
                 <TextField
                   type="text"
-                  label={`Quantità Target (${totaleTarget.unita || 'Kg'})`}
                   placeholder="1"
                   value={totaleTarget.valore || ''}
                   onChange={(e) => {
