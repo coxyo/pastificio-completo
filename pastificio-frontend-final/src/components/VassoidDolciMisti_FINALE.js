@@ -1293,7 +1293,6 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                         </FormControl>
                       )}
 
-                      {/* ✅ NUOVO: Dropdown Unità Misura */}
                       {config?.unitaMisuraDisponibili && config.unitaMisuraDisponibili.length > 1 && (
                         <FormControl size="small" sx={{ minWidth: 100 }}>
                           <Select
@@ -1393,9 +1392,32 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                                 inputMode: 'decimal'
                               }}
                             />
-                            <Typography variant="body2" color="text.secondary">
-                              {item.unita}
-                            </Typography>
+                            {/* ✅ Dropdown Unità Misura */}
+                            {config?.unitaMisuraDisponibili && config.unitaMisuraDisponibili.length > 1 ? (
+                              <FormControl size="small" sx={{ minWidth: 100 }}>
+                                <Select
+                                  value={item.unita || "Kg"}
+                                  onChange={(e) => {
+                                    const nuovaUnita = e.target.value;
+                                    setComposizione(prev => prev.map(p => {
+                                      if (p.id === item.id) {
+                                        const nuovoPrezzo = calcolaPrezzoProdotto(p.prodotto, p.quantita, nuovaUnita);
+                                        return { ...p, unita: nuovaUnita, prezzo: nuovoPrezzo };
+                                      }
+                                      return p;
+                                    }));
+                                  }}
+                                >
+                                  {config.unitaMisuraDisponibili.map(unita => (
+                                    <MenuItem key={unita} value={unita}>{unita}</MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                {item.unita}
+                              </Typography>
+                            )}
                           </Box>
 
                           {/* ⚡ CHIP VALORI RAPIDI */}
@@ -1424,21 +1446,6 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                         </Box>
                       )}
 
-                      {/* Dropdown Unità di Misura - Solo in modalità LIBERA */}
-                      {modalita !== MODALITA.TOTALE_PRIMA && (
-                        <FormControl size="small" sx={{ minWidth: 100 }}>
-                          <Select
-                            value={item.unita || 'Kg'}
-                            onChange={(e) => cambiaUnita(item.id, e.target.value)}
-                          >
-                            {(config?.unitaMisuraDisponibili || ['Kg', 'Pezzi']).map(unita => (
-                              <MenuItem key={unita} value={unita}>
-                                {unita}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
 
                       {/* ✅ Prezzo (con protezione) */}
                       <Typography 
