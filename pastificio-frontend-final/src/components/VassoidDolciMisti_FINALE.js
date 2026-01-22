@@ -424,8 +424,9 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
       return;
     }
 
-    // Quota per ogni prodotto
-    const quotaProdotto = totaleTarget.valore / itemsAutoCalc.length;
+    // ✅ CALCOLA SOMMA PERCENTUALI (se disponibili)
+    const sommaPercentuali = itemsAutoCalc.reduce((acc, item) => acc + (item.percentuale || 0), 0);
+    const usaPercentuali = sommaPercentuali > 0;
 
     setComposizione(prev =>
       prev.map(item => {
@@ -434,13 +435,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         let quantita = 0;
         let unita = totaleTarget.unita;
 
-        if (totaleTarget.unita === 'Kg') {
-          quantita = quotaProdotto;
-          unita = 'Kg';
-        } else if (totaleTarget.unita === 'Pezzi') {
-          quantita = Math.round(quotaProdotto);
-          unita = 'Pezzi';
-        } else if (totaleTarget.unita === '€') {
+        if (totaleTarget.unita === '€') {
+          // ✅ MODALITÀ EURO: Calcola kg necessari per raggiungere il prezzo target
           const config = getProdottoConfigSafe(item.prodotto);
           let prezzoKg = config?.prezzoKg || 20;
 
@@ -454,8 +450,28 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
             }
           }
 
-          quantita = quotaProdotto / prezzoKg;
+          // ✅ Usa percentuali se disponibili, altrimenti dividi equamente
+          const quotaEuro = usaPercentuali 
+            ? (item.percentuale / sommaPercentuali) * totaleTarget.valore
+            : totaleTarget.valore / itemsAutoCalc.length;
+
+          quantita = quotaEuro / prezzoKg;
           unita = 'Kg';
+          
+        } else if (totaleTarget.unita === 'Kg') {
+          // ✅ MODALITÀ KG
+          quantita = usaPercentuali
+            ? (item.percentuale / sommaPercentuali) * totaleTarget.valore
+            : totaleTarget.valore / itemsAutoCalc.length;
+          unita = 'Kg';
+          
+        } else if (totaleTarget.unita === 'Pezzi') {
+          // ✅ MODALITÀ PEZZI
+          const quotaPezzi = usaPercentuali
+            ? (item.percentuale / sommaPercentuali) * totaleTarget.valore
+            : totaleTarget.valore / itemsAutoCalc.length;
+          quantita = Math.round(quotaPezzi);
+          unita = 'Pezzi';
         }
 
         const prezzo = calcolaPrezzoProdotto(item.prodotto, quantita, unita, item.varianteSelezionata);
