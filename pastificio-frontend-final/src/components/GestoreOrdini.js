@@ -64,6 +64,8 @@ import GestioneZeppole from './GestioneZeppole';
 import StatisticheChiamate from './StatisticheChiamate';
 import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } from '@mui/icons-material';
 
+// ✅ NUOVO 23/01/2026: Import HACCPAutoPopup per registrazione temperature martedì
+import HACCPAutoPopup from './HACCPAutoPopup';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
@@ -1098,6 +1100,10 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [dataSelezionata, setDataSelezionata] = useState(new Date().toISOString().split('T')[0]);
   
   const [notifica, setNotifica] = useState({ aperta: false, messaggio: '', tipo: 'info' });
+  
+  // ✅ NUOVO 23/01/2026: Stati per HACCP Auto Popup
+  const [showHACCPPopup, setShowHACCPPopup] = useState(false);
+  const [haccpTestMode, setHaccpTestMode] = useState(false);
   const [menuExport, setMenuExport] = useState(null);
   
   const [prodottiDisponibili, setProdottiDisponibili] = useState({});
@@ -2402,6 +2408,26 @@ useEffect(() => {
   }, [registerActivity]);
 
 
+  // ============================================
+  // HACCP AUTO POPUP - FUNZIONI (23/01/2026)
+  // ============================================
+  const openHACCPPopup = () => {
+    console.log('🌡️ [GestoreOrdini] Apertura HACCP Auto Popup');
+    setShowHACCPPopup(true);
+  };
+
+  const closeHACCPPopup = () => {
+    console.log('❌ [GestoreOrdini] Chiusura HACCP Auto Popup');
+    setShowHACCPPopup(false);
+    setHaccpTestMode(false);
+  };
+
+  const testHACCPPopup = () => {
+    console.log('🧪 [GestoreOrdini] TEST MODE - Apertura forzata HACCP Popup');
+    setHaccpTestMode(true);
+    setShowHACCPPopup(true);
+  };
+
 return (
     <>
       <style jsx global>{`
@@ -2979,13 +3005,11 @@ return (
   onClose={() => setDialogZeppoleOpen(false)} 
 />
 
-{/* ✅ DISABILITATO 17/01/2026: Popup HACCP Automatico - Componente non trovato
-{showHACCPPopup && (
-  <HACCPAutoPopup 
-    onClose={closeHACCPPopup}
-  />
-)}
-*/}
+{/* ✅ ATTIVATO 23/01/2026: HACCP Auto Popup - Montato sempre per trigger martedì */}
+<HACCPAutoPopup 
+  onClose={() => setShowHACCPPopup(false)}
+  forceShow={false}
+/>
 
       </Container>
     </>

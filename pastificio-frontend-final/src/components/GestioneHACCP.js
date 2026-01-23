@@ -52,6 +52,7 @@ import {
   ArrowBack as BackIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import HACCPAutoPopup from './HACCPAutoPopup';  // ✅ NUOVO 23/01/2026
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -139,6 +140,7 @@ export default function GestioneHACCP() {
   const [tabCorrente, setTabCorrente] = useState(0);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [testHACCPPopupOpen, setTestHACCPPopupOpen] = useState(false);  // ✅ NUOVO 23/01/2026
   
   // Dati dal backend
   const [dashboard, setDashboard] = useState(null);
@@ -506,6 +508,17 @@ export default function GestioneHACCP() {
               sx={{ py: 2 }}
             >
               ❄️ Abbattimento
+            </Button>
+          </Grid>
+          <Grid item xs={6} md={2}>
+            <Button
+              fullWidth
+              variant="contained"
+              color="warning"
+              onClick={() => setTestHACCPPopupOpen(true)}
+              sx={{ py: 2 }}
+            >
+              🧪 Test HACCP
             </Button>
           </Grid>
           <Grid item xs={6} md={2}>
@@ -1489,6 +1502,14 @@ export default function GestioneHACCP() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* ✅ NUOVO 23/01/2026: Popup Test HACCP */}
+      {testHACCPPopupOpen && (
+        <HACCPAutoPopup 
+          onClose={() => setTestHACCPPopupOpen(false)}
+          forceShow={true}
+        />
+      )}
     </Box>
   );
 }

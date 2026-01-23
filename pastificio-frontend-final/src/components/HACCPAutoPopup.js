@@ -17,7 +17,8 @@ import {
   Alert,
   IconButton,
   Divider,
-  CircularProgress
+  CircularProgress,
+  TextField
 } from '@mui/material';
 import {
   AcUnit as FridgeIcon,
@@ -26,7 +27,8 @@ import {
   CheckCircle as CheckIcon,
   Close as CloseIcon,
   Refresh as RefreshIcon,
-  Thermostat as TempIcon
+  Thermostat as TempIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
@@ -36,8 +38,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-
 // ============================================
 const DISPOSITIVI = [
   { 
-    id: 'frigo1', 
-    nome: 'Frigorifero 1', 
+    id: 'frigo1_isa', 
+    nome: 'Frigo 1 Isa', 
     tipo: 'frigorifero',
     minTemp: 0, 
     maxTemp: 4,
@@ -45,8 +47,8 @@ const DISPOSITIVI = [
     color: '#2196f3'
   },
   { 
-    id: 'frigo2', 
-    nome: 'Frigorifero 2', 
+    id: 'frigo2_icecool', 
+    nome: 'Frigo 2 Icecool', 
     tipo: 'frigorifero',
     minTemp: 0, 
     maxTemp: 4,
@@ -54,13 +56,22 @@ const DISPOSITIVI = [
     color: '#2196f3'
   },
   { 
-    id: 'frigo3', 
-    nome: 'Frigorifero 3', 
+    id: 'frigo3_samsung', 
+    nome: 'Frigo 3 Samsung', 
     tipo: 'frigorifero',
     minTemp: 0, 
     maxTemp: 4,
     icon: FridgeIcon,
     color: '#2196f3'
+  },
+  { 
+    id: 'freezer_samsung', 
+    nome: 'Freezer Samsung', 
+    tipo: 'congelatore',
+    minTemp: -22, 
+    maxTemp: -18,
+    icon: FreezerIcon,
+    color: '#9c27b0'
   },
   { 
     id: 'congelatore', 
@@ -117,6 +128,7 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
   useEffect(() => {
     if (forceShow) {
       // TEST MODE: Mostra sempre
+      console.log('🧪 [HACCP] TEST MODE - Popup forzato');
       inizializzaTemperature();
       setOpen(true);
       setLoading(false);
@@ -132,24 +144,43 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
     const oggi = new Date();
     const giornoSettimana = oggi.getDay(); // 0=Dom, 2=Mar
     
+    console.log(`📅 [HACCP] Oggi è ${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][giornoSettimana]}`);
+    
     // Verifica se è martedì
     if (giornoSettimana !== 2) {
-      console.log('📅 Non è Martedì, popup HACCP non mostrato');
+      console.log('📅 [HACCP] Non è Martedì, popup NON mostrato');
       setLoading(false);
       return;
     }
+
+    console.log('✅ [HACCP] È Martedì! Verifico se già registrato...');
 
     // Verifica se già registrato oggi
     const dataOggi = oggi.toISOString().split('T')[0];
-    const ultimaRegistrazione = localStorage.getItem('haccp_last_registration');
     
-    if (ultimaRegistrazione === dataOggi) {
-      console.log('✅ Temperature già registrate oggi');
-      setLoading(false);
-      return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/haccp/check-registrazione?data=${dataOggi}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.giaRegistrato) {
+          console.log('✅ [HACCP] Temperature già registrate oggi');
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ [HACCP] Errore check registrazione, procedo comunque:', err);
     }
 
     // Mostra popup
+    console.log('🌡️ [HACCP] Mostro popup registrazione temperature');
     inizializzaTemperature();
     setOpen(true);
     setLoading(false);
@@ -168,7 +199,26 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
       conforme: true // Sempre conforme se nel range
     }));
     
+    console.log('🌡️ [HACCP] Temperature generate:', tempGenerate);
     setTemperature(tempGenerate);
+  };
+
+  // ============================================
+  // MODIFICA MANUALE TEMPERATURA
+  // ============================================
+  const handleChangeTemp = (index, nuovoValore) => {
+    const newTemps = [...temperature];
+    const temp = parseFloat(nuovoValore);
+    
+    if (isNaN(temp)) return;
+    
+    newTemps[index].temperatura = temp;
+    
+    // Verifica conformità
+    const { minTemp, maxTemp } = newTemps[index];
+    newTemps[index].conforme = temp >= minTemp && temp <= maxTemp;
+    
+    setTemperature(newTemps);
   };
 
   // ============================================
@@ -178,6 +228,7 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
     const newTemps = [...temperature];
     const disp = DISPOSITIVI[index];
     newTemps[index].temperatura = generaTemperaturaRealistica(disp.minTemp, disp.maxTemp);
+    newTemps[index].conforme = true;
     setTemperature(newTemps);
   };
 
@@ -198,6 +249,8 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
     try {
       const token = localStorage.getItem('token');
       
+      console.log('💾 [HACCP] Salvataggio temperature...');
+
       // Salva ogni temperatura
       const promises = temperature.map(temp => 
         fetch(`${API_URL}/api/haccp/temperature`, {
@@ -211,14 +264,24 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
             tipo: temp.tipo,
             temperatura: temp.temperatura,
             conforme: temp.conforme,
+            automatico: true,
             note: 'Registrazione automatica martedì'
           })
         })
       );
 
-      await Promise.all(promises);
+      const results = await Promise.all(promises);
+      
+      // Verifica che tutte le richieste siano andate a buon fine
+      const allSuccess = results.every(r => r.ok);
+      
+      if (!allSuccess) {
+        throw new Error('Alcune temperature non sono state salvate');
+      }
 
-      // Salva data in localStorage
+      console.log('✅ [HACCP] Tutte le temperature salvate con successo');
+
+      // Salva data in localStorage come backup
       const oggi = new Date().toISOString().split('T')[0];
       localStorage.setItem('haccp_last_registration', oggi);
 
@@ -230,7 +293,7 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
       }, 2000);
 
     } catch (err) {
-      console.error('❌ Errore salvataggio temperature:', err);
+      console.error('❌ [HACCP] Errore salvataggio temperature:', err);
       setError('Errore nel salvataggio. Riprova o registra manualmente dalla sezione HACCP.');
     } finally {
       setSaving(false);
@@ -309,21 +372,24 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
                 <strong>È Martedì!</strong> Conferma le temperature generate automaticamente per la registrazione HACCP settimanale.
               </Typography>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                Puoi rigenerare singole temperature cliccando su "🔄" oppure tutte con il pulsante in basso.
+                Puoi modificare manualmente ogni valore, rigenerare singole temperature cliccando "🔄" oppure tutte con il pulsante in basso.
               </Typography>
             </Alert>
 
             <Grid container spacing={2}>
               {temperature.map((temp, index) => {
                 const Icon = temp.icon;
+                const isConforme = temp.conforme;
+                
                 return (
                   <Grid item xs={12} sm={6} key={temp.dispositivo}>
                     <Paper 
                       elevation={3}
                       sx={{ 
                         p: 2,
-                        borderLeft: `4px solid ${temp.color}`,
-                        position: 'relative'
+                        borderLeft: `4px solid ${isConforme ? temp.color : '#ff9800'}`,
+                        position: 'relative',
+                        bgcolor: isConforme ? 'background.paper' : 'rgba(255, 152, 0, 0.05)'
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -333,10 +399,23 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
                         </Typography>
                       </Box>
 
-                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                        <Typography variant="h3" sx={{ color: temp.color }}>
-                          {temp.temperatura}
-                        </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                        <TextField
+                          type="number"
+                          value={temp.temperatura}
+                          onChange={(e) => handleChangeTemp(index, e.target.value)}
+                          inputProps={{
+                            step: 0.1,
+                            style: { 
+                              fontSize: 28, 
+                              fontWeight: 'bold',
+                              color: temp.color,
+                              textAlign: 'center'
+                            }
+                          }}
+                          sx={{ width: 100 }}
+                          size="small"
+                        />
                         <Typography variant="h5" color="text.secondary">
                           °C
                         </Typography>
@@ -357,9 +436,9 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
                       </Box>
 
                       <Chip 
-                        icon={<CheckIcon />}
-                        label="CONFORME"
-                        color="success"
+                        icon={isConforme ? <CheckIcon /> : <WarningIcon />}
+                        label={isConforme ? "CONFORME" : "FUORI RANGE"}
+                        color={isConforme ? "success" : "warning"}
                         size="small"
                         sx={{ mt: 1 }}
                       />
