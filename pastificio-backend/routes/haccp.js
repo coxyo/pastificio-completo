@@ -1,108 +1,82 @@
 // routes/haccp.js
+// ✅ ROUTES HACCP - MONGODB INTEGRATION
 import express from 'express';
 import { protect } from '../middleware/auth.js';
+import haccpController from '../controllers/haccpController.js';
 
 const router = express.Router();
 
-// Tutte le route protette da autenticazione
+// ============================================
+// MIDDLEWARE AUTENTICAZIONE
+// ============================================
 router.use(protect);
 
-// ✅ NUOVO: Endpoint per dashboard HACCP
-router.get('/dashboard', async (req, res) => {
-  try {
-    // Restituisci dati mock per dashboard
-    res.json({
-      success: true,
-      data: {
-        registrazioni: {
-          totali: 0,
-          conformi: 0,
-          nonConformi: 0,
-          daVerificare: 0
-        },
-        ultimiControlli: {
-          frigoriferi: [],
-          congelatori: [],
-          abbattitori: []
-        },
-        statistiche: {
-          totaleRegistrazioni: 0,
-          conformi: 0,
-          nonConformi: 0
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Errore caricamento dashboard:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Errore caricamento dashboard' 
-    });
-  }
-});
+// ============================================
+// DASHBOARD HACCP
+// ============================================
+/**
+ * @route   GET /api/haccp/dashboard
+ * @desc    Ottiene dashboard HACCP con statistiche ultimi 30 giorni
+ * @access  Privato
+ */
+router.get('/dashboard', haccpController.getDashboard);
 
-// ✅ Endpoint per verificare se già registrato oggi
-router.get('/check-registrazione', async (req, res) => {
-  try {
-    const { data } = req.query;
-    
-    res.json({ 
-      success: true,
-      giaRegistrato: false,
-      data: data
-    });
-    
-  } catch (error) {
-    console.error('Errore check registrazione:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Errore verifica registrazione' 
-    });
-  }
-});
+// ============================================
+// CHECK REGISTRAZIONE GIORNALIERA
+// ============================================
+/**
+ * @route   GET /api/haccp/check-registrazione?data=YYYY-MM-DD
+ * @desc    Verifica se le temperature sono già state registrate per la data specificata
+ * @access  Privato
+ */
+router.get('/check-registrazione', haccpController.checkRegistrazioneOggi);
 
-// ✅ Endpoint per salvare temperatura
-router.post('/temperatura', async (req, res) => {
-  try {
-    const { dispositivo, temperatura, tipo, automatico, note } = req.body;
-    
-    console.log('📊 Temperatura ricevuta:', {
-      dispositivo,
-      temperatura,
-      tipo,
-      automatico,
-      note,
-      data: new Date().toISOString()
-    });
-    
-    res.json({
-      success: true,
-      message: 'Temperatura registrata con successo',
-      data: {
-        dispositivo,
-        temperatura,
-        tipo,
-        automatico,
-        note,
-        timestamp: new Date().toISOString()
-      }
-    });
-    
-  } catch (error) {
-    console.error('Errore salvataggio temperatura:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Errore salvataggio temperatura' 
-    });
-  }
-});
+// ============================================
+// SALVA TEMPERATURA
+// ============================================
+/**
+ * @route   POST /api/haccp/temperature
+ * @desc    Salva una nuova registrazione di temperatura
+ * @body    { dispositivo, tipo, temperatura, conforme, automatico, note }
+ * @access  Privato
+ */
+router.post('/temperature', haccpController.salvaTemperatura);
 
-// ✅ Endpoint per segnare registrazione completata
+// ============================================
+// STORICO TEMPERATURE
+// ============================================
+/**
+ * @route   GET /api/haccp/storico
+ * @desc    Ottiene storico temperature con filtri opzionali
+ * @query   dataInizio, dataFine, dispositivo, tipo
+ * @access  Privato
+ */
+router.get('/storico', haccpController.getStoricoTemperature);
+
+// ============================================
+// ESPORTA REPORT
+// ============================================
+/**
+ * @route   GET /api/haccp/report
+ * @desc    Esporta report HACCP per periodo specificato
+ * @query   dataInizio, dataFine
+ * @access  Privato
+ */
+router.get('/report', haccpController.esportaReport);
+
+// ============================================
+// SEGNA REGISTRAZIONE COMPLETATA (LEGACY)
+// ============================================
+/**
+ * @route   POST /api/haccp/segna-registrazione
+ * @desc    Endpoint legacy per retrocompatibilità
+ * @access  Privato
+ */
 router.post('/segna-registrazione', async (req, res) => {
   try {
     const { data } = req.body;
     
-    console.log('✅ Registrazione HACCP completata per data:', data);
+    console.log('✅ [HACCP Routes] Registrazione completata per data:', data);
     
     res.json({
       success: true,
@@ -111,10 +85,11 @@ router.post('/segna-registrazione', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Errore segna registrazione:', error);
+    console.error('❌ [HACCP Routes] Errore segna registrazione:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Errore conferma registrazione' 
+      message: 'Errore conferma registrazione',
+      error: error.message
     });
   }
 });
