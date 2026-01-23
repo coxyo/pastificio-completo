@@ -66,6 +66,7 @@ import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } fr
 
 // ✅ NUOVO 23/01/2026: Import HACCPAutoPopup per registrazione temperature martedì
 import HACCPAutoPopup from './HACCPAutoPopup';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
@@ -1100,10 +1101,6 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [dataSelezionata, setDataSelezionata] = useState(new Date().toISOString().split('T')[0]);
   
   const [notifica, setNotifica] = useState({ aperta: false, messaggio: '', tipo: 'info' });
-  
-  // ✅ NUOVO 23/01/2026: Stati per HACCP Auto Popup
-  const [showHACCPPopup, setShowHACCPPopup] = useState(false);
-  const [haccpTestMode, setHaccpTestMode] = useState(false);
   const [menuExport, setMenuExport] = useState(null);
   
   const [prodottiDisponibili, setProdottiDisponibili] = useState({});
@@ -1132,6 +1129,7 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [periodoFine, setPeriodoFine] = useState(new Date().toISOString().split('T')[0]);
   
   // ✅ FIX 17/01/2026: State per HACCP popup automatico
+  const [showHACCPPopup, setShowHACCPPopup] = useState(false);
   
   // ✅ PUSHER: Hook per chiamate entranti real-time
   const {
