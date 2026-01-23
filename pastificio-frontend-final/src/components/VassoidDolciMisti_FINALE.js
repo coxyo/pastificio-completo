@@ -1065,8 +1065,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
 
       {/* ========== SEZIONE 3: ESCLUSIONI (se modalità = mix_completo) ========== */}
       
-                  >
-                    <MenuItem value="Kg">Kg</MenuItem>
+                                   <MenuItem value="Kg">Kg</MenuItem>
                     <MenuItem value="Pezzi">Pezzi</MenuItem>
                     <MenuItem value="€">Euro</MenuItem>
                   </Select>
