@@ -1065,7 +1065,8 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                 disabled={!totaleTarget.valore || totaleTarget.valore <= 0 || composizione.length === 0}
                 startIcon={<Calculator size={20} />}
                 size="small"
-                Calcola
+                >
+                CALCOLA
               </Button>
 
               {/* Progresso inline */}
