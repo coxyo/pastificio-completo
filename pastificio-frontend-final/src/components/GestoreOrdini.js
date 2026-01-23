@@ -2049,10 +2049,14 @@ useEffect(() => {
     setSubmitInCorso(true);
     
     try {
-      if (ordineSelezionato) {
+      const isModifica = !!ordineSelezionato; // ✅ Fix 21/01/2026: Flag per distinguere CREATE vs UPDATE
+      
+      if (isModifica) {
         await aggiornaOrdine({ ...ordineSelezionato, ...nuovoOrdine });
+        // Messaggio "Ordine aggiornato" è gestito dentro aggiornaOrdine
       } else {
         await creaOrdine(nuovoOrdine);
+        // Messaggio "Ordine salvato" è gestito dentro creaOrdine
       }
       
       setOrdineSelezionato(null);
@@ -2060,7 +2064,8 @@ useEffect(() => {
       
     } catch (error) {
       console.error('Errore salvataggio:', error);
-      mostraNotifica('Errore durante il salvataggio', 'error');
+      const azione = ordineSelezionato ? 'l\'aggiornamento' : 'il salvataggio';
+      mostraNotifica(`Errore durante ${azione}`, 'error');
     } finally {
       setTimeout(() => setSubmitInCorso(false), 1000);
     }
