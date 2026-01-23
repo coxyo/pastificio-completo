@@ -1,8 +1,6 @@
-// components/VassoidDolciMisti.js
-// 🎂 COMPOSITORE VASSOI DOLCI PERSONALIZZATI - 2 MODALITÀ
-// ✅ Modalità 1: Aggiungi prodotti liberamente (DEFAULT)
-// ✅ Modalità 2: Imposta totale prima (con ricalcolo automatico)
-// 📅 Aggiornato: 23 Gennaio 2026
+// components/VassoidDolciMisti_FINALE.js
+// 🎂 COMPOSITORE VASSOI DOLCI PERSONALIZZATI - VERSIONE CORRETTA 26/11/2025
+// ✅ FIX: Protezione contro errori React #31 (undefined values)
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
@@ -135,7 +133,7 @@ const MIX_DOLCI_COMPLETO_DEFAULT = {
   'Gueffus': { peso: 0.040, percentuale: 5 }
 };
 
-
+const PESO_TOTALE_MIX_DEFAULT = 1.0; // 1 Kg
 
 // ==========================================
 // 🎯 CONFIGURAZIONE DIMENSIONI VASSOIO
@@ -152,7 +150,8 @@ const DIMENSIONI_VASSOIO = {
 // ==========================================
 const MODALITA = {
   LIBERA: 'libera',
-  TOTALE_PRIMA: 'totale_prima'
+  TOTALE_PRIMA: 'totale_prima',
+  MIX_COMPLETO: 'mix_completo'
 };
 
 // ==========================================
@@ -214,7 +213,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
   const [composizione, setComposizione] = useState([]);
   
   // Modalità "Mix Completo"
-  // Stato esclusioni rimosso
+  const [esclusioni, setEsclusioni] = useState([]);
   
   // Opzioni vassoio
   const [numeroVassoi, setNumeroVassoi] = useState(''); // ✅ VUOTO DI DEFAULT
@@ -376,15 +375,34 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
   const handleModalitaChange = (nuovaModalita) => {
     setModalita(nuovaModalita);
     setComposizione([]);
-    
+    setEsclusioni([]);
     setErrore('');
     setWarning('');
     
     // Inizializza Mix Completo
-    
+    if (nuovaModalita === MODALITA.MIX_COMPLETO) {
+      inizializzaMixCompleto();
+    }
   };
 
-  // inizializzaMixCompleto rimossa
+  /**
+   * Inizializza Mix Dolci Completo
+   */
+  const inizializzaMixCompleto = () => {
+    const nuovaComposizione = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT).map(([nome, info]) => {
+      const prezzo = calcolaPrezzoProdotto(nome, info.peso, 'Kg');
+      return {
+        id: Date.now() + Math.random(),
+        prodotto: nome,
+        quantita: info.peso,
+        unita: 'Kg',
+        prezzo: prezzo || 0,
+        percentuale: info.percentuale
+      };
+    });
+    
+    setComposizione(nuovaComposizione);
+  };
 
   /**
    * ✅ CALCOLA DISTRIBUZIONE TOTALE (modalità TOTALE_PRIMA)
@@ -466,13 +484,26 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
     console.log(`✅ Distribuiti ${totaleTarget.valore} ${totaleTarget.unita} tra ${itemsAutoCalc.length} prodotti`);
   };
 
-  // toggleEsclusione rimossa
+  /**
+   * Toggle esclusione prodotto (Mix Completo)
+   */
+  const toggleEsclusione = (nomeProdotto) => {
+    setEsclusioni(prev => {
+      const nuove = prev.includes(nomeProdotto)
+        ? prev.filter(p => p !== nomeProdotto)
+        : [...prev, nomeProdotto];
+      
+      // Ricalcola composizione
+      ricalcolaMixConEsclusioni(nuove);
+      return nuove;
+    });
+  };
 
   /**
    * Ricalcola Mix con esclusioni
    */
   const ricalcolaMixConEsclusioni = (esclusioni) => {
-    const prodottiInclusi = Object.entries({})
+    const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
       .filter(([nome]) => !esclusioni.includes(nome));
     
     const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
@@ -875,7 +906,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
     setComposizione([]);
     setNote('');
     setNumeroVassoi(1);
-    
+    setEsclusioni([]);
     
     if (onClose) {
       onClose();
@@ -941,6 +972,21 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
               </Box>
             }
           />
+          
+          <FormControlLabel
+            value={MODALITA.MIX_COMPLETO}
+            control={<Radio />}
+            label={
+              <Box>
+                <Typography variant="body1">
+                  ✨ Dolci Misti Completo (escludi qualcosa)
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Mix equilibrato da 1 Kg, puoi escludere prodotti
+                </Typography>
+              </Box>
+            }
+          />
         </RadioGroup>
       </Paper>
 
@@ -964,7 +1010,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                     
                     // Ricalcola composizione con nuova unità
                     if (totaleTarget.valore > 0) {
-                      const prodottiInclusi = Object.entries({})
+                      const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
                         .filter(([nome]) => !esclusioni.includes(nome));
                       
                       const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
@@ -1064,7 +1110,22 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
       )}
 
       {/* ========== SEZIONE 3: ESCLUSIONI (se modalità = mix_completo) ========== */}
-      
+      {modalita === MODALITA.MIX_COMPLETO && (
+        <>
+          {/* ✅ FIX 15/01/2026: Peso totale personalizzabile */}
+          <Paper sx={{ p: 3, mb: 2, bgcolor: '#FFF3E0', borderLeft: '4px solid #FF9800' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#E65100' }}>
+              ⚖️ Peso Totale Vassoio
+            </Typography>
+            
+            {/* ✅ TABLET FRIENDLY: Dropdown + Input + Chip */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                {/* Dropdown Unità */}
+                <FormControl size="small" sx={{ minWidth: 100 }}>
+                  <Select
+                    value={totaleTarget.unita || 'Kg'}
+                    onChange={(e) => setTotaleTarget(prev => ({ ...prev, unita: e.target.value }))}
                   >
                     <MenuItem value="Kg">Kg</MenuItem>
                     <MenuItem value="Pezzi">Pezzi</MenuItem>
@@ -1082,7 +1143,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                     setTotaleTarget(prev => ({ ...prev, valore: nuovoPeso }));
                     
                     // Ricalcola composizione con nuovo peso
-                    const prodottiInclusi = Object.entries({})
+                    const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
                       .filter(([nome]) => !esclusioni.includes(nome));
                     
                     const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
@@ -1158,7 +1219,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
             </Typography>
           
           <FormGroup row sx={{ mt: 2 }}>
-            {[].map(nome => (
+            {Object.keys(MIX_DOLCI_COMPLETO_DEFAULT).map(nome => (
               <FormControlLabel
                 key={nome}
                 control={
