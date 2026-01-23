@@ -1132,7 +1132,6 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [periodoFine, setPeriodoFine] = useState(new Date().toISOString().split('T')[0]);
   
   // ✅ FIX 17/01/2026: State per HACCP popup automatico
-  const [showHACCPPopup, setShowHACCPPopup] = useState(false);
   
   // ✅ PUSHER: Hook per chiamate entranti real-time
   const {
