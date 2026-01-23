@@ -1,5 +1,5 @@
 // controllers/haccpController.js
-// ✅ CONTROLLER COMPLETO HACCP CON TUTTE LE FUNZIONI
+// ✅ CONTROLLER COMPLETO HACCP - VERSIONE FINALE
 
 import RegistrazioneHACCP from '../models/RegistrazioneHACCP.js';
 
@@ -111,39 +111,51 @@ const haccpController = {
   },
 
   // ============================================
-  // 3. SALVA TEMPERATURA (⚠️ QUESTA MANCAVA!)
+  // 3. SALVA TEMPERATURA (⚠️ FUNZIONE MANCANTE!)
   // ============================================
   salvaTemperatura: async (req, res) => {
     try {
-      console.log('🌡️ [HACCP Controller] Ricevuta richiesta salvataggio temperature');
+      console.log('🌡️ [HACCP Controller] ========================================');
+      console.log('🌡️ [HACCP Controller] RICEVUTA RICHIESTA SALVATAGGIO TEMPERATURE');
+      console.log('🌡️ [HACCP Controller] ========================================');
       console.log('📊 [HACCP Controller] Body completo:', JSON.stringify(req.body, null, 2));
-      console.log('👤 [HACCP Controller] User:', req.user?.nome || 'Non autenticato');
+      console.log('👤 [HACCP Controller] User:', req.user?.nome || req.user?.email || 'Non autenticato');
 
       // Estrai dati dal body
       const { temperature, data, operatore, note } = req.body;
 
       // ⚠️ VALIDAZIONE CRITICA
-      if (!temperature || !Array.isArray(temperature)) {
-        console.error('❌ [HACCP Controller] Validazione fallita: temperature non è un array');
+      if (!temperature) {
+        console.error('❌ [HACCP Controller] Campo "temperature" mancante');
         return res.status(400).json({
           success: false,
-          message: 'Dati temperature mancanti o formato non valido. Atteso array di oggetti.'
+          message: 'Campo "temperature" mancante nel body della richiesta'
+        });
+      }
+
+      if (!Array.isArray(temperature)) {
+        console.error('❌ [HACCP Controller] Campo "temperature" non è un array:', typeof temperature);
+        return res.status(400).json({
+          success: false,
+          message: 'Campo "temperature" deve essere un array di oggetti'
         });
       }
 
       if (temperature.length === 0) {
-        console.error('❌ [HACCP Controller] Validazione fallita: array temperature vuoto');
+        console.error('❌ [HACCP Controller] Array "temperature" vuoto');
         return res.status(400).json({
           success: false,
-          message: 'Array temperature vuoto. Inserire almeno una temperatura.'
+          message: 'Array "temperature" vuoto. Inserire almeno una temperatura.'
         });
       }
 
-      console.log(`📊 [HACCP Controller] Temperature da salvare: ${temperature.length}`);
+      console.log(`📊 [HACCP Controller] ✅ Validazione OK - Temperature da salvare: ${temperature.length}`);
 
       // Prepara data registrazione
       const dataRegistrazione = data ? new Date(data) : new Date();
       dataRegistrazione.setHours(9, 0, 0, 0); // Normalizza a ore 9:00
+      
+      console.log(`📅 [HACCP Controller] Data registrazione: ${dataRegistrazione.toISOString()}`);
 
       // Array per risultati
       const risultati = [];
@@ -153,30 +165,46 @@ const haccpController = {
       for (let i = 0; i < temperature.length; i++) {
         const temp = temperature[i];
         
-        console.log(`📝 [HACCP Controller] Elaborazione temperatura ${i + 1}/${temperature.length}:`, temp);
+        console.log(`\n📝 [HACCP Controller] --- Elaborazione ${i + 1}/${temperature.length} ---`);
+        console.log(`📝 [HACCP Controller] Dispositivo: ${temp.dispositivo}`);
+        console.log(`📝 [HACCP Controller] Temperatura: ${temp.temperatura}°C`);
+        console.log(`📝 [HACCP Controller] Conforme: ${temp.conforme}`);
 
         try {
           // Validazione singola temperatura
-          if (!temp.dispositivo || temp.temperatura === undefined) {
-            console.warn(`⚠️ [HACCP Controller] Temperatura ${i + 1} incompleta, skip`);
+          if (!temp.dispositivo) {
+            console.warn(`⚠️ [HACCP Controller] Dispositivo mancante per temperatura ${i + 1}, skip`);
             errori.push({
               indice: i,
-              dispositivo: temp.dispositivo || 'sconosciuto',
-              errore: 'Dati incompleti'
+              dispositivo: 'sconosciuto',
+              errore: 'Dispositivo mancante'
             });
             continue;
           }
 
-          // Determina tipo
+          if (temp.temperatura === undefined || temp.temperatura === null) {
+            console.warn(`⚠️ [HACCP Controller] Valore temperatura mancante per ${temp.dispositivo}, skip`);
+            errori.push({
+              indice: i,
+              dispositivo: temp.dispositivo,
+              errore: 'Valore temperatura mancante'
+            });
+            continue;
+          }
+
+          // Determina tipo basandosi sul nome dispositivo
           let tipo = 'temperatura_frigo';
-          if (temp.dispositivo.toLowerCase().includes('freezer') || 
-              temp.dispositivo.toLowerCase().includes('congelatore')) {
+          const dispositivoLower = temp.dispositivo.toLowerCase();
+          
+          if (dispositivoLower.includes('freezer') || dispositivoLower.includes('congelatore')) {
             tipo = 'temperatura_congelatore';
-          } else if (temp.dispositivo.toLowerCase().includes('abbattitore')) {
+          } else if (dispositivoLower.includes('abbattitore')) {
             tipo = 'abbattimento';
           }
 
-          // Determina limiti
+          console.log(`🔍 [HACCP Controller] Tipo determinato: ${tipo}`);
+
+          // Determina limiti temperatura
           let limiteMin, limiteMax;
           if (tipo === 'temperatura_frigo') {
             limiteMin = 0;
@@ -189,17 +217,21 @@ const haccpController = {
             limiteMax = -30;
           }
 
+          console.log(`🌡️ [HACCP Controller] Limiti: ${limiteMin}°C - ${limiteMax}°C`);
+
           // Verifica conformità
           const temperaturaValore = parseFloat(temp.temperatura);
           const conforme = temp.conforme !== undefined 
             ? temp.conforme 
             : (temperaturaValore >= limiteMin && temperaturaValore <= limiteMax);
 
-          // Crea documento
+          console.log(`✓ [HACCP Controller] Conformità: ${conforme ? 'SÌ ✅' : 'NO ❌'}`);
+
+          // Crea documento MongoDB
           const registrazione = new RegistrazioneHACCP({
             tipo,
             dataOra: dataRegistrazione,
-            operatore: operatore || req.user?.nome || 'Maurizio Mameli',
+            operatore: operatore || req.user?.nome || req.user?.email || 'Maurizio Mameli',
             temperatura: {
               valore: temperaturaValore,
               unitaMisura: '°C',
@@ -213,20 +245,24 @@ const haccpController = {
             note: temp.note || note || null
           });
 
+          console.log(`💾 [HACCP Controller] Salvataggio su MongoDB...`);
+
           // Salva in database
           const salvato = await registrazione.save();
           
-          console.log(`✅ [HACCP Controller] Temperatura ${i + 1} salvata: ${temp.dispositivo} = ${temperaturaValore}°C`);
+          console.log(`✅ [HACCP Controller] SALVATO! ID: ${salvato._id}`);
           
           risultati.push({
             dispositivo: temp.dispositivo,
             temperatura: temperaturaValore,
             conforme,
+            tipo,
             id: salvato._id
           });
 
         } catch (errSalvataggio) {
-          console.error(`❌ [HACCP Controller] Errore salvataggio temperatura ${i + 1}:`, errSalvataggio);
+          console.error(`❌ [HACCP Controller] ERRORE SALVATAGGIO temperatura ${i + 1}:`, errSalvataggio);
+          console.error(`❌ [HACCP Controller] Stack:`, errSalvataggio.stack);
           errori.push({
             indice: i,
             dispositivo: temp.dispositivo,
@@ -236,9 +272,13 @@ const haccpController = {
       }
 
       // Response finale
+      console.log(`\n🏁 [HACCP Controller] ========================================`);
+      console.log(`🏁 [HACCP Controller] SALVATAGGIO COMPLETATO`);
+      console.log(`🏁 [HACCP Controller] ========================================`);
+      console.log(`📊 [HACCP Controller] Successi: ${risultati.length}/${temperature.length}`);
+      console.log(`📊 [HACCP Controller] Errori: ${errori.length}`);
+
       if (risultati.length > 0) {
-        console.log(`✅ [HACCP Controller] Salvataggio completato: ${risultati.length}/${temperature.length} successi`);
-        
         res.json({
           success: true,
           message: `Temperature salvate con successo (${risultati.length}/${temperature.length})`,
@@ -250,19 +290,24 @@ const haccpController = {
           }
         });
       } else {
-        console.error('❌ [HACCP Controller] Nessuna temperatura salvata');
+        console.error('❌ [HACCP Controller] NESSUNA temperatura salvata!');
         res.status(400).json({
           success: false,
-          message: 'Nessuna temperatura è stata salvata',
+          message: 'Nessuna temperatura è stata salvata. Verifica i dati inviati.',
           errori
         });
       }
 
     } catch (error) {
-      console.error('💥 [HACCP Controller] Errore CATCH generale:', error);
+      console.error('💥 [HACCP Controller] ========================================');
+      console.error('💥 [HACCP Controller] ERRORE CATCH GENERALE');
+      console.error('💥 [HACCP Controller] ========================================');
+      console.error('💥 [HACCP Controller] Message:', error.message);
+      console.error('💥 [HACCP Controller] Stack:', error.stack);
+      
       res.status(500).json({
         success: false,
-        message: 'Errore interno del server durante il salvataggio',
+        message: 'Errore interno del server durante il salvataggio temperature',
         error: error.message,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
@@ -296,6 +341,8 @@ const haccpController = {
       if (tipo) {
         filtro.tipo = tipo;
       }
+
+      console.log('🔍 [HACCP Controller] Filtro query:', JSON.stringify(filtro, null, 2));
 
       // Query database
       const registrazioni = await RegistrazioneHACCP.find(filtro)
@@ -343,6 +390,8 @@ const haccpController = {
         .sort({ dataOra: -1 })
         .lean();
 
+      console.log(`📊 [HACCP Controller] Esportando ${registrazioni.length} registrazioni`);
+
       // Prepara CSV
       const csv = [
         'Data,Ora,Tipo,Dispositivo,Temperatura,Conforme,Operatore,Note',
@@ -356,16 +405,16 @@ const haccpController = {
             r.temperatura?.valore || '',
             r.conforme ? 'Sì' : 'No',
             r.operatore,
-            r.note || ''
+            (r.note || '').replace(/,/g, ';') // Escape virgole
           ].join(',');
         })
       ].join('\n');
 
-      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="haccp_report_${Date.now()}.csv"`);
-      res.send(csv);
+      res.send('\uFEFF' + csv); // BOM per UTF-8
 
-      console.log('✅ [HACCP Controller] Report esportato con successo');
+      console.log('✅ [HACCP Controller] Report CSV generato con successo');
 
     } catch (error) {
       console.error('❌ [HACCP Controller] Errore export:', error);
