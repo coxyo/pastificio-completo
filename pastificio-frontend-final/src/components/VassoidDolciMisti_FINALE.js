@@ -1008,31 +1008,9 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
                     const nuovaUnita = e.target.value;
                     setTotaleTarget(prev => ({ ...prev, unita: nuovaUnita }));
                     
-                    // Ricalcola composizione con nuova unità
-                    if (totaleTarget.valore > 0) {
-                      const prodottiInclusi = Object.entries(MIX_DOLCI_COMPLETO_DEFAULT)
-                        .filter(([nome]) => !esclusioni.includes(nome));
-                      
-                      const sommaPercentuali = prodottiInclusi.reduce((acc, [_, info]) => acc + info.percentuale, 0);
-                      
-                      if (sommaPercentuali > 0) {
-                        const nuovaComposizione = prodottiInclusi.map(([nome, info]) => {
-                          const quantitaRicalcolata = (info.percentuale / sommaPercentuali) * totaleTarget.valore;
-                          const prezzo = calcolaPrezzoProdotto(nome, quantitaRicalcolata, nuovaUnita);
-                          
-                          return {
-                            id: Date.now() + Math.random(),
-                            prodotto: nome,
-                            quantita: quantitaRicalcolata,
-                            unita: nuovaUnita,
-                            prezzo: prezzo || 0,
-                            percentuale: (info.percentuale / sommaPercentuali) * 100
-                          };
-                        });
-                        
-                        setComposizione(nuovaComposizione);
-                      }
-                    }
+                    // ✅ FIX 23/01/2026: NON auto-popolare prodotti quando cambia unità
+                    // L'utente vuole aggiungere prodotti manualmente
+                    // RIMOSSO: Ricalcolo automatico composizione
                   }}
                 >
                   <MenuItem value="Kg">Kg</MenuItem>
