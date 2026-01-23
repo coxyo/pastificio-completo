@@ -52,7 +52,7 @@ import {
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
 import { PRODOTTI_CONFIG } from '../config/prodottiConfig';
-import VassoidDolciMisti from './VassoidDolciMisti_FINALE';
+import VassoidDolciMisti from './VassoidDolciMisti_DUE_MODALITA.js;
 import VariantiProdotto, { 
   generaNomeProdottoConVarianti,
   prodottoHaVarianti,
