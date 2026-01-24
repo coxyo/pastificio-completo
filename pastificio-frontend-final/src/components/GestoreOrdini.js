@@ -64,9 +64,6 @@ import GestioneZeppole from './GestioneZeppole';
 import StatisticheChiamate from './StatisticheChiamate';
 import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } from '@mui/icons-material';
 
-// ✅ NUOVO 23/01/2026: Import HACCPAutoPopup per registrazione temperature martedì
-import HACCPAutoPopup from './HACCPAutoPopup';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
@@ -1770,11 +1767,6 @@ useEffect(() => {
         
         await sincronizzaConMongoDB();
         
-        
-        // 🆕 24/01/2026: Forza reload immediato dopo salvataggio
-        setTimeout(() => {
-          sincronizzaConMongoDB();
-        }, 500);
         // WebSocket notification disabilitato (ora si usa Pusher)
         /*
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -1888,11 +1880,6 @@ useEffect(() => {
       
       if (response.ok) {
         await sincronizzaConMongoDB();
-        
-        // 🆕 24/01/2026: Forza reload immediato dopo modifica
-        setTimeout(() => {
-          sincronizzaConMongoDB();
-        }, 500);
         mostraNotifica('Ordine aggiornato', 'success');
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -2414,26 +2401,6 @@ useEffect(() => {
     return () => { events.forEach(e => window.removeEventListener(e, registerActivity)); if (warningTimerRef.current) clearTimeout(warningTimerRef.current); };
   }, [registerActivity]);
 
-
-  // ============================================
-  // HACCP AUTO POPUP - FUNZIONI (23/01/2026)
-  // ============================================
-  const openHACCPPopup = () => {
-    console.log('🌡️ [GestoreOrdini] Apertura HACCP Auto Popup');
-    setShowHACCPPopup(true);
-  };
-
-  const closeHACCPPopup = () => {
-    console.log('❌ [GestoreOrdini] Chiusura HACCP Auto Popup');
-    setShowHACCPPopup(false);
-    setHaccpTestMode(false);
-  };
-
-  const testHACCPPopup = () => {
-    console.log('🧪 [GestoreOrdini] TEST MODE - Apertura forzata HACCP Popup');
-    setHaccpTestMode(true);
-    setShowHACCPPopup(true);
-  };
 
 return (
     <>
@@ -2990,7 +2957,7 @@ return (
         {/* ✅ NUOVO: CallPopup per chiamate in arrivo da Pusher/3CX */}
         <CallPopup
           chiamata={chiamataCorrente}
-          isOpen={isPopupOpen}
+          isOpen={isPopupOpen && !dialogoNuovoOrdineAperto}  // ✅ FIX 21/01/2026: Non mostrare se dialog aperto
           onClose={handleClosePopup}
           onNuovoOrdine={(cliente, numero) => {
             // ✅ FIX 17/01/2026: Salva cliente e numero
@@ -3012,11 +2979,13 @@ return (
   onClose={() => setDialogZeppoleOpen(false)} 
 />
 
-{/* ✅ ATTIVATO 23/01/2026: HACCP Auto Popup - Montato sempre per trigger martedì */}
-<HACCPAutoPopup 
-  onClose={() => setShowHACCPPopup(false)}
-  forceShow={false}
-/>
+{/* ✅ DISABILITATO 17/01/2026: Popup HACCP Automatico - Componente non trovato
+{showHACCPPopup && (
+  <HACCPAutoPopup 
+    onClose={closeHACCPPopup}
+  />
+)}
+*/}
 
       </Container>
     </>

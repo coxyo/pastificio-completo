@@ -2044,7 +2044,7 @@ clienteIdPreselezionato,
                         nome: newValue.nome || '',
                         cognome: newValue.cognome || '',
                         nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
-                        telefono: newValue.telefono || ''
+                        telefono: prev.telefono || newValue.telefono || '  // ✅ FIX 21/01/2026: Non sovrascrivere telefono se già presente
                       }));
                     } else if (typeof newValue === 'string') {
                       setFormData(prev => ({
@@ -2120,7 +2120,7 @@ clienteIdPreselezionato,
                         ...prev,
                         nome: newValue.nome || '',
                         cognome: newValue.cognome || '',
-                        telefono: newValue.telefono || '',
+                        telefono: prev.telefono || newValue.telefono || '  // ✅ FIX 21/01/2026: Non sovrascrivere telefono
                         nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
                         cliente: newValue._id
                       }));
@@ -2149,29 +2149,39 @@ clienteIdPreselezionato,
                 />
               </Grid>
 
-              {/* ✅ INDICATORE CLIENTE ESISTENTE */}
+              {/* ✅ INDICATORE CLIENTE ESISTENTE - Fix 21/01/2026: Permetti sempre modifica */}
               {formData.cliente && (
                 <Grid item xs={12}>
                   <Alert 
-                    severity="success" 
+                    severity="info" 
                     sx={{ py: 0.5 }}
                     action={
                       <Button 
                         size="small" 
                         color="inherit"
-                        onClick={() => setFormData(prev => ({
-                          ...prev,
-                          cliente: null
-                        }))}
+                        onClick={() => {
+                          // ✅ Reset completo - mantiene solo telefono
+                          setFormData(prev => ({
+                            ...prev,
+                            cliente: null,
+                            nome: '',
+                            cognome: '',
+                            nomeCliente: ''
+                          }));
+                        }}
                       >
-                        Modifica
+                        Usa Dati Diversi
                       </Button>
                     }
                   >
                     <Typography variant="body2">
-                      ✅ <strong>{formData.nome} {formData.cognome}</strong> - Cliente esistente
+                      ℹ️ <strong>{formData.nome} {formData.cognome}</strong> trovato per questo numero.
                       {formData.cliente.codiceCliente && ` (${formData.cliente.codiceCliente})`}
                       {formData.cliente.livelloFedelta && ` • ${formData.cliente.livelloFedelta}`}
+                      <br />
+                      <Typography variant="caption" sx={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                        Click "Usa Dati Diversi" per inserire un altro nome per questo numero.
+                      </Typography>
                     </Typography>
                   </Alert>
                 </Grid>
