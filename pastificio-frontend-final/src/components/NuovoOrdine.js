@@ -2044,7 +2044,7 @@ clienteIdPreselezionato,
                         nome: newValue.nome || '',
                         cognome: newValue.cognome || '',
                         nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
-                        telefono: prev.telefono || newValue.telefono || '  // ✅ FIX 21/01/2026: Non sovrascrivere telefono se già presente
+                        telefono: prev.telefono || newValue.telefono || '' // ✅ FIX 21/01/2026: Non sovrascrivere telefono
                       }));
                     } else if (typeof newValue === 'string') {
                       setFormData(prev => ({
@@ -2120,7 +2120,7 @@ clienteIdPreselezionato,
                         ...prev,
                         nome: newValue.nome || '',
                         cognome: newValue.cognome || '',
-                        telefono: prev.telefono || newValue.telefono || '  // ✅ FIX 21/01/2026: Non sovrascrivere telefono
+                        telefono: prev.telefono || newValue.telefono || '', // ✅ FIX 21/01/2026: Non sovrascrivere telefono
                         nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
                         cliente: newValue._id
                       }));
