@@ -41,7 +41,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-
  * ✅ Ordini Attivi (1-click) → Mostra badge + click per vedere lista
  * ✅ Salva Cliente (1-click) → Form rapido nome/cognome/telefono
  */
-function CallPopup({ chiamata, onClose, onSaveNote }) {
+function CallPopup({ chiamata, onClose, onSaveNote, isOpen = true }) {
   // ✅ TUTTI GLI HOOKS PRIMA
   const [loading, setLoading] = useState(false);
   const [ordiniAttivi, setOrdiniAttivi] = useState([]);
@@ -299,7 +299,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
   };
 
   // ✅ RETURN CONDIZIONALE DOPO TUTTI GLI HOOKS
-  if (!chiamata || !mounted) {
+  if (!chiamata || !mounted || !isOpen) {
     return null;
   }
 
@@ -307,7 +307,7 @@ function CallPopup({ chiamata, onClose, onSaveNote }) {
 
   return (
     <Dialog
-      open={true}
+      open={isOpen}
       onClose={onClose}
       maxWidth="sm"
       fullWidth
