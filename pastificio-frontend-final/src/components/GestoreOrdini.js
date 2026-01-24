@@ -1770,6 +1770,11 @@ useEffect(() => {
         
         await sincronizzaConMongoDB();
         
+        
+        // 🆕 24/01/2026: Forza reload immediato dopo salvataggio
+        setTimeout(() => {
+          sincronizzaConMongoDB();
+        }, 500);
         // WebSocket notification disabilitato (ora si usa Pusher)
         /*
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -1883,6 +1888,11 @@ useEffect(() => {
       
       if (response.ok) {
         await sincronizzaConMongoDB();
+        
+        // 🆕 24/01/2026: Forza reload immediato dopo modifica
+        setTimeout(() => {
+          sincronizzaConMongoDB();
+        }, 500);
         mostraNotifica('Ordine aggiornato', 'success');
       } else {
         const errorData = await response.json().catch(() => ({}));
