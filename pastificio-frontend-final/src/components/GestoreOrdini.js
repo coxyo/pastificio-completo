@@ -47,7 +47,7 @@ import {
 } from '../utils/calcoliPrezzi';
 
 import NuovoOrdine from './NuovoOrdine';
-import OrdiniList from './OrdiniList';
+import OrdiniList, { CATEGORIE } from './OrdiniList';
 import InstallPWA from './InstallPWA';
 import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
@@ -428,7 +428,7 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         {totaleRavioli > 0 && (
           <Chip 
             label={`🥟 Ravioli: ${totaleRavioli.toFixed(1)} KG`} 
-            color="error" 
+            sx={{ fontWeight: \'bold\', cursor: \'pointer\', backgroundColor: CATEGORIE.RAVIOLI.colore, color: \'white\' }} 
             sx={{ fontWeight: 'bold', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('RAVIOLI')}
           />
@@ -436,7 +436,7 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         {totalePardulas > 0 && (
           <Chip 
             label={`🟡 Pardulas: ${totalePardulas.toFixed(1)} KG`} 
-            color="warning" 
+            sx={{ fontWeight: \'bold\', cursor: \'pointer\', backgroundColor: CATEGORIE.PARDULAS.colore, color: \'white\' }} 
             sx={{ fontWeight: 'bold', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('PARDULAS')}
           />
@@ -444,7 +444,7 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         {totaleDolci > 0 && (
           <Chip 
             label={`🍪 Dolci: ${totaleDolci.toFixed(1)} KG`} 
-            color="success" 
+            sx={{ fontWeight: \'bold\', cursor: \'pointer\', backgroundColor: CATEGORIE.DOLCI.colore, color: \'#333\' }} 
             sx={{ fontWeight: 'bold', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('DOLCI')}
           />
@@ -452,42 +452,42 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         {totalePanadas > 0 && (
           <Chip 
             label={`🥧 Panadas: ${totalePanadas.toFixed(1)} KG`} 
-            sx={{ fontWeight: 'bold', backgroundColor: '#ff9800', color: 'white', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', backgroundColor: CATEGORIE.PANADAS.colore, color: 'white', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('PANADAS')}
           />
         )}
         {totaleSebadas > 0 && (
           <Chip 
             label={`🍪 Seabadas: ${totaleSebadas.toFixed(1)} KG`} 
-            sx={{ fontWeight: 'bold', backgroundColor: '#AA96DA', color: 'white', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', backgroundColor: CATEGORIE.SEABADAS.colore, color: 'white', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('SEABADAS')}
           />
         )}
         {totaleZeppole > 0 && (
           <Chip 
             label={`🍩 Zeppole: ${totaleZeppole.toFixed(1)} KG`} 
-            sx={{ fontWeight: 'bold', backgroundColor: '#FCCD90', color: 'white', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', backgroundColor: CATEGORIE.ZEPPOLE.colore, color: 'white', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('ZEPPOLE')}
           />
         )}
         {totalePanadine > 0 && (
           <Chip 
             label={`🥐 Panadine: ${totalePanadine.toFixed(1)} KG`} 
-            sx={{ fontWeight: 'bold', backgroundColor: '#FCBAD3', color: 'white', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', backgroundColor: CATEGORIE.PANADINE.colore, color: 'white', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('PANADINE')}
           />
         )}
         {totalePasta > 0 && (
           <Chip 
             label={`🍝 Pasta: ${totalePasta.toFixed(1)} KG`} 
-            sx={{ fontWeight: 'bold', backgroundColor: '#B0BEC5', color: 'white', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', backgroundColor: CATEGORIE.PASTA.colore, color: 'white', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('PASTA')}
           />
         )}
         {totaleAltri > 0 && (
           <Chip 
             label={`📦 Altri: ${totaleAltri.toFixed(1)} KG`} 
-            color="info" 
+            sx={{ fontWeight: \'bold\', cursor: \'pointer\', backgroundColor: CATEGORIE.ALTRI.colore, color: \'#333\' }} 
             sx={{ fontWeight: 'bold', cursor: 'pointer' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('ALTRI')}
           />
