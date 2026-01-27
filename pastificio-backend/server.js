@@ -42,6 +42,7 @@ import fixPrezziRoutes from './routes/fix-prezzi-routes.js';
 import corrispettiviRoutes from './routes/corrispettivi.js';
 import emailRoutes from './routes/email.js';
 import haccpRoutes from './routes/haccp.js';
+import testHaccpRoutes from './routes/test-haccp-route.js'; // ⚠️ TEST TEMPORANEO
 import emailCorrispettiviRoutes from './routes/emailCorrispettivi.routes.js'; // ✅ NUOVO - Email corrispettivi
 
 // Import Danea Monitor
@@ -324,6 +325,7 @@ app.use('/api/corrispettivi', corrispettiviRoutes);
 app.use('/api/email-corrispettivi', emailCorrispettiviRoutes); // ✅ NUOVO - Route email corrispettivi
 app.use('/api/email', emailRoutes);
 app.use('/api/haccp', haccpRoutes);
+app.use('/api/haccp', testHaccpRoutes); // ⚠️ TEST TEMPORANEO
 app.use('/api/fix', fixPrezziRoutes);
 
 // Route Danea
