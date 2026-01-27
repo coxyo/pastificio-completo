@@ -514,11 +514,11 @@ export default function GestioneHACCP() {
             <Button
               fullWidth
               variant="contained"
-              color="warning"
+              color="primary"
               onClick={() => setTestHACCPPopupOpen(true)}
               sx={{ py: 2 }}
             >
-              🧪 Test HACCP
+              🌡️ REGISTRA ORA
             </Button>
           </Grid>
           <Grid item xs={6} md={2}>
@@ -1506,7 +1506,10 @@ export default function GestioneHACCP() {
       {/* ✅ NUOVO 23/01/2026: Popup Test HACCP */}
       {testHACCPPopupOpen && (
         <HACCPAutoPopup 
-          onClose={() => setTestHACCPPopupOpen(false)}
+          onClose={() => {
+            setTestHACCPPopupOpen(false);
+            caricaDashboard();
+          }}
           forceShow={true}
         />
       )}
