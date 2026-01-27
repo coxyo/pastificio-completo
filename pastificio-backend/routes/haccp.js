@@ -1,5 +1,5 @@
 // routes/haccp.js
-// ✅ ROUTES HACCP - MONGODB INTEGRATION
+// ✅ ROUTES HACCP - MONGODB INTEGRATION - VERSIONE FINALE
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import haccpController from '../controllers/haccpController.js';
@@ -7,9 +7,9 @@ import haccpController from '../controllers/haccpController.js';
 const router = express.Router();
 
 // ============================================
-// MIDDLEWARE AUTENTICAZIONE
+// NOTA: Middleware protect applicato individualmente
+// per maggiore flessibilità e debug
 // ============================================
-// router.use(protect); // COMMENTATO PER TEST
 
 // ============================================
 // DASHBOARD HACCP
@@ -19,7 +19,7 @@ const router = express.Router();
  * @desc    Ottiene dashboard HACCP con statistiche ultimi 30 giorni
  * @access  Privato
  */
-router.get('/dashboard', haccpController.getDashboard);
+router.get('/dashboard', protect, haccpController.getDashboard);
 
 // ============================================
 // CHECK REGISTRAZIONE GIORNALIERA
@@ -29,7 +29,7 @@ router.get('/dashboard', haccpController.getDashboard);
  * @desc    Verifica se le temperature sono già state registrate per la data specificata
  * @access  Privato
  */
-router.get('/check-registrazione', haccpController.checkRegistrazioneOggi);
+router.get('/check-registrazione', protect, haccpController.checkRegistrazioneOggi);
 
 // ============================================
 // SALVA TEMPERATURA
@@ -40,7 +40,7 @@ router.get('/check-registrazione', haccpController.checkRegistrazioneOggi);
  * @body    { temperature: [...], data, operatore, note }
  * @access  Privato
  */
-router.post('/temperature', haccpController.salvaTemperatura);
+router.post('/temperature', protect, haccpController.salvaTemperatura);
 
 // ============================================
 // STORICO TEMPERATURE
@@ -51,7 +51,7 @@ router.post('/temperature', haccpController.salvaTemperatura);
  * @query   dataInizio, dataFine, dispositivo, tipo
  * @access  Privato
  */
-router.get('/storico', haccpController.getStoricoTemperature);
+router.get('/storico', protect, haccpController.getStoricoTemperature);
 
 // ============================================
 // REGISTRAZIONI RECENTI
@@ -61,7 +61,7 @@ router.get('/storico', haccpController.getStoricoTemperature);
  * @desc    Ottiene registrazioni recenti con limite
  * @access  Privato
  */
-router.get('/registrazioni', async (req, res) => {
+router.get('/registrazioni', protect, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 100;
     
@@ -98,7 +98,7 @@ router.get('/registrazioni', async (req, res) => {
  * @query   dataInizio, dataFine
  * @access  Privato
  */
-router.get('/report', haccpController.esportaReport);
+router.get('/report', protect, haccpController.esportaReport);
 
 // ============================================
 // SEGNA REGISTRAZIONE COMPLETATA (LEGACY)
@@ -108,7 +108,7 @@ router.get('/report', haccpController.esportaReport);
  * @desc    Endpoint legacy per retrocompatibilità
  * @access  Privato
  */
-router.post('/segna-registrazione', async (req, res) => {
+router.post('/segna-registrazione', protect, async (req, res) => {
   try {
     const { data } = req.body;
     
