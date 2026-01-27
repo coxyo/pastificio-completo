@@ -1,6 +1,6 @@
 // src/components/HACCPAutoPopup.js
-// ✅ POPUP AUTOMATICO TEMPERATURE HACCP - MARTEDÌ
-// Genera automaticamente temperature realistiche per 5 dispositivi
+// ✅ POPUP AUTOMATICO TEMPERATURE HACCP - VERSIONE CORRETTA
+// Fix: Salvataggio con formato corretto per il controller
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -169,7 +169,7 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
       if (response.ok) {
         const data = await response.json();
         
-        if (data.giaRegistrato) {
+        if (data.data?.registrato) {
           console.log('✅ [HACCP] Temperature già registrate oggi');
           setLoading(false);
           return;
@@ -240,7 +240,7 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
   };
 
   // ============================================
-  // CONFERMA E SALVA
+  // CONFERMA E SALVA (✅ VERSIONE CORRETTA)
   // ============================================
   const handleConferma = async () => {
     setSaving(true);
@@ -249,37 +249,65 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
     try {
       const token = localStorage.getItem('token');
       
-      console.log('💾 [HACCP] Salvataggio temperature...');
+      console.log('💾 [HACCP] ========================================');
+      console.log('💾 [HACCP] INIZIO SALVATAGGIO TEMPERATURE');
+      console.log('💾 [HACCP] ========================================');
+      console.log('📊 [HACCP] Temperature da salvare:', temperature.length);
 
-      // Salva ogni temperatura
-      const promises = temperature.map(temp => 
-        fetch(`${API_URL}/api/haccp/temperature`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            dispositivo: temp.dispositivo,
-            tipo: temp.tipo,
-            temperatura: temp.temperatura,
-            conforme: temp.conforme,
-            automatico: true,
-            note: 'Registrazione automatica martedì'
-          })
-        })
-      );
+      // ✅ FORMATO CORRETTO: Array di temperature
+      const payload = {
+        temperature: temperature.map(temp => ({
+          dispositivo: temp.nome, // Nome completo (es: "Frigo 1 Isa")
+          temperatura: temp.temperatura,
+          conforme: temp.conforme,
+          note: null
+        })),
+        data: new Date().toISOString(),
+        operatore: 'Maurizio Mameli',
+        note: 'Registrazione settimanale automatica'
+      };
 
-      const results = await Promise.all(promises);
-      
-      // Verifica che tutte le richieste siano andate a buon fine
-      const allSuccess = results.every(r => r.ok);
-      
-      if (!allSuccess) {
-        throw new Error('Alcune temperature non sono state salvate');
+      console.log('📤 [HACCP] Payload da inviare:', JSON.stringify(payload, null, 2));
+
+      const response = await fetch(`${API_URL}/api/haccp/temperature`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('📡 [HACCP] Response status:', response.status);
+      console.log('📡 [HACCP] Response statusText:', response.statusText);
+
+      const responseText = await response.text();
+      console.log('📡 [HACCP] Response body (raw):', responseText);
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ [HACCP] Errore parsing JSON:', parseError);
+        throw new Error('Risposta del server non valida');
       }
 
-      console.log('✅ [HACCP] Tutte le temperature salvate con successo');
+      console.log('📡 [HACCP] Response parsed:', result);
+
+      if (!response.ok) {
+        console.error('❌ [HACCP] Response non OK:', result);
+        throw new Error(result.message || `Errore HTTP ${response.status}`);
+      }
+
+      if (!result.success) {
+        console.error('❌ [HACCP] Success = false:', result);
+        throw new Error(result.message || 'Salvataggio fallito');
+      }
+
+      console.log('✅ [HACCP] ========================================');
+      console.log('✅ [HACCP] SALVATAGGIO COMPLETATO CON SUCCESSO!');
+      console.log('✅ [HACCP] ========================================');
+      console.log('📊 [HACCP] Risultato:', result.data);
 
       // Salva data in localStorage come backup
       const oggi = new Date().toISOString().split('T')[0];
@@ -290,11 +318,20 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
       // Chiudi dopo 2 secondi
       setTimeout(() => {
         handleClose();
+        // Ricarica pagina per aggiornare dashboard
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
       }, 2000);
 
     } catch (err) {
-      console.error('❌ [HACCP] Errore salvataggio temperature:', err);
-      setError('Errore nel salvataggio. Riprova o registra manualmente dalla sezione HACCP.');
+      console.error('💥 [HACCP] ========================================');
+      console.error('💥 [HACCP] ERRORE SALVATAGGIO');
+      console.error('💥 [HACCP] ========================================');
+      console.error('💥 [HACCP] Message:', err.message);
+      console.error('💥 [HACCP] Stack:', err.stack);
+      
+      setError(`Errore nel salvataggio: ${err.message}. Riprova o registra manualmente dalla sezione HACCP.`);
     } finally {
       setSaving(false);
     }
