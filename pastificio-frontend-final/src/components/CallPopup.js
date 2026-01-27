@@ -55,11 +55,39 @@ function CallPopup({ chiamata, onClose, onSaveNote, isOpen = true }) {
   });
   const [salvandoCliente, setSalvandoCliente] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(45); // ✅ NUOVO: Timer 45 secondi
+  const [shouldShow, setShouldShow] = useState(true); // ✅ FIX 21/01: Controlla se mostrare popup
 
   // ✅ Hook SSR protection
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ✅ FIX 21/01/2026: Controlla se dialog "Nuovo Ordine" è aperto
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+    
+    const checkDialogOpen = () => {
+      // Cerca dialog con titolo "Nuovo Ordine" nel DOM
+      const dialogTitle = document.querySelector('[role="dialog"] h2');
+      const isNuovoOrdineOpen = dialogTitle && dialogTitle.textContent === 'Nuovo Ordine';
+      
+      if (isNuovoOrdineOpen) {
+        console.log('🚫 Dialog Nuovo Ordine aperto, nascondo CallPopup');
+        setShouldShow(false);
+      } else {
+        console.log('✅ Nessun dialog aperto, mostro CallPopup');
+        setShouldShow(true);
+      }
+    };
+    
+    // Controlla subito
+    checkDialogOpen();
+    
+    // Controlla ogni 500ms (per sicurezza)
+    const interval = setInterval(checkDialogOpen, 500);
+    
+    return () => clearInterval(interval);
+  }, [mounted, chiamata]);
 
   // ✅ NUOVO: Timer auto-chiusura 45 secondi
   useEffect(() => {
@@ -299,7 +327,7 @@ function CallPopup({ chiamata, onClose, onSaveNote, isOpen = true }) {
   };
 
   // ✅ RETURN CONDIZIONALE DOPO TUTTI GLI HOOKS
-  if (!chiamata || !mounted || !isOpen) {
+  if (!chiamata || !mounted || !isOpen || !shouldShow) {
     return null;
   }
 
