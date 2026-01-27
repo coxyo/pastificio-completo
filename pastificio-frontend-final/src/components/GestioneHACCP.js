@@ -665,9 +665,9 @@ export default function GestioneHACCP() {
                   </TableHead>
                   <TableBody>
                     {registrazioni
-                      .filter(r => r.tipo?.includes('temperatura'))
-                      .slice(0, 20)
-                      .map((reg, idx) => {
+  .filter(r => r.tipo?.includes('temperatura'))
+  // .slice(0, 20)  // ✅ RIMOSSO - mostra tutte
+  .map((reg, idx) => {
                         const status = getTemperaturaStatus(reg.temperatura?.valore, reg.tipo);
                         return (
                           <TableRow key={idx}>
