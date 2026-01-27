@@ -37,7 +37,7 @@ router.get('/check-registrazione', haccpController.checkRegistrazioneOggi);
 /**
  * @route   POST /api/haccp/temperature
  * @desc    Salva una nuova registrazione di temperatura
- * @body    { dispositivo, tipo, temperatura, conforme, automatico, note }
+ * @body    { temperature: [...], data, operatore, note }
  * @access  Privato
  */
 router.post('/temperature', haccpController.salvaTemperatura);
@@ -52,6 +52,42 @@ router.post('/temperature', haccpController.salvaTemperatura);
  * @access  Privato
  */
 router.get('/storico', haccpController.getStoricoTemperature);
+
+// ============================================
+// REGISTRAZIONI RECENTI
+// ============================================
+/**
+ * @route   GET /api/haccp/registrazioni?limit=500
+ * @desc    Ottiene registrazioni recenti con limite
+ * @access  Privato
+ */
+router.get('/registrazioni', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    
+    const RegistrazioneHACCP = (await import('../models/RegistrazioneHACCP.js')).default;
+    
+    const registrazioni = await RegistrazioneHACCP.find()
+      .sort({ dataOra: -1 })
+      .limit(limit)
+      .lean();
+    
+    console.log(`✅ [HACCP Routes] Recuperate ${registrazioni.length} registrazioni`);
+    
+    res.json({
+      success: true,
+      registrazioni
+    });
+    
+  } catch (error) {
+    console.error('❌ [HACCP Routes] Errore recupero registrazioni:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore recupero registrazioni',
+      error: error.message
+    });
+  }
+});
 
 // ============================================
 // ESPORTA REPORT
