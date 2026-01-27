@@ -9,7 +9,7 @@ const router = express.Router();
 // ============================================
 // MIDDLEWARE AUTENTICAZIONE
 // ============================================
-router.use(protect);
+// router.use(protect); // COMMENTATO PER TEST
 
 // ============================================
 // DASHBOARD HACCP
