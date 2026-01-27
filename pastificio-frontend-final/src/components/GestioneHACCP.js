@@ -227,7 +227,7 @@ export default function GestioneHACCP() {
       
       // Carica anche registrazioni recenti
       try {
-        const regResponse = await axios.get(`${API_URL}/haccp/registrazioni?limit=50`, getAuthHeaders());
+        const regResponse = await axios.get(`${API_URL}/haccp/registrazioni?limit=1000`, getAuthHeaders());
         setRegistrazioni(regResponse.data.registrazioni || []);
       } catch (e) {
         console.log('Registrazioni non disponibili');
@@ -754,7 +754,7 @@ export default function GestioneHACCP() {
                             <TableCell>{reg.temperatura?.dispositivo || 'N/D'}</TableCell>
                             <TableCell>
                               <Typography fontWeight="bold" color={status.color === 'success' ? 'success.main' : 'error.main'}>
-                                {reg.temperatura?.valore}°C
+                                {Math.round(reg.temperatura?.valore)}°C
                               </Typography>
                             </TableCell>
                             <TableCell>
