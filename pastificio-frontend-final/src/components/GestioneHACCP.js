@@ -147,6 +147,12 @@ export default function GestioneHACCP() {
   const [registrazioni, setRegistrazioni] = useState([]);
   const [nonConformita, setNonConformita] = useState([]);
   
+  // Stati paginazione e filtri temperature
+  const [paginaTemperature, setPaginaTemperature] = useState(0);
+  const [righePerPagina, setRighePerPagina] = useState(50);
+  const [filtroDaData, setFiltroDaData] = useState('');
+  const [filtroAData, setFiltroAData] = useState('');
+  
   // Dialog states
   const [dialogTemperatura, setDialogTemperatura] = useState(false);
   const [dialogPulizia, setDialogPulizia] = useState(false);
@@ -631,25 +637,83 @@ export default function GestioneHACCP() {
             </Box>
           )}
 
-          {/* TAB 1: TEMPERATURE */}
+
+          {/* TAB 1: TEMPERATURE CON PAGINAZIONE ✨ */}
           {tabCorrente === 1 && (
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6">
+              {/* Header con filtri data */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, gap: 2, flexWrap: 'wrap' }}>
+                <Typography variant="h6" sx={{ flex: '1 1 auto' }}>
                   📋 Scheda Controllo Temperature Frigoriferi
                 </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setDialogTemperatura(true)}
-                >
-                  Registra Temperatura
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <TextField
+                    label="Da Data"
+                    type="date"
+                    value={filtroDaData}
+                    onChange={(e) => {
+                      setFiltroDaData(e.target.value);
+                      setPaginaTemperature(0);
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                    sx={{ minWidth: 150 }}
+                  />
+                  <TextField
+                    label="A Data"
+                    type="date"
+                    value={filtroAData}
+                    onChange={(e) => {
+                      setFiltroAData(e.target.value);
+                      setPaginaTemperature(0);
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                    sx={{ minWidth: 150 }}
+                  />
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setDialogTemperatura(true)}
+                  >
+                    Registra Temperatura
+                  </Button>
+                </Box>
               </Box>
               
               <Alert severity="info" sx={{ mb: 2 }}>
                 <strong>Frequenza controllo:</strong> Settimanale | <strong>Limite:</strong> ≤ 4°C (frigo) | ≤ -18°C (congelatore)
               </Alert>
+
+              {/* Chip statistiche */}
+              <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                <Chip 
+                  label={`Totale: ${registrazioni.filter(r => r.tipo?.includes('temperatura')).length}`} 
+                  color="primary" 
+                  variant="outlined"
+                />
+                {(filtroDaData || filtroAData) && (
+                  <Chip 
+                    label={`Filtrate: ${registrazioni
+                      .filter(r => r.tipo?.includes('temperatura'))
+                      .filter(r => {
+                        if (!filtroDaData && !filtroAData) return true;
+                        const dataReg = new Date(r.dataOra);
+                        const da = filtroDaData ? new Date(filtroDaData) : new Date('2000-01-01');
+                        const a = filtroAData ? new Date(filtroAData) : new Date('2099-12-31');
+                        a.setHours(23, 59, 59, 999);
+                        return dataReg >= da && dataReg <= a;
+                      }).length}`}
+                    color="secondary"
+                    variant="outlined"
+                  />
+                )}
+                <Chip 
+                  label={`Pagina ${paginaTemperature + 1}`}
+                  color="info"
+                  variant="outlined"
+                />
+              </Box>
 
               <TableContainer component={Paper}>
                 <Table>
@@ -665,16 +729,33 @@ export default function GestioneHACCP() {
                   </TableHead>
                   <TableBody>
                     {registrazioni
-  .filter(r => r.tipo?.includes('temperatura'))
-  // .slice(0, 20)  // ✅ RIMOSSO - mostra tutte
-  .map((reg, idx) => {
+                      .filter(r => r.tipo?.includes('temperatura'))
+                      .filter(r => {
+                        if (!filtroDaData && !filtroAData) return true;
+                        const dataReg = new Date(r.dataOra);
+                        const da = filtroDaData ? new Date(filtroDaData) : new Date('2000-01-01');
+                        const a = filtroAData ? new Date(filtroAData) : new Date('2099-12-31');
+                        a.setHours(23, 59, 59, 999);
+                        return dataReg >= da && dataReg <= a;
+                      })
+                      .slice(paginaTemperature * righePerPagina, (paginaTemperature + 1) * righePerPagina)
+                      .map((reg, idx) => {
                         const status = getTemperaturaStatus(reg.temperatura?.valore, reg.tipo);
                         return (
-                          <TableRow key={idx}>
-                            <TableCell>{new Date(reg.dataOra).toLocaleString('it-IT')}</TableCell>
+                          <TableRow key={reg._id || idx} hover>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {new Date(reg.dataOra).toLocaleDateString('it-IT')}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(reg.dataOra).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                              </Typography>
+                            </TableCell>
                             <TableCell>{reg.temperatura?.dispositivo || 'N/D'}</TableCell>
                             <TableCell>
-                              <Typography fontWeight="bold">{reg.temperatura?.valore}°C</Typography>
+                              <Typography fontWeight="bold" color={status.color === 'success' ? 'success.main' : 'error.main'}>
+                                {reg.temperatura?.valore}°C
+                              </Typography>
                             </TableCell>
                             <TableCell>
                               <Chip 
@@ -684,13 +765,17 @@ export default function GestioneHACCP() {
                               />
                             </TableCell>
                             <TableCell>{reg.operatore}</TableCell>
-                            <TableCell>{reg.note || '-'}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                                {reg.note || '-'}
+                              </Typography>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
                     {registrazioni.filter(r => r.tipo?.includes('temperatura')).length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} align="center">
+                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                           <Typography color="text.secondary">
                             Nessuna registrazione. Clicca "Registra Temperatura" per iniziare.
                           </Typography>
@@ -700,6 +785,83 @@ export default function GestioneHACCP() {
                   </TableBody>
                 </Table>
               </TableContainer>
+
+              {/* PAGINAZIONE */}
+              {(() => {
+                const registrazioniFiltrate = registrazioni
+                  .filter(r => r.tipo?.includes('temperatura'))
+                  .filter(r => {
+                    if (!filtroDaData && !filtroAData) return true;
+                    const dataReg = new Date(r.dataOra);
+                    const da = filtroDaData ? new Date(filtroDaData) : new Date('2000-01-01');
+                    const a = filtroAData ? new Date(filtroAData) : new Date('2099-12-31');
+                    a.setHours(23, 59, 59, 999);
+                    return dataReg >= da && dataReg <= a;
+                  });
+                
+                const totalePagine = Math.ceil(registrazioniFiltrate.length / righePerPagina);
+                
+                if (registrazioniFiltrate.length === 0) return null;
+                
+                return (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, flexWrap: 'wrap', gap: 2 }}>
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Righe per pagina</InputLabel>
+                      <Select
+                        value={righePerPagina}
+                        label="Righe per pagina"
+                        onChange={(e) => {
+                          setRighePerPagina(e.target.value);
+                          setPaginaTemperature(0);
+                        }}
+                      >
+                        <MenuItem value={20}>20</MenuItem>
+                        <MenuItem value={50}>50</MenuItem>
+                        <MenuItem value={100}>100</MenuItem>
+                        <MenuItem value={200}>200</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Button
+                        size="small"
+                        disabled={paginaTemperature === 0}
+                        onClick={() => setPaginaTemperature(0)}
+                      >
+                        ⏮️ Prima
+                      </Button>
+                      <Button
+                        disabled={paginaTemperature === 0}
+                        onClick={() => setPaginaTemperature(p => p - 1)}
+                      >
+                        ← Precedente
+                      </Button>
+                      <Chip 
+                        label={`${paginaTemperature + 1} / ${totalePagine}`}
+                        color="primary"
+                      />
+                      <Button
+                        disabled={paginaTemperature >= totalePagine - 1}
+                        onClick={() => setPaginaTemperature(p => p + 1)}
+                      >
+                        Successiva →
+                      </Button>
+                      <Button
+                        size="small"
+                        disabled={paginaTemperature >= totalePagine - 1}
+                        onClick={() => setPaginaTemperature(totalePagine - 1)}
+                      >
+                        ⏭️ Ultima
+                      </Button>
+                    </Box>
+
+                    <Typography variant="body2" color="text.secondary">
+                      {Math.min(paginaTemperature * righePerPagina + 1, registrazioniFiltrate.length)}-
+                      {Math.min((paginaTemperature + 1) * righePerPagina, registrazioniFiltrate.length)} di {registrazioniFiltrate.length}
+                    </Typography>
+                  </Box>
+                );
+              })()}
             </Box>
           )}
 
