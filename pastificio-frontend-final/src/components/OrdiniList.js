@@ -641,7 +641,6 @@ Pastificio Nonna Claudia`;
             NUOVO
           </Button>
         </Box>
-      </Box>
 
       {/* Tabelle per categoria */}
       {Object.entries(CATEGORIE).map(([chiaveCategoria, configCategoria]) => {
