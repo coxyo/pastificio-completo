@@ -2645,6 +2645,59 @@ return (
           </Box>
         </Paper>
         
+        {/* ✅ FIX 27/01/2026: Data grande spostata qui sopra TotaliProduzione */}
+        {!caricamento && !ricercaCliente && (
+          <Box sx={{ mb: 2 }}>
+            <Box sx={{ 
+              p: 2, 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: 2,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              {/* Freccia sinistra */}
+              <IconButton 
+                onClick={() => {
+                  const data = new Date(dataSelezionata);
+                  data.setDate(data.getDate() - 1);
+                  setDataSelezionata(data.toISOString().split('T')[0]);
+                }}
+                sx={{ color: 'white', fontSize: '2rem' }}
+              >
+                ◀️
+              </IconButton>
+              
+              {/* Data e Ora */}
+              <Box sx={{ textAlign: 'center', flex: 1 }}>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+                  {['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][new Date(dataSelezionata + 'T12:00:00').getDay()]} {new Date(dataSelezionata + 'T12:00:00').toLocaleDateString('it-IT', { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                  }).toUpperCase()}
+                </Typography>
+                <Typography variant="body1" sx={{ mt: 0.5 }}>
+                  {ordini.filter(o => (o.dataRitiro || '').startsWith(dataSelezionata)).reduce((acc, o) => acc + (o.prodotti || []).length, 0)} prodotti
+                </Typography>
+              </Box>
+              
+              {/* Freccia destra */}
+              <IconButton 
+                onClick={() => {
+                  const data = new Date(dataSelezionata);
+                  data.setDate(data.getDate() + 1);
+                  setDataSelezionata(data.toISOString().split('T')[0]);
+                }}
+                sx={{ color: 'white', fontSize: '2rem' }}
+              >
+                ▶️
+              </IconButton>
+            </Box>
+          </Box>
+        )}
+        
         {/* ✅ NUOVO 10/12/2025: Totali Produzione per categoria */}
         {!caricamento && !ricercaCliente && (
           <TotaliProduzione ordini={ordini} dataSelezionata={dataSelezionata} />
