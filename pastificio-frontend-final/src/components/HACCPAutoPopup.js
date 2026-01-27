@@ -269,7 +269,7 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
 
       console.log('📤 [HACCP] Payload da inviare:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch(`${API_URL}/api/haccp/temperature`, {
+      const response = await fetch(`${API_URL}/haccp/temperature`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
