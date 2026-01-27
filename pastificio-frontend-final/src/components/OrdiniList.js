@@ -24,7 +24,7 @@ import ZoomInIcon from '@mui/icons-material/ZoomIn';
 const API_URL = 'https://pastificio-completo-production.up.railway.app/api';
 
 // ========== CONFIGURAZIONE CATEGORIE ==========
-const CATEGORIE = {
+export const CATEGORIE = {
   RAVIOLI: {
     nome: 'RAVIOLI',
     prodotti: ['Ravioli', 'Culurgiones'],

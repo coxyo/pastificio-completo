@@ -428,24 +428,21 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         {totaleRavioli > 0 && (
           <Chip 
             label={`🥟 Ravioli: ${totaleRavioli.toFixed(1)} KG`} 
-            sx={{ fontWeight: \'bold\', cursor: \'pointer\', backgroundColor: CATEGORIE.RAVIOLI.colore, color: \'white\' }} 
-            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', cursor: 'pointer', backgroundColor: CATEGORIE.RAVIOLI.colore, color: 'white' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('RAVIOLI')}
           />
         )}
         {totalePardulas > 0 && (
           <Chip 
             label={`🟡 Pardulas: ${totalePardulas.toFixed(1)} KG`} 
-            sx={{ fontWeight: \'bold\', cursor: \'pointer\', backgroundColor: CATEGORIE.PARDULAS.colore, color: \'white\' }} 
-            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', cursor: 'pointer', backgroundColor: CATEGORIE.PARDULAS.colore, color: 'white' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('PARDULAS')}
           />
         )}
         {totaleDolci > 0 && (
           <Chip 
             label={`🍪 Dolci: ${totaleDolci.toFixed(1)} KG`} 
-            sx={{ fontWeight: \'bold\', cursor: \'pointer\', backgroundColor: CATEGORIE.DOLCI.colore, color: \'#333\' }} 
-            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', cursor: 'pointer', backgroundColor: CATEGORIE.DOLCI.colore, color: '#333' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('DOLCI')}
           />
         )}
@@ -487,8 +484,7 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         {totaleAltri > 0 && (
           <Chip 
             label={`📦 Altri: ${totaleAltri.toFixed(1)} KG`} 
-            sx={{ fontWeight: \'bold\', cursor: \'pointer\', backgroundColor: CATEGORIE.ALTRI.colore, color: \'#333\' }} 
-            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
+            sx={{ fontWeight: 'bold', cursor: 'pointer', backgroundColor: CATEGORIE.ALTRI.colore, color: '#333' }}
             onClick={() => window.scrollToCategoria && window.scrollToCategoria('ALTRI')}
           />
         )}
