@@ -58,6 +58,8 @@ import VariantiProdotto, {
   prodottoHaVarianti,
   CONFIGURAZIONE_VARIANTI  // ✅ NUOVO: Per opzioni extra
 } from './VariantiProdotto';
+import BarraDisponibilita from './BarraDisponibilita';
+import SelectOrarioIntelligente from './SelectOrarioIntelligente';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
@@ -118,6 +120,8 @@ clienteIdPreselezionato,
   const [limiti, setLimiti] = useState([]);
   const [loadingLimiti, setLoadingLimiti] = useState(false);
   const [alertLimiti, setAlertLimiti] = useState([]);
+  const [conteggioOrari, setConteggioOrari] = useState(null);
+  const [loadingConteggioOrari, setLoadingConteggioOrari] = useState(false);
 
   const [formData, setFormData] = useState({
     cliente: null,
@@ -274,6 +278,37 @@ clienteIdPreselezionato,
       setLoadingLimiti(false);
     }
   };
+
+  // ✅ NUOVO 28/01/2026: Carica conteggio ordini per data selezionata
+  const caricaConteggioOrari = async (data) => {
+    try {
+      setLoadingConteggioOrari(true);
+      console.log('🔄 Caricamento conteggio orari per data:', data);
+      
+      const response = await fetch(`${API_URL}/ordini/conteggio-orari?dataRitiro=${data}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        setConteggioOrari(result);
+        console.log(`✅ Conteggio orari caricato: ${result.totaleOrdini} ordini`);
+      } else {
+        console.error('Errore caricamento conteggio orari:', response.status);
+        setConteggioOrari(null);
+      }
+    } catch (error) {
+      console.error('Errore caricamento conteggio orari:', error);
+      setConteggioOrari(null);
+    } finally {
+      setLoadingConteggioOrari(false);
+    }
+  };
+
+  // ✅ NUOVO 28/01/2026: Effect per caricare conteggio quando cambia data
+  useEffect(() => {
+    if (formData.dataRitiro && isConnected) {
+      caricaConteggioOrari(formData.dataRitiro);
+    }
+  }, [formData.dataRitiro, isConnected]);
 
   // ✅ Verifica limiti ogni volta che cambiano prodotti
   useEffect(() => {
@@ -2259,6 +2294,13 @@ clienteIdPreselezionato,
               </IconButton>
             </Box>
             
+            {/* ✅ NUOVO 28/01/2026: Barra disponibilità orari */}
+            <BarraDisponibilita 
+              conteggioOrari={conteggioOrari}
+              dataSelezionata={formData.dataRitiro}
+              loading={loadingConteggioOrari}
+            />
+            
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 fullWidth
@@ -2268,13 +2310,12 @@ clienteIdPreselezionato,
                 onChange={(e) => setFormData({ ...formData, dataRitiro: e.target.value })}
                 InputLabelProps={{ shrink: true }}
               />
-              <TextField
-                fullWidth
-                type="time"
-                label="Ora Ritiro *"
+              <SelectOrarioIntelligente
                 value={formData.oraRitiro}
                 onChange={(e) => setFormData({ ...formData, oraRitiro: e.target.value })}
-                InputLabelProps={{ shrink: true }}
+                conteggioOrari={conteggioOrari}
+                loading={loadingConteggioOrari}
+                disabled={!formData.dataRitiro}
               />
             </Box>
           </Paper>
