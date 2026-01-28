@@ -6,9 +6,13 @@ import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
 import { protect } from '../middleware/auth.js';
 import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
-router.get('/conteggio-orari', ordiniController.getConteggioOrari);
+import ordiniController from '../controllers/ordiniController.js'; // ✅ AGGIUNGI QUESTA RIGA
+
 
 const router = express.Router();
+
+// ✅ METTI QUI (dopo la dichiarazione del router)
+router.get('/conteggio-orari', ordiniController.getConteggioOrari);
 
 // ✅ NUOVO 13/12/2025: Configurazione prezzi prodotti lato backend
 const PREZZI_PRODOTTI = {
