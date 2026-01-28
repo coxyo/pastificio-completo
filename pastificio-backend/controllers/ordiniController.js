@@ -1,4 +1,4 @@
-// controllers/ordiniController.js - ✅ FIX FINALE CALCOLO PREZZI
+// controllers/ordiniController.js - ✅ FIX FINALE CALCOLO PREZZI + CONTEGGIO ORARI
 import { AppError } from '../middleware/errorHandler.js';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
@@ -255,55 +255,58 @@ Grazie! 🙏
 
   async getOrdini(req, res) {
     try {
-      const page = parseInt(req.query.page, 10) || 1;
-      const limit = parseInt(req.query.limit, 10) || 50;
-      const skip = (page - 1) * limit;
+      const {
+        page = 1,
+        limit = 50,
+        search,
+        stato,
+        dataRitiro,
+        dataInizio,
+        dataFine,
+        daViaggio
+      } = req.query;
 
-      let query = {};
-      
-      if (req.query.data) {
-        const dataInizio = new Date(req.query.data);
-        dataInizio.setHours(0, 0, 0, 0);
-        const dataFine = new Date(req.query.data);
-        dataFine.setHours(23, 59, 59, 999);
-        
-        query.dataRitiro = {
-          $gte: dataInizio,
-          $lte: dataFine
-        };
-      }
-      
-      if (req.query.cliente) {
-        query.nomeCliente = new RegExp(req.query.cliente, 'i');
-      }
+      const query = {};
 
-      if (req.query.clienteId) {
-        query.cliente = req.query.clienteId;
+      if (search) {
+        query.$or = [
+          { nomeCliente: { $regex: search, $options: 'i' } },
+          { telefono: { $regex: search, $options: 'i' } },
+          { numeroOrdine: { $regex: search, $options: 'i' } }
+        ];
       }
 
-      if (req.query.stato) {
-        query.stato = req.query.stato;
+      if (stato && stato !== 'tutti') {
+        query.stato = stato;
       }
 
-      if (req.query.daViaggio !== undefined) {
-        query.daViaggio = req.query.daViaggio === 'true';
+      if (dataRitiro) {
+        query.dataRitiro = dataRitiro;
+      } else if (dataInizio || dataFine) {
+        query.dataRitiro = {};
+        if (dataInizio) query.dataRitiro.$gte = dataInizio;
+        if (dataFine) query.dataRitiro.$lte = dataFine;
       }
 
-      const [ordini, total] = await Promise.all([
-        Ordine.find(query)
-          .populate('cliente', 'nome cognome ragioneSociale tipo telefono')
-          .skip(skip)
-          .limit(limit)
-          .sort('-createdAt'),
-        Ordine.countDocuments(query)
-      ]);
+      if (daViaggio !== undefined) {
+        query.daViaggio = daViaggio === 'true';
+      }
+
+      const ordini = await Ordine.find(query)
+        .populate('cliente', 'nome cognome telefono email')
+        .populate('creatoDa', 'nome cognome')
+        .sort({ dataRitiro: -1, oraRitiro: -1 })
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit));
+
+      const total = await Ordine.countDocuments(query);
 
       res.json({
         success: true,
         data: ordini,
         pagination: {
-          page,
-          limit,
+          page: parseInt(page),
+          limit: parseInt(limit),
           total,
           pages: Math.ceil(total / limit)
         }
@@ -555,6 +558,113 @@ Grazie! 🙏
         error: error.message
       });
     }
+  },
+
+  // ========================================
+  // ✅ NUOVO 28/01/2026: Endpoint conteggio orari per barra disponibilità
+  // ========================================
+  
+  /**
+   * Ottiene conteggio ordini raggruppati per orario
+   * Usato per la barra disponibilità e il dropdown intelligente nel frontend
+   * 
+   * Query params:
+   * - dataRitiro: data in formato YYYY-MM-DD (obbligatorio)
+   * 
+   * Response:
+   * {
+   *   data: "2026-01-28",
+   *   totaleOrdini: 12,
+   *   orarioPicco: "11:00",
+   *   ordiniPicco: 6,
+   *   conteggioPerOra: { "09:00": 1, "10:00": 3, ... },
+   *   fasceLibere: ["09:00", "13:00", "15:00"]
+   * }
+   */
+  async getConteggioOrari(req, res) {
+    try {
+      const { dataRitiro } = req.query;
+      
+      if (!dataRitiro) {
+        return res.status(400).json({ 
+          success: false,
+          error: 'Parametro dataRitiro obbligatorio (formato: YYYY-MM-DD)' 
+        });
+      }
+
+      // Query ottimizzata: conta solo ordini NON annullati per quella data
+      const ordini = await Ordine.find({
+        dataRitiro: dataRitiro,
+        stato: { $ne: 'annullato' }
+      })
+      .select('oraRitiro') // Prende solo il campo oraRitiro (ottimizzazione)
+      .lean(); // Ritorna oggetti JS semplici (più veloce)
+
+      // Conta ordini per orario
+      const conteggioPerOra = {};
+      let orarioPicco = '';
+      let ordiniPicco = 0;
+
+      ordini.forEach(ordine => {
+        const ora = ordine.oraRitiro;
+        if (!ora) return; // Skip se manca l'ora
+        
+        conteggioPerOra[ora] = (conteggioPerOra[ora] || 0) + 1;
+        
+        // Trova l'orario di picco
+        if (conteggioPerOra[ora] > ordiniPicco) {
+          ordiniPicco = conteggioPerOra[ora];
+          orarioPicco = ora;
+        }
+      });
+
+      // Trova fasce libere (orari con 0-1 ordini)
+      const fasceLibere = [];
+      const orariPossibili = this.generaOrariPossibili(); // 08:00 - 20:00 ogni 30min
+      
+      for (const ora of orariPossibili) {
+        const count = conteggioPerOra[ora] || 0;
+        if (count <= 1) {
+          fasceLibere.push(ora);
+        }
+      }
+
+      const risultato = {
+        success: true,
+        data: dataRitiro,
+        totaleOrdini: ordini.length,
+        orarioPicco: orarioPicco || null,
+        ordiniPicco: ordiniPicco,
+        conteggioPerOra: conteggioPerOra,
+        fasceLibere: fasceLibere,
+        generatedAt: new Date().toISOString()
+      };
+
+      logger.info(`✅ Conteggio orari per ${dataRitiro}: ${ordini.length} ordini`);
+      res.json(risultato);
+
+    } catch (error) {
+      logger.error('❌ Errore in getConteggioOrari:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message 
+      });
+    }
+  },
+
+  /**
+   * Helper: genera array di orari possibili (08:00 - 20:00, ogni 30 min)
+   */
+  generaOrariPossibili() {
+    const orari = [];
+    for (let h = 8; h <= 20; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const ora = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        orari.push(ora);
+        if (h === 20 && m === 0) break; // Stop a 20:00
+      }
+    }
+    return orari;
   }
 };
 

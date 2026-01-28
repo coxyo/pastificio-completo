@@ -6,6 +6,7 @@ import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
 import { protect } from '../middleware/auth.js';
 import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
+router.get('/conteggio-orari', ordiniController.getConteggioOrari);
 
 const router = express.Router();
 
