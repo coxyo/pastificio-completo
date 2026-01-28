@@ -581,6 +581,27 @@ Grazie! 🙏
    *   fasceLibere: ["09:00", "13:00", "15:00"]
    * }
    */
+  / ========================================
+  // ✅ NUOVO 28/01/2026: Endpoint conteggio orari per barra disponibilità
+  // ========================================
+  
+  /**
+   * Ottiene conteggio ordini raggruppati per orario
+   * Usato per la barra disponibilità e il dropdown intelligente nel frontend
+   * 
+   * Query params:
+   * - dataRitiro: data in formato YYYY-MM-DD (obbligatorio)
+   * 
+   * Response:
+   * {
+   *   data: "2026-01-28",
+   *   totaleOrdini: 12,
+   *   orarioPicco: "11:00",
+   *   ordiniPicco: 6,
+   *   conteggioPerOra: { "09:00": 1, "10:00": 3, ... },
+   *   fasceLibere: ["09:00", "13:00", "15:00"]
+   * }
+   */
   async getConteggioOrari(req, res) {
     try {
       const { dataRitiro } = req.query;
@@ -590,51 +611,36 @@ Grazie! 🙏
           success: false,
           error: 'Parametro dataRitiro obbligatorio (formato: YYYY-MM-DD)' 
         });
-      },
-
-// ✅ AGGIUNGI QUESTA FUNZIONE
-generaOrariPossibili() {
-  const orari = [];
-  for (let h = 8; h <= 20; h++) {
-    for (let m = 0; m < 60; m += 30) {
-      const ora = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-      orari.push(ora);
-      if (h === 20 && m === 0) break; // Stop a 20:00
-    }
-  }
-  return orari;
-}
-
+      }
 
       // Query ottimizzata: conta solo ordini NON annullati per quella data
       const ordini = await Ordine.find({
         dataRitiro: dataRitiro,
         stato: { $ne: 'annullato' }
       })
-      .select('oraRitiro') // Prende solo il campo oraRitiro (ottimizzazione)
-      .lean(); // Ritorna oggetti JS semplici (più veloce)
+      .select('oraRitiro')
+      .lean();
 
-      // Conta ordini per orario
+      // Conta ordini per ogni ora
       const conteggioPerOra = {};
       let orarioPicco = '';
       let ordiniPicco = 0;
 
       ordini.forEach(ordine => {
         const ora = ordine.oraRitiro;
-        if (!ora) return; // Skip se manca l'ora
+        if (!ora) return;
         
         conteggioPerOra[ora] = (conteggioPerOra[ora] || 0) + 1;
         
-        // Trova l'orario di picco
         if (conteggioPerOra[ora] > ordiniPicco) {
           ordiniPicco = conteggioPerOra[ora];
           orarioPicco = ora;
         }
       });
 
-      // Trova fasce libere (orari con 0-1 ordini)
+      // Identifica fasce libere (0-1 ordini)
       const fasceLibere = [];
-      const orariPossibili = this.generaOrariPossibili(); // 08:00 - 20:00 ogni 30min
+      const orariPossibili = this.generaOrariPossibili();
       
       for (const ora of orariPossibili) {
         const count = conteggioPerOra[ora] || 0;
@@ -680,6 +686,10 @@ generaOrariPossibili() {
     }
     return orari;
   }
+
+// ========================================
+// ✅ CHIUSURA OGGETTO ordiniController
+// ========================================
 };
 
-export default ordiniController; 
+export default ordiniController;
