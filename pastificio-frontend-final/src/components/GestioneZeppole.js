@@ -325,13 +325,10 @@ const GestioneZeppole = ({ open, onClose }) => {
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="lg"
-      fullWidth
+      fullScreen
       PaperProps={{
         sx: {
-          bgcolor: '#fff',
-          borderRadius: 2,
-          maxHeight: '95vh'
+          bgcolor: '#fff'
         }
       }}
     >
@@ -464,13 +461,13 @@ const GestioneZeppole = ({ open, onClose }) => {
                   </Typography>
                 </Box>
 
-                {/* BOTTONI RAPIDI - ✅ FIX: Etichette corrette, niente duplicati */}
+                {/* BOTTONI RAPIDI - ✅ FIX: g minuscola */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0.5, mb: 1 }}>
                   {[
-                    { g: 100, label: '100 g' },
-                    { g: 200, label: '200 g' },
-                    { g: 500, label: '500 g' },
-                    { g: 700, label: '700 g' }
+                    { g: 100, label: '+ 100 g' },
+                    { g: 200, label: '+ 200 g' },
+                    { g: 500, label: '+ 500 g' },
+                    { g: 700, label: '+ 700 g' }
                   ].map(({ g, label }) => (
                     <Button
                       key={g}
@@ -481,7 +478,7 @@ const GestioneZeppole = ({ open, onClose }) => {
                       size="small"
                       sx={{ height: 36, fontSize: 13, fontWeight: 600 }}
                     >
-                      + {label}
+                      {label}
                     </Button>
                   ))}
                 </Box>
@@ -643,7 +640,7 @@ const GestioneZeppole = ({ open, onClose }) => {
                   </Typography>
                 </Box>
               ) : (
-                <TableContainer sx={{ maxHeight: 300 }}>
+                <TableContainer sx={{ maxHeight: 'calc(100vh - 450px)' }}>
                   <Table stickyHeader size="small">
                     <TableHead>
                       <TableRow>
