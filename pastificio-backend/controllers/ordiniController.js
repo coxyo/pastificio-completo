@@ -590,7 +590,21 @@ Grazie! 🙏
           success: false,
           error: 'Parametro dataRitiro obbligatorio (formato: YYYY-MM-DD)' 
         });
-      }
+      },
+
+// ✅ AGGIUNGI QUESTA FUNZIONE
+generaOrariPossibili() {
+  const orari = [];
+  for (let h = 8; h <= 20; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      const ora = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      orari.push(ora);
+      if (h === 20 && m === 0) break; // Stop a 20:00
+    }
+  }
+  return orari;
+}
+
 
       // Query ottimizzata: conta solo ordini NON annullati per quella data
       const ordini = await Ordine.find({
