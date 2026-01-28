@@ -132,11 +132,11 @@ export const ordiniController = {
           quantita: p.quantita,
           unita: unitaMisura,
           unitaMisura: unitaMisura,
-          prezzo: risultato.prezzoTotale, // ✅ USA PREZZO RICALCOLATO DAL BACKEND
+          prezzo: risultato.prezzoTotale,
           prezzoUnitario: risultato.prezzoTotale / p.quantita,
           categoria: p.categoria || 'altro',
           variante: p.variante || null,
-          dettagliCalcolo: risultato // Salva i dettagli per audit
+          dettagliCalcolo: risultato
         };
       });
       
@@ -153,8 +153,8 @@ export const ordiniController = {
         email: clienteObj?.email || email || '',
         dataRitiro,
         oraRitiro,
-        prodotti: prodottiRicalcolati, // ✅ USA PRODOTTI RICALCOLATI
-        totale: totaleBackend, // ✅ USA TOTALE RICALCOLATO DAL BACKEND
+        prodotti: prodottiRicalcolati,
+        totale: totaleBackend,
         note: note || '',
         stato: stato || 'nuovo',
         metodoPagamento: metodoPagamento || 'contanti',
@@ -561,47 +561,9 @@ Grazie! 🙏
   },
 
   // ========================================
-  // ✅ NUOVO 28/01/2026: Endpoint conteggio orari per barra disponibilità
+  // ✅ NUOVO 28/01/2026: Conteggio orari
   // ========================================
   
-  /**
-   * Ottiene conteggio ordini raggruppati per orario
-   * Usato per la barra disponibilità e il dropdown intelligente nel frontend
-   * 
-   * Query params:
-   * - dataRitiro: data in formato YYYY-MM-DD (obbligatorio)
-   * 
-   * Response:
-   * {
-   *   data: "2026-01-28",
-   *   totaleOrdini: 12,
-   *   orarioPicco: "11:00",
-   *   ordiniPicco: 6,
-   *   conteggioPerOra: { "09:00": 1, "10:00": 3, ... },
-   *   fasceLibere: ["09:00", "13:00", "15:00"]
-   * }
-   */
-  // ========================================
-  // ✅ NUOVO 28/01/2026: Endpoint conteggio orari per barra disponibilità
-  // ========================================
-  
-  /**
-   * Ottiene conteggio ordini raggruppati per orario
-   * Usato per la barra disponibilità e il dropdown intelligente nel frontend
-   * 
-   * Query params:
-   * - dataRitiro: data in formato YYYY-MM-DD (obbligatorio)
-   * 
-   * Response:
-   * {
-   *   data: "2026-01-28",
-   *   totaleOrdini: 12,
-   *   orarioPicco: "11:00",
-   *   ordiniPicco: 6,
-   *   conteggioPerOra: { "09:00": 1, "10:00": 3, ... },
-   *   fasceLibere: ["09:00", "13:00", "15:00"]
-   * }
-   */
   async getConteggioOrari(req, res) {
     try {
       const { dataRitiro } = req.query;
@@ -613,7 +575,6 @@ Grazie! 🙏
         });
       }
 
-      // Query ottimizzata: conta solo ordini NON annullati per quella data
       const ordini = await Ordine.find({
         dataRitiro: dataRitiro,
         stato: { $ne: 'annullato' }
@@ -621,7 +582,6 @@ Grazie! 🙏
       .select('oraRitiro')
       .lean();
 
-      // Conta ordini per ogni ora
       const conteggioPerOra = {};
       let orarioPicco = '';
       let ordiniPicco = 0;
@@ -638,7 +598,6 @@ Grazie! 🙏
         }
       });
 
-      // Identifica fasce libere (0-1 ordini)
       const fasceLibere = [];
       const orariPossibili = this.generaOrariPossibili();
       
@@ -672,24 +631,17 @@ Grazie! 🙏
     }
   },
 
-  /**
-   * Helper: genera array di orari possibili (08:00 - 20:00, ogni 30 min)
-   */
   generaOrariPossibili() {
     const orari = [];
     for (let h = 8; h <= 20; h++) {
       for (let m = 0; m < 60; m += 30) {
         const ora = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         orari.push(ora);
-        if (h === 20 && m === 0) break; // Stop a 20:00
+        if (h === 20 && m === 0) break;
       }
     }
     return orari;
   }
-
-// ========================================
-// ✅ CHIUSURA OGGETTO ordiniController
-// ========================================
 };
 
 export default ordiniController;
