@@ -145,6 +145,7 @@ const OrdiniList = ({
   onSegnaComePronto,  // ✅ WHATSAPP AUTO-SEND: callback per segnare ordine pronto
   ricercaCliente,  // ✅ NUOVO: ricerca cliente attiva
   mostraTutteLeDate,  // ✅ NUOVO: flag per mostrare tutte le date
+  dataSelezionata,  // ✅ FIX 28/01/2026: Riceve data da GestoreOrdini (frecce)
 }) => {
   const [dataFiltro, setDataFiltro] = useState(new Date().toISOString().split('T')[0]);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -163,6 +164,12 @@ const OrdiniList = ({
   const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
   const [filtroClienteId, setFiltroClienteId] = useState(null); // ✅ NUOVO: Filtro cliente da CallPopup
 
+  // ✅ FIX 28/01/2026: Sincronizza dataFiltro con dataSelezionata (frecce in GestoreOrdini)
+  React.useEffect(() => {
+    if (dataSelezionata && !ricercaCliente) {
+      setDataFiltro(dataSelezionata);
+    }
+  }, [dataSelezionata, ricercaCliente]);
   // ✅ NUOVO 16/01/2026: Funzione per calcolare se ordine è IMMINENTE (1 ora prima e non completato/consegnato)
   const isOrdineImminente = (ordine, prodotto) => {
     // Se non c'è orario o è già completato (F spuntata) o consegnato (C spuntata), non evidenziare
