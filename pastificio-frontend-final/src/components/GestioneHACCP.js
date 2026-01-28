@@ -220,7 +220,7 @@ export default function GestioneHACCP() {
       const ore = ora.getHours();
       const minuti = ora.getMinutes();
       
-      console.log(`🕐 [HACCP Auto] Controllo automatico: ${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][giornoSettimana]} ore ${ore}:${minuti.toString().padStart(2,'0')}`);
+      console.log(`🕐 [HACCP Auto] Controllo automatico: ${["Domenica","Lunedi","Martedi","Mercoledi","Giovedi","Venerdi","Sabato"][giornoSettimana]} ore ${ore}:${minuti.toString().padStart(2,'0')}`);
       
       // ✅ Verifica: Martedì (2) e ore 9:00-9:59
       if (giornoSettimana === 2 && ore === 9) {
@@ -267,7 +267,7 @@ export default function GestioneHACCP() {
       const ore = ora.getHours();
       const minuti = ora.getMinutes();
       
-      console.log(`🧹 [Pulizia Auto] Controllo automatico: ${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][giornoSettimana]} ore ${ore}:${minuti.toString().padStart(2,'0')}`);
+      console.log(`🧹 [Pulizia Auto] Controllo automatico: ${["Domenica","Lunedi","Martedi","Mercoledi","Giovedi","Venerdi","Sabato"][giornoSettimana]} ore ${ore}:${minuti.toString().padStart(2,'0')}`);
       
       let shouldShow = false;
       let tipoPulizia = 'giornaliera';

@@ -81,7 +81,7 @@ export default function PuliziaAutoPopup({ onClose, forceShow = false, tipo = 'a
     const giornoSettimana = oggi.getDay(); // 0=Dom, 6=Sab
     const ore = oggi.getHours();
     
-    console.log(`🧹 [Pulizia Auto] Oggi è ${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][giornoSettimana]} ore ${ore}:${oggi.getMinutes().toString().padStart(2,'0')}`);
+    console.log(`🧹 [Pulizia Auto] Oggi è ${["Domenica","Lunedi","Martedi","Mercoledi","Giovedi","Venerdi","Sabato"][giornoSettimana]} ore ${ore}:${oggi.getMinutes().toString().padStart(2,'0')}`);
     
     let shouldShow = false;
     let tipoDeterminato = 'giornaliera';
