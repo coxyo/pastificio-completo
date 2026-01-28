@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import HACCPAutoPopup from './HACCPAutoPopup';  // ✅ NUOVO 23/01/2026
+import PuliziaAutoPopup from './PuliziaAutoPopup';  // ✅ NUOVO 27/01/2026
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -141,6 +142,7 @@ export default function GestioneHACCP() {
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [testHACCPPopupOpen, setTestHACCPPopupOpen] = useState(false);  // ✅ NUOVO 23/01/2026
+  const [testPuliziaPopupOpen, setTestPuliziaPopupOpen] = useState(false);  // ✅ NUOVO 27/01/2026
   
   // Dati dal backend
   const [dashboard, setDashboard] = useState(null);
@@ -207,6 +209,117 @@ export default function GestioneHACCP() {
   useEffect(() => {
     caricaDashboard();
   }, []);
+
+  // ============================================
+  // ✨ POPUP AUTOMATICO MARTEDÌ ORE 9:00
+  // ============================================
+  useEffect(() => {
+    const checkAutoPopup = () => {
+      const ora = new Date();
+      const giornoSettimana = ora.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mer, 4=Gio, 5=Ven, 6=Sab
+      const ore = ora.getHours();
+      const minuti = ora.getMinutes();
+      
+      console.log(`🕐 [HACCP Auto] Controllo automatico: ${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][giornoSettimana]} ore ${ore}:${minuti.toString().padStart(2,'0')}`);
+      
+      // ✅ Verifica: Martedì (2) e ore 9:00-9:59
+      if (giornoSettimana === 2 && ore === 9) {
+        console.log('✅ [HACCP Auto] È Martedì ore 9! Verifico se già mostrato oggi...');
+        
+        // Verifica se già aperto oggi (per evitare loop)
+        const ultimoShow = localStorage.getItem('haccp_last_popup_show');
+        const oggi = new Date().toISOString().split('T')[0];
+        
+        if (ultimoShow === oggi) {
+          console.log('ℹ️ [HACCP Auto] Popup già mostrato oggi, skip');
+          return;
+        }
+        
+        console.log('🌡️ [HACCP Auto] Apro popup automaticamente!');
+        
+        // Salva data show per evitare duplicati
+        localStorage.setItem('haccp_last_popup_show', oggi);
+        
+        // Apri popup
+        setTestHACCPPopupOpen(true);
+      } else {
+        console.log(`ℹ️ [HACCP Auto] Condizioni non soddisfatte (Giorno: ${giornoSettimana}, Ora: ${ore})`);
+      }
+    };
+    
+    // Check immediato all'avvio del componente
+    checkAutoPopup();
+    
+    // Check ogni 5 minuti (per sicurezza se la pagina resta aperta)
+    const interval = setInterval(checkAutoPopup, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+
+  // ============================================
+  // ✨ POPUP AUTOMATICO PULIZIE
+  // Giornaliero: Lun-Sab ore 18:00
+  // Settimanale: Domenica ore 10:00
+  // ============================================
+  useEffect(() => {
+    const checkAutoPuliziaPopup = () => {
+      const ora = new Date();
+      const giornoSettimana = ora.getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
+      const ore = ora.getHours();
+      const minuti = ora.getMinutes();
+      
+      console.log(`🧹 [Pulizia Auto] Controllo automatico: ${['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][giornoSettimana]} ore ${ore}:${minuti.toString().padStart(2,'0')}`);
+      
+      let shouldShow = false;
+      let tipoPulizia = 'giornaliera';
+      
+      // ✅ PULIZIE SETTIMANALI: Domenica ore 10:00-10:59
+      if (giornoSettimana === 0 && ore === 10) {
+        console.log('✅ [Pulizia Auto] È Domenica ore 10! Pulizie SETTIMANALI');
+        shouldShow = true;
+        tipoPulizia = 'settimanale';
+      }
+      // ✅ PULIZIE GIORNALIERE: Lun-Sab ore 18:00-18:59
+      else if (giornoSettimana >= 1 && giornoSettimana <= 6 && ore === 18) {
+        console.log('✅ [Pulizia Auto] Ore 18 giorni lavorativi! Pulizie GIORNALIERE');
+        shouldShow = true;
+        tipoPulizia = 'giornaliera';
+      }
+      
+      if (!shouldShow) {
+        console.log(`ℹ️ [Pulizia Auto] Condizioni non soddisfatte (Giorno: ${giornoSettimana}, Ora: ${ore})`);
+        return;
+      }
+      
+      // Verifica se già aperto oggi
+      const storageKey = `pulizia_last_popup_${tipoPulizia}`;
+      const ultimoShow = localStorage.getItem(storageKey);
+      const oggi = new Date().toISOString().split('T')[0];
+      
+      if (ultimoShow === oggi) {
+        console.log(`ℹ️ [Pulizia Auto] Popup ${tipoPulizia} già mostrato oggi, skip`);
+        return;
+      }
+      
+      console.log(`🧹 [Pulizia Auto] Apro popup pulizie ${tipoPulizia.toUpperCase()}!`);
+      
+      // Salva data show per evitare duplicati
+      localStorage.setItem(storageKey, oggi);
+      
+      // Apri popup
+      setTestPuliziaPopupOpen(true);
+    };
+    
+    // Check immediato all'avvio del componente
+    checkAutoPuliziaPopup();
+    
+    // Check ogni 5 minuti (per sicurezza se la pagina resta aperta)
+    const interval = setInterval(checkAutoPuliziaPopup, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []); // Esegui solo al mount del componente
+
+  }, []); // Esegui solo al mount del componente
+
 
   // ============================================
   // API CALLS
@@ -1670,6 +1783,17 @@ export default function GestioneHACCP() {
         <HACCPAutoPopup 
           onClose={() => {
             setTestHACCPPopupOpen(false);
+            caricaDashboard();
+          }}
+          forceShow={true}
+        />
+      )}
+
+      {/* ✅ Popup Pulizie Automatico */}
+      {testPuliziaPopupOpen && (
+        <PuliziaAutoPopup 
+          onClose={() => {
+            setTestPuliziaPopupOpen(false);
             caricaDashboard();
           }}
           forceShow={true}
