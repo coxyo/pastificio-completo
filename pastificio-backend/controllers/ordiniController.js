@@ -599,7 +599,7 @@ Grazie! 🙏
       });
 
       const fasceLibere = [];
-      const orariPossibili = this.generaOrariPossibili();
+      const orariPossibili = ordiniController.generaOrariPossibili();
       
       for (const ora of orariPossibili) {
         const count = conteggioPerOra[ora] || 0;
