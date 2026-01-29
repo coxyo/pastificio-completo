@@ -680,6 +680,9 @@ Grazie! 🙏
       ordine.prodotti.forEach(prodotto => {
         const tipo = ordiniController.identificaTipoProdotto(prodotto.nome);
         
+        // ✅ DEBUG LOG - Verifica riconoscimento prodotti
+        logger.info(`🔍 Analisi prodotto: "${prodotto.nome}" → tipo: ${tipo}, quantita: ${prodotto.quantita} ${prodotto.unitaMisura || prodotto.unita}`);
+        
         if (tipo && (tipo === 'ravioli' || tipo === 'zeppole')) {
           // Estrai quantità in Kg
           let quantitaKg = 0;
@@ -750,12 +753,19 @@ Grazie! 🙏
         // Analizza prodotti critici
         const analisi = ordiniController.analizzaProdottiCritici(ordiniOra);
         
+        // ✅ DEBUG LOG - Risultato analisi
+        logger.info(`📊 Ora ${ora}: Ravioli totali=${analisi.totali.ravioli} Kg, Zeppole totali=${analisi.totali.zeppole} Kg`);
+        
         const infoOra = {
           numeroOrdini: ordiniOra.length
         };
         
         // Ravioli - Solo nelle fasce di produzione (10:00-12:45)
         const capRavioli = ordiniController.calcolaCapacitaOraria(ora, 'ravioli', dataRitiro);
+        
+        // ✅ DEBUG LOG - Capacità ravioli
+        logger.info(`🕒 Ora ${ora}: capRavioli=${capRavioli ? 'SI' : 'NO'}, analisi.totali.ravioli=${analisi.totali.ravioli}`);
+        
         if (capRavioli && analisi.totali.ravioli > 0) {
           const ordinatoRavioli = analisi.totali.ravioli;
           infoOra.ravioli = {
