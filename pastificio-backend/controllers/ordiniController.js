@@ -686,19 +686,33 @@ Grazie! 🙏
         if (tipo && (tipo === 'ravioli' || tipo === 'zeppole')) {
           // Estrai quantità in Kg
           let quantitaKg = 0;
+          const unita = (prodotto.unitaMisura || prodotto.unita || '').toLowerCase();
           
-          if (prodotto.unitaMisura === 'kg' || prodotto.unita === 'kg') {
+          if (unita === 'kg') {
             quantitaKg = parseFloat(prodotto.quantita) || 0;
-          } else if (prodotto.unitaMisura === 'g' || prodotto.unita === 'g') {
+          } else if (unita === 'g') {
             quantitaKg = (parseFloat(prodotto.quantita) || 0) / 1000;
+          } else if (unita === 'pezzi' || unita === 'pz') {
+            // ✅ CONVERSIONE PEZZI → KG
+            // 1 raviolo ≈ 25g → 40 pezzi ≈ 1 Kg
+            // 1 zeppola ≈ 50g → 20 pezzi ≈ 1 Kg
+            if (tipo === 'ravioli') {
+              quantitaKg = (parseFloat(prodotto.quantita) || 0) * 0.025; // 25g per pezzo
+            } else if (tipo === 'zeppole') {
+              quantitaKg = (parseFloat(prodotto.quantita) || 0) * 0.05; // 50g per pezzo
+            }
+            logger.info(`   ↳ Conversione: ${prodotto.quantita} ${unita} → ${quantitaKg.toFixed(2)} Kg`);
           }
           
-          totali[tipo] += quantitaKg;
-          dettaglio[tipo].push({
-            nome: prodotto.nome,
-            quantita: quantitaKg,
-            ordineId: ordine._id
-          });
+          if (quantitaKg > 0) {
+            totali[tipo] += quantitaKg;
+            dettaglio[tipo].push({
+              nome: prodotto.nome,
+              quantita: quantitaKg,
+              ordineId: ordine._id
+            });
+            logger.info(`   ✅ Aggiunto a totale ${tipo}: +${quantitaKg.toFixed(2)} Kg (totale: ${totali[tipo].toFixed(2)} Kg)`);
+          }
         }
       });
     });
