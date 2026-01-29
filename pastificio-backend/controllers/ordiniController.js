@@ -688,18 +688,36 @@ Grazie! 🙏
           let quantitaKg = 0;
           const unita = (prodotto.unitaMisura || prodotto.unita || '').toLowerCase();
           
-          if (unita === 'kg') {
-            quantitaKg = parseFloat(prodotto.quantita) || 0;
-          } else if (unita === 'g') {
-            quantitaKg = (parseFloat(prodotto.quantita) || 0) / 1000;
-          } else if (unita === 'pezzi' || unita === 'pz') {
-            // ✅ CONVERSIONE PEZZI → KG
-            // 1 raviolo ≈ 25g → 40 pezzi ≈ 1 Kg
-            // 1 zeppola ≈ 50g → 20 pezzi ≈ 1 Kg
+          // ✅ CORREZIONE AUTOMATICA: Rileva pezzi salvati erroneamente come Kg
+          // Se un ordine di ravioli ha 10+ Kg è IMPOSSIBILE → sono pezzi!
+          // Se un ordine di zeppole ha 5+ Kg è IMPROBABILE → sono pezzi!
+          if (unita === 'kg' || unita === 'g') {
+            const quantitaNumerica = parseFloat(prodotto.quantita) || 0;
+            
+            // Rilevamento automatico pezzi per ravioli (soglia: 10 Kg)
+            if (tipo === 'ravioli' && quantitaNumerica >= 10) {
+              quantitaKg = quantitaNumerica * 0.025; // 25g per raviolo
+              logger.info(`   ⚠️ AUTO-CORREZIONE: ${quantitaNumerica} ${unita} → Rilevati come PEZZI → ${quantitaKg.toFixed(2)} Kg`);
+            }
+            // Rilevamento automatico pezzi per zeppole (soglia: 5 Kg)
+            else if (tipo === 'zeppole' && quantitaNumerica >= 5) {
+              quantitaKg = quantitaNumerica * 0.05; // 50g per zeppola
+              logger.info(`   ⚠️ AUTO-CORREZIONE: ${quantitaNumerica} ${unita} → Rilevati come PEZZI → ${quantitaKg.toFixed(2)} Kg`);
+            }
+            // Quantità normale in Kg o grammi
+            else if (unita === 'kg') {
+              quantitaKg = quantitaNumerica;
+            } else if (unita === 'g') {
+              quantitaKg = quantitaNumerica / 1000;
+            }
+          }
+          // Gestione esplicita pezzi
+          else if (unita === 'pezzi' || unita === 'pz') {
+            const quantitaNumerica = parseFloat(prodotto.quantita) || 0;
             if (tipo === 'ravioli') {
-              quantitaKg = (parseFloat(prodotto.quantita) || 0) * 0.025; // 25g per pezzo
+              quantitaKg = quantitaNumerica * 0.025; // 25g per raviolo
             } else if (tipo === 'zeppole') {
-              quantitaKg = (parseFloat(prodotto.quantita) || 0) * 0.05; // 50g per pezzo
+              quantitaKg = quantitaNumerica * 0.05; // 50g per zeppola
             }
             logger.info(`   ↳ Conversione: ${prodotto.quantita} ${unita} → ${quantitaKg.toFixed(2)} Kg`);
           }
