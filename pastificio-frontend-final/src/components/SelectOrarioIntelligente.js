@@ -1,23 +1,27 @@
-// src/components/SelectOrarioIntelligente.js
+// src/components/SelectOrarioIntelligente.js - ✅ MODIFICATO 29/01/2026
+// ✅ NUOVO: Mostra capacità produttiva SOLO per prodotto selezionato
 import React from 'react';
 import { 
   TextField, 
   MenuItem, 
   Box, 
   Typography,
-  CircularProgress 
+  CircularProgress,
+  Chip 
 } from '@mui/material';
+import { Restaurant as RestaurantIcon, Cake as CakeIcon } from '@mui/icons-material';
 
 /**
- * Select orario con conteggio ordini e semaforo colorato
- * Mostra quanti ordini ci sono per ogni orario della giornata
+ * Select orario con capacità produttiva dinamica
+ * Mostra Kg ordinati/disponibili SOLO per il prodotto che stai aggiungendo
  */
 const SelectOrarioIntelligente = ({ 
   value, 
   onChange, 
   conteggioOrari, 
   loading,
-  disabled 
+  disabled,
+  prodottoSelezionato = null // ✅ NUOVO: 'ravioli', 'zeppole', o null
 }) => {
   
   // Genera tutti gli orari possibili (08:00 - 20:00, ogni 30 min)
@@ -35,24 +39,40 @@ const SelectOrarioIntelligente = ({
 
   const orari = generaOrari();
 
-  // Ottieni conteggio per un orario specifico
-  const getConteggioPerOrario = (ora) => {
-    if (!conteggioOrari || !conteggioOrari.conteggioPerOra) {
-      return 0;
+  // ✅ NUOVO: Ottieni capacità per prodotto selezionato
+  const getCapacitaPerOrario = (ora) => {
+    if (!conteggioOrari || !conteggioOrari.capacitaPerOra) {
+      return null;
     }
-    return conteggioOrari.conteggioPerOra[ora] || 0;
+    
+    const capacitaOra = conteggioOrari.capacitaPerOra[ora];
+    if (!capacitaOra) return null;
+    
+    // Se non c'è prodotto selezionato, non mostrare capacità
+    if (!prodottoSelezionato) return null;
+    
+    // Ritorna SOLO la capacità del prodotto selezionato
+    return capacitaOra[prodottoSelezionato] || null;
   };
 
-  // Determina colore semaforo in base al conteggio
-  const getColore = (conteggio) => {
-    if (conteggio === 0 || conteggio <= 2) return '🟢'; // Verde
-    if (conteggio <= 4) return '🟡'; // Giallo
-    return '🔴'; // Rosso
+  // Determina colore chip in base allo stato
+  const getColoreChip = (stato) => {
+    if (stato === 'ok') return 'success';
+    if (stato === 'attenzione') return 'warning';
+    if (stato === 'pieno') return 'error';
+    return 'default';
   };
 
-  // Determina se mostrare warning (5+ ordini)
-  const mostraWarning = (conteggio) => {
-    return conteggio >= 5;
+  // Determina icona prodotto
+  const getIconaProdotto = (tipo) => {
+    if (tipo === 'ravioli') return <RestaurantIcon fontSize="small" />;
+    if (tipo === 'zeppole') return <CakeIcon fontSize="small" />;
+    return null;
+  };
+
+  // Formatta label chip
+  const getLabelChip = (capacita) => {
+    return `${capacita.ordinatoKg}/${capacita.capacitaKg}Kg`;
   };
 
   return (
@@ -81,11 +101,9 @@ const SelectOrarioIntelligente = ({
         <em>Seleziona orario</em>
       </MenuItem>
 
-      {/* Lista orari con conteggio e semaforo */}
+      {/* Lista orari con capacità filtrata per prodotto */}
       {orari.map((ora) => {
-        const conteggio = getConteggioPerOrario(ora);
-        const colore = getColore(conteggio);
-        const warning = mostraWarning(conteggio);
+        const capacita = getCapacitaPerOrario(ora);
 
         return (
           <MenuItem 
@@ -100,8 +118,10 @@ const SelectOrarioIntelligente = ({
               '&:hover': {
                 backgroundColor: '#f5f5f5'
               },
-              // Evidenzia orari critici (5+ ordini)
-              backgroundColor: warning ? 'rgba(244, 67, 54, 0.08)' : 'transparent'
+              // Evidenzia orari critici
+              backgroundColor: capacita?.stato === 'pieno' ? 'rgba(244, 67, 54, 0.08)' : 
+                               capacita?.stato === 'attenzione' ? 'rgba(255, 152, 0, 0.08)' : 
+                               'transparent'
             }}
           >
             {/* Parte sinistra: Orario */}
@@ -117,30 +137,20 @@ const SelectOrarioIntelligente = ({
               </Typography>
             </Box>
 
-            {/* Parte destra: Semaforo, Conteggio, Warning */}
+            {/* Parte destra: Chip capacità (SOLO se prodotto critico selezionato) */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {/* Semaforo */}
-              <Typography sx={{ fontSize: '1.2rem' }}>
-                {colore}
-              </Typography>
-
-              {/* Conteggio ordini */}
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: warning ? '#f44336' : '#666',
-                  fontWeight: warning ? 600 : 400,
-                  fontSize: '0.9rem'
-                }}
-              >
-                ({conteggio})
-              </Typography>
-
-              {/* Warning icon se >= 5 ordini */}
-              {warning && (
-                <Typography sx={{ fontSize: '1rem' }}>
-                  ⚠️
-                </Typography>
+              {capacita && (
+                <Chip
+                  size="small"
+                  icon={getIconaProdotto(prodottoSelezionato)}
+                  label={getLabelChip(capacita)}
+                  color={getColoreChip(capacita.stato)}
+                  sx={{
+                    fontWeight: 500,
+                    fontSize: '0.8rem',
+                    height: '28px'
+                  }}
+                />
               )}
             </Box>
           </MenuItem>

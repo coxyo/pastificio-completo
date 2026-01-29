@@ -99,6 +99,24 @@ const capitalizeFirst = (str) => {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 };
 
+// ✅ NUOVO 29/01/2026: Identifica se prodotto è critico (ravioli/zeppole)
+const identificaProdottoCritico = (nomeProdotto) => {
+  if (!nomeProdotto) return null;
+  const nomeLower = nomeProdotto.toLowerCase();
+  
+  // Ravioli
+  if (nomeLower.includes('ravioli') || nomeLower.includes('raviolo')) {
+    return 'ravioli';
+  }
+  
+  // Zeppole
+  if (nomeLower.includes('zeppole') || nomeLower.includes('zeppola')) {
+    return 'zeppole';
+  }
+  
+  return null;
+};
+
 export default function NuovoOrdine({ 
   open, 
   onClose, 
@@ -161,6 +179,9 @@ clienteIdPreselezionato,
   const [gustiPanadine, setGustiPanadine] = useState([]);
   const [modalitaPanadine, setModalitaPanadine] = useState('rapida');
   const [panadineRapide, setPanadineRapide] = useState({ carne: 0, verdura: 0 });
+
+// ✅ NUOVO 29/01/2026: Traccia prodotto critico selezionato per mostrare capacità
+const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(null);
 
   // ✅ NUOVO: States per vassoi multipli e dimensione vassoio
   const [numeroVassoiProdotto, setNumeroVassoiProdotto] = useState(''); // ✅ VUOTO DI DEFAULT
@@ -309,6 +330,13 @@ clienteIdPreselezionato,
       caricaConteggioOrari(formData.dataRitiro);
     }
   }, [formData.dataRitiro, isConnected]);
+
+// ✅ NUOVO 29/01/2026: Aggiorna prodotto critico quando cambia selezione
+useEffect(() => {
+  const tipoProdotto = identificaProdottoCritico(prodottoCorrente.nome);
+  setProdottoCriticoSelezionato(tipoProdotto);
+  console.log(`🔍 Prodotto selezionato: ${prodottoCorrente.nome} → tipo: ${tipoProdotto}`);
+}, [prodottoCorrente.nome]);
 
   // ✅ Verifica limiti ogni volta che cambiano prodotti
   useEffect(() => {
@@ -2311,12 +2339,13 @@ clienteIdPreselezionato,
                 InputLabelProps={{ shrink: true }}
               />
               <SelectOrarioIntelligente
-                value={formData.oraRitiro}
-                onChange={(e) => setFormData({ ...formData, oraRitiro: e.target.value })}
-                conteggioOrari={conteggioOrari}
-                loading={loadingConteggioOrari}
-                disabled={!formData.dataRitiro}
-              />
+  value={formData.oraRitiro}
+  onChange={(e) => setFormData({ ...formData, oraRitiro: e.target.value })}
+  conteggioOrari={conteggioOrari}
+  loading={loadingConteggioOrari}
+  disabled={!formData.dataRitiro}
+  prodottoSelezionato={prodottoCriticoSelezionato} // ✅ NUOVO
+/>
             </Box>
           </Paper>
 
