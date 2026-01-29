@@ -1,4 +1,4 @@
-// controllers/ordiniController.js - ✅ FIX FINALE CALCOLO PREZZI + CONTEGGIO ORARI
+// controllers/ordiniController.js - ✅ FIX FINALE + CAPACITÀ PRODUTTIVA
 import { AppError } from '../middleware/errorHandler.js';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
@@ -7,6 +7,40 @@ import mongoose from 'mongoose';
 import whatsappService from '../services/whatsappService.js';
 // ✅ IMPORT SISTEMA CALCOLO PREZZI
 import calcoliPrezzi from '../utils/calcoliPrezzi.js';
+
+// ========================================
+// ✅ CONFIGURAZIONE CAPACITÀ PRODUTTIVA
+// ========================================
+const CAPACITA_PRODUTTIVA = {
+  ravioli: {
+    capacitaKg: 5,        // 5 Kg ogni 30 minuti
+    intervalloMinuti: 30,
+    oraInizio: '10:00',
+    oraFine: '12:45',     // Produzione solo mattina (10:00-12:45)
+    nomiProdotti: [
+      'Ravioli',
+      'Ravioli ricotta',
+      'Ravioli spinaci', 
+      'Ravioli patate',
+      'Ravioli semplici',
+      'Ravioli ricotta e spinaci'
+    ]
+  },
+  zeppole: {
+    capacitaKg: 10,       // 10 Kg ogni ora
+    intervalloMinuti: 60,
+    oraInizio: '17:00',   // Mar-Sab: 17:00-19:00
+    oraFine: '19:00',
+    oraInizioDomenica: '09:00',  // Domenica: 09:00-13:00
+    oraFineDomenica: '13:00',
+    nomiProdotti: [
+      'Zeppole',
+      'Zeppole sarde',
+      'Zeppole dolci',
+      'Zeppole salate'
+    ]
+  }
+};
 
 export const ordiniController = {
   async creaOrdine(req, res) {
@@ -561,7 +595,116 @@ Grazie! 🙏
   },
 
   // ========================================
-  // ✅ NUOVO 28/01/2026: Conteggio orari
+  // ✅ HELPER: Identifica tipo prodotto
+  // ========================================
+  
+  identificaTipoProdotto(nomeProdotto) {
+    const nomeLower = nomeProdotto.toLowerCase();
+    
+    // Controlla Ravioli
+    const isRavioli = CAPACITA_PRODUTTIVA.ravioli.nomiProdotti.some(
+      nome => nomeLower.includes(nome.toLowerCase())
+    );
+    if (isRavioli) return 'ravioli';
+    
+    // Controlla Zeppole
+    const isZeppole = CAPACITA_PRODUTTIVA.zeppole.nomiProdotti.some(
+      nome => nomeLower.includes(nome.toLowerCase())
+    );
+    if (isZeppole) return 'zeppole';
+    
+    return null;
+  },
+
+  // ========================================
+  // ✅ CALCOLA CAPACITÀ DISPONIBILE PER FASCIA ORARIA
+  // ========================================
+  
+  calcolaCapacitaOraria(ora, tipoProdotto, dataRitiro) {
+    const config = CAPACITA_PRODUTTIVA[tipoProdotto];
+    if (!config) return null;
+    
+    // Per zeppole: orari diversi domenica vs altri giorni
+    if (tipoProdotto === 'zeppole') {
+      const giornoSettimana = new Date(dataRitiro).getDay(); // 0 = Domenica
+      
+      if (giornoSettimana === 0) {
+        // Domenica: 09:00-13:00
+        if (ora < config.oraInizioDomenica || ora > config.oraFineDomenica) {
+          return null;
+        }
+      } else {
+        // Mar-Sab: 17:00-19:00
+        if (ora < config.oraInizio || ora > config.oraFine) {
+          return null;
+        }
+      }
+      
+      // Zeppole: capacità solo sulle ore intere
+      const [h, m] = ora.split(':');
+      if (m !== '00') {
+        return null; // Slot intermedi non contano per zeppole
+      }
+    } else {
+      // Ravioli: produzione solo 10:00-12:45
+      if (ora < config.oraInizio || ora > config.oraFine) {
+        return null;
+      }
+    }
+    
+    return {
+      capacita: config.capacitaKg,
+      intervallo: config.intervalloMinuti,
+      inProduzione: true
+    };
+  },
+
+  // ========================================
+  // ✅ ANALIZZA QUANTITÀ PRODOTTI CRITICI PER ORA
+  // ========================================
+  
+  analizzaProdottiCritici(ordini) {
+    const totali = {
+      ravioli: 0,
+      zeppole: 0
+    };
+    
+    const dettaglio = {
+      ravioli: [],
+      zeppole: []
+    };
+    
+    ordini.forEach(ordine => {
+      if (!ordine.prodotti || ordine.prodotti.length === 0) return;
+      
+      ordine.prodotti.forEach(prodotto => {
+        const tipo = ordiniController.identificaTipoProdotto(prodotto.nome);
+        
+        if (tipo && (tipo === 'ravioli' || tipo === 'zeppole')) {
+          // Estrai quantità in Kg
+          let quantitaKg = 0;
+          
+          if (prodotto.unitaMisura === 'kg' || prodotto.unita === 'kg') {
+            quantitaKg = parseFloat(prodotto.quantita) || 0;
+          } else if (prodotto.unitaMisura === 'g' || prodotto.unita === 'g') {
+            quantitaKg = (parseFloat(prodotto.quantita) || 0) / 1000;
+          }
+          
+          totali[tipo] += quantitaKg;
+          dettaglio[tipo].push({
+            nome: prodotto.nome,
+            quantita: quantitaKg,
+            ordineId: ordine._id
+          });
+        }
+      });
+    });
+    
+    return { totali, dettaglio };
+  },
+
+  // ========================================
+  // ✅ NUOVO 28/01/2026: Conteggio orari con capacità produttiva
   // ========================================
   
   async getConteggioOrari(req, res) {
@@ -575,29 +718,79 @@ Grazie! 🙏
         });
       }
 
+      // Query con prodotti popolati per analisi dettagliata
       const ordini = await Ordine.find({
         dataRitiro: dataRitiro,
         stato: { $ne: 'annullato' }
       })
-      .select('oraRitiro')
+      .select('oraRitiro prodotti')
       .lean();
 
-      const conteggioPerOra = {};
-      let orarioPicco = '';
-      let ordiniPicco = 0;
-
+      // Raggruppa ordini per ora
+      const ordiniPerOra = {};
       ordini.forEach(ordine => {
         const ora = ordine.oraRitiro;
         if (!ora) return;
         
-        conteggioPerOra[ora] = (conteggioPerOra[ora] || 0) + 1;
-        
-        if (conteggioPerOra[ora] > ordiniPicco) {
-          ordiniPicco = conteggioPerOra[ora];
-          orarioPicco = ora;
+        if (!ordiniPerOra[ora]) {
+          ordiniPerOra[ora] = [];
         }
+        ordiniPerOra[ora].push(ordine);
       });
 
+      // Analizza capacità produttiva per ogni ora
+      const conteggioPerOra = {};
+      const capacitaPerOra = {};
+      let orarioPicco = '';
+      let ordiniPicco = 0;
+
+      for (const [ora, ordiniOra] of Object.entries(ordiniPerOra)) {
+        conteggioPerOra[ora] = ordiniOra.length;
+        
+        // Analizza prodotti critici
+        const analisi = ordiniController.analizzaProdottiCritici(ordiniOra);
+        
+        const infoOra = {
+          numeroOrdini: ordiniOra.length
+        };
+        
+        // Ravioli - Solo nelle fasce di produzione (10:00-12:45)
+        const capRavioli = ordiniController.calcolaCapacitaOraria(ora, 'ravioli', dataRitiro);
+        if (capRavioli && analisi.totali.ravioli > 0) {
+          const ordinatoRavioli = analisi.totali.ravioli;
+          infoOra.ravioli = {
+            ordinatoKg: parseFloat(ordinatoRavioli.toFixed(2)),
+            capacitaKg: capRavioli.capacita,
+            percentuale: parseFloat(((ordinatoRavioli / capRavioli.capacita) * 100).toFixed(1)),
+            eccesso: ordinatoRavioli > capRavioli.capacita ? parseFloat((ordinatoRavioli - capRavioli.capacita).toFixed(2)) : 0,
+            stato: ordinatoRavioli <= capRavioli.capacita * 0.8 ? 'ok' : 
+                   ordinatoRavioli <= capRavioli.capacita ? 'attenzione' : 'pieno'
+          };
+        }
+        
+        // Zeppole - Solo nelle fasce di produzione (17:00-19:00 o 09:00-13:00 domenica)
+        const capZeppole = ordiniController.calcolaCapacitaOraria(ora, 'zeppole', dataRitiro);
+        if (capZeppole && analisi.totali.zeppole > 0) {
+          const ordinatoZeppole = analisi.totali.zeppole;
+          infoOra.zeppole = {
+            ordinatoKg: parseFloat(ordinatoZeppole.toFixed(2)),
+            capacitaKg: capZeppole.capacita,
+            percentuale: parseFloat(((ordinatoZeppole / capZeppole.capacita) * 100).toFixed(1)),
+            eccesso: ordinatoZeppole > capZeppole.capacita ? parseFloat((ordinatoZeppole - capZeppole.capacita).toFixed(2)) : 0,
+            stato: ordinatoZeppole <= capZeppole.capacita * 0.8 ? 'ok' : 
+                   ordinatoZeppole <= capZeppole.capacita ? 'attenzione' : 'pieno'
+          };
+        }
+        
+        capacitaPerOra[ora] = infoOra;
+        
+        if (ordiniOra.length > ordiniPicco) {
+          ordiniPicco = ordiniOra.length;
+          orarioPicco = ora;
+        }
+      }
+
+      // Identifica fasce libere
       const fasceLibere = [];
       const orariPossibili = ordiniController.generaOrariPossibili();
       
@@ -615,6 +808,7 @@ Grazie! 🙏
         orarioPicco: orarioPicco || null,
         ordiniPicco: ordiniPicco,
         conteggioPerOra: conteggioPerOra,
+        capacitaPerOra: capacitaPerOra, // ✅ NUOVO: info capacità produttiva
         fasceLibere: fasceLibere,
         generatedAt: new Date().toISOString()
       };
