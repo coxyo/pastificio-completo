@@ -17,6 +17,7 @@ const CAPACITA_PRODUTTIVA = {
     intervalloMinuti: 30,
     oraInizio: '10:00',
     oraFine: '12:45',     // Produzione solo mattina (10:00-12:45)
+    // Conversioni: 30 pezzi per Kg, €11 per Kg
     nomiProdotti: [
       'Ravioli',
       'Ravioli ricotta',
@@ -33,6 +34,7 @@ const CAPACITA_PRODUTTIVA = {
     oraFine: '19:00',
     oraInizioDomenica: '09:00',  // Domenica: 09:00-13:00
     oraFineDomenica: '13:00',
+    // Conversioni: 24 pezzi per Kg, €21 per Kg
     nomiProdotti: [
       'Zeppole',
       'Zeppole sarde',
@@ -687,40 +689,66 @@ Grazie! 🙏
           // Estrai quantità in Kg
           let quantitaKg = 0;
           const unita = (prodotto.unitaMisura || prodotto.unita || '').toLowerCase();
+          const quantitaNumerica = parseFloat(prodotto.quantita) || 0;
           
-          // ✅ CORREZIONE AUTOMATICA: Rileva pezzi salvati erroneamente come Kg
-          // Se un ordine di ravioli ha 10+ Kg è IMPOSSIBILE → sono pezzi!
-          // Se un ordine di zeppole ha 5+ Kg è IMPROBABILE → sono pezzi!
+          // ========================================
+          // CONVERSIONI BASATE SU UNITÀ DI MISURA
+          // ========================================
+          
+          // 1. CONVERSIONE KG/G
           if (unita === 'kg' || unita === 'g') {
-            const quantitaNumerica = parseFloat(prodotto.quantita) || 0;
-            
-            // Rilevamento automatico pezzi per ravioli (soglia: 10 Kg)
-            if (tipo === 'ravioli' && quantitaNumerica >= 10) {
-              quantitaKg = quantitaNumerica * 0.025; // 25g per raviolo
-              logger.info(`   ⚠️ AUTO-CORREZIONE: ${quantitaNumerica} ${unita} → Rilevati come PEZZI → ${quantitaKg.toFixed(2)} Kg`);
+            // ✅ AUTO-CORREZIONE: Rileva pezzi salvati erroneamente come Kg
+            // Se ordine ravioli >= 10 Kg → IMPOSSIBILE → sono pezzi!
+            // Se ordine zeppole >= 5 Kg → IMPROBABILE → sono pezzi!
+            if (tipo === 'ravioli' && quantitaNumerica >= 10 && unita === 'kg') {
+              // Conversione PEZZI → KG (30 ravioli per Kg)
+              quantitaKg = quantitaNumerica / 30;
+              logger.info(`   ⚠️ AUTO-CORREZIONE: ${quantitaNumerica} kg → Rilevati come PEZZI → ${quantitaKg.toFixed(2)} Kg (30 pz/Kg)`);
             }
-            // Rilevamento automatico pezzi per zeppole (soglia: 5 Kg)
-            else if (tipo === 'zeppole' && quantitaNumerica >= 5) {
-              quantitaKg = quantitaNumerica * 0.05; // 50g per zeppola
-              logger.info(`   ⚠️ AUTO-CORREZIONE: ${quantitaNumerica} ${unita} → Rilevati come PEZZI → ${quantitaKg.toFixed(2)} Kg`);
+            else if (tipo === 'zeppole' && quantitaNumerica >= 5 && unita === 'kg') {
+              // Conversione PEZZI → KG (24 zeppole per Kg)
+              quantitaKg = quantitaNumerica / 24;
+              logger.info(`   ⚠️ AUTO-CORREZIONE: ${quantitaNumerica} kg → Rilevati come PEZZI → ${quantitaKg.toFixed(2)} Kg (24 pz/Kg)`);
             }
-            // Quantità normale in Kg o grammi
+            // Quantità normale in Kg
             else if (unita === 'kg') {
               quantitaKg = quantitaNumerica;
-            } else if (unita === 'g') {
+            }
+            // Quantità in grammi
+            else if (unita === 'g') {
               quantitaKg = quantitaNumerica / 1000;
             }
           }
-          // Gestione esplicita pezzi
+          
+          // 2. CONVERSIONE PEZZI → KG
           else if (unita === 'pezzi' || unita === 'pz') {
-            const quantitaNumerica = parseFloat(prodotto.quantita) || 0;
             if (tipo === 'ravioli') {
-              quantitaKg = quantitaNumerica * 0.025; // 25g per raviolo
+              // 30 ravioli per Kg
+              quantitaKg = quantitaNumerica / 30;
+              logger.info(`   ↳ Conversione: ${quantitaNumerica} pezzi → ${quantitaKg.toFixed(2)} Kg (30 pz/Kg)`);
             } else if (tipo === 'zeppole') {
-              quantitaKg = quantitaNumerica * 0.05; // 50g per zeppola
+              // 24 zeppole per Kg
+              quantitaKg = quantitaNumerica / 24;
+              logger.info(`   ↳ Conversione: ${quantitaNumerica} pezzi → ${quantitaKg.toFixed(2)} Kg (24 pz/Kg)`);
             }
-            logger.info(`   ↳ Conversione: ${prodotto.quantita} ${unita} → ${quantitaKg.toFixed(2)} Kg`);
           }
+          
+          // 3. CONVERSIONE € → KG
+          else if (unita === '€' || unita === 'euro') {
+            if (tipo === 'ravioli') {
+              // Ravioli: €11 per Kg
+              quantitaKg = quantitaNumerica / 11;
+              logger.info(`   ↳ Conversione: €${quantitaNumerica} → ${quantitaKg.toFixed(2)} Kg (€11/Kg)`);
+            } else if (tipo === 'zeppole') {
+              // Zeppole: €21 per Kg
+              quantitaKg = quantitaNumerica / 21;
+              logger.info(`   ↳ Conversione: €${quantitaNumerica} → ${quantitaKg.toFixed(2)} Kg (€21/Kg)`);
+            }
+          }
+          
+          // ========================================
+          // AGGIUNGI AL TOTALE SE VALIDO
+          // ========================================
           
           if (quantitaKg > 0) {
             totali[tipo] += quantitaKg;
@@ -730,6 +758,8 @@ Grazie! 🙏
               ordineId: ordine._id
             });
             logger.info(`   ✅ Aggiunto a totale ${tipo}: +${quantitaKg.toFixed(2)} Kg (totale: ${totali[tipo].toFixed(2)} Kg)`);
+          } else {
+            logger.warn(`   ⚠️ Quantità non valida o unità non riconosciuta: ${prodotto.quantita} ${unita}`);
           }
         }
       });
