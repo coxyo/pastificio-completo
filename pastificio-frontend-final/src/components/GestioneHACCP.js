@@ -384,11 +384,18 @@ export default function GestioneHACCP() {
           conforme: true
         }));
       
-      await axios.post(`${API_URL}/haccp/controllo-igienico`, {
-        area: 'Controllo giornaliero',
-        elementi: areeSelezionate,
+      // ✅ FIX: Usa endpoint /registrazione con payload corretto
+      await axios.post(`${API_URL}/haccp/registrazione`, {
+        tipo: 'sanificazione',
+        controlloIgienico: {
+          area: 'Controllo giornaliero',
+          elementi: areeSelezionate,
+          azioneCorrettiva: null
+        },
         operatore: formPulizia.operatore,
-        note: formPulizia.note
+        note: formPulizia.note,
+        conforme: true,
+        dataOra: new Date().toISOString()
       }, getAuthHeaders());
       
       showSnackbar('✅ Pulizia registrata con successo!', 'success');
@@ -400,6 +407,7 @@ export default function GestioneHACCP() {
       showSnackbar('❌ Errore registrazione pulizia', 'error');
     }
   };
+
 
   const registraAbbattimento = async () => {
     try {
