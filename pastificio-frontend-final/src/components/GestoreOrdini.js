@@ -159,7 +159,118 @@ function RiepilogoSemplice({ ordini, dataSelezionata }) {
           </Box>
         </Paper>
       ))}
-    </Box>
+    
+      
+      {/* ✅ NUOVO 30/01/2026: Dialog Conferma WhatsApp Automatico */}
+      <Dialog
+        open={confermaWhatsAppOpen}
+        onClose={() => !whatsappLoading && setConfermaWhatsAppOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <WhatsAppIcon sx={{ color: 'success.main' }} />
+            <Typography variant="h6">Ordine Pronto</Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent>
+          {whatsappLoading ? (
+            <Box sx={{ textAlign: 'center', py: 3 }}>
+              <CircularProgress size={40} />
+              <Typography sx={{ mt: 2 }}>
+                Completamento ordine e invio WhatsApp...
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                L'ordine verrà segnato come completato e il cliente riceverà una notifica WhatsApp.
+              </Alert>
+              
+              {ordineSelezionato && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body1" gutterBottom>
+                    <strong>Cliente:</strong> {ordineSelezionato.nomeCliente}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Telefono:</strong> {ordineSelezionato.telefono || 'Non disponibile'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Ordine:</strong> {ordineSelezionato.numeroOrdine || ordineSelezionato.id}
+                  </Typography>
+                  
+                  {ordineSelezionato.prodotti && ordineSelezionato.prodotti.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Prodotti:</strong>
+                      </Typography>
+                      <Box sx={{ pl: 2, mt: 0.5 }}>
+                        {ordineSelezionato.prodotti.slice(0, 3).map((p, i) => (
+                          <Typography key={i} variant="caption" display="block">
+                            • {p.nome}
+                            {p.stato && ` (${p.stato})`}
+                          </Typography>
+                        ))}
+                        {ordineSelezionato.prodotti.length > 3 && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            ...e altri {ordineSelezionato.prodotti.length - 3} prodotti
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {whatsappError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {whatsappError}
+                </Alert>
+              )}
+
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <strong>Cosa succederà:</strong><br />
+                1. Ordine segnato come completato<br />
+                2. Tentativo invio automatico via API<br />
+                3. Se fallisce, apertura WhatsApp manuale
+              </Alert>
+            </>
+          )}
+        </DialogContent>
+        
+        <DialogActions>
+          {!whatsappLoading && (
+            <>
+              <Button 
+                onClick={() => setConfermaWhatsAppOpen(false)}
+                disabled={whatsappLoading}
+              >
+                Annulla
+              </Button>
+              <Button
+                onClick={() => handleCompletaOrdineConWhatsApp(ordineSelezionato, false)}
+                disabled={whatsappLoading}
+                color="warning"
+              >
+                Solo Completa (no WhatsApp)
+              </Button>
+              <Button
+                onClick={() => handleCompletaOrdineConWhatsApp(ordineSelezionato, true)}
+                disabled={whatsappLoading || !ordineSelezionato?.telefono}
+                variant="contained"
+                color="success"
+                startIcon={<WhatsAppIcon />}
+              >
+                Sì, Completa e Invia WhatsApp
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
+
+</Box>
   );
 }
 
@@ -621,7 +732,118 @@ function WhatsAppHelperComponent({ ordini }) {
           </Button>
         </>
       )}
-    </Box>
+    
+      
+      {/* ✅ NUOVO 30/01/2026: Dialog Conferma WhatsApp Automatico */}
+      <Dialog
+        open={confermaWhatsAppOpen}
+        onClose={() => !whatsappLoading && setConfermaWhatsAppOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <WhatsAppIcon sx={{ color: 'success.main' }} />
+            <Typography variant="h6">Ordine Pronto</Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent>
+          {whatsappLoading ? (
+            <Box sx={{ textAlign: 'center', py: 3 }}>
+              <CircularProgress size={40} />
+              <Typography sx={{ mt: 2 }}>
+                Completamento ordine e invio WhatsApp...
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                L'ordine verrà segnato come completato e il cliente riceverà una notifica WhatsApp.
+              </Alert>
+              
+              {ordineSelezionato && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body1" gutterBottom>
+                    <strong>Cliente:</strong> {ordineSelezionato.nomeCliente}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Telefono:</strong> {ordineSelezionato.telefono || 'Non disponibile'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Ordine:</strong> {ordineSelezionato.numeroOrdine || ordineSelezionato.id}
+                  </Typography>
+                  
+                  {ordineSelezionato.prodotti && ordineSelezionato.prodotti.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Prodotti:</strong>
+                      </Typography>
+                      <Box sx={{ pl: 2, mt: 0.5 }}>
+                        {ordineSelezionato.prodotti.slice(0, 3).map((p, i) => (
+                          <Typography key={i} variant="caption" display="block">
+                            • {p.nome}
+                            {p.stato && ` (${p.stato})`}
+                          </Typography>
+                        ))}
+                        {ordineSelezionato.prodotti.length > 3 && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            ...e altri {ordineSelezionato.prodotti.length - 3} prodotti
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {whatsappError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {whatsappError}
+                </Alert>
+              )}
+
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <strong>Cosa succederà:</strong><br />
+                1. Ordine segnato come completato<br />
+                2. Tentativo invio automatico via API<br />
+                3. Se fallisce, apertura WhatsApp manuale
+              </Alert>
+            </>
+          )}
+        </DialogContent>
+        
+        <DialogActions>
+          {!whatsappLoading && (
+            <>
+              <Button 
+                onClick={() => setConfermaWhatsAppOpen(false)}
+                disabled={whatsappLoading}
+              >
+                Annulla
+              </Button>
+              <Button
+                onClick={() => handleCompletaOrdineConWhatsApp(ordineSelezionato, false)}
+                disabled={whatsappLoading}
+                color="warning"
+              >
+                Solo Completa (no WhatsApp)
+              </Button>
+              <Button
+                onClick={() => handleCompletaOrdineConWhatsApp(ordineSelezionato, true)}
+                disabled={whatsappLoading || !ordineSelezionato?.telefono}
+                variant="contained"
+                color="success"
+                startIcon={<WhatsAppIcon />}
+              >
+                Sì, Completa e Invia WhatsApp
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
+
+</Box>
   );
 }
 
@@ -976,7 +1198,118 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
           </TableBody>
         </Table>
       )}
-    </Box>
+    
+      
+      {/* ✅ NUOVO 30/01/2026: Dialog Conferma WhatsApp Automatico */}
+      <Dialog
+        open={confermaWhatsAppOpen}
+        onClose={() => !whatsappLoading && setConfermaWhatsAppOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <WhatsAppIcon sx={{ color: 'success.main' }} />
+            <Typography variant="h6">Ordine Pronto</Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent>
+          {whatsappLoading ? (
+            <Box sx={{ textAlign: 'center', py: 3 }}>
+              <CircularProgress size={40} />
+              <Typography sx={{ mt: 2 }}>
+                Completamento ordine e invio WhatsApp...
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                L'ordine verrà segnato come completato e il cliente riceverà una notifica WhatsApp.
+              </Alert>
+              
+              {ordineSelezionato && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body1" gutterBottom>
+                    <strong>Cliente:</strong> {ordineSelezionato.nomeCliente}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Telefono:</strong> {ordineSelezionato.telefono || 'Non disponibile'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Ordine:</strong> {ordineSelezionato.numeroOrdine || ordineSelezionato.id}
+                  </Typography>
+                  
+                  {ordineSelezionato.prodotti && ordineSelezionato.prodotti.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Prodotti:</strong>
+                      </Typography>
+                      <Box sx={{ pl: 2, mt: 0.5 }}>
+                        {ordineSelezionato.prodotti.slice(0, 3).map((p, i) => (
+                          <Typography key={i} variant="caption" display="block">
+                            • {p.nome}
+                            {p.stato && ` (${p.stato})`}
+                          </Typography>
+                        ))}
+                        {ordineSelezionato.prodotti.length > 3 && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            ...e altri {ordineSelezionato.prodotti.length - 3} prodotti
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
+              {whatsappError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {whatsappError}
+                </Alert>
+              )}
+
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <strong>Cosa succederà:</strong><br />
+                1. Ordine segnato come completato<br />
+                2. Tentativo invio automatico via API<br />
+                3. Se fallisce, apertura WhatsApp manuale
+              </Alert>
+            </>
+          )}
+        </DialogContent>
+        
+        <DialogActions>
+          {!whatsappLoading && (
+            <>
+              <Button 
+                onClick={() => setConfermaWhatsAppOpen(false)}
+                disabled={whatsappLoading}
+              >
+                Annulla
+              </Button>
+              <Button
+                onClick={() => handleCompletaOrdineConWhatsApp(ordineSelezionato, false)}
+                disabled={whatsappLoading}
+                color="warning"
+              >
+                Solo Completa (no WhatsApp)
+              </Button>
+              <Button
+                onClick={() => handleCompletaOrdineConWhatsApp(ordineSelezionato, true)}
+                disabled={whatsappLoading || !ordineSelezionato?.telefono}
+                variant="contained"
+                color="success"
+                startIcon={<WhatsAppIcon />}
+              >
+                Sì, Completa e Invia WhatsApp
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
+
+</Box>
   );
 }
 
@@ -1114,6 +1447,11 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
   
+  // ✅ NUOVO 30/01/2026: Stati per WhatsApp automatico su completamento
+  const [confermaWhatsAppOpen, setConfermaWhatsAppOpen] = useState(false);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [whatsappError, setWhatsappError] = useState(null);
+  
   // ✅ NUOVO 11/12/2025: State per ricerca avanzata
   const [ricercaCliente, setRicercaCliente] = useState('');
   const [ricercaExpanded, setRicercaExpanded] = useState(false);
@@ -1163,6 +1501,232 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     // Chiama anche hook (per consistenza)
     handleAcceptCall();
   };
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🆕 WHATSAPP AUTOMATICO SU COMPLETAMENTO ORDINE - 30/01/2026
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  /**
+   * Verifica se tutti i prodotti dell'ordine sono completati
+   */
+  const verificaTuttiProdottiCompletati = (ordine) => {
+    if (!ordine.prodotti || ordine.prodotti.length === 0) {
+      return true;
+    }
+    const tuttiCompletati = ordine.prodotti.every(p => 
+      p.stato === 'consegnato' || 
+      p.stato === 'completato' || 
+      p.stato === 'fatto'
+    );
+    return tuttiCompletati;
+  };
+
+  /**
+   * Normalizza numero telefono per WhatsApp
+   */
+  const normalizzaNumeroWhatsApp = (telefono) => {
+    if (!telefono) return null;
+    let numero = telefono.replace(/\D/g, '');
+    if (numero.startsWith('39')) return numero;
+    if (numero.length === 10) return '39' + numero;
+    if (numero.length === 9) return '393' + numero;
+    return numero;
+  };
+
+  /**
+   * Genera messaggio WhatsApp ordine pronto
+   */
+  const generaMessaggioOrdineProno = (ordine) => {
+    const nomeCliente = ordine.nomeCliente || 'Cliente';
+    const numeroOrdine = ordine.numeroOrdine || ordine.id || 'N/A';
+    
+    let prodottiRiepilogo = '';
+    if (ordine.prodotti && ordine.prodotti.length > 0) {
+      prodottiRiepilogo = '
+
+📦 *Prodotti:*
+';
+      const prodottiDaMostrare = ordine.prodotti.slice(0, 5);
+      prodottiDaMostrare.forEach(p => {
+        prodottiRiepilogo += `• ${p.nome}`;
+        if (p.quantita && p.quantita > 0) {
+          prodottiRiepilogo += `: ${p.quantita} ${p.unita || ''}`;
+        }
+        prodottiRiepilogo += '
+';
+      });
+      if (ordine.prodotti.length > 5) {
+        prodottiRiepilogo += `...e altri ${ordine.prodotti.length - 5} prodotti
+`;
+      }
+    }
+
+    return `✅ *ORDINE PRONTO!*
+
+${nomeCliente}, il tuo ordine ${numeroOrdine} è pronto!${prodottiRiepilogo}
+⏰ Ti aspettiamo entro le ore di chiusura
+📍 Via Carmine 20/B, Assemini
+
+A presto! 😊`;
+  };
+
+  /**
+   * Apre WhatsApp con messaggio pre-compilato (fallback wa.me)
+   */
+  const apriWhatsAppFallback = (ordine) => {
+    const numeroNormalizzato = normalizzaNumeroWhatsApp(ordine.telefono);
+    if (!numeroNormalizzato) {
+      mostraNotifica('Numero telefono non valido', 'error');
+      return false;
+    }
+    const messaggio = generaMessaggioOrdineProno(ordine);
+    const messaggioEncoded = encodeURIComponent(messaggio);
+    const url = `https://wa.me/${numeroNormalizzato}?text=${messaggioEncoded}`;
+    console.log('📱 Apertura WhatsApp fallback:', url);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return true;
+  };
+
+  /**
+   * Invia WhatsApp via API Baileys (tentativo automatico)
+   */
+  const inviaWhatsAppAPI = async (ordine) => {
+    try {
+      const numeroNormalizzato = normalizzaNumeroWhatsApp(ordine.telefono);
+      if (!numeroNormalizzato) {
+        throw new Error('Numero telefono non valido');
+      }
+      console.log('📤 Tentativo invio WhatsApp via API per:', numeroNormalizzato);
+      
+      const response = await fetch(`${API_URL}/whatsapp/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          numero: numeroNormalizzato,
+          template: 'ordine_pronto',
+          variabili: {
+            nomeCliente: ordine.nomeCliente || 'Cliente',
+            numeroOrdine: ordine.numeroOrdine || ordine.id || 'N/A',
+            prodotti: ordine.prodotti || []
+          }
+        })
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        console.log('✅ WhatsApp inviato via API Baileys:', result);
+        return { success: true, method: 'api', result };
+      } else {
+        console.warn('⚠️ API WhatsApp fallita:', result.error || result.message);
+        return { success: false, error: result.error || result.message };
+      }
+    } catch (error) {
+      console.error('❌ Errore invio WhatsApp API:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  /**
+   * Gestisce completamento ordine con invio WhatsApp IMMEDIATO
+   */
+  const handleCompletaOrdineConWhatsApp = async (ordine, inviaWhatsApp = true) => {
+    try {
+      console.log('🎯 Inizio completamento ordine:', ordine._id);
+      
+      if (!verificaTuttiProdottiCompletati(ordine)) {
+        mostraNotifica('⚠️ Completa prima tutti i prodotti dell\'ordine!', 'warning');
+        setConfermaWhatsAppOpen(false);
+        return;
+      }
+
+      setWhatsappLoading(true);
+      setWhatsappError(null);
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/ordini/${ordine._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ...ordine, stato: 'completato' })
+      });
+
+      if (!response.ok) {
+        throw new Error('Errore aggiornamento stato ordine');
+      }
+
+      const ordineAggiornato = await response.json();
+      console.log('✅ Ordine completato:', ordineAggiornato);
+
+      setOrdini(prev => prev.map(o => 
+        o._id === ordine._id ? { ...o, stato: 'completato' } : o
+      ));
+      
+      localStorage.setItem('ordini', JSON.stringify(
+        ordini.map(o => o._id === ordine._id ? { ...o, stato: 'completato' } : o)
+      ));
+
+      mostraNotifica('✅ Ordine completato!', 'success');
+
+      if (inviaWhatsApp && ordine.telefono) {
+        console.log('📱 Avvio processo invio WhatsApp...');
+        const resultAPI = await inviaWhatsAppAPI(ordine);
+        
+        if (resultAPI.success) {
+          mostraNotifica(`✅ WhatsApp inviato automaticamente a ${ordine.nomeCliente}!`, 'success');
+          console.log('✅ WhatsApp inviato via API Baileys - 100% automatico');
+        } else {
+          console.log('⚠️ Fallback a wa.me per invio manuale');
+          mostraNotifica('📱 Apertura WhatsApp manuale...', 'info');
+          
+          setTimeout(() => {
+            const fallbackSuccess = apriWhatsAppFallback(ordine);
+            if (fallbackSuccess) {
+              mostraNotifica('📱 WhatsApp aperto! Premi INVIO per inviare', 'info');
+            } else {
+              mostraNotifica('❌ Errore apertura WhatsApp. Verifica il numero telefono.', 'error');
+            }
+          }, 1500);
+        }
+      } else if (!ordine.telefono) {
+        mostraNotifica('⚠️ Nessun numero telefono per questo cliente', 'warning');
+      }
+
+      setConfermaWhatsAppOpen(false);
+      setWhatsappLoading(false);
+
+    } catch (error) {
+      console.error('❌ Errore completamento ordine:', error);
+      mostraNotifica(`❌ Errore: ${error.message}`, 'error');
+      setWhatsappError(error.message);
+      setWhatsappLoading(false);
+    }
+  };
+
+  /**
+   * Apre dialog conferma WhatsApp
+   */
+  const handleApriConfermaWhatsApp = (ordine) => {
+    console.log('🎯 Apertura dialog conferma WhatsApp per ordine:', ordine._id);
+    
+    if (!verificaTuttiProdottiCompletati(ordine)) {
+      mostraNotifica('⚠️ Completa prima tutti i prodotti dell\'ordine!', 'warning');
+      return;
+    }
+
+    setOrdineSelezionato(ordine);
+    setConfermaWhatsAppOpen(true);
+    setWhatsappError(null);
+  };
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FINE FUNZIONI WHATSAPP AUTOMATICO
+  // ═══════════════════════════════════════════════════════════════════════════
+
     
   // ----------------------------------------------------------------
   // REFS
@@ -2004,35 +2568,10 @@ useEffect(() => {
   // ----------------------------------------------------------------
   const segnaComePronto = async (ordine) => {
     try {
-      console.log('🟢 Segno ordine come pronto:', ordine._id);
+      console.log('🟢 Segno ordine come pronto con WhatsApp automatico:', ordine._id);
       
-      // Aggiorna stato ordine
-      const response = await fetch(`${API_URL}/ordini/${ordine._id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        },
-        body: JSON.stringify({ 
-          stato: 'pronto',
-          whatsappInviato: false // Reset flag per nuovo invio
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Errore aggiornamento ordine');
-      }
-      
-      console.log('✅ Ordine aggiornato a "pronto"');
-      
-      // ✅ NUOVO: Invia WhatsApp con auto-send
-      await inviaWhatsAppPronto(ordine, true); // true = auto-send attivo
-      
-      // Ricarica ordini
-      await sincronizzaConMongoDB();
-      
-      mostraNotifica('✅ Ordine segnato come pronto e WhatsApp inviato automaticamente!', 'success');
+      // ✅ NUOVO 30/01/2026: Usa il nuovo sistema con popup conferma
+      handleApriConfermaWhatsApp(ordine);
       
     } catch (error) {
       console.error('❌ Errore segna come pronto:', error);
