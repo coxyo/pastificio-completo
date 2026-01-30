@@ -1542,32 +1542,21 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     
     let prodottiRiepilogo = '';
     if (ordine.prodotti && ordine.prodotti.length > 0) {
-      prodottiRiepilogo = '
-
-📦 *Prodotti:*
-';
+      prodottiRiepilogo = '\n\n📦 *Prodotti:*\n';
       const prodottiDaMostrare = ordine.prodotti.slice(0, 5);
       prodottiDaMostrare.forEach(p => {
         prodottiRiepilogo += `• ${p.nome}`;
         if (p.quantita && p.quantita > 0) {
           prodottiRiepilogo += `: ${p.quantita} ${p.unita || ''}`;
         }
-        prodottiRiepilogo += '
-';
+        prodottiRiepilogo += '\n';
       });
       if (ordine.prodotti.length > 5) {
-        prodottiRiepilogo += `...e altri ${ordine.prodotti.length - 5} prodotti
-`;
+        prodottiRiepilogo += `...e altri ${ordine.prodotti.length - 5} prodotti\n`;
       }
     }
 
-    return `✅ *ORDINE PRONTO!*
-
-${nomeCliente}, il tuo ordine ${numeroOrdine} è pronto!${prodottiRiepilogo}
-⏰ Ti aspettiamo entro le ore di chiusura
-📍 Via Carmine 20/B, Assemini
-
-A presto! 😊`;
+    return `✅ *ORDINE PRONTO!*\n\n${nomeCliente}, il tuo ordine ${numeroOrdine} è pronto!${prodottiRiepilogo}\n⏰ Ti aspettiamo entro le ore di chiusura\n📍 Via Carmine 20/B, Assemini\n\nA presto! 😊`;
   };
 
   /**
