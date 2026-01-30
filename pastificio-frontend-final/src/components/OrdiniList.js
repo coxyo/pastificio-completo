@@ -342,7 +342,42 @@ const OrdiniList = ({
       url: window.location.href
     }));
     
-    // ✅ 3. Chiama server in background
+    // ✅ 3. NUOVO 30/01/2026: Controlla se tutti i prodotti sono completati
+    if (nuovoStato === 'completato') {
+      // Trova l'ordine aggiornato
+      const ordineAggiornato = ordiniAggiornati.find(o => o._id === ordineId);
+      
+      if (ordineAggiornato && ordineAggiornato.prodotti) {
+        // Verifica se TUTTI i prodotti sono completati o consegnati
+        const tuttiCompletati = ordineAggiornato.prodotti.every(p => 
+          p.statoProduzione === 'completato' || 
+          p.statoProduzione === 'consegnato' ||
+          p.stato === 'completato' ||
+          p.stato === 'consegnato'
+        );
+        
+        console.log('🔍 Check prodotti completati:', {
+          ordineId,
+          tuttiCompletati,
+          prodotti: ordineAggiornato.prodotti.map(p => ({
+            nome: p.nome,
+            stato: p.statoProduzione || p.stato
+          }))
+        });
+        
+        // Se tutti completati E callback disponibile, chiama popup WhatsApp
+        if (tuttiCompletati && onSegnaComePronto) {
+          console.log('✅ Tutti prodotti completati! Trigger popup WhatsApp...');
+          
+          // Piccolo delay per far completare l'aggiornamento UI
+          setTimeout(() => {
+            onSegnaComePronto(ordineAggiornato);
+          }, 500);
+        }
+      }
+    }
+    
+    // ✅ 4. Chiama server in background
     setTimeout(() => {
       const token = localStorage.getItem('token');
       fetch(`${API_URL}/ordini/${ordineId}/prodotto/${indiceProdotto}/stato`, {
