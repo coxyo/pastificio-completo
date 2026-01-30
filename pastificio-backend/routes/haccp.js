@@ -1,5 +1,5 @@
 // routes/haccp.js
-// ✅ ROUTES HACCP - MONGODB INTEGRATION - VERSIONE FINALE
+// ✅ ROUTES HACCP - MONGODB INTEGRATION - VERSIONE FINALE + REGISTRAZIONE
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import haccpController from '../controllers/haccpController.js';
@@ -41,6 +41,61 @@ router.get('/check-registrazione', protect, haccpController.checkRegistrazioneOg
  * @access  Privato
  */
 router.post('/temperature', protect, haccpController.salvaTemperatura);
+
+// ============================================
+// ✅ NUOVO: REGISTRAZIONE GENERICA HACCP
+// ============================================
+/**
+ * @route   POST /api/haccp/registrazione
+ * @desc    Salva una registrazione HACCP generica (pulizie, controlli, ecc.)
+ * @body    { tipo, controlloIgienico, operatore, note, conforme, dataOra }
+ * @access  Privato
+ */
+router.post('/registrazione', protect, async (req, res) => {
+  try {
+    const { tipo, controlloIgienico, operatore, note, conforme, dataOra } = req.body;
+    
+    console.log('📝 [HACCP] Nuova registrazione:', { tipo, operatore });
+    
+    // Import dinamico del model
+    const RegistrazioneHACCP = (await import('../models/RegistrazioneHACCP.js')).default;
+    
+    // Crea la registrazione
+    const registrazione = new RegistrazioneHACCP({
+      tipo: tipo || 'sanificazione',
+      controlloIgienico: controlloIgienico || null,
+      operatore: operatore || 'Sistema',
+      note: note || '',
+      conforme: conforme !== undefined ? conforme : true,
+      dataOra: dataOra ? new Date(dataOra) : new Date()
+    });
+    
+    // Salva nel database
+    await registrazione.save();
+    
+    console.log('✅ [HACCP] Registrazione salvata:', registrazione._id);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Registrazione salvata con successo',
+      registrazione: {
+        _id: registrazione._id,
+        tipo: registrazione.tipo,
+        operatore: registrazione.operatore,
+        dataOra: registrazione.dataOra,
+        conforme: registrazione.conforme
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [HACCP] Errore salvataggio registrazione:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore salvataggio registrazione',
+      error: error.message
+    });
+  }
+});
 
 // ============================================
 // STORICO TEMPERATURE
