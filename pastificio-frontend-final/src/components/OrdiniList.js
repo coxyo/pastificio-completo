@@ -365,13 +365,13 @@ const OrdiniList = ({
           }))
         });
         
-        // Se tutti completati E callback disponibile, chiama popup WhatsApp
-        if (tuttiCompletati && onSegnaComePronto) {
-          console.log('✅ Tutti prodotti completati! Trigger popup WhatsApp...');
+        // ✅ NUOVO: Se tutti completati → Invia WhatsApp DIRETTAMENTE (senza popup)
+        if (tuttiCompletati) {
+          console.log('✅ Tutti prodotti completati! Invio WhatsApp automatico...');
           
           // Piccolo delay per far completare l'aggiornamento UI
           setTimeout(() => {
-            onSegnaComePronto(ordineAggiornato);
+            inviaWhatsAppAutomatico(ordineAggiornato);
           }, 500);
         }
       }
@@ -391,6 +391,49 @@ const OrdiniList = ({
       .then(r => r.ok && console.log('✅ Stato confermato'))
       .catch(e => console.error('❌ Errore:', e));
     }, 0);
+  };
+  
+  // ✅ NUOVO 30/01/2026: Funzione per inviare WhatsApp automaticamente senza popup
+  const inviaWhatsAppAutomatico = async (ordine) => {
+    try {
+      console.log('📱 Preparazione messaggio WhatsApp per:', ordine.nomeCliente);
+      
+      // Verifica telefono
+      const telefonoCliente = ordine.telefono || ordine.cliente?.telefono || '';
+      if (!telefonoCliente) {
+        console.warn('⚠️ Nessun telefono trovato per cliente:', ordine.nomeCliente);
+        return;
+      }
+      
+      // Normalizza telefono
+      const telefonoPulito = telefonoCliente.replace(/\D/g, '');
+      const numeroWhatsApp = telefonoPulito.startsWith('39') ? telefonoPulito : `39${telefonoPulito}`;
+      
+      // Genera messaggio
+      const messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
+
+✅ *ORDINE PRONTO PER IL RITIRO*
+
+Cliente: ${ordine.nomeCliente}
+Data: ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}
+Ora: ${ordine.oraRitiro}
+
+📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
+📞 *INFO:* 389 887 9833
+
+Vi aspettiamo!
+Pastificio Nonna Claudia`;
+      
+      // Apri WhatsApp
+      const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(messaggio)}`;
+      console.log('🚀 Apertura WhatsApp per:', numeroWhatsApp);
+      window.open(url, '_blank');
+      
+      console.log('✅ WhatsApp aperto con successo!');
+      
+    } catch (error) {
+      console.error('❌ Errore invio WhatsApp automatico:', error);
+    }
   };
 
   const handleInLavorazione = (gruppo, isChecked) => {
