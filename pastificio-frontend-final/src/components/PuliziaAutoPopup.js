@@ -1,5 +1,8 @@
-// components/PuliziaAutoPopup.js
-// ✅ POPUP AUTOMATICO PULIZIE - GIORNALIERO + SETTIMANALE
+'use client';
+
+// components/PuliziaAutoPopup.js - FIXED ENDPOINT
+// ✅ Usa /api/haccp/registrazione invece di /api/haccp/pulizia
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -7,26 +10,21 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Box,
   Typography,
+  Box,
   Checkbox,
   FormControlLabel,
+  FormGroup,
   TextField,
+  LinearProgress,
   Alert,
-  CircularProgress,
-  Chip,
-  Paper,
-  Divider
+  Chip
 } from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
-import EventRepeatIcon from '@mui/icons-material/EventRepeat';
+import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
-// ============================================
-// AREE PULIZIA (sincronizzate con GestioneHACCP)
-// ============================================
+// Aree pulizia giornaliera (4 aree)
 const AREE_PULIZIA_GIORNALIERE = [
   { id: 'superfici', nome: 'Superfici di lavoro', prodotto: 'Detergente + Sanificante' },
   { id: 'pavimenti', nome: 'Pavimenti', prodotto: 'Detergente + Sanificante' },
@@ -34,361 +32,296 @@ const AREE_PULIZIA_GIORNALIERE = [
   { id: 'servizi', nome: 'Servizi igienici', prodotto: 'Detergente + Sanificante' }
 ];
 
+// Aree pulizia settimanale approfondita (5 aree)
 const AREE_PULIZIA_SETTIMANALI = [
   { id: 'pareti', nome: 'Pareti', prodotto: 'Detergente + Sanificante' },
   { id: 'frigoriferi', nome: 'Frigoriferi (interno ed esterno)', prodotto: 'Detergente + Sanificante' },
   { id: 'abbattitore', nome: 'Abbattitore (pulizia approfondita)', prodotto: 'Detergente + Sanificante' },
   { id: 'scaffalature', nome: 'Scaffalature e ripiani', prodotto: 'Detergente + Sanificante' },
-  { id: 'finestre', nome: 'Finestre e vetrate', prodotto: 'Detergente vetri' }
+  { id: 'finestre', nome: 'Finestre e vetrate', prodotto: 'Detergente Vetri' }
 ];
 
-// ============================================
-// COMPONENTE PRINCIPALE
-// ============================================
-export default function PuliziaAutoPopup({ onClose, forceShow = false, tipo = 'auto' }) {
+export default function PuliziaAutoPopup({ onClose, forceShow = false }) {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState(null);
-  
-  // Determina tipo pulizia (giornaliera/settimanale)
-  const [tipoPulizia, setTipoPulizia] = useState('giornaliera');
-  
-  // Stato aree pulite
-  const [areePulite, setAreePulite] = useState({});
+  const [tipoPulizia, setTipoPulizia] = useState('giornaliera'); // 'giornaliera' o 'settimanale'
+  const [pulizie, setPulizie] = useState({});
   const [note, setNote] = useState('');
   const [operatore, setOperatore] = useState('Maurizio Mameli');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // ============================================
-  // INIZIALIZZAZIONE
+  // CHECK AUTOMATICO SE MOSTRARE POPUP
   // ============================================
   useEffect(() => {
-    if (forceShow) {
-      inizializzaPulizie();
+    const checkIfShouldShow = () => {
+      const ora = new Date();
+      const giornoSettimana = ora.getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
+      const ore = ora.getHours();
+      const minuti = ora.getMinutes();
+      
+      console.log(`🧹 [Pulizia Auto] Controllo automatico: ${['Domenica','Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato'][giornoSettimana]} ore ${ore}:${minuti.toString().padStart(2,'0')}`);
+      
+      let shouldShow = false;
+      let tipo = 'giornaliera';
+      
+      // SETTIMANALI: Domenica ore 10:00-10:59
+      if (giornoSettimana === 0 && ore === 10) {
+        console.log('✅ [Pulizia Auto] È Domenica ore 10! Pulizie SETTIMANALI');
+        shouldShow = true;
+        tipo = 'settimanale';
+      }
+      // GIORNALIERE: Lun-Sab ore 18:00-18:59
+      else if (giornoSettimana >= 1 && giornoSettimana <= 6 && ore === 18) {
+        console.log('✅ [Pulizia Auto] Ore 18 giorni lavorativi! Pulizie GIORNALIERE');
+        shouldShow = true;
+        tipo = 'giornaliera';
+      }
+      
+      if (!shouldShow && !forceShow) {
+        console.log(`ℹ️ [Pulizia Auto] Condizioni non soddisfatte (Giorno: ${giornoSettimana}, Ora: ${ore})`);
+        return;
+      }
+      
+      // Verifica se già aperto oggi
+      const storageKey = `pulizia_last_popup_${tipo}`;
+      const ultimoShow = localStorage.getItem(storageKey);
+      const oggi = new Date().toISOString().split('T')[0];
+      
+      if (ultimoShow === oggi && !forceShow) {
+        console.log(`ℹ️ [Pulizia Auto] Popup ${tipo} già mostrato oggi, skip`);
+        return;
+      }
+      
+      console.log(`🧹 [Pulizia Auto] Apro popup pulizie ${tipo.toUpperCase()}!`);
+      
+      setTipoPulizia(tipo);
+      inizializzaPulizie(tipo);
       setOpen(true);
-      setLoading(false);
-      return;
-    }
-
+    };
+    
     checkIfShouldShow();
   }, [forceShow]);
 
-  const checkIfShouldShow = async () => {
-    setLoading(true);
-    
-    const oggi = new Date();
-    const giornoSettimana = oggi.getDay(); // 0=Dom, 6=Sab
-    const ore = oggi.getHours();
-    
-    console.log(`🧹 [Pulizia Auto] Oggi è ${["Domenica","Lunedi","Martedi","Mercoledi","Giovedi","Venerdi","Sabato"][giornoSettimana]} ore ${ore}:${oggi.getMinutes().toString().padStart(2,'0')}`);
-    
-    let shouldShow = false;
-    let tipoDeterminato = 'giornaliera';
-    
-    // ✅ PULIZIE SETTIMANALI: Domenica ore 10:00-10:59
-    if (giornoSettimana === 0 && ore === 10) {
-      console.log('✅ [Pulizia Auto] È Domenica ore 10! Pulizie SETTIMANALI');
-      shouldShow = true;
-      tipoDeterminato = 'settimanale';
-    }
-    // ✅ PULIZIE GIORNALIERE: Lunedì-Sabato ore 18:00-18:59
-    else if (giornoSettimana >= 1 && giornoSettimana <= 6 && ore === 18) {
-      console.log('✅ [Pulizia Auto] Ore 18 giorni lavorativi! Pulizie GIORNALIERE');
-      shouldShow = true;
-      tipoDeterminato = 'giornaliera';
-    }
-    
-    if (!shouldShow) {
-      console.log('📅 [Pulizia Auto] Condizioni non soddisfatte, popup NON mostrato');
-      setLoading(false);
-      return;
-    }
-
-    // Verifica se già registrato oggi
-    const dataOggi = oggi.toISOString().split('T')[0];
-    const storageKey = `pulizia_last_popup_${tipoDeterminato}`;
-    const ultimoShow = localStorage.getItem(storageKey);
-    
-    if (ultimoShow === dataOggi) {
-      console.log(`✅ [Pulizia Auto] Pulizie ${tipoDeterminato} già registrate oggi`);
-      setLoading(false);
-      return;
-    }
-
-    // Mostra popup
-    console.log(`🧹 [Pulizia Auto] Mostro popup pulizie ${tipoDeterminato.toUpperCase()}`);
-    setTipoPulizia(tipoDeterminato);
-    inizializzaPulizie(tipoDeterminato);
-    setOpen(true);
-    setLoading(false);
-  };
-
-  const inizializzaPulizie = (tipo = tipoPulizia) => {
+  // ============================================
+  // INIZIALIZZA CHECKBOX (TUTTE SPUNTATE)
+  // ============================================
+  const inizializzaPulizie = (tipo) => {
     const aree = tipo === 'settimanale' ? AREE_PULIZIA_SETTIMANALI : AREE_PULIZIA_GIORNALIERE;
-    const iniziali = {};
+    const iniziale = {};
     aree.forEach(area => {
-      iniziali[area.id] = true; // Pre-seleziona tutte
+      iniziale[area.id] = true; // Tutte spuntate
     });
-    setAreePulite(iniziali);
-    setNote(tipo === 'settimanale' ? 'Pulizia approfondita settimanale' : 'Pulizia giornaliera di routine');
+    setPulizie(iniziale);
+    
+    // Note di default
+    if (tipo === 'giornaliera') {
+      setNote('Pulizia giornaliera di routine');
+    } else {
+      setNote('Pulizia settimanale approfondita');
+    }
   };
 
   // ============================================
-  // MODIFICA STATO AREE
+  // GESTIONE CHECKBOX
   // ============================================
-  const handleToggleArea = (areaId) => {
-    setAreePulite(prev => ({
+  const handleCheckChange = (areaId) => {
+    setPulizie(prev => ({
       ...prev,
       [areaId]: !prev[areaId]
     }));
   };
 
   // ============================================
-  // SALVATAGGIO
+  // CALCOLO COMPLETAMENTO
+  // ============================================
+  const getCompletamento = () => {
+    const aree = tipoPulizia === 'settimanale' ? AREE_PULIZIA_SETTIMANALI : AREE_PULIZIA_GIORNALIERE;
+    const totale = aree.length;
+    const completate = Object.values(pulizie).filter(Boolean).length;
+    return {
+      completate,
+      totale,
+      percentuale: Math.round((completate / totale) * 100)
+    };
+  };
+
+  // ============================================
+  // CONFERMA E SALVA
   // ============================================
   const handleConferma = async () => {
-    setSaving(true);
-    setError(null);
-
     try {
-      const token = localStorage.getItem('token');
-      
-      console.log('🧹 [Pulizia] ========================================');
-      console.log('🧹 [Pulizia] INIZIO SALVATAGGIO');
-      console.log('🧹 [Pulizia] ========================================');
-      console.log('📊 [Pulizia] Tipo:', tipoPulizia);
-      console.log('📊 [Pulizia] Aree pulite:', areePulite);
+      setLoading(true);
+      setError(null);
 
       const aree = tipoPulizia === 'settimanale' ? AREE_PULIZIA_SETTIMANALI : AREE_PULIZIA_GIORNALIERE;
       
-      // Prepara payload
-      const areePuliteArray = aree
-        .filter(area => areePulite[area.id])
+      // Costruisci array elementi puliti
+      const elementiPuliti = aree
+        .filter(area => pulizie[area.id])
         .map(area => ({
           nome: area.nome,
           conforme: true,
           note: null
         }));
 
+      // Payload per backend
       const payload = {
-        tipo: tipoPulizia === 'settimanale' ? 'sanificazione' : 'controllo_igienico',
+        tipo: 'sanificazione',
         controlloIgienico: {
           area: tipoPulizia === 'settimanale' ? 'Intero laboratorio' : 'Aree di produzione',
-          elementi: areePuliteArray,
+          elementi: elementiPuliti,
           azioneCorrettiva: null
         },
         operatore: operatore,
         note: note,
-        conforme: areePuliteArray.length > 0,
+        conforme: true,
         dataOra: new Date().toISOString()
       };
 
-      console.log('📤 [Pulizia] Payload:', JSON.stringify(payload, null, 2));
+      console.log('📤 [Pulizia Auto] Invio payload:', payload);
 
-      const response = await fetch(`${API_URL}/haccp/pulizia`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
+      const token = localStorage.getItem('token');
+      
+      // ✅ USA ENDPOINT CORRETTO: /api/haccp/registrazione
+      const response = await axios.post(
+        `${API_URL}/haccp/registrazione`,
+        payload,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      console.log('📡 [Pulizia] Response status:', response.status);
-
-      const responseText = await response.text();
-      console.log('📡 [Pulizia] Response body:', responseText);
-
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('❌ [Pulizia] Errore parsing JSON:', parseError);
-        throw new Error('Risposta del server non valida');
-      }
-
-      if (!response.ok) {
-        console.error('❌ [Pulizia] Response non OK:', result);
-        throw new Error(result.message || `Errore HTTP ${response.status}`);
-      }
-
-      if (!result.success) {
-        console.error('❌ [Pulizia] Success = false:', result);
-        throw new Error(result.message || 'Salvataggio fallito');
-      }
-
-      console.log('✅ [Pulizia] ========================================');
-      console.log('✅ [Pulizia] SALVATAGGIO COMPLETATO!');
-      console.log('✅ [Pulizia] ========================================');
+      console.log('✅ [Pulizia Auto] Salvato con successo:', response.data);
 
       // Salva in localStorage per evitare duplicati
-      const oggi = new Date().toISOString().split('T')[0];
       const storageKey = `pulizia_last_popup_${tipoPulizia}`;
+      const oggi = new Date().toISOString().split('T')[0];
       localStorage.setItem(storageKey, oggi);
 
-      setSaved(true);
+      // Chiudi popup
+      setOpen(false);
       
-      // Chiudi dopo 2 secondi
+      // Ricarica pagina dopo 2 secondi
       setTimeout(() => {
-        handleClose();
-        if (typeof window !== 'undefined') {
-          window.location.reload();
-        }
+        if (onClose) onClose();
+        window.location.reload();
       }, 2000);
 
     } catch (err) {
-      console.error('💥 [Pulizia] ========================================');
-      console.error('💥 [Pulizia] ERRORE SALVATAGGIO');
-      console.error('💥 [Pulizia] ========================================');
-      console.error('💥 [Pulizia]', err);
-      setError(err.message || 'Errore sconosciuto');
-    } finally {
-      setSaving(false);
+      console.error('❌ [Pulizia Auto] Errore salvataggio:', err);
+      setError(err.response?.data?.message || err.message || 'Errore durante il salvataggio');
+      setLoading(false);
     }
   };
 
-  const handleClose = () => {
+  const handleAnnulla = () => {
     setOpen(false);
     if (onClose) onClose();
   };
 
-  // ============================================
-  // RENDER
-  // ============================================
-  if (loading) {
-    return null;
-  }
-
-  if (!open) {
-    return null;
-  }
-
+  // Dati completamento
+  const completamento = getCompletamento();
   const aree = tipoPulizia === 'settimanale' ? AREE_PULIZIA_SETTIMANALI : AREE_PULIZIA_GIORNALIERE;
-  const totaleAree = aree.length;
-  const areePuliteCount = Object.values(areePulite).filter(Boolean).length;
-  const completamento = Math.round((areePuliteCount / totaleAree) * 100);
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose}
+    <Dialog
+      open={open}
+      onClose={handleAnnulla}
       maxWidth="md"
       fullWidth
+      disableEscapeKeyDown
     >
-      <DialogTitle sx={{ 
-        bgcolor: tipoPulizia === 'settimanale' ? 'secondary.main' : 'info.main', 
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2
-      }}>
-        {tipoPulizia === 'settimanale' ? (
-          <EventRepeatIcon fontSize="large" />
-        ) : (
-          <CleaningServicesIcon fontSize="large" />
-        )}
-        <Box>
-          <Typography variant="h5">
-            {tipoPulizia === 'settimanale' ? '🧹 Pulizie Settimanali Approfondite' : '🧹 Pulizie Giornaliere'}
-          </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.9 }}>
-            {tipoPulizia === 'settimanale' 
-              ? 'Domenica - Pulizia completa del laboratorio'
-              : 'Pulizia di fine giornata - Aree principali'}
-          </Typography>
+      <DialogTitle sx={{ bgcolor: 'secondary.main', color: 'white', pb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <span style={{ fontSize: 32 }}>🧹</span>
+          <Box>
+            <Typography variant="h5" fontWeight="bold">
+              {tipoPulizia === 'settimanale' ? 'Pulizie Settimanali Approfondite' : 'Pulizie Giornaliere'}
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              {tipoPulizia === 'settimanale' 
+                ? 'Pulizia approfondita settimanale - Tutte le aree'
+                : 'Pulizia di fine giornata - Aree principali'}
+            </Typography>
+          </Box>
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ mt: 2 }}>
-        {/* Alert informativo */}
+      <DialogContent sx={{ pt: 3 }}>
+        {/* Alert Info */}
         <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            {tipoPulizia === 'settimanale' 
-              ? '📋 Verifica e spunta tutte le aree che hai pulito durante la pulizia approfondita settimanale'
-              : '📋 Verifica e spunta tutte le aree che hai pulito a fine giornata'}
-          </Typography>
+          <strong>📋 Verifica e spunta</strong> tutte le aree che hai pulito {tipoPulizia === 'settimanale' ? 'questa settimana' : 'a fine giornata'}
         </Alert>
 
-        {/* Statistiche completamento */}
-        <Paper sx={{ p: 2, mb: 3, bgcolor: 'grey.50' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography variant="h6">
-              Completamento: {completamento}%
+        {/* Barra Progresso */}
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="body2" fontWeight="bold">
+              Completamento: {completamento.percentuale}%
             </Typography>
             <Chip 
-              label={`${areePuliteCount}/${totaleAree} aree`}
-              color={completamento === 100 ? 'success' : 'default'}
-              icon={completamento === 100 ? <CheckCircleIcon /> : undefined}
+              label={`${completamento.completate}/${completamento.totale} aree`}
+              color={completamento.percentuale === 100 ? 'success' : 'warning'}
+              size="small"
             />
           </Box>
-          <Box sx={{ 
-            width: '100%', 
-            height: 8, 
-            bgcolor: 'grey.300', 
-            borderRadius: 1,
-            overflow: 'hidden'
-          }}>
-            <Box sx={{ 
-              width: `${completamento}%`, 
-              height: '100%', 
-              bgcolor: completamento === 100 ? 'success.main' : 'info.main',
-              transition: 'width 0.3s'
-            }} />
-          </Box>
-        </Paper>
+          <LinearProgress 
+            variant="determinate" 
+            value={completamento.percentuale}
+            sx={{ height: 8, borderRadius: 1 }}
+            color={completamento.percentuale === 100 ? 'success' : 'warning'}
+          />
+        </Box>
 
-        {/* Lista aree da pulire */}
-        <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+        {/* Lista Aree */}
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
           Aree da verificare:
         </Typography>
-
-        {aree.map((area) => (
-          <Paper 
-            key={area.id} 
-            sx={{ 
-              p: 2, 
-              mb: 2,
-              border: '2px solid',
-              borderColor: areePulite[area.id] ? 'success.main' : 'grey.300',
-              bgcolor: areePulite[area.id] ? 'success.50' : 'white',
-              transition: 'all 0.3s'
-            }}
-          >
+        <FormGroup>
+          {aree.map((area) => (
             <FormControlLabel
+              key={area.id}
               control={
                 <Checkbox
-                  checked={areePulite[area.id] || false}
-                  onChange={() => handleToggleArea(area.id)}
+                  checked={pulizie[area.id] || false}
+                  onChange={() => handleCheckChange(area.id)}
                   color="success"
-                  sx={{ '& .MuiSvgIcon-root': { fontSize: 32 } }}
                 />
               }
               label={
                 <Box>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  <Typography variant="body1">
                     {area.nome}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Prodotto: {area.prodotto}
+                    {area.prodotto}
                   </Typography>
                 </Box>
               }
+              sx={{ 
+                mb: 1,
+                p: 1,
+                borderRadius: 1,
+                bgcolor: pulizie[area.id] ? 'success.light' : 'grey.100',
+                '&:hover': { bgcolor: pulizie[area.id] ? 'success.light' : 'grey.200' }
+              }}
             />
-          </Paper>
-        ))}
-
-        <Divider sx={{ my: 3 }} />
+          ))}
+        </FormGroup>
 
         {/* Note */}
         <TextField
           fullWidth
+          label="Note aggiuntive"
           multiline
-          rows={3}
-          label="Note aggiuntive (opzionale)"
+          rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Es: Rilevate macchie su parete zona cottura, pulite immediatamente"
+          sx={{ mt: 3, mb: 2 }}
         />
 
         {/* Operatore */}
@@ -397,7 +330,7 @@ export default function PuliziaAutoPopup({ onClose, forceShow = false, tipo = 'a
           label="Operatore"
           value={operatore}
           onChange={(e) => setOperatore(e.target.value)}
-          sx={{ mt: 2 }}
+          sx={{ mb: 2 }}
         />
 
         {/* Errore */}
@@ -406,33 +339,24 @@ export default function PuliziaAutoPopup({ onClose, forceShow = false, tipo = 'a
             {error}
           </Alert>
         )}
-
-        {/* Successo */}
-        {saved && (
-          <Alert severity="success" sx={{ mt: 2 }}>
-            ✅ Pulizie registrate con successo! La pagina si aggiornerà automaticamente...
-          </Alert>
-        )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, gap: 2 }}>
+      <DialogActions sx={{ p: 3, pt: 0 }}>
         <Button 
-          onClick={handleClose}
-          disabled={saving || saved}
+          onClick={handleAnnulla}
+          disabled={loading}
           variant="outlined"
-          size="large"
         >
           Annulla
         </Button>
         <Button
           onClick={handleConferma}
-          disabled={saving || saved || areePuliteCount === 0}
+          disabled={loading || completamento.completate === 0}
           variant="contained"
+          color="success"
           size="large"
-          startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
-          sx={{ minWidth: 200 }}
         >
-          {saving ? 'Salvataggio...' : saved ? 'Salvato!' : 'Conferma e Registra'}
+          {loading ? 'Salvataggio...' : 'CONFERMA E REGISTRA'}
         </Button>
       </DialogActions>
     </Dialog>
