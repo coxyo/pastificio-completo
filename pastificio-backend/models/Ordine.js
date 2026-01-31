@@ -428,6 +428,20 @@ const ordineSchema = new mongoose.Schema({
   
   dataInvioEmail: {
     type: Date
+  },
+  
+  // ✅ NUOVO 30/01/2026: Promemoria automatici WhatsApp
+  promemoria_inviato: {
+    type: Boolean,
+    default: false,
+    index: true,
+    comment: 'Indica se è stato inviato il promemoria WhatsApp automatico'
+  },
+  
+  promemoria_inviato_at: {
+    type: Date,
+    default: null,
+    comment: 'Timestamp invio promemoria automatico'
   }
   
 }, {
@@ -443,6 +457,14 @@ ordineSchema.index({ numeroOrdine: 1 });
 ordineSchema.index({ daViaggio: 1 });
 ordineSchema.index({ createdAt: -1 });
 ordineSchema.index({ 'opzioniExtra.etichettaIngredienti': 1 });
+
+// ✅ NUOVO 30/01/2026: Indice composto per query scheduler promemoria
+// Velocizza: find({ dataRitiro: domani, stato: {$ne: 'annullato'}, promemoria_inviato: {$ne: true} })
+ordineSchema.index({ 
+  dataRitiro: 1, 
+  promemoria_inviato: 1, 
+  stato: 1 
+});
 
 // ========== HOOK PRE-SAVE ✅ FIX 13/12/2025 ==========
 ordineSchema.pre('save', async function(next) {
