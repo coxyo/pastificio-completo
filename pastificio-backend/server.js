@@ -312,6 +312,8 @@ app.use('/api/notifiche', protect, notificheRoutes);
 app.use('/api/export', protect, exportRoutes);
 app.use('/api/statistics', protect, statisticsRoutes);
 app.use('/api/comunicazioni', protect, comunicazioniRoutes);
+app.use('/api/whatsapp/qr', whatsappRoutes);
+app.use('/api/whatsapp/status', whatsappRoutes);
 app.use('/api/whatsapp', protect, whatsappRoutes);
 app.use('/api/templates', protect, templateRoutes);
 app.use('/api/test', testRoutes);
