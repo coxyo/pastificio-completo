@@ -54,48 +54,86 @@ class SchedulerWhatsApp {
       const dopodomani = new Date(domani);
       dopodomani.setDate(dopodomani.getDate() + 1);
       
+      // ✅ Trova ordini di domani che NON hanno già ricevuto promemoria
       const ordiniDomani = await Ordine.find({
         dataRitiro: {
           $gte: domani,
           $lt: dopodomani
         },
-        stato: { $ne: 'annullato' }
+        stato: { $ne: 'annullato' },
+        promemoria_inviato: { $ne: true } // ✅ SOLO ordini senza promemoria
       });
       
-      logger.info(`📋 Trovati ${ordiniDomani.length} ordini per domani`);
+      logger.info(`📋 Trovati ${ordiniDomani.length} ordini per domani (senza promemoria già inviato)`);
+      
+      let inviatiConSuccesso = 0;
+      let errori = 0;
       
       for (const ordine of ordiniDomani) {
-        if (ordine.telefono) {
+        const telefono = ordine.telefono || ordine.cliente?.telefono;
+        
+        if (telefono) {
           try {
-            const prodottiBreve = ordine.prodotti
-              .slice(0, 3)
-              .map(p => `• ${p.nome}`)
+            // ✅ Genera lista prodotti (primi 5)
+            const prodottiLista = ordine.prodotti
+              .slice(0, 5)
+              .map(p => {
+                const qty = p.quantita || 0;
+                const unita = p.unitaMisura || p.unita || 'Kg';
+                return `• ${p.nome || p.prodotto}: ${qty} ${unita}`;
+              })
               .join('\n');
             
-            await whatsappService.inviaMessaggioConTemplate(
-              ordine.telefono,
-              'promemoria-giorno-prima',
-              {
-                nomeCliente: ordine.nomeCliente,
-                dataRitiro: domani.toLocaleDateString('it-IT'),
-                oraRitiro: ordine.oraRitiro,
-                prodottiBreve: prodottiBreve + (ordine.prodotti.length > 3 ? '\n• ...' : '')
-              }
-            );
+            const altriProdotti = ordine.prodotti.length > 5 
+              ? `\n• ...e altri ${ordine.prodotti.length - 5} prodotti`
+              : '';
             
-            logger.info(`✅ Promemoria inviato a ${ordine.nomeCliente}`);
+            // ✅ Messaggio SENZA totale come richiesto
+            const messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
+
+🔔 *PROMEMORIA RITIRO*
+
+Gentile ${ordine.nomeCliente || 'Cliente'},
+le ricordiamo il suo ordine per domani ${domani.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })} alle ore ${ordine.oraRitiro || '10:00'}.
+
+📦 *PRODOTTI:*
+${prodottiLista}${altriProdotti}
+
+📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
+📞 *Per info:* 389 887 9833
+
+Grazie e a presto!
+Pastificio Nonna Claudia`;
             
-            // Pausa tra messaggi per evitare ban
+            // ✅ Invia messaggio
+            const result = await whatsappService.inviaMessaggio(telefono, messaggio);
+            
+            if (result.success) {
+              // ✅ SEGNA promemoria_inviato = true
+              ordine.promemoria_inviato = true;
+              ordine.promemoria_inviato_at = new Date();
+              await ordine.save();
+              
+              inviatiConSuccesso++;
+              logger.info(`✅ Promemoria inviato a ${ordine.nomeCliente} (${telefono})`);
+            }
+            
+            // ✅ Pausa 3 secondi tra messaggi (evita ban WhatsApp)
             await new Promise(resolve => setTimeout(resolve, 3000));
+            
           } catch (error) {
-            logger.error(`Errore invio promemoria a ${ordine.nomeCliente}:`, error);
+            errori++;
+            logger.error(`❌ Errore invio promemoria a ${ordine.nomeCliente}:`, error.message);
           }
+        } else {
+          logger.warn(`⚠️ Ordine ${ordine._id} - ${ordine.nomeCliente}: nessun telefono disponibile`);
         }
       }
       
-      logger.info('✅ Promemoria completati');
+      logger.info(`✅ Promemoria completati: ${inviatiConSuccesso} inviati, ${errori} errori`);
+      
     } catch (error) {
-      logger.error('Errore invio promemoria:', error);
+      logger.error('❌ Errore generale invio promemoria:', error);
     }
   }
 
