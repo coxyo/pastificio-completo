@@ -29,6 +29,7 @@ import statisticsRoutes from './routes/statistics.js';
 import clientiRoutes from './routes/clienti.js';
 import comunicazioniRoutes from './routes/comunicazioni.js';
 import whatsappRoutes from './routes/whatsapp.js';
+import whatsappDashboardRoutes from './routes/whatsapp-dashboard.js'; // ✅ AGGIUNGI
 import whatsappPublicRoutes from './routes/whatsapp-public.js';
 import templateRoutes from './routes/templates.js';
 import testRoutes from './routes/test.js';
@@ -318,6 +319,7 @@ app.use('/api/comunicazioni', protect, comunicazioniRoutes);
 app.use('/api/whatsapp/qr', whatsappRoutes);
 app.use('/api/whatsapp/status', whatsappRoutes);
 app.use('/api/whatsapp', protect, whatsappRoutes);
+app.use('/api/whatsapp-dashboard', whatsappDashboardRoutes); // ✅ AGGIUNGI (PUBBLICO)
 app.use('/api/templates', protect, templateRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/admin', adminRoutes);
