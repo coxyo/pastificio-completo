@@ -29,6 +29,7 @@ import statisticsRoutes from './routes/statistics.js';
 import clientiRoutes from './routes/clienti.js';
 import comunicazioniRoutes from './routes/comunicazioni.js';
 import whatsappRoutes from './routes/whatsapp.js';
+import whatsappPublicRoutes from './routes/whatsapp-public.js';
 import templateRoutes from './routes/templates.js';
 import testRoutes from './routes/test.js';
 import adminRoutes from './routes/admin.js';
@@ -294,6 +295,8 @@ app.get('/api/health', (req, res) => {
 
 // Auth routes - NON PROTETTE
 app.use('/api/auth', authRoutes);
+app.use('/api/whatsapp-public', whatsappPublicRoutes);
+
 
 // Routes pubbliche per test (TEMPORANEO - aggiungere protect in produzione)
 app.use('/api/ordini', ordiniRoutes);
