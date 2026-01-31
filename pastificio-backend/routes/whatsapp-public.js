@@ -66,8 +66,8 @@ router.get('/qr', async (req, res) => {
         </body>
         </html>
       `);
-    } else if (qrCode || pairingCode) {
-      // Mostra QR e/o Pairing Code
+    } else if (qrCode) {
+      // Mostra QR + Istruzioni Pairing Manuale
       res.send(`
         <!DOCTYPE html>
         <html>
@@ -83,110 +83,183 @@ router.get('/qr', async (req, res) => {
               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
               color: white;
             }
+            .container {
+              max-width: 1200px;
+              margin: 0 auto;
+            }
             .card {
               background: white;
               color: #333;
-              padding: 40px;
+              padding: 30px;
               border-radius: 20px;
               box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-              max-width: 700px;
-              margin: 0 auto;
+              margin-bottom: 20px;
             }
-            h1 { color: #25D366; margin: 0 0 20px 0; }
+            h1 { color: #25D366; margin: 0 0 10px 0; font-size: 28px; }
+            .subtitle { color: #666; font-size: 16px; margin-bottom: 30px; }
             .methods {
-              display: flex;
+              display: grid;
+              grid-template-columns: 1fr 1fr;
               gap: 30px;
-              justify-content: center;
-              margin: 30px 0;
+              margin: 20px 0;
             }
             .method {
-              flex: 1;
-              padding: 20px;
-              background: #f5f5f5;
+              padding: 25px;
+              background: #f8f9fa;
               border-radius: 15px;
+              text-align: left;
             }
             .method h2 {
               color: #25D366;
-              font-size: 20px;
+              font-size: 22px;
               margin: 0 0 15px 0;
+              text-align: center;
             }
-            .pairing-code {
+            .method-icon {
               font-size: 48px;
-              font-weight: bold;
-              color: #25D366;
-              background: white;
-              padding: 20px;
-              border-radius: 10px;
-              letter-spacing: 8px;
-              margin: 20px 0;
-              font-family: 'Courier New', monospace;
+              text-align: center;
+              margin-bottom: 15px;
             }
             img { 
               border: 5px solid #25D366; 
               border-radius: 15px;
-              max-width: 300px;
+              max-width: 280px;
               width: 100%;
+              display: block;
+              margin: 0 auto 20px;
             }
             .steps {
-              text-align: left;
-              margin: 20px 0;
-              padding: 15px;
               background: white;
+              padding: 20px;
               border-radius: 10px;
-              font-size: 14px;
+              margin-top: 15px;
             }
-            .steps li { margin: 8px 0; }
-            .refresh { color: #666; font-size: 14px; margin-top: 20px; }
+            .steps ol {
+              margin: 10px 0;
+              padding-left: 20px;
+            }
+            .steps li { 
+              margin: 12px 0; 
+              font-size: 15px;
+              line-height: 1.5;
+            }
+            .highlight {
+              background: #fff3cd;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-weight: bold;
+            }
             .recommended {
               background: #25D366;
               color: white;
-              padding: 5px 10px;
-              border-radius: 5px;
+              padding: 5px 12px;
+              border-radius: 20px;
               font-size: 12px;
+              font-weight: bold;
+              display: inline-block;
               margin-left: 10px;
+            }
+            .warning {
+              background: #fff3cd;
+              border-left: 4px solid #ffc107;
+              padding: 15px;
+              border-radius: 8px;
+              margin: 20px 0;
+              text-align: left;
+            }
+            .refresh { 
+              color: #666; 
+              font-size: 14px; 
+              margin-top: 20px;
+              padding: 15px;
+              background: rgba(255,255,255,0.9);
+              border-radius: 10px;
+            }
+            .phone-number {
+              font-size: 20px;
+              font-weight: bold;
+              color: #25D366;
+              background: #e8f5e9;
+              padding: 10px 20px;
+              border-radius: 10px;
+              display: inline-block;
+              margin: 15px 0;
+            }
+            @media (max-width: 768px) {
+              .methods {
+                grid-template-columns: 1fr;
+              }
             }
           </style>
         </head>
         <body>
-          <div class="card">
-            <h1>📱 Collegamento WhatsApp</h1>
-            <p style="font-size: 18px; color: #666;">Scegli il metodo che preferisci:</p>
-            
-            <div class="methods">
-              ${pairingCode ? `
-              <div class="method">
-                <h2>🔢 Codice a 8 cifre <span class="recommended">CONSIGLIATO</span></h2>
-                <div class="pairing-code">${pairingCode}</div>
-                <div class="steps">
-                  <strong>Come usarlo:</strong>
-                  <ol>
-                    <li>Apri WhatsApp su <strong>389 887 9833</strong></li>
-                    <li><strong>Dispositivi collegati</strong></li>
-                    <li><strong>Collega con numero di telefono</strong></li>
-                    <li>Inserisci: <strong>${pairingCode}</strong></li>
-                  </ol>
-                </div>
-              </div>
-              ` : ''}
+          <div class="container">
+            <div class="card">
+              <h1>📱 Collegamento WhatsApp Business</h1>
+              <p class="subtitle">Scegli il metodo più comodo per te</p>
               
-              ${qrCode ? `
-              <div class="method">
-                <h2>📷 QR Code</h2>
-                <img src="${qrCode}" alt="QR Code">
-                <div class="steps">
-                  <strong>Come usarlo:</strong>
-                  <ol>
-                    <li>Apri WhatsApp</li>
-                    <li>Dispositivi collegati</li>
-                    <li>Scansiona QR</li>
-                  </ol>
+              <div class="phone-number">
+                📞 Numero: 389 887 9833
+              </div>
+
+              <div class="methods">
+                <!-- METODO 1: QR CODE -->
+                <div class="method">
+                  <div class="method-icon">📷</div>
+                  <h2>Metodo 1: QR Code</h2>
+                  <img src="${qrCode}" alt="QR Code">
+                  <div class="steps">
+                    <strong>Come procedere:</strong>
+                    <ol>
+                      <li>Apri <strong>WhatsApp</strong> sul telefono <span class="highlight">389 887 9833</span></li>
+                      <li>Vai su <span class="highlight">Impostazioni ⚙️</span></li>
+                      <li>Tap su <span class="highlight">Dispositivi collegati</span></li>
+                      <li>Tap su <span class="highlight">[+] Collega un dispositivo</span></li>
+                      <li><strong>Scansiona questo QR code</strong></li>
+                      <li>✅ Connesso!</li>
+                    </ol>
+                  </div>
+                </div>
+
+                <!-- METODO 2: PAIRING CODE -->
+                <div class="method">
+                  <div class="method-icon">🔢</div>
+                  <h2>Metodo 2: Codice a 8 Cifre <span class="recommended">PIÙ FACILE</span></h2>
+                  <div class="steps">
+                    <strong>Se il QR non funziona:</strong>
+                    <ol>
+                      <li>Apri <strong>WhatsApp</strong> sul telefono <span class="highlight">389 887 9833</span></li>
+                      <li>Vai su <span class="highlight">Impostazioni ⚙️</span></li>
+                      <li>Tap su <span class="highlight">Dispositivi collegati</span></li>
+                      <li>Tap su <span class="highlight">[+] Collega un dispositivo</span></li>
+                      <li><strong>⚠️ NON scansionare il QR!</strong></li>
+                      <li>Tap su <span class="highlight">"Collega con numero di telefono"</span></li>
+                      <li>WhatsApp ti <strong>mostrerà un codice</strong> di 8 caratteri (es: <code>A1B2C3D4</code>)</li>
+                      <li>Aspetta 2-3 secondi</li>
+                      <li>✅ WhatsApp si collega automaticamente!</li>
+                    </ol>
+                  </div>
+                  
+                  <div class="warning">
+                    <strong>💡 Suggerimento:</strong><br>
+                    Il pairing code funziona meglio se:
+                    <ul>
+                      <li>Il QR non si scansiona bene</li>
+                      <li>C'è poca luce</li>
+                      <li>La fotocamera ha problemi</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-              ` : ''}
-            </div>
-            
-            <div class="refresh">
-              🔄 Pagina si aggiorna ogni 5 secondi...
+
+              <div class="warning">
+                <strong>⚠️ Importante:</strong> Usa il telefono con numero <strong>389 887 9833</strong>. Altri numeri non funzioneranno!
+              </div>
+
+              <div class="refresh">
+                🔄 Questa pagina si aggiorna automaticamente ogni 5 secondi<br>
+                Quando connesso, vedrai conferma automaticamente
+              </div>
             </div>
           </div>
         </body>

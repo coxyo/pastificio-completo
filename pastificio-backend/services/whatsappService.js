@@ -1,23 +1,24 @@
 // services/whatsappService.js
-// ✅ VERSIONE CON PAIRING CODE (Numero Telefono)
+// ✅ VERSIONE IBRIDA - QR + Istruzioni Pairing Manuale
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
+import qrcode from 'qrcode-terminal';
 import QRCode from 'qrcode';
 import logger from '../config/logger.js';
 
-class WhatsAppServicePairing {
+class WhatsAppServiceHybrid {
   constructor() {
     this.client = null;
     this.qrCode = null;
     this.pairingCode = null;
     this.connected = false;
-    this.numeroAziendale = '393898879833'; // ✅ CON PREFISSO INTERNAZIONALE
+    this.numeroAziendale = '393898879833';
     this.isInitialized = false;
   }
 
   async initialize() {
     try {
-      logger.info('🔌 Inizializzazione WhatsApp con Pairing Code...');
+      logger.info('🔌 Inizializzazione WhatsApp Web.js...');
       
       this.client = new Client({
         authStrategy: new LocalAuth({
@@ -37,27 +38,17 @@ class WhatsAppServicePairing {
         }
       });
 
-      // ✅ EVENT: QR Code (mostriamo lo stesso)
+      // ✅ EVENT: QR Code
       this.client.on('qr', async (qr) => {
         logger.info('📷 QR Code generato');
+        
+        // Mostra in terminal
+        qrcode.generate(qr, { small: true });
+        
+        // Genera data URL
         this.qrCode = await QRCode.toDataURL(qr);
-        logger.info('💡 Puoi anche usare il pairing code invece del QR!');
-      });
-
-      // ✅ EVENT: Richiesta Pairing Code
-      this.client.on('code', (code) => {
-        this.pairingCode = code;
-        logger.info('🔢 ═══════════════════════════════════════');
-        logger.info('🔢 PAIRING CODE GENERATO!');
-        logger.info('🔢 ═══════════════════════════════════════');
-        logger.info(`🔢 CODICE: ${code}`);
-        logger.info('🔢 ═══════════════════════════════════════');
-        logger.info('📱 COME USARLO:');
-        logger.info('1. Apri WhatsApp sul telefono');
-        logger.info('2. Vai su: Dispositivi collegati → Collega dispositivo');
-        logger.info('3. Tap su "Collega con numero di telefono"');
-        logger.info(`4. Inserisci questo codice: ${code}`);
-        logger.info('🔢 ═══════════════════════════════════════');
+        logger.info('✅ QR Code disponibile su: /api/whatsapp-public/qr');
+        logger.info('💡 ALTERNATIVA: Usa pairing code manuale dal telefono!');
       });
 
       // ✅ EVENT: Autenticazione
@@ -71,7 +62,7 @@ class WhatsAppServicePairing {
       this.client.on('ready', () => {
         this.connected = true;
         this.isInitialized = true;
-        logger.info('✅ WhatsApp connesso e pronto!');
+        logger.info('✅ WhatsApp Web.js connesso e pronto!');
         logger.info(`📱 Numero: ${this.numeroAziendale}`);
       });
 
@@ -88,25 +79,8 @@ class WhatsAppServicePairing {
         this.pairingCode = null;
       });
 
-      // 🔥 RICHIEDI PAIRING CODE
+      // Inizializza
       await this.client.initialize();
-      
-      // Dopo inizializzazione, richiedi pairing code
-      setTimeout(async () => {
-        try {
-          if (!this.connected && this.client) {
-            logger.info('📱 Richiesta pairing code per numero:', this.numeroAziendale);
-            const code = await this.client.requestPairingCode(this.numeroAziendale);
-            this.pairingCode = code;
-            logger.info('🔢 ═══════════════════════════════════════');
-            logger.info(`🔢 PAIRING CODE: ${code}`);
-            logger.info('🔢 ═══════════════════════════════════════');
-          }
-        } catch (error) {
-          logger.warn('⚠️ Impossibile richiedere pairing code:', error.message);
-          logger.info('💡 Usa il QR code invece');
-        }
-      }, 5000); // Aspetta 5 secondi
       
     } catch (error) {
       logger.error('❌ Errore inizializzazione WhatsApp:', error);
@@ -120,7 +94,7 @@ class WhatsAppServicePairing {
         logger.warn('⚠️ WhatsApp non connesso');
         return {
           success: false,
-          error: 'WhatsApp non connesso. Usa pairing code o QR.',
+          error: 'WhatsApp non connesso. Collega dispositivo.',
           whatsappUrl: `https://wa.me/${numero}?text=${encodeURIComponent(messaggio)}`
         };
       }
@@ -225,11 +199,10 @@ Ti aspettiamo! 😊
 
   getInfo() {
     return {
-      service: 'WhatsApp Web.js (Pairing Code)',
+      service: 'WhatsApp Web.js',
       version: '1.0.0',
       connected: this.connected,
-      numero: this.numeroAziendale,
-      pairingCode: this.pairingCode
+      numero: this.numeroAziendale
     };
   }
 
@@ -253,7 +226,7 @@ Ti aspettiamo! 😊
   }
 }
 
-const whatsappService = new WhatsAppServicePairing();
+const whatsappService = new WhatsAppServiceHybrid();
 export default whatsappService;
 
 export const initialize = () => whatsappService.initialize();
