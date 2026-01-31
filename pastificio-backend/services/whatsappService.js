@@ -25,8 +25,8 @@ class WhatsAppServiceWebOpen {
         numeroClean = '39' + numeroClean;
       }
 
-      // Genera link WhatsApp Web
-      const whatsappWebUrl = `https://web.whatsapp.com/send?phone=${numeroClean}&text=${encodeURIComponent(messaggio)}`;
+      // Genera link wa.me (funziona meglio con app desktop)
+      const whatsappWebUrl = `https://wa.me/${numeroClean}?text=${encodeURIComponent(messaggio)}`;
 
       logger.info(`📤 Link WhatsApp Web generato per ${numeroClean}`);
       logger.info(`🔗 ${whatsappWebUrl}`);
