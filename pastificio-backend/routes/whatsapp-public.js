@@ -6,15 +6,16 @@ import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// GET /api/whatsapp-public/qr - QR Code PUBBLICO
+// GET /api/whatsapp-public/qr - QR Code E PAIRING CODE PUBBLICO
 router.get('/qr', async (req, res) => {
   try {
-    logger.info('📱 Richiesta QR code (pubblico)');
+    logger.info('📱 Richiesta QR/Pairing code (pubblico)');
     
     const qrCode = whatsappService.getQRCode ? whatsappService.getQRCode() : null;
+    const pairingCode = whatsappService.getPairingCode ? whatsappService.getPairingCode() : null;
     const status = whatsappService.getStatus ? whatsappService.getStatus() : {};
     
-    if (!qrCode && status.connected) {
+    if (!qrCode && !pairingCode && status.connected) {
       // Già connesso
       res.send(`
         <!DOCTYPE html>
@@ -65,13 +66,13 @@ router.get('/qr', async (req, res) => {
         </body>
         </html>
       `);
-    } else if (qrCode) {
-      // Mostra QR
+    } else if (qrCode || pairingCode) {
+      // Mostra QR e/o Pairing Code
       res.send(`
         <!DOCTYPE html>
         <html>
         <head>
-          <title>WhatsApp Baileys - Scansiona QR</title>
+          <title>WhatsApp - Collegamento Dispositivo</title>
           <meta charset="utf-8">
           <meta http-equiv="refresh" content="5">
           <style>
@@ -88,41 +89,102 @@ router.get('/qr', async (req, res) => {
               padding: 40px;
               border-radius: 20px;
               box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-              max-width: 600px;
+              max-width: 700px;
               margin: 0 auto;
             }
             h1 { color: #25D366; margin: 0 0 20px 0; }
+            .methods {
+              display: flex;
+              gap: 30px;
+              justify-content: center;
+              margin: 30px 0;
+            }
+            .method {
+              flex: 1;
+              padding: 20px;
+              background: #f5f5f5;
+              border-radius: 15px;
+            }
+            .method h2 {
+              color: #25D366;
+              font-size: 20px;
+              margin: 0 0 15px 0;
+            }
+            .pairing-code {
+              font-size: 48px;
+              font-weight: bold;
+              color: #25D366;
+              background: white;
+              padding: 20px;
+              border-radius: 10px;
+              letter-spacing: 8px;
+              margin: 20px 0;
+              font-family: 'Courier New', monospace;
+            }
             img { 
               border: 5px solid #25D366; 
               border-radius: 15px;
-              max-width: 400px;
+              max-width: 300px;
               width: 100%;
             }
             .steps {
               text-align: left;
-              margin: 30px 0;
-              padding: 20px;
-              background: #f5f5f5;
+              margin: 20px 0;
+              padding: 15px;
+              background: white;
               border-radius: 10px;
+              font-size: 14px;
             }
-            .steps li { margin: 10px 0; font-size: 16px; }
+            .steps li { margin: 8px 0; }
             .refresh { color: #666; font-size: 14px; margin-top: 20px; }
+            .recommended {
+              background: #25D366;
+              color: white;
+              padding: 5px 10px;
+              border-radius: 5px;
+              font-size: 12px;
+              margin-left: 10px;
+            }
           </style>
         </head>
         <body>
           <div class="card">
-            <h1>📱 Scansiona QR Code</h1>
-            <img src="${qrCode}" alt="QR Code">
-            <div class="steps">
-              <strong>Come connettere:</strong>
-              <ol>
-                <li>Apri WhatsApp sul telefono (<strong>389 887 9833</strong>)</li>
-                <li>Vai su <strong>Impostazioni</strong> → <strong>Dispositivi collegati</strong></li>
-                <li>Tap su <strong>Collega un dispositivo</strong></li>
-                <li>Scansiona questo QR code</li>
-                <li>✅ Connesso! La pagina si aggiornerà automaticamente</li>
-              </ol>
+            <h1>📱 Collegamento WhatsApp</h1>
+            <p style="font-size: 18px; color: #666;">Scegli il metodo che preferisci:</p>
+            
+            <div class="methods">
+              ${pairingCode ? `
+              <div class="method">
+                <h2>🔢 Codice a 8 cifre <span class="recommended">CONSIGLIATO</span></h2>
+                <div class="pairing-code">${pairingCode}</div>
+                <div class="steps">
+                  <strong>Come usarlo:</strong>
+                  <ol>
+                    <li>Apri WhatsApp su <strong>389 887 9833</strong></li>
+                    <li><strong>Dispositivi collegati</strong></li>
+                    <li><strong>Collega con numero di telefono</strong></li>
+                    <li>Inserisci: <strong>${pairingCode}</strong></li>
+                  </ol>
+                </div>
+              </div>
+              ` : ''}
+              
+              ${qrCode ? `
+              <div class="method">
+                <h2>📷 QR Code</h2>
+                <img src="${qrCode}" alt="QR Code">
+                <div class="steps">
+                  <strong>Come usarlo:</strong>
+                  <ol>
+                    <li>Apri WhatsApp</li>
+                    <li>Dispositivi collegati</li>
+                    <li>Scansiona QR</li>
+                  </ol>
+                </div>
+              </div>
+              ` : ''}
             </div>
+            
             <div class="refresh">
               🔄 Pagina si aggiorna ogni 5 secondi...
             </div>
