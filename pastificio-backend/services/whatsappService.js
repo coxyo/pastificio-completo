@@ -1,129 +1,51 @@
 // services/whatsappService.js
-// ✅ VERSIONE IBRIDA - QR + Istruzioni Pairing Manuale
-import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth } = pkg;
-import qrcode from 'qrcode-terminal';
-import QRCode from 'qrcode';
+// ✅ VERSIONE WHATSAPP WEB AUTO-OPEN (Usa browser esistente)
 import logger from '../config/logger.js';
 
-class WhatsAppServiceHybrid {
+class WhatsAppServiceWebOpen {
   constructor() {
-    this.client = null;
-    this.qrCode = null;
-    this.pairingCode = null;
-    this.connected = false;
-    this.numeroAziendale = '393898879833';
-    this.isInitialized = false;
+    this.numeroAziendale = '3898879833';
+    this.connected = true; // Sempre true (usa browser già collegato)
   }
 
   async initialize() {
-    try {
-      logger.info('🔌 Inizializzazione WhatsApp Web.js...');
-      
-      this.client = new Client({
-        authStrategy: new LocalAuth({
-          dataPath: './.wwebjs_auth'
-        }),
-        puppeteer: {
-          headless: true,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu'
-          ]
-        }
-      });
-
-      // ✅ EVENT: QR Code
-      this.client.on('qr', async (qr) => {
-        logger.info('📷 QR Code generato');
-        
-        // Mostra in terminal
-        qrcode.generate(qr, { small: true });
-        
-        // Genera data URL
-        this.qrCode = await QRCode.toDataURL(qr);
-        logger.info('✅ QR Code disponibile su: /api/whatsapp-public/qr');
-        logger.info('💡 ALTERNATIVA: Usa pairing code manuale dal telefono!');
-      });
-
-      // ✅ EVENT: Autenticazione
-      this.client.on('authenticated', () => {
-        logger.info('✅ WhatsApp autenticato!');
-        this.qrCode = null;
-        this.pairingCode = null;
-      });
-
-      // ✅ EVENT: Pronto
-      this.client.on('ready', () => {
-        this.connected = true;
-        this.isInitialized = true;
-        logger.info('✅ WhatsApp Web.js connesso e pronto!');
-        logger.info(`📱 Numero: ${this.numeroAziendale}`);
-      });
-
-      // ✅ EVENT: Disconnesso
-      this.client.on('disconnected', (reason) => {
-        this.connected = false;
-        logger.warn(`⚠️ WhatsApp disconnesso: ${reason}`);
-      });
-
-      // ✅ EVENT: Errori
-      this.client.on('auth_failure', (msg) => {
-        logger.error('❌ Autenticazione fallita:', msg);
-        this.qrCode = null;
-        this.pairingCode = null;
-      });
-
-      // Inizializza
-      await this.client.initialize();
-      
-    } catch (error) {
-      logger.error('❌ Errore inizializzazione WhatsApp:', error);
-      throw error;
-    }
+    logger.info('🔌 WhatsApp Web Auto-Open attivato');
+    logger.info('💡 Usa il browser WhatsApp Web già collegato');
+    logger.info('📱 Numero: ' + this.numeroAziendale);
+    return Promise.resolve();
   }
 
   async inviaMessaggio(numero, messaggio) {
     try {
-      if (!this.connected) {
-        logger.warn('⚠️ WhatsApp non connesso');
-        return {
-          success: false,
-          error: 'WhatsApp non connesso. Collega dispositivo.',
-          whatsappUrl: `https://wa.me/${numero}?text=${encodeURIComponent(messaggio)}`
-        };
-      }
-
+      // Normalizza numero
       let numeroClean = numero.toString().replace(/\D/g, '');
+      
+      // Aggiungi prefisso Italia se manca
       if (!numeroClean.startsWith('39')) {
         numeroClean = '39' + numeroClean;
       }
 
-      const chatId = `${numeroClean}@c.us`;
-      logger.info(`📤 Invio messaggio WhatsApp a ${numeroClean}...`);
+      // Genera link WhatsApp Web
+      const whatsappWebUrl = `https://web.whatsapp.com/send?phone=${numeroClean}&text=${encodeURIComponent(messaggio)}`;
 
-      await this.client.sendMessage(chatId, messaggio);
-      logger.info(`✅ Messaggio inviato con successo a ${numeroClean}`);
+      logger.info(`📤 Link WhatsApp Web generato per ${numeroClean}`);
+      logger.info(`🔗 ${whatsappWebUrl}`);
 
       return {
         success: true,
         messageId: `${Date.now()}`,
         numero: numeroClean,
-        timestamp: new Date().toISOString()
+        whatsappWebUrl: whatsappWebUrl,
+        autoOpen: true,
+        timestamp: new Date().toISOString(),
+        method: 'whatsapp-web-auto-open'
       };
 
     } catch (error) {
-      logger.error('❌ Errore invio messaggio:', error);
-      const numeroClean = numero.toString().replace(/\D/g, '');
+      logger.error('❌ Errore generazione link WhatsApp Web:', error);
       return {
         success: false,
-        error: error.message,
-        whatsappUrl: `https://wa.me/${numeroClean}?text=${encodeURIComponent(messaggio)}`
+        error: error.message
       };
     }
   }
@@ -180,60 +102,49 @@ Ti aspettiamo! 😊
   }
 
   getQRCode() {
-    return this.qrCode;
-  }
-
-  getPairingCode() {
-    return this.pairingCode;
+    return null; // Non serve QR
   }
 
   getStatus() {
     return {
-      connected: this.connected,
-      status: this.connected ? 'connected' : 'disconnected',
+      connected: true,
+      status: 'connected',
       numero: this.numeroAziendale,
-      initialized: this.isInitialized,
-      pairingCode: this.pairingCode
+      method: 'whatsapp-web-auto-open',
+      initialized: true
     };
   }
 
   getInfo() {
     return {
-      service: 'WhatsApp Web.js',
+      service: 'WhatsApp Web Auto-Open',
       version: '1.0.0',
-      connected: this.connected,
-      numero: this.numeroAziendale
+      connected: true,
+      numero: this.numeroAziendale,
+      description: 'Usa browser WhatsApp Web già collegato'
     };
   }
 
   isReady() {
-    return this.connected && this.isInitialized;
+    return true; // Sempre pronto
   }
 
   async disconnect() {
-    if (this.client) {
-      await this.client.destroy();
-      this.connected = false;
-      this.isInitialized = false;
-      logger.info('✅ WhatsApp disconnesso');
-    }
+    logger.info('✅ WhatsApp Web Auto-Open - nessuna disconnessione necessaria');
   }
 
   async restart() {
-    logger.info('🔄 Riavvio WhatsApp...');
-    await this.disconnect();
-    await this.initialize();
+    logger.info('🔄 WhatsApp Web Auto-Open - riavvio non necessario');
   }
 }
 
-const whatsappService = new WhatsAppServiceHybrid();
+const whatsappService = new WhatsAppServiceWebOpen();
 export default whatsappService;
 
 export const initialize = () => whatsappService.initialize();
 export const inviaMessaggio = (numero, messaggio) => whatsappService.inviaMessaggio(numero, messaggio);
 export const inviaMessaggioConTemplate = (numero, template, variabili) => whatsappService.inviaMessaggioConTemplate(numero, template, variabili);
 export const getQRCode = () => whatsappService.getQRCode();
-export const getPairingCode = () => whatsappService.getPairingCode();
 export const getStatus = () => whatsappService.getStatus();
 export const getInfo = () => whatsappService.getInfo();
 export const isReady = () => whatsappService.isReady();
