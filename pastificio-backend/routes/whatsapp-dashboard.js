@@ -260,7 +260,7 @@ Ti aspettiamo! 😊
 📍 Via Carmine 20/B, Assemini`;
 
               const numeroClean = ordine.telefono.replace(/\\D/g, '');
-              const whatsappUrl = `https://web.whatsapp.com/send?phone=39${numeroClean}&text=${encodeURIComponent(messaggio)}`;
+              const whatsappUrl = `https://wa.me/39${numeroClean}?text=${encodeURIComponent(messaggio)}`;
 
               return `
                 <div class="order-card" id="order-${index}">
