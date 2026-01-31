@@ -83,7 +83,10 @@ class WhatsAppServiceBaileys {
         // Connessione chiusa
         if (connection === 'close') {
           this.connected = false;
-          const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+          
+          // ✅ FIX: JavaScript puro (no TypeScript)
+          const statusCode = lastDisconnect?.error?.output?.statusCode;
+          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
           
           logger.warn(`⚠️ Connessione chiusa. Motivo: ${lastDisconnect?.error}`);
           
