@@ -148,6 +148,11 @@ const OrdiniList = ({
   dataSelezionata,  // ✅ FIX 28/01/2026: Riceve data da GestoreOrdini (frecce)
 }) => {
   const [dataFiltro, setDataFiltro] = useState(new Date().toISOString().split('T')[0]);
+
+  // ✅ NUOVO 31/01/2026: Verifica se WhatsApp è abilitato su questo dispositivo
+  const isWhatsAppEnabled = () => {
+    return localStorage.getItem('whatsapp_enabled') === 'true';
+  };
   const [anchorEl, setAnchorEl] = useState(null);
   const [ordineSelezionato, setOrdineSelezionato] = useState(null);
   const [categorieEspanse, setCategorieEspanse] = useState({
@@ -395,6 +400,12 @@ const OrdiniList = ({
   
   // ✅ NUOVO 30/01/2026: Funzione per inviare WhatsApp automaticamente senza popup
   const inviaWhatsAppAutomatico = async (ordine) => {
+  // ✅ VERIFICA se WhatsApp è abilitato su questo PC
+  if (!isWhatsAppEnabled()) {
+    console.warn('⚠️ WhatsApp non abilitato su questo dispositivo - skip invio automatico');
+    return;
+  }
+  
     try {
       console.log('📱 Preparazione messaggio WhatsApp per:', ordine.nomeCliente);
       
@@ -479,6 +490,12 @@ Pastificio Nonna Claudia`;
   };
 
   const inviaWhatsApp = (ordine, tipo = 'conferma') => {
+  // ✅ VERIFICA se WhatsApp è abilitato su questo PC
+  if (!isWhatsAppEnabled()) {
+    alert('⚠️ Funzione WhatsApp non disponibile su questo dispositivo.\n\nUsa il PC principale con WhatsApp Desktop installata.\n\nPer abilitare su questo PC (solo amministratori), apri Console (F12) e scrivi:\nlocalStorage.setItem("whatsapp_enabled", "true")');
+    return;
+  }
+  
     try {
       let messaggio = '';
       
@@ -1154,7 +1171,7 @@ Pastificio Nonna Claudia`;
           onClick={() => segnaComePronto(ordineSelezionato?._id)}
           sx={{ color: 'success.main' }}
         >
-          <WhatsAppIcon sx={{ mr: 1 }} fontSize="small" />
+          {isWhatsAppEnabled() && <WhatsAppIcon sx={{ mr: 1 }} fontSize="small" />}
           Segna come Pronto (invia WhatsApp)
         </MenuItem>
         

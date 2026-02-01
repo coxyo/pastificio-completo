@@ -53,6 +53,7 @@ import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
 import RiepilogoStampabile from './RiepilogoStampabile';
 import GestioneLimiti from './GestioneLimiti';
+import DashboardWhatsApp from './DashboardWhatsApp';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
@@ -1446,6 +1447,8 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
   const [showRefreshDialog, setShowRefreshDialog] = useState(false); // 🆕 22/01
   const [riepilogoStampabileAperto, setRiepilogoStampabileAperto] = useState(false);
   const [whatsappHelperAperto, setWhatsappHelperAperto] = useState(false);
+// ✅ NUOVO 31/01/2026: Tab Dashboard WhatsApp
+const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
   
   // ✅ NUOVO 30/01/2026: Stati per WhatsApp automatico su completamento
   const [confermaWhatsAppOpen, setConfermaWhatsAppOpen] = useState(false);
@@ -2968,14 +2971,22 @@ return (
               </Button>
               
               <Button
-                variant="contained"
-                size="small"
-                color="success"
-                startIcon={<WhatsAppIcon />}
-                onClick={() => setWhatsappHelperAperto(true)}
-              >
-                WhatsApp
-              </Button>
+  variant="contained"
+  size="small"
+  color="success"
+  startIcon={<WhatsAppIcon />}
+  onClick={() => {
+    // Verifica se questo PC è autorizzato
+    const whatsappAbilitato = localStorage.getItem('whatsapp_enabled') === 'true';
+    if (!whatsappAbilitato) {
+      alert('⚠️ Dashboard WhatsApp non disponibile su questo dispositivo.\n\nUsa il PC principale con WhatsApp Desktop installata.\n\nPer abilitare su questo PC (solo amministratori), apri Console (F12) e scrivi:\nlocalStorage.setItem("whatsapp_enabled", "true")');
+      return;
+    }
+    setDashboardWhatsAppAperto(true);
+  }}
+>
+  📱 Dashboard WhatsApp
+</Button>
               
               {/* ✅ NUOVISSIMO: Pulsanti Chiamate (16/11/2025) */}
               <Button
@@ -3563,6 +3574,27 @@ return (
   />
 )}
 */}
+
+{/* ✅ NUOVO 31/01/2026: Dialog Dashboard WhatsApp */}
+<Dialog 
+  open={dashboardWhatsAppAperto} 
+  onClose={() => setDashboardWhatsAppAperto(false)}
+  maxWidth="lg"
+  fullWidth
+>
+  <DialogTitle>
+    📱 Dashboard Promemoria WhatsApp
+    <IconButton
+      onClick={() => setDashboardWhatsAppAperto(false)}
+      sx={{ position: 'absolute', right: 8, top: 8 }}
+    >
+      <CloseIcon />
+    </IconButton>
+  </DialogTitle>
+  <DialogContent>
+    <DashboardWhatsApp />
+  </DialogContent>
+</Dialog>
 
       </Container>
     </>
