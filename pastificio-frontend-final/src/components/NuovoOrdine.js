@@ -40,7 +40,8 @@ import {
   Tab,
   Alert,
   AlertTitle,
-  LinearProgress
+  LinearProgress,
+  Checkbox  // ✅ AGGIUNTO per opzioni extra
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -156,7 +157,9 @@ clienteIdPreselezionato,
     oraRitiro: '',
     prodotti: [],
     note: '',
-    daViaggio: false
+    daViaggio: false,
+    ricordaEtichetta: false,  // ✅ NUOVO: Etichetta ingredienti
+    confezioneRegalo: false   // ✅ NUOVO: Confezione regalo
   });
 
   const [prodottoCorrente, setProdottoCorrente] = useState({
@@ -520,7 +523,9 @@ useEffect(() => {
         oraRitiro: ordineIniziale.oraRitiro || '',
         prodotti: ordineIniziale.prodotti || [],
         note: ordineIniziale.note || '',
-        daViaggio: ordineIniziale.daViaggio || false
+        daViaggio: ordineIniziale.daViaggio || false,
+        ricordaEtichetta: ordineIniziale.ricordaEtichetta || false,  // ✅ NUOVO
+        confezioneRegalo: ordineIniziale.confezioneRegalo || false   // ✅ NUOVO
       });
     } else {
       setFormData({
@@ -533,7 +538,9 @@ useEffect(() => {
         oraRitiro: '',
         prodotti: [],
         note: '',
-        daViaggio: false
+        daViaggio: false,
+        ricordaEtichetta: false,  // ✅ NUOVO
+        confezioneRegalo: false   // ✅ NUOVO
       });
     }
   }, [ordineIniziale, open]);
@@ -1404,6 +1411,8 @@ useEffect(() => {
       cliente: formData.cliente?._id || null,
       totale: calcolaTotale(),
       daViaggio: formData.daViaggio,
+      ricordaEtichetta: formData.ricordaEtichetta,    // ✅ NUOVO
+      confezioneRegalo: formData.confezioneRegalo,    // ✅ NUOVO
       forceOverride,
       packaging: formData.prodotti.find(p => p.dettagliCalcolo?.packaging)?.dettagliCalcolo.packaging,
       numeroVassoioDimensione: formData.prodotti.find(p => p.dettagliCalcolo?.numeroVassoioDimensione)?.dettagliCalcolo.numeroVassoioDimensione,
@@ -2425,26 +2434,63 @@ useEffect(() => {
                 onChange={(e) => setFormData({ ...formData, note: e.target.value })}
               />
 
-              {/* ========== DA VIAGGIO ========== */}
-              <Paper sx={{ p: 1.5, bgcolor: formData.daViaggio ? 'warning.light' : 'grey.100' }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={formData.daViaggio}
-                      onChange={(e) => setFormData({ ...formData, daViaggio: e.target.checked })}
-                      color="warning"
-                      size="small"
-                    />
-                  }
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <LuggageIcon fontSize="small" />
-                      <Typography variant="body2" fontWeight="bold">
-                        Da Viaggio
+              {/* ========== OPZIONI EXTRA ========== */}
+              <Paper sx={{ p: 1.5, bgcolor: 'grey.50' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                  ⚙️ Opzioni Extra
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  {/* Da Viaggio */}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.daViaggio}
+                        onChange={(e) => setFormData({ ...formData, daViaggio: e.target.checked })}
+                        size="small"
+                        color="warning"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        ✈️ Da Viaggio (sottovuoto)
                       </Typography>
-                    </Box>
-                  }
-                />
+                    }
+                  />
+                  
+                  {/* Etichetta Ingredienti */}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.ricordaEtichetta}
+                        onChange={(e) => setFormData({ ...formData, ricordaEtichetta: e.target.checked })}
+                        size="small"
+                        color="info"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        🏷️ Ricorda Etichetta Ingredienti
+                      </Typography>
+                    }
+                  />
+                  
+                  {/* Confezione Regalo */}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.confezioneRegalo}
+                        onChange={(e) => setFormData({ ...formData, confezioneRegalo: e.target.checked })}
+                        size="small"
+                        color="secondary"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        🎁 Confezione Regalo
+                      </Typography>
+                    }
+                  />
+                </Box>
               </Paper>
 
               {/* ========== BOTTONE SALVA ========== */}
