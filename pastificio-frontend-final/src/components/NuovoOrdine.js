@@ -1,4 +1,7 @@
-// components/NuovoOrdine.js - ✅ CON CHECKBOX MULTIPLE PER RAVIOLI + OPZIONI EXTRA
+// components/NuovoOrdine.js - ✅ LAYOUT 2 COLONNE PER TABLET
+// ✅ FIX 03/02/2026: Layout a 2 colonne - Cliente/Data/Carrello sempre visibili a destra
+// ✅ FIX 03/02/2026: Dialog fullScreen per massimo spazio
+// ✅ FIX 03/02/2026: Data/Ora in alto nella colonna destra (prima cosa visibile)
 // ✅ FIX CRITICO 03/02/2026: Corretto bug Panade - numeroVassoi era stringa vuota, ciclo non eseguiva mai!
 // ✅ AGGIORNATO 03/02/2026: Aggiunto prezzoUnitario a tutti i prodotti per visualizzazione corretta
 // ✅ AGGIORNATO 19/11/2025: Opzioni extra (più piccoli, più grandi, etc.) vanno automaticamente in noteProdotto
@@ -1418,76 +1421,117 @@ useEffect(() => {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>
-        {ordineIniziale ? 'Modifica Ordine' : 'Nuovo Ordine'}
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth={false}
+      fullWidth
+      fullScreen
+      PaperProps={{
+        sx: { 
+          maxWidth: '100vw',
+          m: 0,
+          borderRadius: 0
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        bgcolor: 'primary.main',
+        color: 'white',
+        py: 1
+      }}>
+        <Typography variant="h6">
+          {ordineIniziale ? '✏️ Modifica Ordine' : '➕ Nuovo Ordine'}
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="inherit"
+          onClick={onClose}
+          sx={{ color: 'primary.main' }}
+        >
+          ✕ Chiudi
+        </Button>
       </DialogTitle>
 
-      <DialogContent>
-        {/* Alert Limiti */}
-        {alertLimiti.length > 0 && (
-          <Box sx={{ mb: 2 }}>
-            {alertLimiti.map((alert, index) => (
-              <Alert 
-                key={index}
-                severity={alert.tipo} 
-                icon={alert.tipo === 'error' ? <ErrorIcon /> : <WarningIcon />}
-                sx={{ mb: 1 }}
-              >
-                <AlertTitle>{alert.messaggio}</AlertTitle>
-                {alert.dettaglio}
-                <LinearProgress 
-                  variant="determinate" 
-                  value={Math.min(alert.percentuale, 100)}
-                  color={alert.tipo === 'error' ? 'error' : 'warning'}
-                  sx={{ mt: 1 }}
-                />
-                <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-                  Capacità utilizzata: {alert.percentuale.toFixed(0)}%
-                </Typography>
-              </Alert>
-            ))}
-          </Box>
-        )}
+      <DialogContent sx={{ p: 0, overflow: 'hidden' }}>
+        {/* ✅ LAYOUT A 2 COLONNE */}
+        <Grid container sx={{ height: 'calc(100vh - 64px)' }}>
+          
+          {/* ========== COLONNA SINISTRA: PRODOTTI/VASSOIO (scrollabile) ========== */}
+          <Grid item xs={12} md={8} sx={{ 
+            height: '100%', 
+            overflow: 'auto',
+            borderRight: { md: '1px solid #e0e0e0' },
+            bgcolor: '#fafafa'
+          }}>
+            <Box sx={{ p: 2 }}>
+              {/* Alert Limiti */}
+              {alertLimiti.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  {alertLimiti.map((alert, index) => (
+                    <Alert 
+                      key={index}
+                      severity={alert.tipo} 
+                      icon={alert.tipo === 'error' ? <ErrorIcon /> : <WarningIcon />}
+                      sx={{ mb: 1 }}
+                    >
+                      <AlertTitle>{alert.messaggio}</AlertTitle>
+                      {alert.dettaglio}
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={Math.min(alert.percentuale, 100)}
+                        color={alert.tipo === 'error' ? 'error' : 'warning'}
+                        sx={{ mt: 1 }}
+                      />
+                      <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                        Capacità utilizzata: {alert.percentuale.toFixed(0)}%
+                      </Typography>
+                    </Alert>
+                  ))}
+                </Box>
+              )}
 
-        {/* Info Limiti */}
-        {limiti.length > 0 && (
-          <Paper sx={{ p: 1.5, mb: 2, bgcolor: 'info.light' }}>
-            <Typography variant="caption" display="flex" alignItems="center" gap={1}>
-              <CheckIcon fontSize="small" />
-              Limiti configurati per {new Date(formData.dataRitiro).toLocaleDateString('it-IT')}: {limiti.length}
-              {loadingLimiti && <CircularProgress size={14} />}
-            </Typography>
-          </Paper>
-        )}
+              {/* Info Limiti */}
+              {limiti.length > 0 && (
+                <Paper sx={{ p: 1.5, mb: 2, bgcolor: 'info.light' }}>
+                  <Typography variant="caption" display="flex" alignItems="center" gap={1}>
+                    <CheckIcon fontSize="small" />
+                    Limiti configurati per {new Date(formData.dataRitiro).toLocaleDateString('it-IT')}: {limiti.length}
+                    {loadingLimiti && <CircularProgress size={14} />}
+                  </Typography>
+                </Paper>
+              )}
 
-        {/* TABS */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
-          <Tabs 
-            value={tabValue} 
-            onChange={(e, newValue) => setTabValue(newValue)}
-            variant="fullWidth"
-          >
-            <Tab 
-              label="🛒 Prodotti Singoli" 
-              icon={<CartIcon />}
-              iconPosition="start"
-            />
-            <Tab 
-              label="🎂 Vassoio Dolci Misti" 
-              icon={<CakeIcon />}
-              iconPosition="start"
-            />
-          </Tabs>
-        </Box>
+              {/* TABS */}
+              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs 
+                  value={tabValue} 
+                  onChange={(e, newValue) => setTabValue(newValue)}
+                  variant="fullWidth"
+                >
+                  <Tab 
+                    label="🛒 Prodotti Singoli" 
+                    icon={<CartIcon />}
+                    iconPosition="start"
+                  />
+                  <Tab 
+                    label="🎂 Vassoio Dolci Misti" 
+                    icon={<CakeIcon />}
+                    iconPosition="start"
+                  />
+                </Tabs>
+              </Box>
 
-        {/* TAB 0: PRODOTTI SINGOLI */}
-        {tabValue === 0 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
-            
-            <Paper sx={{ p: 2, bgcolor: 'primary.light' }}>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CartIcon /> Seleziona Prodotti
+              {/* TAB 0: PRODOTTI SINGOLI */}
+              {tabValue === 0 && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
+                  
+                  <Paper sx={{ p: 2, bgcolor: 'primary.light' }}>
+                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CartIcon /> Seleziona Prodotti
                 {loadingProdotti && <CircularProgress size={20} />}
               </Typography>
 
@@ -2098,353 +2142,332 @@ useEffect(() => {
         )}
 
        {/* TAB 1: VASSOIO DOLCI MISTI */}
-{tabValue === 1 && (
-  <VassoidDolciMisti 
-    prodottiDisponibili={prodottiOrdinatiVassoio}
-    onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
-    onClose={() => setTabValue(0)}
-  />
-)}
-
-        {/* SEZIONI COMUNI */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
-          
-          {/* SEZIONE CLIENTE - ✅ CON NOME E COGNOME SEPARATI */}
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <PersonIcon /> Dati Cliente
-            </Typography>
-            
-            <Grid container spacing={2}>
-              {/* ✅ CAMPO NOME con Autocomplete */}
-              <Grid item xs={12} sm={6}>
-                <Autocomplete
-                  freeSolo
-                  options={clienti}
-                  getOptionLabel={(option) => {
-                    if (typeof option === 'string') return option;
-                    return option.nome || '';
-                  }}
-                  filterOptions={(options, { inputValue }) => {
-                    const input = inputValue.toLowerCase().trim();
-                    if (!input) return [];
-                    return options.filter(opt => {
-                      const nome = (opt.nome || '').toLowerCase();
-                      const cognome = (opt.cognome || '').toLowerCase();
-                      const nomeCompleto = `${nome} ${cognome}`;
-                      const cognomeNome = `${cognome} ${nome}`;
-                      const telefono = (opt.telefono || '').toLowerCase();
-                      return nome.includes(input) || 
-                             cognome.includes(input) || 
-                             nomeCompleto.includes(input) ||
-                             cognomeNome.includes(input) ||
-                             telefono.includes(input);
-                    }).slice(0, 10);
-                  }}
-                  value={formData.cliente || formData.nome}
-                  inputValue={formData.nome}
-                  onInputChange={(event, newInputValue) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      nome: capitalizeFirst(newInputValue), // ✅ Auto-capitalizza
-                      nomeCliente: `${capitalizeFirst(newInputValue)} ${prev.cognome || ''}`.trim(),
-                      cliente: null
-                    }));
-                  }}
-                  onChange={(event, newValue) => {
-                    if (newValue && typeof newValue === 'object') {
-                      setFormData(prev => ({
-                        ...prev,
-                        cliente: newValue,
-                        nome: newValue.nome || '',
-                        cognome: newValue.cognome || '',
-                        nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
-                        telefono: prev.telefono || newValue.telefono || '' // ✅ FIX 21/01/2026: Non sovrascrivere telefono
-                      }));
-                    } else if (typeof newValue === 'string') {
-                      setFormData(prev => ({
-                        ...prev,
-                        cliente: null,
-                        nome: newValue,
-                        nomeCliente: `${newValue} ${prev.cognome || ''}`.trim()
-                      }));
-                    }
-                  }}
-                  loading={loadingClienti}
-                  renderOption={(props, option) => (
-                    <li {...props} key={option._id}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                        <Typography variant="body1" fontWeight="bold">
-                          {option.nome} {option.cognome || ''}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          📞 {option.telefono || 'N/D'} 
-                          {option.codiceCliente && ` • ${option.codiceCliente}`}
-                        </Typography>
-                      </Box>
-                    </li>
-                  )}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Nome *"
-                      placeholder="Cerca o inserisci nome..."
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {loadingClienti ? <CircularProgress color="inherit" size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
-                  )}
+              {tabValue === 1 && (
+                <VassoidDolciMisti 
+                  prodottiDisponibili={prodottiOrdinatiVassoio}
+                  onAggiungiAlCarrello={aggiungiVassoioAlCarrello}
+                  onClose={() => setTabValue(0)}
                 />
-              </Grid>
-
-              {/* ✅ CAMPO COGNOME CON AUTOCOMPLETE */}
-              <Grid item xs={12} sm={6}>
-                <Autocomplete
-                  freeSolo
-                  disabled={formData.cliente !== null}
-                  options={clienti.filter(c => {
-                    const input = (formData.cognome || '').toLowerCase();
-                    if (!input || input.length < 2) return false;
-                    const cognome = (c.cognome || '').toLowerCase();
-                    const nomeCompleto = `${c.nome || ''} ${c.cognome || ''}`.toLowerCase();
-                    return cognome.includes(input) || nomeCompleto.includes(input);
-                  }).slice(0, 5)}
-                  getOptionLabel={(option) => {
-                    if (typeof option === 'string') return option;
-                    return `${option.cognome || ''} ${option.nome || ''}`.trim();
-                  }}
-                  inputValue={formData.cognome}
-                  onInputChange={(event, newInputValue) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      cognome: capitalizeFirst(newInputValue), // ✅ Auto-capitalizza
-                      nomeCliente: `${prev.nome || ''} ${capitalizeFirst(newInputValue)}`.trim(),
-                      cliente: null
-                    }));
-                  }}
-                  onChange={(event, newValue) => {
-                    if (newValue && typeof newValue === 'object') {
-                      // Cliente selezionato dal cognome
-                      setFormData(prev => ({
-                        ...prev,
-                        nome: newValue.nome || '',
-                        cognome: newValue.cognome || '',
-                        telefono: prev.telefono || newValue.telefono || '', // ✅ FIX 21/01/2026: Non sovrascrivere telefono
-                        nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
-                        cliente: newValue._id
-                      }));
-                    }
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Cognome"
-                      placeholder="Inserisci cognome..."
-                      helperText={formData.cliente ? "Cognome da anagrafica" : "Digita per cercare"}
-                    />
-                  )}
-                  renderOption={(props, option) => (
-                    <li {...props}>
-                      <Box>
-                        <Typography variant="body1">
-                          <strong>{option.cognome || ''}</strong> {option.nome || ''}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {option.telefono || 'Nessun telefono'}
-                        </Typography>
-                      </Box>
-                    </li>
-                  )}
-                />
-              </Grid>
-
-              {/* ✅ INDICATORE CLIENTE ESISTENTE - Fix 21/01/2026: Permetti sempre modifica */}
-              {formData.cliente && (
-                <Grid item xs={12}>
-                  <Alert 
-                    severity="info" 
-                    sx={{ py: 0.5 }}
-                    action={
-                      <Button 
-                        size="small" 
-                        color="inherit"
-                        onClick={() => {
-                          // ✅ Reset completo - mantiene solo telefono
-                          setFormData(prev => ({
-                            ...prev,
-                            cliente: null,
-                            nome: '',
-                            cognome: '',
-                            nomeCliente: ''
-                          }));
-                        }}
-                      >
-                        Usa Dati Diversi
-                      </Button>
-                    }
-                  >
-                    <Typography variant="body2">
-                      ℹ️ <strong>{formData.nome} {formData.cognome}</strong> trovato per questo numero.
-                      {formData.cliente.codiceCliente && ` (${formData.cliente.codiceCliente})`}
-                      {formData.cliente.livelloFedelta && ` • ${formData.cliente.livelloFedelta}`}
-                      <br />
-                      <Typography variant="caption" sx={{ fontSize: '0.75rem', opacity: 0.8 }}>
-                        Click "Usa Dati Diversi" per inserire un altro nome per questo numero.
-                      </Typography>
-                    </Typography>
-                  </Alert>
-                </Grid>
               )}
-
-              {/* ✅ CAMPO TELEFONO - Sempre editabile */}
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Telefono"
-                  placeholder="Es: 3331234567"
-                  value={formData.telefono}
-                  onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
-                  helperText="Opzionale - Modificabile anche per clienti esistenti"
-                />
-              </Grid>
-            </Grid>
-          </Paper>
-
-          {/* Data e Ora */}
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>📅 Data e Ora Ritiro</Typography>
-            
-            {/* ✅ FIX 15/01/2026 v2: Data più piccola con frecce ◀️ ▶️ */}
-            <Box sx={{ 
-              p: 2, 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: 2,
-              color: 'white',
-              mb: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              {/* Freccia sinistra */}
-              <IconButton 
-                onClick={() => {
-                  const currentDate = new Date(formData.dataRitiro + 'T12:00:00');
-                  currentDate.setDate(currentDate.getDate() - 1);
-                  setFormData({ ...formData, dataRitiro: currentDate.toISOString().split('T')[0] });
-                }}
-                sx={{ color: 'white', fontSize: '2rem' }}
-              >
-                ◀️
-              </IconButton>
-              
-              {/* Data e Ora */}
-              <Box sx={{ textAlign: 'center', flex: 1 }}>
-                <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
-                  {formData.dataRitiro ? 
-                    new Date(formData.dataRitiro + 'T12:00:00').toLocaleDateString('it-IT', { 
-                      weekday: 'long', 
-                      day: 'numeric', 
-                      month: 'long', 
-                      year: 'numeric' 
-                    }).toUpperCase()
-                    : 'SELEZIONA DATA'
-                  }
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
-                  {formData.oraRitiro ? `ORE ${formData.oraRitiro}` : 'ORE --:--'}
-                </Typography>
-              </Box>
-              
-              {/* Freccia destra */}
-              <IconButton 
-                onClick={() => {
-                  const currentDate = new Date(formData.dataRitiro + 'T12:00:00');
-                  currentDate.setDate(currentDate.getDate() + 1);
-                  setFormData({ ...formData, dataRitiro: currentDate.toISOString().split('T')[0] });
-                }}
-                sx={{ color: 'white', fontSize: '2rem' }}
-              >
-                ▶️
-              </IconButton>
             </Box>
-            
-            {/* ✅ NUOVO 28/01/2026: Barra disponibilità orari */}
-            <BarraDisponibilita 
-              conteggioOrari={conteggioOrari}
-              dataSelezionata={formData.dataRitiro}
-              loading={loadingConteggioOrari}
-            />
-            
-            <Box sx={{ display: 'flex', gap: 2 }}>
+          </Grid>
+
+          {/* ========== COLONNA DESTRA: CLIENTE + DATA + CARRELLO (sticky) ========== */}
+          <Grid item xs={12} md={4} sx={{ 
+            height: '100%', 
+            overflow: 'auto',
+            bgcolor: 'white',
+            position: 'sticky',
+            top: 0
+          }}>
+            <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              
+              {/* ========== DATA E ORA (IN ALTO!) ========== */}
+              <Paper sx={{ p: 2, bgcolor: '#e3f2fd' }}>
+                <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                  📅 Data e Ora Ritiro
+                </Typography>
+                
+                {/* Box con frecce per cambiare data */}
+                <Box sx={{ 
+                  p: 1.5, 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: 2,
+                  color: 'white',
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <IconButton 
+                    onClick={() => {
+                      const currentDate = new Date(formData.dataRitiro + 'T12:00:00');
+                      currentDate.setDate(currentDate.getDate() - 1);
+                      setFormData({ ...formData, dataRitiro: currentDate.toISOString().split('T')[0] });
+                    }}
+                    sx={{ color: 'white', p: 0.5 }}
+                    size="small"
+                  >
+                    ◀️
+                  </IconButton>
+                  
+                  <Box sx={{ textAlign: 'center', flex: 1 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+                      {formData.dataRitiro ? 
+                        new Date(formData.dataRitiro + 'T12:00:00').toLocaleDateString('it-IT', { 
+                          weekday: 'short', 
+                          day: 'numeric', 
+                          month: 'short'
+                        }).toUpperCase()
+                        : 'DATA'
+                      }
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {formData.oraRitiro || '--:--'}
+                    </Typography>
+                  </Box>
+                  
+                  <IconButton 
+                    onClick={() => {
+                      const currentDate = new Date(formData.dataRitiro + 'T12:00:00');
+                      currentDate.setDate(currentDate.getDate() + 1);
+                      setFormData({ ...formData, dataRitiro: currentDate.toISOString().split('T')[0] });
+                    }}
+                    sx={{ color: 'white', p: 0.5 }}
+                    size="small"
+                  >
+                    ▶️
+                  </IconButton>
+                </Box>
+                
+                {/* Barra disponibilità */}
+                <BarraDisponibilita 
+                  conteggioOrari={conteggioOrari}
+                  dataSelezionata={formData.dataRitiro}
+                  loading={loadingConteggioOrari}
+                />
+                
+                {/* Input data e ora compatti */}
+                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    size="small"
+                    value={formData.dataRitiro}
+                    onChange={(e) => setFormData({ ...formData, dataRitiro: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <SelectOrarioIntelligente
+                    value={formData.oraRitiro}
+                    onChange={(e) => setFormData({ ...formData, oraRitiro: e.target.value })}
+                    conteggioOrari={conteggioOrari}
+                    loading={loadingConteggioOrari}
+                    disabled={!formData.dataRitiro}
+                    prodottoSelezionato={prodottoCriticoSelezionato}
+                    size="small"
+                  />
+                </Box>
+              </Paper>
+
+              {/* ========== CLIENTE (compatto) ========== */}
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                  👤 Cliente
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {/* Nome */}
+                  <Autocomplete
+                    freeSolo
+                    size="small"
+                    options={clienti}
+                    getOptionLabel={(option) => {
+                      if (typeof option === 'string') return option;
+                      return option.nome || '';
+                    }}
+                    filterOptions={(options, { inputValue }) => {
+                      const input = inputValue.toLowerCase().trim();
+                      if (!input) return [];
+                      return options.filter(opt => {
+                        const nome = (opt.nome || '').toLowerCase();
+                        const cognome = (opt.cognome || '').toLowerCase();
+                        const nomeCompleto = `${nome} ${cognome}`;
+                        const telefono = (opt.telefono || '').toLowerCase();
+                        return nome.includes(input) || cognome.includes(input) || 
+                               nomeCompleto.includes(input) || telefono.includes(input);
+                      }).slice(0, 8);
+                    }}
+                    value={formData.cliente || formData.nome}
+                    inputValue={formData.nome}
+                    onInputChange={(event, newInputValue) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        nome: capitalizeFirst(newInputValue),
+                        nomeCliente: `${capitalizeFirst(newInputValue)} ${prev.cognome || ''}`.trim(),
+                        cliente: null
+                      }));
+                    }}
+                    onChange={(event, newValue) => {
+                      if (newValue && typeof newValue === 'object') {
+                        setFormData(prev => ({
+                          ...prev,
+                          cliente: newValue,
+                          nome: newValue.nome || '',
+                          cognome: newValue.cognome || '',
+                          nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
+                          telefono: prev.telefono || newValue.telefono || ''
+                        }));
+                      }
+                    }}
+                    loading={loadingClienti}
+                    renderOption={(props, option) => (
+                      <li {...props} key={option._id}>
+                        <Box>
+                          <Typography variant="body2" fontWeight="bold">
+                            {option.nome} {option.cognome || ''}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            📞 {option.telefono || 'N/D'}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Nome *"
+                        placeholder="Cerca cliente..."
+                      />
+                    )}
+                  />
+                  
+                  {/* Cognome */}
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Cognome"
+                    value={formData.cognome}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      cognome: capitalizeFirst(e.target.value),
+                      nomeCliente: `${prev.nome || ''} ${capitalizeFirst(e.target.value)}`.trim()
+                    }))}
+                  />
+                  
+                  {/* Telefono */}
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Telefono"
+                    value={formData.telefono}
+                    onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
+                  />
+                </Box>
+              </Paper>
+
+              {/* ========== CARRELLO ========== */}
+              <Paper sx={{ p: 2, bgcolor: formData.prodotti.length > 0 ? '#e8f5e9' : '#fff3e0' }}>
+                <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                  🛒 Carrello ({formData.prodotti.length})
+                </Typography>
+                
+                {formData.prodotti.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    Nessun prodotto aggiunto
+                  </Typography>
+                ) : (
+                  <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+                    {formData.prodotti.map((p, idx) => (
+                      <Box key={idx} sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        py: 0.5,
+                        borderBottom: '1px solid #eee'
+                      }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            {p.nome}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {p.quantita} {p.unita || p.unitaMisura}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2" fontWeight="bold" color="primary">
+                            €{(p.prezzo || 0).toFixed(2)}
+                          </Typography>
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                prodotti: formData.prodotti.filter((_, i) => i !== idx)
+                              });
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+                
+                {/* Totale */}
+                {formData.prodotti.length > 0 && (
+                  <Box sx={{ 
+                    mt: 2, 
+                    pt: 2, 
+                    borderTop: '2px solid #4caf50',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <Typography variant="h6">TOTALE:</Typography>
+                    <Typography variant="h5" color="primary" fontWeight="bold">
+                      €{calcolaTotale().toFixed(2)}
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+
+              {/* ========== NOTE (compatte) ========== */}
               <TextField
                 fullWidth
-                type="date"
-                label="Data Ritiro *"
-                value={formData.dataRitiro}
-                onChange={(e) => setFormData({ ...formData, dataRitiro: e.target.value })}
-                InputLabelProps={{ shrink: true }}
+                multiline
+                rows={2}
+                size="small"
+                label="📝 Note ordine"
+                placeholder="Note aggiuntive..."
+                value={formData.note}
+                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
               />
-              <SelectOrarioIntelligente
-  value={formData.oraRitiro}
-  onChange={(e) => setFormData({ ...formData, oraRitiro: e.target.value })}
-  conteggioOrari={conteggioOrari}
-  loading={loadingConteggioOrari}
-  disabled={!formData.dataRitiro}
-  prodottoSelezionato={prodottoCriticoSelezionato} // ✅ NUOVO
-/>
-            </Box>
-          </Paper>
 
-          {/* Note */}
-          <TextField
-            fullWidth
-            multiline
-            rows={2}
-            label="Note"
-            value={formData.note}
-            onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-          />
-
-          {/* Switch Da Viaggio */}
-          <Paper sx={{ p: 2, bgcolor: formData.daViaggio ? 'warning.light' : 'grey.100' }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.daViaggio}
-                  onChange={(e) => setFormData({ ...formData, daViaggio: e.target.checked })}
-                  color="warning"
+              {/* ========== DA VIAGGIO ========== */}
+              <Paper sx={{ p: 1.5, bgcolor: formData.daViaggio ? 'warning.light' : 'grey.100' }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.daViaggio}
+                      onChange={(e) => setFormData({ ...formData, daViaggio: e.target.checked })}
+                      color="warning"
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <LuggageIcon fontSize="small" />
+                      <Typography variant="body2" fontWeight="bold">
+                        Da Viaggio
+                      </Typography>
+                    </Box>
+                  }
                 />
-              }
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LuggageIcon />
-                  <Typography variant="body1" fontWeight="bold">
-                    Ordine Da Viaggio (sottovuoto)
-                  </Typography>
-                </Box>
-              }
-            />
-          </Paper>
-        </Box>
-      </DialogContent>
+              </Paper>
 
-      <DialogActions>
-        <Button onClick={onClose}>Annulla</Button>
-        <Button 
-          variant="contained" 
-          onClick={handleSalva} 
-          size="large"
-          color={alertLimiti.some(a => a.tipo === 'error') ? 'warning' : 'primary'}
-        >
-          {alertLimiti.some(a => a.tipo === 'error') ? '⚠️ Salva (Supera Limiti)' : 'Salva Ordine'}
-        </Button>
-      </DialogActions>
+              {/* ========== BOTTONE SALVA ========== */}
+              <Button 
+                variant="contained" 
+                onClick={handleSalva} 
+                size="large"
+                fullWidth
+                color={alertLimiti.some(a => a.tipo === 'error') ? 'warning' : 'success'}
+                sx={{ 
+                  py: 2, 
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  position: 'sticky',
+                  bottom: 0
+                }}
+              >
+                {alertLimiti.some(a => a.tipo === 'error') ? '⚠️ SALVA (Supera Limiti)' : '✅ SALVA ORDINE'}
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </DialogContent>
     </Dialog>
   );
 }
