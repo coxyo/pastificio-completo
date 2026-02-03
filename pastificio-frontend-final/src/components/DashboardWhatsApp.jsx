@@ -1,5 +1,5 @@
 // components/DashboardWhatsApp.jsx
-// ✅ VERSIONE CORRETTA - USA localStorage COME GESTOREORDINI
+// ✅ VERSIONE FINALE CORRETTA - DEBUG COMPLETO
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -24,6 +24,7 @@ const DashboardWhatsApp = () => {
   const [loading, setLoading] = useState(true);
   const [sentCount, setSentCount] = useState(0);
   const [sentOrders, setSentOrders] = useState(new Set());
+  const [debugInfo, setDebugInfo] = useState('');
 
   useEffect(() => {
     caricaOrdini();
@@ -33,49 +34,92 @@ const DashboardWhatsApp = () => {
     try {
       setLoading(true);
       
-      // ✅ CORRETTO: Carica da localStorage come fa GestoreOrdini
-      const ordiniCache = JSON.parse(localStorage.getItem('ordini') || '[]');
+      // Carica da localStorage
+      const ordiniRaw = localStorage.getItem('ordini');
+      console.log('📦 localStorage raw:', ordiniRaw ? 'presente' : 'vuoto');
+      
+      if (!ordiniRaw) {
+        console.warn('⚠️ localStorage vuoto!');
+        setOrdini([]);
+        setDebugInfo('localStorage vuoto');
+        setLoading(false);
+        return;
+      }
+      
+      const ordiniCache = JSON.parse(ordiniRaw);
       console.log('📦 Ordini da localStorage:', ordiniCache.length);
       
+      // Verifica che sia un array
+      if (!Array.isArray(ordiniCache)) {
+        console.error('❌ ordiniCache non è un array!', typeof ordiniCache);
+        setOrdini([]);
+        setDebugInfo('Errore: dati non validi in localStorage');
+        setLoading(false);
+        return;
+      }
+      
       // Calcola domani
-      const domani = new Date();
+      const oggi = new Date();
+      const domani = new Date(oggi);
       domani.setDate(domani.getDate() + 1);
       domani.setHours(0, 0, 0, 0);
       const domaniStr = domani.toISOString().split('T')[0];
       
       console.log('📅 Cerco ordini per:', domaniStr);
+      console.log('📅 Oggi è:', oggi.toISOString().split('T')[0]);
       
-      // Filtra ordini per domani con telefono e senza promemoria inviato
+      // Filtra ordini per domani con telefono
       const ordiniDomani = ordiniCache.filter(o => {
-  const dataRitiro = (o.dataRitiro || '').split('T')[0];
-  const hasTelefono = o.telefono && o.telefono.trim() !== '';
-  // const nonInviato = !o.promemoria_inviato;  // ← COMMENTATO
-  
-  const match = dataRitiro === domaniStr && hasTelefono; // ← RIMOSSO && nonInviato
-  
-  if (dataRitiro === domaniStr) {
-    console.log('🔍 Debug ordine:', {
-      nome: o.nomeCliente,
-      data: dataRitiro,
-      telefono: o.telefono,
-      promemoria: o.promemoria_inviato,
-      match: match
-    });
-  }
+        if (!o) return false;
         
-        if (match) {
-          console.log('✅ Ordine trovato:', o.nomeCliente, o.telefono);
+        const dataRitiro = (o.dataRitiro || '').split('T')[0];
+        const hasTelefono = o.telefono && String(o.telefono).trim() !== '';
+        
+        // Debug ogni ordine di domani
+        if (dataRitiro === domaniStr) {
+          console.log('🔍 Ordine domani:', {
+            nome: o.nomeCliente,
+            telefono: o.telefono,
+            hasTelefono: hasTelefono,
+            promemoria: o.promemoria_inviato
+          });
         }
         
-        return match;
+        // Match se data domani E ha telefono (ignoriamo promemoria_inviato per debug)
+        return dataRitiro === domaniStr && hasTelefono;
       });
       
       console.log(`📊 Trovati ${ordiniDomani.length} ordini per domani con telefono`);
+      
+      // Debug dettagliato
+      if (ordiniDomani.length === 0) {
+        const tuttiDomani = ordiniCache.filter(o => {
+          const dataRitiro = (o.dataRitiro || '').split('T')[0];
+          return dataRitiro === domaniStr;
+        });
+        
+        console.log('⚠️ Ordini totali per domani (senza filtro telefono):', tuttiDomani.length);
+        
+        if (tuttiDomani.length > 0) {
+          console.log('⚠️ Ordini senza telefono:');
+          tuttiDomani.forEach(o => {
+            if (!o.telefono || String(o.telefono).trim() === '') {
+              console.log(`   - ${o.nomeCliente}: telefono mancante`);
+            }
+          });
+        }
+        
+        setDebugInfo(`Nessun ordine trovato per ${domaniStr}. Totale ordini in localStorage: ${ordiniCache.length}`);
+      } else {
+        setDebugInfo(`${ordiniDomani.length} ordini trovati per ${domaniStr}`);
+      }
       
       setOrdini(ordiniDomani);
       
     } catch (error) {
       console.error('❌ Errore caricamento ordini:', error);
+      setDebugInfo(`Errore: ${error.message}`);
+      setOrdini([]);
     } finally {
       setLoading(false);
     }
@@ -106,7 +150,7 @@ Ti aspettiamo! 😊
 📍 Via Carmine 20/B, Assemini`;
 
       // Normalizza numero
-      const numeroClean = ordine.telefono.replace(/\D/g, '');
+      const numeroClean = String(ordine.telefono).replace(/\D/g, '');
       
       // Genera link wa.me
       const whatsappUrl = `https://wa.me/39${numeroClean}?text=${encodeURIComponent(messaggio)}`;
@@ -158,7 +202,7 @@ Ti aspettiamo! 😊
     ordini.forEach((ordine, index) => {
       setTimeout(() => {
         inviaPromemoria(ordine);
-      }, index * 1000); // 1 secondo tra una finestra e l'altra
+      }, index * 1000);
     });
   };
 
@@ -166,6 +210,7 @@ Ti aspettiamo! 😊
     return (
       <Box display="flex" justifyContent="center" p={4}>
         <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Caricamento ordini...</Typography>
       </Box>
     );
   }
@@ -174,6 +219,13 @@ Ti aspettiamo! 😊
 
   return (
     <Box>
+      {/* Debug Info Banner */}
+      {debugInfo && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          🔍 <strong>Debug:</strong> {debugInfo}
+        </Alert>
+      )}
+
       {/* Header con Statistiche */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={4}>
@@ -260,7 +312,6 @@ Ti aspettiamo! 😊
                 >
                   <CardContent>
                     <Grid container spacing={2} alignItems="center">
-                      {/* Cliente e Orario */}
                       <Grid item xs={12} md={4}>
                         <Typography variant="h6">
                           {ordine.nomeCliente} {ordine.cognomeCliente || ''}
@@ -275,7 +326,6 @@ Ti aspettiamo! 😊
                         />
                       </Grid>
 
-                      {/* Prodotti */}
                       <Grid item xs={12} md={5}>
                         <Typography variant="body2" color="textSecondary" gutterBottom>
                           📦 Prodotti:
@@ -292,7 +342,6 @@ Ti aspettiamo! 😊
                         )}
                       </Grid>
 
-                      {/* Pulsante Invia */}
                       <Grid item xs={12} md={3}>
                         <Button
                           variant="contained"
@@ -325,13 +374,6 @@ Ti aspettiamo! 😊
       <Alert severity="info" sx={{ mt: 2 }}>
         💡 <strong>Come funziona:</strong> Click su "Invia Promemoria" per aprire WhatsApp con il messaggio già scritto. 
         Poi clicca solo "Invia" in WhatsApp. Funziona solo su PC con WhatsApp Desktop installata!
-      </Alert>
-      
-      {/* Debug Info */}
-      <Alert severity="info" sx={{ mt: 2 }}>
-        🔍 <strong>Debug:</strong> Ordini totali in localStorage: {JSON.parse(localStorage.getItem('ordini') || '[]').length}
-        <br />
-        📅 Cercando ordini per: {new Date(Date.now() + 86400000).toISOString().split('T')[0]}
       </Alert>
     </Box>
   );
