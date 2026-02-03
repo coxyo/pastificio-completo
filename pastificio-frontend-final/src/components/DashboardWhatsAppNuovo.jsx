@@ -56,12 +56,23 @@ const DashboardWhatsAppNuovo = () => {
     const msg = `🔔 PROMEMORIA RITIRO\n\nCiao ${ordine.nomeCliente}!\n\nTi ricordiamo che domani:\n\n📅 ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n⏰ ${ordine.oraRitiro || '10:00'}\n\nHai il ritiro del tuo ordine:\n\n${prodotti}\n\nTi aspettiamo! 😊\n📍 Via Carmine 20/B, Assemini`;
     const num = String(ordine.telefono).replace(/\D/g, '');
     const url = `https://wa.me/39${num}?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank');
-    setSentCount(sentCount + 1);
+    
+    // Apri finestra con riferimento
+    const popup = window.open(url, '_blank');
+    
+    // Chiudi automaticamente dopo 2 secondi
+    setTimeout(() => {
+      if (popup && !popup.closed) {
+        popup.close();
+        console.log(`✅ Finestra chiusa per: ${ordine.nomeCliente}`);
+      }
+    }, 2000); // 2 secondi di tempo per far passare il messaggio a WhatsApp Desktop
+    
+    setSentCount(prev => prev + 1);
   };
 
   const inviaTutti = () => {
-    if (!confirm(`Aprire ${ordini.length} finestre WhatsApp?\n\nLe finestre si apriranno una alla volta ogni 3 secondi.\n\nNON chiudere le finestre finché non si sono aperte tutte!`)) return;
+    if (!confirm(`Aprire ${ordini.length} finestre WhatsApp?\n\nLe finestre si apriranno una alla volta ogni 3 secondi.\nOgni finestra si chiuderà automaticamente dopo 2 secondi.\n\nIl messaggio verrà trasferito a WhatsApp Desktop automaticamente!`)) return;
     
     console.log(`🚀 Invio ${ordini.length} promemoria con intervallo di 3 secondi...`);
     
