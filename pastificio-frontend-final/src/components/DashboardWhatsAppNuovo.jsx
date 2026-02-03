@@ -51,46 +51,58 @@ const DashboardWhatsAppNuovo = () => {
     setLoading(false);
   };
 
-  const inviaPromemoria = (ordine) => {
+  const inviaPromemoria = (ordine, reuseWindow = null) => {
     const prodotti = ordine.prodotti.slice(0, 3).map(p => `• ${p.nome}`).join('\n');
     const msg = `🔔 PROMEMORIA RITIRO\n\nCiao ${ordine.nomeCliente}!\n\nTi ricordiamo che domani:\n\n📅 ${new Date(ordine.dataRitiro).toLocaleDateString('it-IT')}\n⏰ ${ordine.oraRitiro || '10:00'}\n\nHai il ritiro del tuo ordine:\n\n${prodotti}\n\nTi aspettiamo! 😊\n📍 Via Carmine 20/B, Assemini`;
     const num = String(ordine.telefono).replace(/\D/g, '');
     const url = `https://wa.me/39${num}?text=${encodeURIComponent(msg)}`;
     
-    // Apri finestra con riferimento
-    const popup = window.open(url, '_blank');
-    
-    // Chiudi automaticamente dopo 2 secondi
-    setTimeout(() => {
-      if (popup && !popup.closed) {
-        popup.close();
-        console.log(`✅ Finestra chiusa per: ${ordine.nomeCliente}`);
-      }
-    }, 2000); // 2 secondi di tempo per far passare il messaggio a WhatsApp Desktop
-    
-    setSentCount(prev => prev + 1);
+    if (reuseWindow) {
+      // Riusa finestra esistente
+      reuseWindow.location.href = url;
+      return reuseWindow;
+    } else {
+      // Apri nuova finestra (solo per pulsante singolo)
+      window.open(url, '_blank');
+      setSentCount(prev => prev + 1);
+      return null;
+    }
   };
 
   const inviaTutti = () => {
-    if (!confirm(`Aprire ${ordini.length} finestre WhatsApp?\n\nLe finestre si apriranno una alla volta ogni 3 secondi.\nOgni finestra si chiuderà automaticamente dopo 2 secondi.\n\nIl messaggio verrà trasferito a WhatsApp Desktop automaticamente!`)) return;
+    if (!confirm(`Inviare promemoria a ${ordini.length} clienti?\n\nSi aprirà UNA SOLA finestra che cambierà automaticamente ogni 4 secondi.\n\nDai tempo a WhatsApp Desktop di ricevere ogni messaggio prima di passare al successivo!`)) return;
     
-    console.log(`🚀 Invio ${ordini.length} promemoria con intervallo di 3 secondi...`);
+    console.log(`🚀 Invio ${ordini.length} promemoria con finestra condivisa...`);
     
     let opened = 0;
+    let sharedWindow = null;
     
     ordini.forEach((o, i) => {
       setTimeout(() => {
         opened++;
-        console.log(`📱 Apertura ${opened}/${ordini.length}: ${o.nomeCliente}`);
-        inviaPromemoria(o);
+        console.log(`📱 Messaggio ${opened}/${ordini.length}: ${o.nomeCliente}`);
         
-        // Alert ogni apertura
+        if (i === 0) {
+          // Prima apertura - crea la finestra
+          const prodotti = o.prodotti.slice(0, 3).map(p => `• ${p.nome}`).join('\n');
+          const msg = `🔔 PROMEMORIA RITIRO\n\nCiao ${o.nomeCliente}!\n\nTi ricordiamo che domani:\n\n📅 ${new Date(o.dataRitiro).toLocaleDateString('it-IT')}\n⏰ ${o.oraRitiro || '10:00'}\n\nHai il ritiro del tuo ordine:\n\n${prodotti}\n\nTi aspettiamo! 😊\n📍 Via Carmine 20/B, Assemini`;
+          const num = String(o.telefono).replace(/\D/g, '');
+          const url = `https://wa.me/39${num}?text=${encodeURIComponent(msg)}`;
+          sharedWindow = window.open(url, 'whatsapp_sender');
+        } else {
+          // Messaggi successivi - riusa la finestra
+          sharedWindow = inviaPromemoria(o, sharedWindow);
+        }
+        
+        setSentCount(prev => prev + 1);
+        
+        // Alert finale
         if (opened === ordini.length) {
           setTimeout(() => {
-            alert(`✅ Tutte le ${ordini.length} finestre sono aperte!\n\nOra clicca "Invia" in ognuna (Ctrl+Tab per navigare tra le finestre).`);
+            alert(`✅ Tutti i ${ordini.length} messaggi sono stati preparati!\n\nOra vai su WhatsApp Desktop e inviali uno per uno.\n\nPuoi chiudere la finestra del browser.`);
           }, 1000);
         }
-      }, i * 3000); // 3 secondi tra una finestra e l'altra
+      }, i * 4000); // 4 secondi tra un messaggio e l'altro
     });
   };
 
