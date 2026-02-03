@@ -1,4 +1,6 @@
 // components/NuovoOrdine.js - ✅ CON CHECKBOX MULTIPLE PER RAVIOLI + OPZIONI EXTRA
+// ✅ FIX CRITICO 03/02/2026: Corretto bug Panade - numeroVassoi era stringa vuota, ciclo non eseguiva mai!
+// ✅ AGGIORNATO 03/02/2026: Aggiunto prezzoUnitario a tutti i prodotti per visualizzazione corretta
 // ✅ AGGIORNATO 19/11/2025: Opzioni extra (più piccoli, più grandi, etc.) vanno automaticamente in noteProdotto
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -960,6 +962,7 @@ useEffect(() => {
         unita: 'Pezzi',
         unitaMisura: 'Pezzi',
         prezzo: Math.round(prezzoTotale * 100) / 100,
+        prezzoUnitario: prezzoPezzo, // ✅ FIX 03/02/2026: Prezzo per pezzo
         categoria: 'Panadas',
         note: dettagliGusti.join(', '),
         dettagliCalcolo: {
@@ -1010,8 +1013,12 @@ useEffect(() => {
         nomeCompleto = `${prodottoCorrente.nome} (${aglioNote}, ${contornoLabel})`;
       }
       
+      // ✅ FIX 03/02/2026: Converte numeroVassoi in numero, default 1 se vuoto
+      const numVassoi = parseInt(numeroVassoi) || 1;
+      console.log('🥘 Creazione Panade - numeroVassoi:', numeroVassoi, '→ numVassoi:', numVassoi);
+      
       const nuoviProdotti = [];
-      for (let i = 0; i < numeroVassoi; i++) {
+      for (let i = 0; i < numVassoi; i++) {
         // ✅ FIX 21/01/2026: Calcola prezzo per Panade
         const calcoloPrezzo = calcolaPrezzoOrdine(
           prodottoCorrente.nome,
@@ -1020,12 +1027,19 @@ useEffect(() => {
           prodottoCorrente.prezzo
         );
         
+        // ✅ FIX 03/02/2026: Calcola prezzoUnitario per Panade
+        const quantitaPanada = parseFloat(normalizzaDecimale(prodottoCorrente.quantita)) || 0;
+        const prezzoUnitarioPanada = quantitaPanada > 0 
+          ? (calcoloPrezzo.prezzoTotale / quantitaPanada) 
+          : 0;
+        
         nuoviProdotti.push({
           nome: nomeCompleto,
           quantita: prodottoCorrente.quantita,
           unita: prodottoCorrente.unita,
           unitaMisura: prodottoCorrente.unita,
           prezzo: calcoloPrezzo.prezzoTotale,
+          prezzoUnitario: Math.round(prezzoUnitarioPanada * 100) / 100, // ✅ NUOVO
           categoria: 'Panadas',
           note: '',
           dettagliCalcolo: {
@@ -1151,12 +1165,18 @@ useEffect(() => {
         prodottoCorrente.prezzo
       );
       
+      // ✅ FIX 03/02/2026: Calcola prezzoUnitario per visualizzazione corretta
+      const prezzoUnitarioCalcolato = quantitaNormalizzata > 0 
+        ? (calcoloPrezzo.prezzoTotale / quantitaNormalizzata) 
+        : 0;
+      
       nuoviProdotti.push({
         nome: nomeProdottoCompleto,
         quantita: quantitaNormalizzata,
         unita: prodottoCorrente.unita,
         unitaMisura: prodottoCorrente.unita,
         prezzo: calcoloPrezzo.prezzoTotale,
+        prezzoUnitario: Math.round(prezzoUnitarioCalcolato * 100) / 100, // ✅ NUOVO: Prezzo per unità
         categoria: prodottoConfig?.categoria || 'Altro',
         variante: prodottoCorrente.variante,
         varianti: prodottoCorrente.varianti,
