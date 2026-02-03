@@ -179,7 +179,7 @@ clienteIdPreselezionato,
   });
   const [numeroVassoi, setNumeroVassoi] = useState(''); // ✅ VUOTO DI DEFAULT
   const [gustiPanadine, setGustiPanadine] = useState([]);
-  const [modalitaPanadine, setModalitaPanadine] = useState('rapida');
+  const [modalitaPanadine, setModalitaPanadine] = useState('miste'); // ✅ Default a MISTE
   const [panadineRapide, setPanadineRapide] = useState({ carne: 0, verdura: 0 });
 
 // ✅ NUOVO 29/01/2026: Traccia prodotto critico selezionato per mostrare capacità
@@ -895,7 +895,7 @@ useEffect(() => {
     setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
     setNumeroVassoi(1);
     setGustiPanadine([]);
-    setModalitaPanadine('rapida');
+    setModalitaPanadine('miste');
     setPanadineRapide({ carne: 0, verdura: 0 });
     
        return;
@@ -935,7 +935,13 @@ useEffect(() => {
       let totaleQuantita = 0;
       let dettagliGusti = [];
       
-      if (modalitaPanadine === 'rapida') {
+      // ✅ NUOVO: Gestione modalità MISTE
+      if (modalitaPanadine === 'miste') {
+        // Usa il campo quantità principale
+        const quantitaInput = parseFloat(normalizzaDecimale(prodottoCorrente.quantita)) || 0;
+        totaleQuantita = Math.round(quantitaInput); // Arrotonda a numero intero
+        dettagliGusti.push('Miste a scelta del pastificio');
+      } else if (modalitaPanadine === 'rapida') {
         totaleQuantita = panadineRapide.carne + panadineRapide.verdura;
         if (panadineRapide.carne > 0) dettagliGusti.push(`Carne: ${panadineRapide.carne}`);
         if (panadineRapide.verdura > 0) dettagliGusti.push(`Verdura: ${panadineRapide.verdura}`);
@@ -966,7 +972,8 @@ useEffect(() => {
         categoria: 'Panadas',
         note: dettagliGusti.join(', '),
         dettagliCalcolo: {
-          gusti: modalitaPanadine === 'rapida' ? panadineRapide : gustiPanadine,
+          gusti: modalitaPanadine === 'miste' ? { miste: totaleQuantita } : 
+                 modalitaPanadine === 'rapida' ? panadineRapide : gustiPanadine,
           modalita: modalitaPanadine
         }
       };
@@ -992,7 +999,7 @@ useEffect(() => {
       setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
       setNumeroVassoi(1);
       setGustiPanadine([]);
-      setModalitaPanadine('rapida');
+      setModalitaPanadine('miste'); // ✅ NUOVO: Default a MISTE invece di rapida
       setPanadineRapide({ carne: 0, verdura: 0 });
       return;
     }
@@ -1073,7 +1080,7 @@ useEffect(() => {
       setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
       setNumeroVassoi(1);
       setGustiPanadine([]);
-      setModalitaPanadine('rapida');
+      setModalitaPanadine('miste');
       setPanadineRapide({ carne: 0, verdura: 0 });
       return;
     }
@@ -1819,14 +1826,22 @@ useEffect(() => {
                             🥟 Gusti Panadine
                           </Typography>
                           
-                          <Box sx={{ mb: 2 }}>
+                          <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            <Button
+                              variant={modalitaPanadine === 'miste' ? 'contained' : 'outlined'}
+                              size="small"
+                              onClick={() => setModalitaPanadine('miste')}
+                              color="success"
+                              sx={{ fontWeight: modalitaPanadine === 'miste' ? 'bold' : 'normal' }}
+                            >
+                              🎲 MISTE (a scelta)
+                            </Button>
                             <Button
                               variant={modalitaPanadine === 'rapida' ? 'contained' : 'outlined'}
                               size="small"
                               onClick={() => setModalitaPanadine('rapida')}
-                              sx={{ mr: 1 }}
                             >
-                              Scelta Rapida
+                              Carne/Verdura
                             </Button>
                             <Button
                               variant={modalitaPanadine === 'componi' ? 'contained' : 'outlined'}
@@ -1836,6 +1851,23 @@ useEffect(() => {
                               Componi
                             </Button>
                           </Box>
+
+                          {/* ✅ NUOVO: Modalità MISTE - usa campo quantità principale */}
+                          {modalitaPanadine === 'miste' && (
+                            <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 1 }}>
+                              <Typography variant="body2" color="success.main" gutterBottom>
+                                ✅ Usa il campo <strong>Quantità</strong> sopra per inserire il numero totale di panadine.
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Le panadine saranno preparate con gusti misti a scelta del pastificio.
+                              </Typography>
+                              {prodottoCorrente.quantita > 0 && (
+                                <Typography variant="h6" color="success.main" sx={{ mt: 1 }}>
+                                  Totale: {prodottoCorrente.quantita} panadine = €{(prodottoCorrente.quantita * 0.80).toFixed(2)}
+                                </Typography>
+                              )}
+                            </Box>
+                          )}
                           
                           {modalitaPanadine === 'rapida' && (
                             <Grid container spacing={2}>
