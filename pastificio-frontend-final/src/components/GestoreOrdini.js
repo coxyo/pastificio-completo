@@ -53,7 +53,7 @@ import StatisticheWidget from './widgets/StatisticheWidget';
 import RiepilogoGiornaliero from './RiepilogoGiornaliero';
 import RiepilogoStampabile from './RiepilogoStampabile';
 import GestioneLimiti from './GestioneLimiti';
-import DashboardWhatsApp from './DashboardWhatsApp';
+import DashboardWhatsApp from './DashboardWhatsAppNuovo';
 
 // ✅ NUOVO: Import per CallPopup e Pusher Integration
 import CallPopup from './CallPopup';
