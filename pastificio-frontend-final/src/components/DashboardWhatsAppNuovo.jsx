@@ -61,21 +61,26 @@ const DashboardWhatsAppNuovo = () => {
   };
 
   const inviaTutti = () => {
-    if (!confirm(`Aprire ${ordini.length} finestre WhatsApp?\n\nClick OK, poi clicca "Invia" in ogni finestra.\n\nATTENZIONE: Aspetta che si aprano tutte prima di chiuderle!`)) return;
+    if (!confirm(`Aprire ${ordini.length} finestre WhatsApp?\n\nLe finestre si apriranno una alla volta ogni 3 secondi.\n\nNON chiudere le finestre finché non si sono aperte tutte!`)) return;
     
-    console.log(`🚀 Invio ${ordini.length} promemoria...`);
+    console.log(`🚀 Invio ${ordini.length} promemoria con intervallo di 3 secondi...`);
+    
+    let opened = 0;
     
     ordini.forEach((o, i) => {
       setTimeout(() => {
-        console.log(`📱 Invio ${i + 1}/${ordini.length}: ${o.nomeCliente}`);
+        opened++;
+        console.log(`📱 Apertura ${opened}/${ordini.length}: ${o.nomeCliente}`);
         inviaPromemoria(o);
-      }, i * 2000); // 2 secondi tra una finestra e l'altra (era 1 secondo)
+        
+        // Alert ogni apertura
+        if (opened === ordini.length) {
+          setTimeout(() => {
+            alert(`✅ Tutte le ${ordini.length} finestre sono aperte!\n\nOra clicca "Invia" in ognuna (Ctrl+Tab per navigare tra le finestre).`);
+          }, 1000);
+        }
+      }, i * 3000); // 3 secondi tra una finestra e l'altra
     });
-    
-    // Mostra avviso finale
-    setTimeout(() => {
-      alert(`✅ Tutte le ${ordini.length} finestre WhatsApp sono state aperte!\n\nOra clicca "Invia" in ognuna.`);
-    }, ordini.length * 2000 + 500);
   };
 
   if (loading) {
