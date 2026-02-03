@@ -61,10 +61,21 @@ const DashboardWhatsAppNuovo = () => {
   };
 
   const inviaTutti = () => {
-    if (!confirm(`Aprire ${ordini.length} finestre WhatsApp?`)) return;
+    if (!confirm(`Aprire ${ordini.length} finestre WhatsApp?\n\nClick OK, poi clicca "Invia" in ogni finestra.\n\nATTENZIONE: Aspetta che si aprano tutte prima di chiuderle!`)) return;
+    
+    console.log(`🚀 Invio ${ordini.length} promemoria...`);
+    
     ordini.forEach((o, i) => {
-      setTimeout(() => inviaPromemoria(o), i * 1000);
+      setTimeout(() => {
+        console.log(`📱 Invio ${i + 1}/${ordini.length}: ${o.nomeCliente}`);
+        inviaPromemoria(o);
+      }, i * 2000); // 2 secondi tra una finestra e l'altra (era 1 secondo)
     });
+    
+    // Mostra avviso finale
+    setTimeout(() => {
+      alert(`✅ Tutte le ${ordini.length} finestre WhatsApp sono state aperte!\n\nOra clicca "Invia" in ognuna.`);
+    }, ordini.length * 2000 + 500);
   };
 
   if (loading) {
