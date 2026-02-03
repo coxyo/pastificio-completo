@@ -47,11 +47,21 @@ const DashboardWhatsApp = () => {
       
       // Filtra ordini per domani con telefono e senza promemoria inviato
       const ordiniDomani = ordiniCache.filter(o => {
-        const dataRitiro = (o.dataRitiro || '').split('T')[0];
-        const hasTelefono = o.telefono && o.telefono.trim() !== '';
-        const nonInviato = !o.promemoria_inviato;
-        
-        const match = dataRitiro === domaniStr && hasTelefono && nonInviato;
+  const dataRitiro = (o.dataRitiro || '').split('T')[0];
+  const hasTelefono = o.telefono && o.telefono.trim() !== '';
+  // const nonInviato = !o.promemoria_inviato;  // ← COMMENTATO
+  
+  const match = dataRitiro === domaniStr && hasTelefono; // ← RIMOSSO && nonInviato
+  
+  if (dataRitiro === domaniStr) {
+    console.log('🔍 Debug ordine:', {
+      nome: o.nomeCliente,
+      data: dataRitiro,
+      telefono: o.telefono,
+      promemoria: o.promemoria_inviato,
+      match: match
+    });
+  }
         
         if (match) {
           console.log('✅ Ordine trovato:', o.nomeCliente, o.telefono);
