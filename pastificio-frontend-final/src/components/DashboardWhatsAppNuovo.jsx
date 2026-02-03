@@ -101,16 +101,25 @@ const DashboardWhatsAppNuovo = () => {
       </Grid>
 
       {ordini.length > 0 && (
-        <Button
-          variant="contained"
-          size="large"
-          fullWidth
-          startIcon={<WhatsAppIcon />}
-          onClick={inviaTutti}
-          sx={{ mb: 3, py: 2, bgcolor: '#667eea', '&:hover': { bgcolor: '#5568d3' } }}
-        >
-          🚀 INVIA TUTTI ({ordini.length} messaggi)
-        </Button>
+        <Box sx={{ my: 3 }}>
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            startIcon={<WhatsAppIcon />}
+            onClick={inviaTutti}
+            sx={{ 
+              py: 2.5, 
+              bgcolor: '#667eea', 
+              '&:hover': { bgcolor: '#5568d3' },
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              boxShadow: 3
+            }}
+          >
+            🚀 INVIA TUTTI ({ordini.length} MESSAGGI)
+          </Button>
+        </Box>
       )}
 
       {ordini.length === 0 ? (
