@@ -31,6 +31,8 @@ export default function StampaHACCP() {
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState('temperature'); // 'temperature' o 'pulizie'
   const [periodo, setPeriodo] = useState('settimana'); // 'settimana', 'mese'
+  const [anno, setAnno] = useState(new Date().getFullYear()); // Anno selezionato
+  const [anniDisponibili, setAnniDisponibili] = useState([]); // Anni nel database
   const [registrazioni, setRegistrazioni] = useState([]);
   const [loading, setLoading] = useState(false);
 
