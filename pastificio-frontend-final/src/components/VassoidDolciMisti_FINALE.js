@@ -1523,48 +1523,7 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
             </RadioGroup>
           </Grid>
 
-          {/* Opzioni Extra */}
-          <Grid item xs={12}>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="body2" gutterBottom>
-              Opzioni Extra
-            </Typography>
-            <FormGroup>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={opzioni.daViaggio}
-                    onChange={(e) => setOpzioni({ ...opzioni, daViaggio: e.target.checked })}
-                  />
-                }
-                label="✈️ Da Viaggio (sottovuoto)"
-              />
-              
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={opzioni.etichettaIngredienti}
-                    onChange={(e) => setOpzioni({ ...opzioni, etichettaIngredienti: e.target.checked })}
-                  />
-                }
-                label={
-                  <Tooltip title="Promemoria per attaccare l'etichetta ingredienti stampata">
-                    <span>🏷️ Ricorda Etichetta Ingredienti</span>
-                  </Tooltip>
-                }
-              />
-              
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={opzioni.confezionGift}
-                    onChange={(e) => setOpzioni({ ...opzioni, confezionGift: e.target.checked })}
-                  />
-                }
-                label="🎁 Confezione Regalo"
-              />
-            </FormGroup>
-          </Grid>
+          {/* ✅ OPZIONI EXTRA RIMOSSE - Ora sono nella colonna destra di NuovoOrdine.js */}
 
           {/* Note */}
           <Grid item xs={12}>
@@ -1627,8 +1586,21 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         </Paper>
       )}
 
-      {/* ========== AZIONI ========== */}
-      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+      {/* ========== AZIONI - STICKY IN BASSO ========== */}
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2, 
+        justifyContent: 'flex-end',
+        position: 'sticky',
+        bottom: 80,  // ✅ Sopra il bottone SALVA ORDINE
+        bgcolor: 'white',
+        p: 2,
+        borderTop: '2px solid #4caf50',
+        borderRadius: 1,
+        boxShadow: '0 -4px 12px rgba(0,0,0,0.1)',
+        zIndex: 100,
+        mt: 2
+      }}>
         {onClose && (
           <Button
             variant="outlined"
@@ -1645,8 +1617,10 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
           onClick={handleAggiungiAlCarrello}
           disabled={composizione.length === 0 || !!errore}
           startIcon={<ShoppingCart />}
+          color="success"
+          sx={{ minHeight: 50, px: 4, fontSize: '1rem' }}
         >
-          Aggiungi al Carrello
+          🛒 Aggiungi al Carrello
         </Button>
       </Box>
     </Box>
