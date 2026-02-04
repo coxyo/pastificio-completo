@@ -58,8 +58,8 @@ export default function StampaHACCP() {
       
       const response = await axios.get(`${API_URL}/haccp/registrazioni`, {
         params: {
-          limit: 100,
-          tipo: tipo === 'temperature' ? 'temperatura' : 'sanificazione'
+          limit: 100
+          // ✅ FIX: Rimuovo filtro tipo, lo filtro dopo
         },
         headers: {
           'Authorization': `Bearer ${token}`
@@ -72,6 +72,8 @@ export default function StampaHACCP() {
         return dataReg >= dataInizio && dataReg <= dataFine;
       });
 
+      console.log('📊 [Stampa HACCP] Registrazioni caricate:', filtrate.length);
+      console.log('📊 [Stampa HACCP] Prima registrazione:', filtrate[0]);
       setRegistrazioni(filtrate);
       
     } catch (error) {
@@ -245,7 +247,11 @@ function TabellaTemperature({ registrazioni }) {
           </TableHead>
           <TableBody>
             {registrazioni.map((reg, index) => {
-              const temperature = reg.controlloTemperatura?.temperature || [];
+              // ✅ FIX: Supporta diverse strutture dati
+              const temperature = reg.controlloTemperatura?.temperature || 
+                                  reg.temperature || 
+                                  reg.dati?.temperature || 
+                                  [];
               
               // Estrai temperature per dispositivo
               const frigo1 = temperature.find(t => t.dispositivo === 'frigo1_isa')?.temperatura || '-';
