@@ -1485,9 +1485,10 @@ useEffect(() => {
             overflow: { xs: 'visible', md: 'auto' },
             borderRight: { md: '1px solid #e0e0e0' },
             bgcolor: '#fafafa',
-            order: { xs: 2, md: 1 }  // ✅ Su mobile appare DOPO la colonna cliente
+            order: { xs: 2, md: 1 },
+            pb: '100px'  // ✅ Spazio per bottone SALVA fisso in basso
           }}>
-            <Box sx={{ p: 2 }}>
+            <Box sx={{ p: 2, pb: 10 }}>  {/* ✅ Padding extra in fondo */}
               {/* Alert Limiti */}
               {alertLimiti.length > 0 && (
                 <Box sx={{ mb: 2 }}>
@@ -2180,11 +2181,11 @@ useEffect(() => {
             bgcolor: 'white',
             position: { xs: 'relative', md: 'sticky' },
             top: 0,
-            order: { xs: 1, md: 2 },  // ✅ Su mobile appare PRIMA
-            borderBottom: { xs: '2px solid #1976d2', md: 'none' },  // ✅ Separatore su mobile
-            pb: { xs: 2, md: 0 }
+            order: { xs: 1, md: 2 },
+            borderBottom: { xs: '2px solid #1976d2', md: 'none' },
+            pb: { xs: 2, md: '100px' }  // ✅ Spazio per bottone SALVA
           }}>
-            <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, pb: 10 }}>  {/* ✅ Padding extra */}
               
               {/* ========== DATA E ORA (IN ALTO!) ========== */}
               <Paper sx={{ p: 2, bgcolor: '#e3f2fd' }}>
