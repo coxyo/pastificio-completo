@@ -54,6 +54,7 @@ import {
 import axios from 'axios';
 import HACCPAutoPopup from './HACCPAutoPopup';  // ✅ NUOVO 23/01/2026
 import PuliziaAutoPopup from './PuliziaAutoPopup';  // ✅ NUOVO 27/01/2026
+import StampaHACCP from './StampaHACCP';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -535,13 +536,8 @@ export default function GestioneHACCP() {
             >
               Aggiorna
             </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<PrintIcon />}
-            >
-              Stampa Report
-            </Button>
+            {/* ✅ NUOVO: Stampa registro HACCP stile tabella A4 */}
+            <StampaHACCP />
           </Box>
         </Box>
       </Paper>
