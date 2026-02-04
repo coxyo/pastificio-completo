@@ -56,18 +56,31 @@ export default function StampaHACCP() {
 
       const token = localStorage.getItem('token');
       
-      const response = await axios.get(`${API_URL}/haccp/registrazioni`, {
+      // ✅ FIX ASSOLUTO: Endpoint diverso per temperature vs pulizie
+      const endpoint = tipo === 'temperature' ? 
+        `${API_URL}/haccp/temperature` : 
+        `${API_URL}/haccp/registrazioni`;
+      
+      const response = await axios.get(endpoint, {
         params: {
           limit: 100
-          // ✅ FIX: Rimuovo filtro tipo, lo filtro dopo
         },
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      // ✅ FIX: Filtra per periodo E presenza campo temperature
-      const filtrate = response.data.registrazioni.filter(r => {
+      // ✅ FIX: Accesso ai dati (potrebbe essere .data o .registrazioni o .temperature)
+      const rawData = response.data.registrazioni || 
+                      response.data.data || 
+                      response.data.temperature || 
+                      response.data || 
+                      [];
+      
+      console.log('📊 [Stampa] Raw data ricevuto:', rawData.length, 'records');
+      console.log('📊 [Stampa] Primo record:', rawData[0]);
+      
+      const filtrate = rawData.filter(r => {
         const dataReg = new Date(r.dataOra);
         const haTemperature = r.temperature || r.controlloTemperatura?.temperature || r.dati?.temperature;
         
