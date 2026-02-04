@@ -50,8 +50,16 @@ export default function StampaHACCP() {
       
       if (periodo === 'settimana') {
         dataInizio.setDate(dataFine.getDate() - 7);
-      } else {
+      } else if (periodo === 'mese') {
         dataInizio.setDate(dataFine.getDate() - 30);
+      } else if (periodo === '3mesi') {
+        dataInizio.setDate(dataFine.getDate() - 90);
+      } else if (periodo === '6mesi') {
+        dataInizio.setDate(dataFine.getDate() - 180);
+      } else if (periodo === 'anno') {
+        dataInizio.setDate(dataFine.getDate() - 365);
+      } else if (periodo === '2anni') {
+        dataInizio.setDate(dataFine.getDate() - 730);
       }
 
       const token = localStorage.getItem('token');
@@ -61,8 +69,8 @@ export default function StampaHACCP() {
       
       const response = await axios.get(endpoint, {
         params: {
-          limit: 100
-          // ✅ NO filtro tipo, lo facciamo lato client
+          limit: periodo === '2anni' ? 1000 : periodo === 'anno' ? 500 : 200
+          // ✅ Più registrazioni per periodi lunghi
         },
         headers: {
           'Authorization': `Bearer ${token}`
@@ -164,6 +172,10 @@ export default function StampaHACCP() {
             >
               <MenuItem value="settimana">📅 Ultima Settimana</MenuItem>
               <MenuItem value="mese">📅 Ultimo Mese</MenuItem>
+              <MenuItem value="3mesi">📅 Ultimi 3 Mesi</MenuItem>
+              <MenuItem value="6mesi">📅 Ultimi 6 Mesi</MenuItem>
+              <MenuItem value="anno">📅 Ultimo Anno</MenuItem>
+              <MenuItem value="2anni">📅 Ultimi 2 Anni</MenuItem>
             </TextField>
 
             <Button
@@ -301,15 +313,23 @@ function TabellaTemperature({ registrazioni }) {
                   const disp = reg.temperatura.dispositivo.toLowerCase();
                   const valore = reg.temperatura.valore;
                   
-                  // ✅ FIX: Più varianti nomi dispositivi
-                  if (disp.includes('frigo 1') || disp.includes('frigo1') || disp.includes('isa')) {
+                  // ✅ FIX COMPLETO: TUTTI i possibili nomi dispositivi
+                  if (disp.includes('frigo 1') || disp.includes('frigo1') || disp.includes('frigo_1') || 
+                      disp.includes('isa') || disp.includes('principale')) {
                     perData[data].frigo1 = valore;
-                  } else if (disp.includes('frigo 2') || disp.includes('frigo2') || disp.includes('icecool') || disp.includes('ice')) {
+                  } else if (disp.includes('frigo 2') || disp.includes('frigo2') || disp.includes('frigo_2') ||
+                             disp.includes('icecool') || disp.includes('ice')) {
                     perData[data].frigo2 = valore;
-                  } else if (disp.includes('frigo 3') || disp.includes('frigo3') || disp.includes('samsung')) {
+                  } else if (disp.includes('frigo 3') || disp.includes('frigo3') || disp.includes('frigo_3') ||
+                             disp.includes('samsung')) {
                     perData[data].frigo3 = valore;
-                  } else if (disp.includes('freezer') || disp.includes('congelatore')) {
+                  } else if (disp.includes('freezer') || disp.includes('congelatore') || disp.includes('congelat')) {
                     perData[data].freezer = valore;
+                  }
+                  
+                  // ✅ DEBUG: Log dispositivi non matchati
+                  else {
+                    console.warn('⚠️ Dispositivo non riconosciuto:', disp, 'valore:', valore);
                   }
                 }
               });
