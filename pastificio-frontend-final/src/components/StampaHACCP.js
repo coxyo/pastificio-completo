@@ -56,14 +56,13 @@ export default function StampaHACCP() {
 
       const token = localStorage.getItem('token');
       
-      // ✅ FIX ASSOLUTO: Endpoint diverso per temperature vs pulizie
-      const endpoint = tipo === 'temperature' ? 
-        `${API_URL}/haccp/temperature` : 
-        `${API_URL}/haccp/registrazioni`;
+      // ✅ FIX: Usa sempre /registrazioni, il backend filtra
+      const endpoint = `${API_URL}/haccp/registrazioni`;
       
       const response = await axios.get(endpoint, {
         params: {
-          limit: 100
+          limit: 100,
+          tipo: tipo === 'temperature' ? 'temperatura' : 'sanificazione'
         },
         headers: {
           'Authorization': `Bearer ${token}`
