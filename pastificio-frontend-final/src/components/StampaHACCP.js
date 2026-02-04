@@ -326,8 +326,11 @@ function TabellaTemperature({ registrazioni }) {
                   } else if (disp.includes('freezer') || disp.includes('congelatore') || disp.includes('congelat')) {
                     perData[data].freezer = valore;
                   }
-                  
-                  // ✅ DEBUG: Log dispositivi non matchati
+                  // ✅ Ignora abbattitore (controllo separato)
+                  else if (disp.includes('abbattitore') || disp.includes('abbattimento')) {
+                    // Skip silenziosamente
+                  }
+                  // ✅ DEBUG: Log solo dispositivi veramente sconosciuti
                   else {
                     console.warn('⚠️ Dispositivo non riconosciuto:', disp, 'valore:', valore);
                   }
