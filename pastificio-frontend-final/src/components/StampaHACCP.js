@@ -39,30 +39,59 @@ export default function StampaHACCP() {
   // Carica registrazioni quando si apre il dialog
   const handleOpen = async () => {
     setOpen(true);
+    await caricaAnniDisponibili();
     await caricaRegistrazioni();
+  };
+
+  // Carica anni disponibili dal database
+  const caricaAnniDisponibili = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/haccp/registrazioni`, {
+        params: { limit: 1000 },
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const rawData = response.data.registrazioni || [];
+      
+      // Estrai anni unici
+      const anni = [...new Set(rawData.map(r => 
+        new Date(r.dataOra).getFullYear()
+      ))].sort((a, b) => b - a); // Ordina decrescente (2026, 2025, 2024...)
+      
+      setAnniDisponibili(anni);
+      console.log('📅 Anni disponibili:', anni);
+    } catch (error) {
+      console.error('Errore caricamento anni:', error);
+      setAnniDisponibili([new Date().getFullYear()]); // Fallback
+    }
   };
 
   const caricaRegistrazioni = async () => {
     try {
       setLoading(true);
       
-      // Calcola date periodo
-      const dataFine = new Date();
-      const dataInizio = new Date();
+      // Calcola date periodo basato su anno selezionato
+      const dataFine = new Date(anno, 11, 31, 23, 59, 59); // 31 dicembre dell'anno
+      const dataInizio = new Date(anno, 0, 1); // 1 gennaio dell'anno
       
+      // Sottrai giorni in base al periodo DENTRO l'anno
       if (periodo === 'settimana') {
-        dataInizio.setDate(dataFine.getDate() - 7);
+        dataInizio.setTime(dataFine.getTime() - 7 * 24 * 60 * 60 * 1000);
       } else if (periodo === 'mese') {
-        dataInizio.setDate(dataFine.getDate() - 30);
+        dataInizio.setTime(dataFine.getTime() - 30 * 24 * 60 * 60 * 1000);
       } else if (periodo === '3mesi') {
-        dataInizio.setDate(dataFine.getDate() - 90);
+        dataInizio.setTime(dataFine.getTime() - 90 * 24 * 60 * 60 * 1000);
       } else if (periodo === '6mesi') {
-        dataInizio.setDate(dataFine.getDate() - 180);
+        dataInizio.setTime(dataFine.getTime() - 180 * 24 * 60 * 60 * 1000);
       } else if (periodo === 'anno') {
-        dataInizio.setDate(dataFine.getDate() - 365);
+        dataInizio.setTime(dataFine.getTime() - 365 * 24 * 60 * 60 * 1000);
       } else if (periodo === '2anni') {
-        dataInizio.setDate(dataFine.getDate() - 730);
+        dataInizio.setTime(dataFine.getTime() - 730 * 24 * 60 * 60 * 1000);
       }
+      
+      console.log(`📅 Carico registrazioni ${periodo} dell'anno ${anno}`);
+      console.log(`📅 Da ${dataInizio.toLocaleDateString()} a ${dataFine.toLocaleDateString()}`);
 
       const token = localStorage.getItem('token');
       
@@ -178,6 +207,19 @@ export default function StampaHACCP() {
               <MenuItem value="6mesi">📅 Ultimi 6 Mesi</MenuItem>
               <MenuItem value="anno">📅 Ultimo Anno</MenuItem>
               <MenuItem value="2anni">📅 Ultimi 2 Anni</MenuItem>
+            </TextField>
+
+            {/* Selezione anno */}
+            <TextField
+              select
+              label="Anno"
+              value={anno}
+              onChange={(e) => setAnno(e.target.value)}
+              sx={{ minWidth: 120 }}
+            >
+              {anniDisponibili.map(a => (
+                <MenuItem key={a} value={a}>📅 {a}</MenuItem>
+              ))}
             </TextField>
 
             <Button
@@ -414,42 +456,67 @@ function TabellaPulizie({ registrazioni }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {registrazioni.map((reg, index) => {
-              // ✅ FIX: Estrai area + elementi
-              const area = reg.controlloIgienico?.area || '';
-              const elementi = reg.controlloIgienico?.elementi || [];
-              const elementiNomi = elementi.map(e => e.nome).join(', ');
+            {(() => {
+              // ✅ RAGGRUPPA pulizie per data (come temperature)
+              const perData = {};
               
-              // Combina area + elementi
-              let areePulite = area;
-              if (area && elementiNomi) {
-                areePulite = `${area}: ${elementiNomi}`;
-              } else if (elementiNomi) {
-                areePulite = elementiNomi;
-              }
+              registrazioni.forEach(reg => {
+                const data = new Date(reg.dataOra).toLocaleDateString('it-IT');
+                
+                if (!perData[data]) {
+                  perData[data] = {
+                    data: data,
+                    dataOra: reg.dataOra,
+                    operatore: reg.operatore,
+                    aree: [],
+                    note: reg.note || ''
+                  };
+                }
+                
+                // Raccogli tutte le aree pulite per questa data
+                const area = reg.controlloIgienico?.area || '';
+                const elementi = reg.controlloIgienico?.elementi || [];
+                
+                if (area) {
+                  perData[data].aree.push(area);
+                }
+                
+                elementi.forEach(e => {
+                  if (e.nome && !perData[data].aree.includes(e.nome)) {
+                    perData[data].aree.push(e.nome);
+                  }
+                });
+              });
               
-              // ✅ FIX: Nascondi note automatiche
-              let note = reg.note || '';
-              if (note.toLowerCase().includes('registrazione') && 
-                  note.toLowerCase().includes('automatica')) {
-                note = '-';
-              }
-              
-              return (
-                <TableRow key={index}>
-                  <TableCell sx={{ border: '1px solid black' }}>
-                    {new Date(reg.dataOra).toLocaleDateString('it-IT')}
-                  </TableCell>
-                  <TableCell sx={{ border: '1px solid black', textAlign: 'left' }}>
-                    {areePulite || '-'}
-                  </TableCell>
-                  <TableCell sx={{ border: '1px solid black', textAlign: 'left' }}>
-                    {note || '-'}
-                  </TableCell>
-                  <TableCell sx={{ border: '1px solid black' }}>{reg.operatore}</TableCell>
-                </TableRow>
+              // Converti in array e ordina per data
+              const righe = Object.values(perData).sort((a, b) => 
+                new Date(b.dataOra) - new Date(a.dataOra)
               );
-            })}
+              
+              return righe.map((riga, index) => {
+                const areePulite = riga.aree.length > 0 ? riga.aree.join(', ') : '-';
+                
+                // ✅ Nascondi note automatiche
+                let note = riga.note;
+                if (note && note.toLowerCase().includes('registrazione') && 
+                    note.toLowerCase().includes('automatica')) {
+                  note = '-';
+                }
+                
+                return (
+                  <TableRow key={index}>
+                    <TableCell sx={{ border: '1px solid black' }}>{riga.data}</TableCell>
+                    <TableCell sx={{ border: '1px solid black', textAlign: 'left' }}>
+                      {areePulite}
+                    </TableCell>
+                    <TableCell sx={{ border: '1px solid black', textAlign: 'left' }}>
+                      {note || '-'}
+                    </TableCell>
+                    <TableCell sx={{ border: '1px solid black' }}>{riga.operatore}</TableCell>
+                  </TableRow>
+                );
+              });
+            })()}
           </TableBody>
         </Table>
       </TableContainer>
