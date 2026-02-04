@@ -280,13 +280,14 @@ function TabellaTemperature({ registrazioni }) {
             {registrazioni.map((reg, index) => {
               // ✅ FIX FINALE: Usa temperatura.valore e temperatura.dispositivo
               
-              // Funzione per estrarre temperatura per dispositivo
-              const getTemp = (cercaNomi) => {
-                // Se è singola registrazione con temperatura.dispositivo
+              // ✅ FIX: Ricerca flessibile per dispositivo
+              const getTemp = (cercaTermini) => {
                 if (reg.temperatura?.dispositivo) {
                   const disp = reg.temperatura.dispositivo.toLowerCase();
-                  for (const nome of cercaNomi) {
-                    if (disp.includes(nome.toLowerCase())) {
+                  
+                  // Cerca ogni termine nella lista
+                  for (const termine of cercaTermini) {
+                    if (disp.includes(termine.toLowerCase())) {
                       return reg.temperatura.valore;
                     }
                   }
@@ -294,10 +295,11 @@ function TabellaTemperature({ registrazioni }) {
                 return null;
               };
               
-              const frigo1 = getTemp(['Frigo 1', 'frigo1']);
-              const frigo2 = getTemp(['Frigo 2', 'frigo2', 'Icecool']);
-              const frigo3 = getTemp(['Frigo 3', 'frigo3']);
-              const freezer = getTemp(['Freezer', 'Congelatore']);
+              // Cerca con termini multipli e flessibili
+              const frigo1 = getTemp(['frigo 1', 'frigo1', 'isa', 'principale']);
+              const frigo2 = getTemp(['frigo 2', 'frigo2', 'icecool', 'ice']);
+              const frigo3 = getTemp(['frigo 3', 'frigo3', 'samsung']);
+              const freezer = getTemp(['freezer', 'congelatore', 'congelat']);
               
               return (
                 <TableRow key={index}>
