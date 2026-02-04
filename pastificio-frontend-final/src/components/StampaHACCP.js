@@ -66,10 +66,20 @@ export default function StampaHACCP() {
         }
       });
 
-      // Filtra per tipo e periodo
+      // ✅ FIX: Filtra per periodo E presenza campo temperature
       const filtrate = response.data.registrazioni.filter(r => {
         const dataReg = new Date(r.dataOra);
-        return dataReg >= dataInizio && dataReg <= dataFine;
+        const haTemperature = r.temperature || r.controlloTemperatura?.temperature || r.dati?.temperature;
+        
+        // Se tipo temperature: solo con campo temperature
+        if (tipo === 'temperature') {
+          return dataReg >= dataInizio && dataReg <= dataFine && haTemperature;
+        }
+        // Se tipo pulizie: solo con campo controlloIgienico
+        else {
+          const haPulizie = r.controlloIgienico;
+          return dataReg >= dataInizio && dataReg <= dataFine && haPulizie;
+        }
       });
 
       console.log('📊 [Stampa HACCP] Registrazioni caricate:', filtrate.length);
