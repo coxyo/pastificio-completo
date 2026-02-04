@@ -1466,15 +1466,17 @@ useEffect(() => {
       </DialogTitle>
 
       <DialogContent sx={{ p: 0, overflow: 'hidden' }}>
-        {/* ✅ LAYOUT A 2 COLONNE */}
-        <Grid container sx={{ height: 'calc(100vh - 64px)' }}>
+        {/* ✅ LAYOUT A 2 COLONNE - Su mobile: Cliente/Data PRIMA, poi Prodotti */}
+        <Grid container sx={{ height: { xs: 'auto', md: 'calc(100vh - 64px)' } }}>
           
           {/* ========== COLONNA SINISTRA: PRODOTTI/VASSOIO (scrollabile) ========== */}
+          {/* Su mobile (xs): order=2 (appare DOPO), su desktop (md): order=1 (appare PRIMA) */}
           <Grid item xs={12} md={8} sx={{ 
-            height: '100%', 
+            height: { xs: 'auto', md: '100%' }, 
             overflow: 'auto',
             borderRight: { md: '1px solid #e0e0e0' },
-            bgcolor: '#fafafa'
+            bgcolor: '#fafafa',
+            order: { xs: 2, md: 1 }  // ✅ Su mobile appare DOPO la colonna cliente
           }}>
             <Box sx={{ p: 2 }}>
               {/* Alert Limiti */}
@@ -2162,12 +2164,16 @@ useEffect(() => {
           </Grid>
 
           {/* ========== COLONNA DESTRA: CLIENTE + DATA + CARRELLO (sticky) ========== */}
+          {/* Su mobile (xs): order=1 (appare PRIMA), su desktop (md): order=2 (appare DOPO) */}
           <Grid item xs={12} md={4} sx={{ 
-            height: '100%', 
-            overflow: 'auto',
+            height: { xs: 'auto', md: '100%' }, 
+            overflow: { xs: 'visible', md: 'auto' },
             bgcolor: 'white',
-            position: 'sticky',
-            top: 0
+            position: { xs: 'relative', md: 'sticky' },
+            top: 0,
+            order: { xs: 1, md: 2 },  // ✅ Su mobile appare PRIMA
+            borderBottom: { xs: '2px solid #1976d2', md: 'none' },  // ✅ Separatore su mobile
+            pb: { xs: 2, md: 0 }
           }}>
             <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
               
