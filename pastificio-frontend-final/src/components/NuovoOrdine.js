@@ -2501,27 +2501,38 @@ useEffect(() => {
                   />
                 </Box>
               </Paper>
-
-              {/* ========== BOTTONE SALVA ========== */}
-              <Button 
-                variant="contained" 
-                onClick={handleSalva} 
-                size="large"
-                fullWidth
-                color={alertLimiti.some(a => a.tipo === 'error') ? 'warning' : 'success'}
-                sx={{ 
-                  py: 2, 
-                  fontSize: '1.1rem',
-                  fontWeight: 'bold',
-                  position: 'sticky',
-                  bottom: 0
-                }}
-              >
-                {alertLimiti.some(a => a.tipo === 'error') ? '⚠️ SALVA (Supera Limiti)' : '✅ SALVA ORDINE'}
-              </Button>
             </Box>
           </Grid>
         </Grid>
+
+        {/* ========== BOTTONE SALVA FISSO IN BASSO ========== */}
+        <Box sx={{ 
+          position: 'sticky',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          p: 2,
+          bgcolor: 'white',
+          borderTop: '2px solid #e0e0e0',
+          boxShadow: '0 -4px 12px rgba(0,0,0,0.15)',
+          zIndex: 1000
+        }}>
+          <Button 
+            variant="contained" 
+            onClick={handleSalva} 
+            size="large"
+            fullWidth
+            color={alertLimiti.some(a => a.tipo === 'error') ? 'warning' : 'success'}
+            sx={{ 
+              py: 2, 
+              fontSize: '1.2rem',
+              fontWeight: 'bold',
+              minHeight: '60px'  // ✅ Altezza minima per touch facile
+            }}
+          >
+            {alertLimiti.some(a => a.tipo === 'error') ? '⚠️ SALVA (Supera Limiti)' : '✅ SALVA ORDINE'}
+          </Button>
+        </Box>
       </DialogContent>
     </Dialog>
   );
