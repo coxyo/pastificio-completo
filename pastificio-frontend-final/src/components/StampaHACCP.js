@@ -277,43 +277,66 @@ function TabellaTemperature({ registrazioni }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {registrazioni.map((reg, index) => {
-              // ✅ FIX FINALE: Usa temperatura.valore e temperatura.dispositivo
+            {(() => {
+              // ✅ FIX FINALE: Raggruppa registrazioni per data
+              const perData = {};
               
-              // ✅ FIX: Ricerca flessibile per dispositivo
-              const getTemp = (cercaTermini) => {
-                if (reg.temperatura?.dispositivo) {
+              registrazioni.forEach(reg => {
+                const data = new Date(reg.dataOra).toLocaleDateString('it-IT');
+                
+                if (!perData[data]) {
+                  perData[data] = {
+                    data: data,
+                    dataOra: reg.dataOra,
+                    operatore: reg.operatore,
+                    frigo1: null,
+                    frigo2: null,
+                    frigo3: null,
+                    freezer: null
+                  };
+                }
+                
+                // Estrai temperatura per dispositivo
+                if (reg.temperatura?.dispositivo && reg.temperatura?.valore !== undefined) {
                   const disp = reg.temperatura.dispositivo.toLowerCase();
+                  const valore = reg.temperatura.valore;
                   
-                  // Cerca ogni termine nella lista
-                  for (const termine of cercaTermini) {
-                    if (disp.includes(termine.toLowerCase())) {
-                      return reg.temperatura.valore;
-                    }
+                  if (disp.includes('frigo 1') || disp.includes('frigo1') || disp.includes('isa')) {
+                    perData[data].frigo1 = valore;
+                  } else if (disp.includes('frigo 2') || disp.includes('frigo2') || disp.includes('icecool')) {
+                    perData[data].frigo2 = valore;
+                  } else if (disp.includes('frigo 3') || disp.includes('frigo3') || disp.includes('samsung')) {
+                    perData[data].frigo3 = valore;
+                  } else if (disp.includes('freezer') || disp.includes('congelatore')) {
+                    perData[data].freezer = valore;
                   }
                 }
-                return null;
-              };
+              });
               
-              // Cerca con termini multipli e flessibili
-              const frigo1 = getTemp(['frigo 1', 'frigo1', 'isa', 'principale']);
-              const frigo2 = getTemp(['frigo 2', 'frigo2', 'icecool', 'ice']);
-              const frigo3 = getTemp(['frigo 3', 'frigo3', 'samsung']);
-              const freezer = getTemp(['freezer', 'congelatore', 'congelat']);
-              
-              return (
-                <TableRow key={index}>
-                  <TableCell sx={{ border: '1px solid black' }}>
-                    {new Date(reg.dataOra).toLocaleDateString('it-IT')}
-                  </TableCell>
-                  <TableCell sx={{ border: '1px solid black' }}>{frigo1}°C</TableCell>
-                  <TableCell sx={{ border: '1px solid black' }}>{frigo2}°C</TableCell>
-                  <TableCell sx={{ border: '1px solid black' }}>{frigo3}°C</TableCell>
-                  <TableCell sx={{ border: '1px solid black' }}>{freezer}°C</TableCell>
-                  <TableCell sx={{ border: '1px solid black' }}>{reg.operatore}</TableCell>
-                </TableRow>
+              // Converti in array e ordina per data
+              const righe = Object.values(perData).sort((a, b) => 
+                new Date(b.dataOra) - new Date(a.dataOra)
               );
-            })}
+              
+              return righe.map((riga, index) => (
+                <TableRow key={index}>
+                  <TableCell sx={{ border: '1px solid black' }}>{riga.data}</TableCell>
+                  <TableCell sx={{ border: '1px solid black' }}>
+                    {riga.frigo1 !== null ? `${riga.frigo1}°C` : '-'}
+                  </TableCell>
+                  <TableCell sx={{ border: '1px solid black' }}>
+                    {riga.frigo2 !== null ? `${riga.frigo2}°C` : '-'}
+                  </TableCell>
+                  <TableCell sx={{ border: '1px solid black' }}>
+                    {riga.frigo3 !== null ? `${riga.frigo3}°C` : '-'}
+                  </TableCell>
+                  <TableCell sx={{ border: '1px solid black' }}>
+                    {riga.freezer !== null ? `${riga.freezer}°C` : '-'}
+                  </TableCell>
+                  <TableCell sx={{ border: '1px solid black' }}>{riga.operatore}</TableCell>
+                </TableRow>
+              ));
+            })()}
           </TableBody>
         </Table>
       </TableContainer>
