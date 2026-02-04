@@ -36,6 +36,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-
 // ============================================
 // CONFIGURAZIONE DISPOSITIVI
 // ============================================
+// ✅ FIX: Rimossi Congelatore e Abbattitore (mantenuti 3 frigo + Freezer Samsung)
 const DISPOSITIVI = [
   { 
     id: 'frigo1_isa', 
@@ -72,24 +73,6 @@ const DISPOSITIVI = [
     maxTemp: -18,
     icon: FreezerIcon,
     color: '#9c27b0'
-  },
-  { 
-    id: 'congelatore', 
-    nome: 'Congelatore', 
-    tipo: 'congelatore',
-    minTemp: -22, 
-    maxTemp: -18,
-    icon: FreezerIcon,
-    color: '#9c27b0'
-  },
-  { 
-    id: 'abbattitore', 
-    nome: 'Abbattitore', 
-    tipo: 'abbattitore',
-    minTemp: -40, 
-    maxTemp: -30,
-    icon: AbbattitoreIcon,
-    color: '#f44336'
   }
 ];
 
@@ -108,7 +91,7 @@ const generaTemperaturaRealistica = (minTemp, maxTemp) => {
   let temp = centro + z * (range / 4);
   temp = Math.max(minTemp, Math.min(maxTemp, temp));
   
-  return Math.round(temp * 10) / 10;
+  return Math.round(temp);  // ✅ FIX: Solo numeri interi
 };
 
 // ============================================
@@ -269,7 +252,7 @@ export default function HACCPAutoPopup({ onClose, forceShow = false }) {
 
       console.log('📤 [HACCP] Payload da inviare:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch(`${API_URL}/haccp/temperature`, {
+      const response = await fetch(`${API_URL}/api/haccp/temperature`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
