@@ -29,7 +29,10 @@ import {
   Tooltip,
   LinearProgress,
   Collapse,
-  Badge
+  Badge,
+  Accordion,           // ✅ AGGIUNTO
+  AccordionSummary,    // ✅ AGGIUNTO
+  AccordionDetails     // ✅ AGGIUNTO
 } from '@mui/material';
 import {
   Plus,
@@ -43,7 +46,8 @@ import {
   Tag,
   Calculator,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Settings           // ✅ AGGIUNTO per icona packaging
 } from 'lucide-react';
 
 // ==========================================
@@ -1431,113 +1435,111 @@ const VassoidDolciMisti = ({ onAggiungiAlCarrello, onClose, prodottiDisponibili 
         )}
       </Paper>
 
-      {/* ========== SEZIONE 6: OPZIONI VASSOIO ========== */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          📦 Opzioni Vassoio
-        </Typography>
+      {/* ========== SEZIONE 6: OPZIONI VASSOIO (compatta) ========== */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        {/* Numero Vassoi - Compatto in una riga */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            🔢 Nr Vassoi: <strong style={{ color: '#1976d2' }}>{numeroVassoi}x</strong> = €{formatNumber(totaleVassoio * (parseInt(numeroVassoi) || 1))}
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+              <Chip
+                key={num}
+                label={num}
+                onClick={() => setNumeroVassoi(num)}
+                color={parseInt(numeroVassoi) === num ? 'primary' : 'default'}
+                variant={parseInt(numeroVassoi) === num ? 'filled' : 'outlined'}
+                size="small"
+                sx={{
+                  fontWeight: 'bold',
+                  minWidth: '36px',
+                  height: '32px',
+                  cursor: 'pointer'
+                }}
+              />
+            ))}
+          </Box>
+        </Box>
 
-        <Grid container spacing={3}>
-          {/* Numero Vassoi */}
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold' }}>
-              🔢 Numero Vassoi (uguali):
-            </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                  <Chip
-                    key={num}
-                    label={num}
-                    onClick={() => setNumeroVassoi(num)}
-                    color={parseInt(numeroVassoi) === num ? 'primary' : 'default'}
-                    variant={parseInt(numeroVassoi) === num ? 'filled' : 'outlined'}
-                    sx={{
-                      fontSize: '1.1rem',
-                      fontWeight: 'bold',
-                      minWidth: '50px',
-                      height: '48px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      '&:hover': { transform: 'scale(1.05)' },
-                      '&:active': { transform: 'scale(0.95)' },
-                      ...(parseInt(numeroVassoi) === num ? {
-                        backgroundColor: '#1976d2',
-                        color: 'white'
-                      } : {})
-                    }}
-                  />
-                ))}
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                Totale: €{formatNumber(totaleVassoio * (parseInt(numeroVassoi) || 1))}
-              </Typography>
-            </Box>
-          </Grid>
+        {/* Dimensione Vassoio - Chip compatti */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            📏 Dim. Vassoio: <strong style={{ color: '#1976d2' }}>Nr {numeroVassoioDimensione || '-'}</strong>
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {[2, 3, 4, 4.5, 5, 6, 7, 8].map((num) => (
+              <Chip
+                key={num}
+                label={`${num}`}
+                onClick={() => setNumeroVassoioDimensione(num)}
+                color={numeroVassoioDimensione === num ? 'secondary' : 'default'}
+                variant={numeroVassoioDimensione === num ? 'filled' : 'outlined'}
+                size="small"
+                sx={{
+                  fontWeight: 'bold',
+                  minWidth: '40px',
+                  height: '32px',
+                  cursor: 'pointer'
+                }}
+              />
+            ))}
+          </Box>
+        </Box>
 
-          {/* Dimensione Vassoio */}
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" gutterBottom>
-              Dimensione Vassoio
+        {/* Packaging - Accordion chiuso di default */}
+        <Accordion sx={{ boxShadow: 'none', '&:before': { display: 'none' } }}>
+          <AccordionSummary 
+            expandIcon={<ChevronDown size={20} />}
+            sx={{ 
+              minHeight: '40px', 
+              p: 0,
+              '& .MuiAccordionSummary-content': { m: 0 }
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+              📦 Packaging: {packaging === 'vassoio_carta' ? 'Vassoio Carta' : 
+                            packaging === 'scatola' ? 'Scatola Rigida' : 'Busta Carta'}
             </Typography>
-            <Select
-              value={numeroVassoioDimensione}
-              onChange={(e) => setNumeroVassoioDimensione(e.target.value)}
-              size="small"
-              fullWidth
-            >
-              {Object.entries(DIMENSIONI_VASSOIO).map(([num, info]) => (
-                <MenuItem key={num} value={parseInt(num)}>
-                  {info.label} - {info.range}
-                </MenuItem>
-              ))}
-            </Select>
-          </Grid>
-
-          {/* Packaging */}
-          <Grid item xs={12}>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="body2" gutterBottom>
-              Tipo Packaging
-            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 1 }}>
             <RadioGroup
               row
               value={packaging}
               onChange={(e) => setPackaging(e.target.value)}
+              sx={{ gap: 0 }}
             >
               <FormControlLabel
                 value="vassoio_carta"
-                control={<Radio />}
-                label="📦 Vassoio Carta"
+                control={<Radio size="small" />}
+                label={<Typography variant="body2">📦 Vassoio</Typography>}
               />
               <FormControlLabel
                 value="scatola"
-                control={<Radio />}
-                label="📦 Scatola Rigida"
+                control={<Radio size="small" />}
+                label={<Typography variant="body2">📦 Scatola</Typography>}
               />
               <FormControlLabel
                 value="busta_carta"
-                control={<Radio />}
-                label="🛍️ Busta Carta"
+                control={<Radio size="small" />}
+                label={<Typography variant="body2">🛍️ Busta</Typography>}
               />
             </RadioGroup>
-          </Grid>
+          </AccordionDetails>
+        </Accordion>
 
-          {/* ✅ OPZIONI EXTRA RIMOSSE - Ora sono nella colonna destra di NuovoOrdine.js */}
-
-          {/* Note */}
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              multiline
-              rows={2}
-              label="📝 Note Aggiuntive"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Es: Confezionare insieme, niente glassa, etc."
-            />
-          </Grid>
-        </Grid>
+        {/* Note - più compatto */}
+        <TextField
+          fullWidth
+          size="small"
+          multiline
+          rows={1}
+          label="📝 Note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Note aggiuntive..."
+          sx={{ mt: 1 }}
+        />
       </Paper>
 
       {/* ========== ALERT ERRORI/WARNING ========== */}
