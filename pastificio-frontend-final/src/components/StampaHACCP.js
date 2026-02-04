@@ -247,17 +247,37 @@ function TabellaTemperature({ registrazioni }) {
           </TableHead>
           <TableBody>
             {registrazioni.map((reg, index) => {
-              // ✅ FIX: Supporta diverse strutture dati
-              const temperature = reg.controlloTemperatura?.temperature || 
-                                  reg.temperature || 
-                                  reg.dati?.temperature || 
-                                  [];
+              // ✅ FIX DEFINITIVO: Estrae temperature da qualsiasi struttura
+              let temperature = [];
               
-              // Estrai temperature per dispositivo
-              const frigo1 = temperature.find(t => t.dispositivo === 'frigo1_isa')?.temperatura || '-';
-              const frigo2 = temperature.find(t => t.dispositivo === 'frigo2_icecool')?.temperatura || '-';
-              const frigo3 = temperature.find(t => t.dispositivo === 'frigo3_samsung')?.temperatura || '-';
-              const freezer = temperature.find(t => t.dispositivo === 'freezer_samsung')?.temperatura || '-';
+              // Prova tutti i possibili campi
+              if (reg.controlloTemperatura?.temperature) {
+                temperature = reg.controlloTemperatura.temperature;
+              } else if (reg.temperature) {
+                temperature = reg.temperature;
+              } else if (reg.dati?.temperature) {
+                temperature = reg.dati.temperature;
+              }
+              
+              // Funzione helper per trovare temperatura (cerca per nome o ID)
+              const trovaTemp = (nomi) => {
+                for (const nome of nomi) {
+                  const t = temperature.find(t => 
+                    t.dispositivo === nome || 
+                    t.dispositivo?.toLowerCase().includes(nome.toLowerCase()) ||
+                    t.nome === nome ||
+                    t.nome?.toLowerCase().includes(nome.toLowerCase())
+                  );
+                  if (t) return t.temperatura;
+                }
+                return '-';
+              };
+              
+              // Estrai temperature con fallback multipli
+              const frigo1 = trovaTemp(['frigo1_isa', 'Frigo 1 Isa', 'Frigo 1']);
+              const frigo2 = trovaTemp(['frigo2_icecool', 'Frigo 2 Icecool', 'Frigo 2']);
+              const frigo3 = trovaTemp(['frigo3_samsung', 'Frigo 3 Samsung', 'Frigo 3']);
+              const freezer = trovaTemp(['freezer_samsung', 'Freezer Samsung', 'Freezer']);
               
               return (
                 <TableRow key={index}>
