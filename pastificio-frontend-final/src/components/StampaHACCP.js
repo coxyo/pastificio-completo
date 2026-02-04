@@ -301,9 +301,10 @@ function TabellaTemperature({ registrazioni }) {
                   const disp = reg.temperatura.dispositivo.toLowerCase();
                   const valore = reg.temperatura.valore;
                   
+                  // ✅ FIX: Più varianti nomi dispositivi
                   if (disp.includes('frigo 1') || disp.includes('frigo1') || disp.includes('isa')) {
                     perData[data].frigo1 = valore;
-                  } else if (disp.includes('frigo 2') || disp.includes('frigo2') || disp.includes('icecool')) {
+                  } else if (disp.includes('frigo 2') || disp.includes('frigo2') || disp.includes('icecool') || disp.includes('ice')) {
                     perData[data].frigo2 = valore;
                   } else if (disp.includes('frigo 3') || disp.includes('frigo3') || disp.includes('samsung')) {
                     perData[data].frigo3 = valore;
@@ -389,8 +390,25 @@ function TabellaPulizie({ registrazioni }) {
           </TableHead>
           <TableBody>
             {registrazioni.map((reg, index) => {
-              const aree = reg.controlloIgienico?.elementi || [];
-              const areeNomi = aree.map(a => a.nome).join(', ');
+              // ✅ FIX: Estrai area + elementi
+              const area = reg.controlloIgienico?.area || '';
+              const elementi = reg.controlloIgienico?.elementi || [];
+              const elementiNomi = elementi.map(e => e.nome).join(', ');
+              
+              // Combina area + elementi
+              let areePulite = area;
+              if (area && elementiNomi) {
+                areePulite = `${area}: ${elementiNomi}`;
+              } else if (elementiNomi) {
+                areePulite = elementiNomi;
+              }
+              
+              // ✅ FIX: Nascondi note automatiche
+              let note = reg.note || '';
+              if (note.toLowerCase().includes('registrazione') && 
+                  note.toLowerCase().includes('automatica')) {
+                note = '-';
+              }
               
               return (
                 <TableRow key={index}>
@@ -398,10 +416,10 @@ function TabellaPulizie({ registrazioni }) {
                     {new Date(reg.dataOra).toLocaleDateString('it-IT')}
                   </TableCell>
                   <TableCell sx={{ border: '1px solid black', textAlign: 'left' }}>
-                    {areeNomi || '-'}
+                    {areePulite || '-'}
                   </TableCell>
                   <TableCell sx={{ border: '1px solid black', textAlign: 'left' }}>
-                    {reg.note || '-'}
+                    {note || '-'}
                   </TableCell>
                   <TableCell sx={{ border: '1px solid black' }}>{reg.operatore}</TableCell>
                 </TableRow>
