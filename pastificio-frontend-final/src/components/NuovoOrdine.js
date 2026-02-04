@@ -1231,7 +1231,8 @@ useEffect(() => {
     });
   };
 
-  // ✅ FIX 20/12/2025 v3: Funzione per MODIFICARE un prodotto nel carrello
+  // ✅ FIX 04/02/2026: Funzione per MODIFICARE un prodotto nel carrello
+  // ✅ CRITICO: Resettare numeroVassoiProdotto a 1, altrimenti il ciclo for non esegue!
   const handleModificaProdotto = (index) => {
     const prodottoDaModificare = formData.prodotti[index];
     
@@ -1255,6 +1256,11 @@ useEffect(() => {
       noteProdotto: prodottoDaModificare.noteProdotto || ''
     });
     
+    // ✅ FIX 04/02/2026: CRITICO - Reset numeroVassoiProdotto a 1
+    // Senza questo, il ciclo for in handleAggiungiProdotto non esegue mai!
+    setNumeroVassoiProdotto(1);
+    setDimensioneVassoio(prodottoDaModificare.dimensioneVassoio || '');
+    
     // 4. Aggiorna il carrello senza il prodotto
     setFormData({
       ...formData,
@@ -1264,7 +1270,7 @@ useEffect(() => {
     // 5. Torna al tab "Prodotti Singoli"
     setTabValue(0);
     
-    console.log('✅ Prodotto caricato nel form per modifica');
+    console.log('✅ Prodotto caricato nel form per modifica, numeroVassoiProdotto = 1');
   };
 
   const aggiungiVassoioAlCarrello = (vassoio) => {
