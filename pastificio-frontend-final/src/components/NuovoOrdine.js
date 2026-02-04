@@ -1465,15 +1465,18 @@ useEffect(() => {
         </Button>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 0, overflow: 'hidden' }}>
+      <DialogContent sx={{ p: 0, overflow: { xs: 'auto', md: 'hidden' } }}>
         {/* ✅ LAYOUT A 2 COLONNE - Su mobile: Cliente/Data PRIMA, poi Prodotti */}
-        <Grid container sx={{ height: { xs: 'auto', md: 'calc(100vh - 64px)' } }}>
+        <Grid container sx={{ 
+          height: { xs: 'auto', md: 'calc(100vh - 64px)' },
+          flexDirection: { xs: 'column', md: 'row' }  // ✅ Su mobile impila verticalmente
+        }}>
           
           {/* ========== COLONNA SINISTRA: PRODOTTI/VASSOIO (scrollabile) ========== */}
           {/* Su mobile (xs): order=2 (appare DOPO), su desktop (md): order=1 (appare PRIMA) */}
           <Grid item xs={12} md={8} sx={{ 
             height: { xs: 'auto', md: '100%' }, 
-            overflow: 'auto',
+            overflow: { xs: 'visible', md: 'auto' },
             borderRight: { md: '1px solid #e0e0e0' },
             bgcolor: '#fafafa',
             order: { xs: 2, md: 1 }  // ✅ Su mobile appare DOPO la colonna cliente
