@@ -61,8 +61,8 @@ export default function StampaHACCP() {
       
       const response = await axios.get(endpoint, {
         params: {
-          limit: 100,
-          tipo: tipo === 'temperature' ? 'temperatura' : 'sanificazione'
+          limit: 100
+          // ✅ NO filtro tipo, lo facciamo lato client
         },
         headers: {
           'Authorization': `Bearer ${token}`
@@ -81,16 +81,25 @@ export default function StampaHACCP() {
       
       const filtrate = rawData.filter(r => {
         const dataReg = new Date(r.dataOra);
-        const haTemperature = r.temperature || r.controlloTemperatura?.temperature || r.dati?.temperature;
         
-        // Se tipo temperature: solo con campo temperature
+        // ✅ FIX FINALE: Filtro intelligente per tipo
         if (tipo === 'temperature') {
-          return dataReg >= dataInizio && dataReg <= dataFine && haTemperature;
+          // Cerca registrazioni temperature:
+          // 1. Con campo temperatura.valore (nuovo formato)
+          // 2. Con tipo che include "temperatura" o "frigo" o "congelatore" o "abbattimento"
+          const haTemperaturaValore = r.temperatura?.valore !== undefined;
+          const tipoTemperatura = r.tipo?.includes('temperatura') || 
+                                  r.tipo?.includes('frigo') || 
+                                  r.tipo?.includes('congelatore') ||
+                                  r.tipo === 'abbattimento';
+          
+          return dataReg >= dataInizio && dataReg <= dataFine && (haTemperaturaValore || tipoTemperatura);
         }
-        // Se tipo pulizie: solo con campo controlloIgienico
+        // Pulizie: solo con controlloIgienico
         else {
-          const haPulizie = r.controlloIgienico;
-          return dataReg >= dataInizio && dataReg <= dataFine && haPulizie;
+          const haPulizie = r.controlloIgienico?.area || r.controlloIgienico?.elementi?.length > 0;
+          const tipoPulizie = r.tipo === 'sanificazione' || r.tipo?.includes('pulizia');
+          return dataReg >= dataInizio && dataReg <= dataFine && (haPulizie || tipoPulizie);
         }
       });
 
@@ -269,37 +278,26 @@ function TabellaTemperature({ registrazioni }) {
           </TableHead>
           <TableBody>
             {registrazioni.map((reg, index) => {
-              // ✅ FIX DEFINITIVO: Estrae temperature da qualsiasi struttura
-              let temperature = [];
+              // ✅ FIX FINALE: Usa temperatura.valore e temperatura.dispositivo
               
-              // Prova tutti i possibili campi
-              if (reg.controlloTemperatura?.temperature) {
-                temperature = reg.controlloTemperatura.temperature;
-              } else if (reg.temperature) {
-                temperature = reg.temperature;
-              } else if (reg.dati?.temperature) {
-                temperature = reg.dati.temperature;
-              }
-              
-              // Funzione helper per trovare temperatura (cerca per nome o ID)
-              const trovaTemp = (nomi) => {
-                for (const nome of nomi) {
-                  const t = temperature.find(t => 
-                    t.dispositivo === nome || 
-                    t.dispositivo?.toLowerCase().includes(nome.toLowerCase()) ||
-                    t.nome === nome ||
-                    t.nome?.toLowerCase().includes(nome.toLowerCase())
-                  );
-                  if (t) return t.temperatura;
+              // Funzione per estrarre temperatura per dispositivo
+              const getTemp = (cercaNomi) => {
+                // Se è singola registrazione con temperatura.dispositivo
+                if (reg.temperatura?.dispositivo) {
+                  const disp = reg.temperatura.dispositivo.toLowerCase();
+                  for (const nome of cercaNomi) {
+                    if (disp.includes(nome.toLowerCase())) {
+                      return reg.temperatura.valore;
+                    }
+                  }
                 }
-                return '-';
+                return null;
               };
               
-              // Estrai temperature con fallback multipli
-              const frigo1 = trovaTemp(['frigo1_isa', 'Frigo 1 Isa', 'Frigo 1']);
-              const frigo2 = trovaTemp(['frigo2_icecool', 'Frigo 2 Icecool', 'Frigo 2']);
-              const frigo3 = trovaTemp(['frigo3_samsung', 'Frigo 3 Samsung', 'Frigo 3']);
-              const freezer = trovaTemp(['freezer_samsung', 'Freezer Samsung', 'Freezer']);
+              const frigo1 = getTemp(['Frigo 1', 'frigo1']);
+              const frigo2 = getTemp(['Frigo 2', 'frigo2', 'Icecool']);
+              const frigo3 = getTemp(['Frigo 3', 'frigo3']);
+              const freezer = getTemp(['Freezer', 'Congelatore']);
               
               return (
                 <TableRow key={index}>
