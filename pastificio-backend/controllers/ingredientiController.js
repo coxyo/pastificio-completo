@@ -479,18 +479,3 @@ export const scaricoAutomaticoOrdine = async (ordine, userId) => {
     throw error;
   }
 };
-
-// =====================================
-// EXPORT
-// =====================================
-export {
-  getIngredienti,
-  getIngrediente,
-  createIngrediente,
-  updateIngrediente,
-  deleteIngrediente,
-  aggiungiLotto,
-  getIngredientiSottoScorta,
-  getIngredientiInScadenza,
-  scaricoAutomaticoOrdine
-};
