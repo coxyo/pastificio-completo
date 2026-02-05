@@ -74,6 +74,8 @@ import schedulerCorrespettivi from './services/schedulerCorrespettivi.js';
 import schedulerHACCP from './services/schedulerHACCP.js';
 import cronJobsEmail from './services/cronJobsEmail.js'; // ✅ NUOVO - Cron jobs email
 import pdfCorrispettiviService from './services/pdfCorrispettivi.js'; // ✅ NUOVO - PDF corrispettivi
+import importFattureRoutes from './routes/importFatture.js';
+
 
 
 // Configurazione path
@@ -332,6 +334,8 @@ app.use('/api/email-corrispettivi', emailCorrispettiviRoutes); // ✅ NUOVO - Ro
 app.use('/api/email', emailRoutes);
 app.use('/api/haccp', haccpRoutes);
 app.use('/api/fix', fixPrezziRoutes);
+app.use('/api/import-fatture', importFattureRoutes);
+
 
 // Route Danea
 
