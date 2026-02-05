@@ -19,12 +19,30 @@ import logger from '../config/logger.js';
  */
 const parseXMLFattura = async (xmlContent) => {
   try {
+    // Debug: log primi caratteri del contenuto
+    logger.info(`XML ricevuto: lunghezza=${xmlContent?.length || 0}, primi 100 char: ${xmlContent?.substring(0, 100)}`);
+    
+    if (!xmlContent || xmlContent.length === 0) {
+      throw new Error('Contenuto XML vuoto');
+    }
+    
     // Rimuovi BOM e caratteri problematici all'inizio
     let cleanXml = xmlContent.replace(/^\uFEFF/, ''); // Remove UTF-8 BOM
-    cleanXml = cleanXml.replace(/^[\s\S]*?(<\?xml)/, '$1'); // Remove anything before <?xml
     
-    // Se non inizia con <?xml, cerca il tag radice
-    if (!cleanXml.trim().startsWith('<?xml') && !cleanXml.trim().startsWith('<')) {
+    // Cerca <?xml o il primo < nel contenuto
+    const xmlDeclIndex = cleanXml.indexOf('<?xml');
+    const firstTagIndex = cleanXml.indexOf('<');
+    
+    if (xmlDeclIndex > 0) {
+      cleanXml = cleanXml.substring(xmlDeclIndex);
+    } else if (firstTagIndex > 0) {
+      cleanXml = cleanXml.substring(firstTagIndex);
+    }
+    
+    // Verifica che il contenuto sia valido
+    const trimmed = cleanXml.trim();
+    if (!trimmed.startsWith('<?xml') && !trimmed.startsWith('<')) {
+      logger.error(`XML non valido - primi 200 char dopo pulizia: ${trimmed.substring(0, 200)}`);
       throw new Error('Contenuto XML non valido');
     }
     
@@ -198,8 +216,23 @@ export const uploadFatture = async (req, res) => {
     
     for (const file of files) {
       try {
+        // Debug: info sul file ricevuto
+        logger.info(`File ricevuto: nome=${file.name}, size=${file.size || file.data?.length || 0}, mimetype=${file.mimetype}`);
+        
         // Leggi contenuto XML
-        const xmlContent = file.data.toString('utf8');
+        const xmlContent = file.data ? file.data.toString('utf8') : '';
+        
+        logger.info(`Contenuto file ${file.name}: lunghezza=${xmlContent.length}`);
+        
+        if (!xmlContent || xmlContent.length === 0) {
+          risultati.push({
+            file: file.name,
+            stato: 'errore',
+            messaggio: 'File vuoto o non leggibile'
+          });
+          continue;
+        }
+        
         const hash = calcolaHash(xmlContent);
         
         // Verifica se già processato
