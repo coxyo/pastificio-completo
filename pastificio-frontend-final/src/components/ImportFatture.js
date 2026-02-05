@@ -180,22 +180,39 @@ export default function ImportFatture() {
 
   // ==================== UPLOAD & PARSING ====================
 
+  const readFileAsText = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (e) => reject(new Error('Errore lettura file'));
+      reader.readAsText(file);
+    });
+  };
+
   const handleFiles = async (files) => {
     setUploading(true);
     
     try {
-      const formData = new FormData();
+      const xmlFiles = [];
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file.name.endsWith('.xml')) {
-          formData.append('fatture', file);
+          try {
+            const content = await readFileAsText(file);
+            xmlFiles.push({
+              name: file.name,
+              content: content
+            });
+          } catch (err) {
+            toast.warning(`Errore lettura ${file.name}`);
+          }
         } else {
           toast.warning(`File ${file.name} ignorato (solo XML)`);
         }
       }
       
-      if (!formData.has('fatture')) {
+      if (xmlFiles.length === 0) {
         toast.error('Nessun file XML valido selezionato');
         setUploading(false);
         return;
@@ -204,9 +221,10 @@ export default function ImportFatture() {
       const response = await fetch(`${API_URL}/import-fatture/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${getToken()}`
+          ...getHeaders(),
+          'Content-Type': 'application/json'
         },
-        body: formData
+        body: JSON.stringify({ files: xmlFiles })
       });
       
       const data = await response.json();
