@@ -30,7 +30,8 @@ import {
   Phone as PhoneIcon,
   HealthAndSafety,
   AccountBalance,
-  TrendingUp  // ✅ NUOVO: Icona Grafici
+  TrendingUp,  // ✅ Icona Grafici
+  UploadFile   // ✅ NUOVO: Icona Import Fatture
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
@@ -46,6 +47,7 @@ const menuItems = [
   { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
   { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
   { id: 'fatturazione', title: 'Fatturazione', icon: <Receipt />, path: '/fatturazione' },
+  { id: 'import-fatture', title: 'Import Fatture', icon: <UploadFile />, path: '/import-fatture' },  // ✅ NUOVO
   { id: 'haccp', title: 'HACCP', icon: <HealthAndSafety />, path: '/haccp' },
   { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi' },
   { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici' },  // ✅ NUOVO
