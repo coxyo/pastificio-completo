@@ -48,88 +48,78 @@ import {
   Description as FileIcon,
   Check as CheckIcon,
   Close as CloseIcon,
-  Warning as WarningIcon,
-  Error as ErrorIcon,
-  Info as InfoIcon,
-  Refresh as RefreshIcon,
   Delete as DeleteIcon,
-  Edit as EditIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  LocalShipping as FornitoreIcon,
-  Inventory as InventoryIcon,
-  Receipt as ReceiptIcon,
+  Refresh as RefreshIcon,
   History as HistoryIcon,
   Settings as SettingsIcon,
-  Search as SearchIcon,
-  FilterList as FilterIcon,
-  Download as DownloadIcon
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
+  Inventory as InventoryIcon,
+  LinkOff as LinkOffIcon,
+  Link as LinkIcon
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
+const getToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token');
+  }
+  return null;
+};
+
+const getHeaders = () => ({
+  'Authorization': `Bearer ${getToken()}`
+});
+
 export default function ImportFatture() {
-  // Stati
+  // State
   const [activeTab, setActiveTab] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  
-  // Dati
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [fattureAnalizzate, setFattureAnalizzate] = useState([]);
   const [ingredienti, setIngredienti] = useState([]);
-  const [importazioni, setImportazioni] = useState([]);
+  const [storico, setStorico] = useState([]);
   const [mapping, setMapping] = useState([]);
   const [statistiche, setStatistiche] = useState(null);
-  
-  // Dialog
-  const [fatturaSelezionata, setFatturaSelezionata] = useState(null);
+  const [expandedFattura, setExpandedFattura] = useState({});
   const [dialogAnnulla, setDialogAnnulla] = useState(null);
   const [motivoAnnullamento, setMotivoAnnullamento] = useState('');
-  
-  // Espansione righe
-  const [righeEspanse, setRigheEspanse] = useState({});
 
-  // Token
-  const getToken = () => localStorage.getItem('token');
+  // ==================== CARICAMENTO DATI ====================
 
-  // Headers
-  const getHeaders = () => ({
-    'Authorization': `Bearer ${getToken()}`
-  });
-
-  // Carica dati iniziali
   useEffect(() => {
-    caricaImportazioni();
+    caricaStorico();
     caricaMapping();
     caricaStatistiche();
   }, []);
 
-  // ==================== API CALLS ====================
-
-  const caricaImportazioni = async () => {
+  const caricaStorico = async () => {
     try {
       const response = await fetch(`${API_URL}/import-fatture?limit=50`, {
         headers: getHeaders()
       });
       const data = await response.json();
       if (data.success) {
-        setImportazioni(data.data.importazioni);
+        setStorico(data.data.importazioni);
       }
     } catch (error) {
-      console.error('Errore caricamento importazioni:', error);
+      console.error('Errore caricamento storico:', error);
     }
   };
 
   const caricaMapping = async () => {
     try {
-      const response = await fetch(`${API_URL}/import-fatture/mapping`, {
+      const response = await fetch(`${API_URL}/import-fatture/mapping?limit=100`, {
         headers: getHeaders()
       });
       const data = await response.json();
       if (data.success) {
-        setMapping(data.data.mapping);
+        setMapping(data.data.mappings);
       }
     } catch (error) {
       console.error('Errore caricamento mapping:', error);
@@ -180,39 +170,22 @@ export default function ImportFatture() {
 
   // ==================== UPLOAD & PARSING ====================
 
-  const readFileAsText = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = (e) => reject(new Error('Errore lettura file'));
-      reader.readAsText(file);
-    });
-  };
-
   const handleFiles = async (files) => {
     setUploading(true);
     
     try {
-      const xmlFiles = [];
+      const formData = new FormData();
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file.name.endsWith('.xml')) {
-          try {
-            const content = await readFileAsText(file);
-            xmlFiles.push({
-              name: file.name,
-              content: content
-            });
-          } catch (err) {
-            toast.warning(`Errore lettura ${file.name}`);
-          }
+          formData.append('fatture', file);
         } else {
           toast.warning(`File ${file.name} ignorato (solo XML)`);
         }
       }
       
-      if (xmlFiles.length === 0) {
+      if (!formData.has('fatture')) {
         toast.error('Nessun file XML valido selezionato');
         setUploading(false);
         return;
@@ -221,10 +194,9 @@ export default function ImportFatture() {
       const response = await fetch(`${API_URL}/import-fatture/upload`, {
         method: 'POST',
         headers: {
-          ...getHeaders(),
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${getToken()}`
         },
-        body: JSON.stringify({ files: xmlFiles })
+        body: formData
       });
       
       const data = await response.json();
@@ -238,7 +210,7 @@ export default function ImportFatture() {
         const errori = data.data.risultati.filter(r => r.stato === 'errore').length;
         
         if (analizzate > 0) {
-          toast.success(`${analizzate} fattur${analizzate > 1 ? 'e' : 'a'} analizat${analizzate > 1 ? 'e' : 'a'}`);
+          toast.success(`${analizzate} fattur${analizzate > 1 ? 'e' : 'a'} analizzat${analizzate > 1 ? 'e' : 'a'}`);
         }
         if (duplicati > 0) {
           toast.info(`${duplicati} fattur${duplicati > 1 ? 'e' : 'a'} già importat${duplicati > 1 ? 'e' : 'a'}`);
@@ -324,22 +296,25 @@ export default function ImportFatture() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success(`✅ Importati ${data.data.statistiche.righeImportate} prodotti`);
-        
-        // Rimuovi dalla lista
-        setFattureAnalizzate(prev => 
-          prev.filter(f => f.fileInfo?.hash !== fatturaData.fileInfo?.hash)
+        toast.success(
+          `✅ Importata fattura ${fatturaData.fattura.numero}: ` +
+          `${data.data.statistiche.righeImportate}/${data.data.statistiche.totaleRighe} righe, ` +
+          `${data.data.movimentiCreati} movimenti creati`
         );
         
+        // Rimuovi dalla lista analizzate
+        setFattureAnalizzate(prev => prev.filter(f => f !== fatturaData));
+        
         // Ricarica dati
-        caricaImportazioni();
+        caricaStorico();
+        caricaMapping();
         caricaStatistiche();
       } else {
         toast.error(data.error || 'Errore durante l\'import');
       }
     } catch (error) {
-      console.error('Errore import:', error);
-      toast.error('Errore durante l\'import');
+      console.error('Errore conferma import:', error);
+      toast.error('Errore durante la conferma dell\'import');
     } finally {
       setLoading(false);
     }
@@ -347,11 +322,10 @@ export default function ImportFatture() {
 
   // ==================== ANNULLA IMPORT ====================
 
-  const annullaImport = async () => {
+  const annullaImportazione = async () => {
     if (!dialogAnnulla) return;
     
     setLoading(true);
-    
     try {
       const response = await fetch(`${API_URL}/import-fatture/${dialogAnnulla._id}`, {
         method: 'DELETE',
@@ -365,10 +339,10 @@ export default function ImportFatture() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success(`Importazione annullata. ${data.data.movimentiEliminati} movimenti eliminati.`);
+        toast.success(data.data.messaggio);
         setDialogAnnulla(null);
         setMotivoAnnullamento('');
-        caricaImportazioni();
+        caricaStorico();
         caricaStatistiche();
       } else {
         toast.error(data.error);
@@ -380,43 +354,39 @@ export default function ImportFatture() {
     }
   };
 
-  // ==================== RENDER HELPERS ====================
+  // ==================== HELPER ====================
 
-  const getStatoColor = (stato) => {
-    switch (stato) {
-      case 'completato': return 'success';
-      case 'parziale': return 'warning';
-      case 'errore': return 'error';
-      case 'annullato': return 'default';
-      default: return 'info';
-    }
+  const formatData = (data) => {
+    if (!data) return '-';
+    return new Date(data).toLocaleDateString('it-IT');
   };
 
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'success';
-    if (score >= 60) return 'warning';
-    return 'error';
-  };
-
-  const formatCurrency = (value) => {
+  const formatValuta = (importo) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
       currency: 'EUR'
-    }).format(value || 0);
+    }).format(importo || 0);
   };
 
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('it-IT');
+  const getStatoChip = (stato) => {
+    const config = {
+      completato: { color: 'success', label: 'Completato' },
+      parziale: { color: 'warning', label: 'Parziale' },
+      pendente: { color: 'info', label: 'Pendente' },
+      errore: { color: 'error', label: 'Errore' },
+      annullato: { color: 'default', label: 'Annullato' }
+    };
+    const c = config[stato] || { color: 'default', label: stato };
+    return <Chip size="small" color={c.color} label={c.label} />;
   };
 
   // ==================== RENDER ====================
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <ReceiptIcon sx={{ fontSize: 40 }} />
-        Import Fatture Danea
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        📄 Import Fatture XML
+        <Chip label="Danea EasyFatt" size="small" variant="outlined" />
       </Typography>
       
       <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
@@ -482,7 +452,7 @@ export default function ImportFatture() {
         </Tabs>
       </Paper>
 
-      {/* TAB 0: Upload */}
+      {/* ========== TAB 0: Upload ========== */}
       {activeTab === 0 && (
         <Box>
           {/* Area Drag & Drop */}
@@ -548,125 +518,131 @@ export default function ImportFatture() {
                 <Card key={fatturaIndex} sx={{ mb: 2 }}>
                   <CardContent>
                     {/* Header Fattura */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Box>
-                        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <FileIcon />
-                          Fattura {fattura.fattura?.numero || fattura.file}
-                          {fattura.stato === 'duplicato' && (
-                            <Chip label="Già importata" size="small" color="warning" />
-                          )}
-                          {fattura.stato === 'errore' && (
-                            <Chip label="Errore" size="small" color="error" />
-                          )}
+                        <Typography variant="h6">
+                          {fattura.stato === 'duplicato' && '⚠️ '}
+                          {fattura.stato === 'errore' && '❌ '}
+                          {fattura.fornitore?.ragioneSociale || fattura.fornitore?.partitaIva || fattura.file}
                         </Typography>
-                        
-                        {fattura.fornitore && (
-                          <Typography variant="body2" color="textSecondary">
-                            <FornitoreIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
-                            {fattura.fornitore.ragioneSociale || 
-                             `${fattura.fornitore.nome} ${fattura.fornitore.cognome}`}
-                            {!fattura.fornitore.esisteNelDb && (
-                              <Chip label="Nuovo fornitore" size="small" sx={{ ml: 1 }} />
-                            )}
-                          </Typography>
-                        )}
-                        
                         {fattura.fattura && (
-                          <Typography variant="body2">
-                            Data: {formatDate(fattura.fattura.data)} | 
-                            Totale: <strong>{formatCurrency(fattura.fattura.importoTotale)}</strong>
+                          <Typography variant="body2" color="textSecondary">
+                            Fattura n. {fattura.fattura.numero} del {formatData(fattura.fattura.data)} — 
+                            Totale: {formatValuta(fattura.fattura.importoTotale)}
                           </Typography>
                         )}
                       </Box>
-                      
-                      {fattura.stato === 'analizzato' && (
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          onClick={() => confermaImport(fattura)}
-                          disabled={loading}
-                          startIcon={<CheckIcon />}
-                        >
-                          Importa
-                        </Button>
-                      )}
+                      <Box>
+                        {fattura.stato === 'analizzato' && (
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<CheckIcon />}
+                            onClick={() => confermaImport(fattura)}
+                            disabled={loading}
+                          >
+                            Importa
+                          </Button>
+                        )}
+                      </Box>
                     </Box>
-                    
-                    {/* Messaggio errore/duplicato */}
-                    {fattura.messaggio && (
-                      <Alert severity={fattura.stato === 'errore' ? 'error' : 'info'} sx={{ mb: 2 }}>
+
+                    {/* Duplicato/Errore Alert */}
+                    {fattura.stato === 'duplicato' && (
+                      <Alert severity="warning" sx={{ mb: 2 }}>
                         {fattura.messaggio}
                       </Alert>
                     )}
-                    
+                    {fattura.stato === 'errore' && (
+                      <Alert severity="error" sx={{ mb: 2 }}>
+                        {fattura.messaggio}
+                      </Alert>
+                    )}
+
+                    {/* DDT */}
+                    {fattura.ddt?.length > 0 && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="caption" color="textSecondary">
+                          DDT: {fattura.ddt.map(d => `${d.numero} (${formatData(d.data)})`).join(', ')}
+                        </Typography>
+                      </Box>
+                    )}
+
                     {/* Tabella Righe */}
                     {fattura.righe && fattura.righe.length > 0 && (
                       <TableContainer>
                         <Table size="small">
                           <TableHead>
                             <TableRow>
+                              <TableCell>#</TableCell>
                               <TableCell>Descrizione Fattura</TableCell>
                               <TableCell align="right">Qtà</TableCell>
+                              <TableCell>UM</TableCell>
                               <TableCell align="right">Prezzo</TableCell>
-                              <TableCell>Prodotto Magazzino</TableCell>
-                              <TableCell align="center">Match</TableCell>
+                              <TableCell align="right">Totale</TableCell>
+                              <TableCell sx={{ minWidth: 200 }}>→ Prodotto Magazzino</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {fattura.righe.map((riga, rigaIndex) => (
-                              <TableRow key={rigaIndex}>
+                              <TableRow 
+                                key={rigaIndex}
+                                sx={{
+                                  backgroundColor: riga.mapping?.trovato ? 'success.light' : 
+                                                   riga.mapping?.suggerito ? 'warning.light' : 
+                                                   'inherit',
+                                  opacity: riga.mapping?.trovato ? 0.9 : 1
+                                }}
+                              >
+                                <TableCell>{riga.numeroLinea}</TableCell>
                                 <TableCell>
-                                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                    {riga.descrizione}
-                                  </Typography>
+                                  <Typography variant="body2">{riga.descrizione}</Typography>
                                   {riga.codiceArticolo && (
                                     <Typography variant="caption" color="textSecondary">
                                       Cod: {riga.codiceArticolo}
                                     </Typography>
                                   )}
                                 </TableCell>
-                                <TableCell align="right">
-                                  {riga.quantita} {riga.unitaMisura}
-                                </TableCell>
-                                <TableCell align="right">
-                                  {formatCurrency(riga.prezzoUnitario)}
-                                </TableCell>
-                                <TableCell sx={{ minWidth: 200 }}>
-                                  <FormControl fullWidth size="small">
-                                    <Select
-                                      value={riga.ingredienteId || riga.mapping?.ingredienteId || ''}
-                                      onChange={(e) => handleMappingChange(fatturaIndex, rigaIndex, e.target.value)}
-                                      displayEmpty
-                                    >
-                                      <MenuItem value="">
-                                        <em>-- Seleziona --</em>
-                                      </MenuItem>
-                                      {ingredienti.map(ing => (
-                                        <MenuItem key={ing._id} value={ing._id}>
-                                          {ing.nome} ({ing.categoria})
-                                        </MenuItem>
-                                      ))}
-                                    </Select>
-                                  </FormControl>
-                                </TableCell>
-                                <TableCell align="center">
+                                <TableCell align="right">{riga.quantita}</TableCell>
+                                <TableCell>{riga.unitaMisura}</TableCell>
+                                <TableCell align="right">{formatValuta(riga.prezzoUnitario)}</TableCell>
+                                <TableCell align="right">{formatValuta(riga.prezzoTotale)}</TableCell>
+                                <TableCell>
                                   {riga.mapping?.trovato ? (
-                                    <Tooltip title="Mapping esistente">
-                                      <CheckIcon color="success" />
-                                    </Tooltip>
-                                  ) : riga.mapping?.suggerito ? (
-                                    <Tooltip title={`Suggerito (${riga.mapping.score}%)`}>
-                                      <Chip 
-                                        label={`${riga.mapping.score}%`}
+                                    <Tooltip title={`Match confermato (${riga.mapping.score}%)`}>
+                                      <Chip
+                                        icon={<LinkIcon />}
+                                        label={riga.mapping.ingredienteNome}
+                                        color="success"
                                         size="small"
-                                        color={getScoreColor(riga.mapping.score)}
                                       />
                                     </Tooltip>
                                   ) : (
-                                    <Tooltip title="Nessun match trovato">
-                                      <WarningIcon color="warning" />
-                                    </Tooltip>
+                                    <FormControl fullWidth size="small">
+                                      <Select
+                                        value={riga.ingredienteId || riga.mapping?.ingredienteId || ''}
+                                        onChange={(e) => handleMappingChange(fatturaIndex, rigaIndex, e.target.value)}
+                                        displayEmpty
+                                      >
+                                        <MenuItem value="">
+                                          <em>-- Ignora --</em>
+                                        </MenuItem>
+                                        {riga.mapping?.suggerito && (
+                                          <MenuItem 
+                                            value={riga.mapping.ingredienteId}
+                                            sx={{ backgroundColor: 'warning.light' }}
+                                          >
+                                            ⭐ {riga.mapping.ingredienteNome} ({riga.mapping.score}%)
+                                          </MenuItem>
+                                        )}
+                                        <Divider />
+                                        {ingredienti.map(ing => (
+                                          <MenuItem key={ing._id} value={ing._id}>
+                                            {ing.nome} ({ing.categoria})
+                                          </MenuItem>
+                                        ))}
+                                      </Select>
+                                    </FormControl>
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -683,16 +659,15 @@ export default function ImportFatture() {
         </Box>
       )}
 
-      {/* TAB 1: Storico */}
+      {/* ========== TAB 1: Storico ========== */}
       {activeTab === 1 && (
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6">
-              📋 Storico Importazioni
-            </Typography>
+            <Typography variant="h6">📋 Storico Importazioni</Typography>
             <Button 
-              startIcon={<RefreshIcon />}
-              onClick={caricaImportazioni}
+              startIcon={<RefreshIcon />} 
+              onClick={caricaStorico}
+              size="small"
             >
               Aggiorna
             </Button>
@@ -703,8 +678,9 @@ export default function ImportFatture() {
               <TableHead>
                 <TableRow>
                   <TableCell>Data Import</TableCell>
-                  <TableCell>Fattura</TableCell>
                   <TableCell>Fornitore</TableCell>
+                  <TableCell>N. Fattura</TableCell>
+                  <TableCell>Data Fattura</TableCell>
                   <TableCell align="right">Importo</TableCell>
                   <TableCell align="center">Righe</TableCell>
                   <TableCell align="center">Stato</TableCell>
@@ -712,56 +688,106 @@ export default function ImportFatture() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {importazioni.map((imp) => (
-                  <TableRow key={imp._id}>
-                    <TableCell>
-                      {formatDate(imp.dataImportazione)}
-                    </TableCell>
-                    <TableCell>
-                      <strong>{imp.numero}</strong>/{imp.anno}
-                      <br />
-                      <Typography variant="caption">
-                        del {formatDate(imp.data)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {imp.nomeFornitore || imp.fornitore?.ragioneSociale}
-                    </TableCell>
-                    <TableCell align="right">
-                      {formatCurrency(imp.importoTotale)}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title={`${imp.statistiche?.righeImportate || 0} importate / ${imp.statistiche?.totaleRighe || 0} totali`}>
-                        <span>
-                          {imp.statistiche?.righeImportate || 0}/{imp.statistiche?.totaleRighe || 0}
-                        </span>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip 
-                        label={imp.stato}
-                        size="small"
-                        color={getStatoColor(imp.stato)}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      {imp.stato !== 'annullato' && (
-                        <IconButton 
-                          size="small"
-                          color="error"
-                          onClick={() => setDialogAnnulla(imp)}
-                        >
-                          <DeleteIcon />
+                {storico.map((imp) => (
+                  <React.Fragment key={imp._id}>
+                    <TableRow 
+                      hover
+                      onClick={() => setExpandedFattura(prev => ({
+                        ...prev,
+                        [imp._id]: !prev[imp._id]
+                      }))}
+                      sx={{ cursor: 'pointer' }}
+                    >
+                      <TableCell>{formatData(imp.dataImportazione)}</TableCell>
+                      <TableCell>
+                        {imp.nomeFornitore || imp.fornitore?.ragioneSociale || imp.fornitore?.partitaIva}
+                      </TableCell>
+                      <TableCell>{imp.numero}</TableCell>
+                      <TableCell>{formatData(imp.data)}</TableCell>
+                      <TableCell align="right">{formatValuta(imp.importoTotale)}</TableCell>
+                      <TableCell align="center">
+                        {imp.statistiche?.righeImportate || 0}/{imp.statistiche?.totaleRighe || 0}
+                      </TableCell>
+                      <TableCell align="center">{getStatoChip(imp.stato)}</TableCell>
+                      <TableCell align="center">
+                        {imp.stato !== 'annullato' && (
+                          <Tooltip title="Annulla importazione">
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDialogAnnulla(imp);
+                              }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <IconButton size="small">
+                          {expandedFattura[imp._id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                         </IconButton>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {/* Dettaglio Espanso */}
+                    <TableRow>
+                      <TableCell colSpan={8} sx={{ py: 0, border: expandedFattura[imp._id] ? undefined : 'none' }}>
+                        <Collapse in={expandedFattura[imp._id]} timeout="auto" unmountOnExit>
+                          <Box sx={{ p: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom>Dettaglio Righe:</Typography>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Descrizione</TableCell>
+                                  <TableCell align="right">Qtà</TableCell>
+                                  <TableCell>UM</TableCell>
+                                  <TableCell align="right">Prezzo</TableCell>
+                                  <TableCell>Ingrediente</TableCell>
+                                  <TableCell>Stato</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {imp.righe?.map((riga, idx) => (
+                                  <TableRow key={idx}>
+                                    <TableCell>{riga.descrizione}</TableCell>
+                                    <TableCell align="right">{riga.quantita}</TableCell>
+                                    <TableCell>{riga.unitaMisura}</TableCell>
+                                    <TableCell align="right">{formatValuta(riga.prezzoUnitario)}</TableCell>
+                                    <TableCell>
+                                      {riga.ingredienteNome || '-'}
+                                    </TableCell>
+                                    <TableCell>
+                                      {riga.importato ? (
+                                        <Chip label="Importato" size="small" color="success" />
+                                      ) : riga.errore ? (
+                                        <Chip label="Errore" size="small" color="error" />
+                                      ) : (
+                                        <Chip label="Ignorato" size="small" />
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                            
+                            {imp.annullamento?.annullato && (
+                              <Alert severity="warning" sx={{ mt: 2 }}>
+                                Annullato il {formatData(imp.annullamento.dataAnnullamento)}
+                                {imp.annullamento.motivo && ` - Motivo: ${imp.annullamento.motivo}`}
+                              </Alert>
+                            )}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
                 ))}
-                {importazioni.length === 0 && (
+                {storico.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={8} align="center">
                       <Typography color="textSecondary" sx={{ py: 3 }}>
-                        Nessuna importazione trovata
+                        Nessuna importazione effettuata
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -772,23 +798,15 @@ export default function ImportFatture() {
         </Box>
       )}
 
-      {/* TAB 2: Mapping */}
+      {/* ========== TAB 2: Mapping ========== */}
       {activeTab === 2 && (
         <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6">
-              🔗 Mapping Prodotti ({mapping.length})
-            </Typography>
-            <Button 
-              startIcon={<RefreshIcon />}
-              onClick={caricaMapping}
-            >
-              Aggiorna
-            </Button>
-          </Box>
+          <Typography variant="h6" gutterBottom>⚙️ Mapping Prodotti Fornitore</Typography>
           
           <Alert severity="info" sx={{ mb: 2 }}>
-            I mapping vengono creati automaticamente quando importi una fattura.
+            <AlertTitle>Come funziona</AlertTitle>
+            Quando importi una fattura, il sistema memorizza l'associazione tra la descrizione del prodotto 
+            del fornitore e il prodotto nel tuo magazzino. 
             Il sistema ricorda le associazioni per le prossime importazioni.
           </Alert>
           
@@ -857,33 +875,32 @@ export default function ImportFatture() {
 
       {/* Dialog Annulla Import */}
       <Dialog open={!!dialogAnnulla} onClose={() => setDialogAnnulla(null)}>
-        <DialogTitle>
-          ⚠️ Annulla Importazione
-        </DialogTitle>
+        <DialogTitle>⚠️ Annulla Importazione</DialogTitle>
         <DialogContent>
           <Typography gutterBottom>
-            Stai per annullare l'importazione della fattura <strong>{dialogAnnulla?.numero}/{dialogAnnulla?.anno}</strong>.
+            Stai per annullare l'importazione della fattura <strong>{dialogAnnulla?.numero}</strong> di{' '}
+            <strong>
+              {dialogAnnulla?.nomeFornitore || dialogAnnulla?.fornitore?.ragioneSociale}
+            </strong>.
           </Typography>
-          <Typography color="error" gutterBottom>
-            Tutti i movimenti di magazzino collegati verranno eliminati.
+          <Typography variant="body2" color="error" gutterBottom>
+            Verranno eliminati tutti i movimenti di magazzino creati da questa importazione.
           </Typography>
           <TextField
-            fullWidth
             label="Motivo annullamento (opzionale)"
-            value={motivoAnnullamento}
-            onChange={(e) => setMotivoAnnullamento(e.target.value)}
-            margin="normal"
+            fullWidth
             multiline
             rows={2}
+            value={motivoAnnullamento}
+            onChange={(e) => setMotivoAnnullamento(e.target.value)}
+            sx={{ mt: 2 }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogAnnulla(null)}>
-            Annulla
-          </Button>
+          <Button onClick={() => setDialogAnnulla(null)}>Annulla</Button>
           <Button 
-            onClick={annullaImport}
-            color="error"
+            onClick={annullaImportazione} 
+            color="error" 
             variant="contained"
             disabled={loading}
           >
@@ -891,29 +908,6 @@ export default function ImportFatture() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Loading overlay */}
-      {loading && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            bgcolor: 'rgba(0,0,0,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999
-          }}
-        >
-          <Paper sx={{ p: 3, textAlign: 'center' }}>
-            <LinearProgress sx={{ mb: 2, width: 200 }} />
-            <Typography>Operazione in corso...</Typography>
-          </Paper>
-        </Box>
-      )}
     </Box>
   );
 }

@@ -3,16 +3,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Container, CircularProgress, Typography } from '@mui/material';
-import ImportFatture from '@/components/ImportFatture';
+import { Box, Container, CircularProgress } from '@mui/material';
+import ImportFatture from '../../src/components/ImportFatture';
 
 export default function ImportFatturePage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verifica autenticazione
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/login');
@@ -25,22 +24,13 @@ export default function ImportFatturePage() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '100vh'
-        }}
-      >
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <CircularProgress />
       </Box>
     );
   }
 
-  if (!authenticated) {
-    return null;
-  }
+  if (!authenticated) return null;
 
   return (
     <Container maxWidth="xl" sx={{ py: 2 }}>
