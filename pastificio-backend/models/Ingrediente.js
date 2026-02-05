@@ -1,315 +1,561 @@
-// models/Ingrediente.js
+// models/Ingrediente.js - ✅ SISTEMA RINTRACCIABILITÀ COMPLETO
 import mongoose from 'mongoose';
-import logger from '../config/logger.js';
 
-const IngredienteSchema = new mongoose.Schema({
-  codice: {
+// =====================================
+// SCHEMA LOTTO - Tracciabilità completa
+// =====================================
+const LottoSchema = new mongoose.Schema({
+  codiceLotto: {
     type: String,
-    trim: true,
-    uppercase: true,
+    required: true,
     unique: true,
-    sparse: true
+    index: true
+    // Formato: {INGREDIENTE}-{ANNO}-{PROGRESSIVO}
+    // Es: FARINA00-2025-001, RICOTTA-2025-042
   },
-  nome: {
-    type: String,
-    required: [true, 'Il nome è obbligatorio'],
-    trim: true,
-    maxlength: [100, 'Il nome non può superare i 100 caratteri']
+  dataArrivo: {
+    type: Date,
+    required: true,
+    default: Date.now
   },
-  descrizione: {
-    type: String,
-    trim: true
+  dataScadenza: {
+    type: Date,
+    required: true,
+    index: true // Per query scadenze rapide
   },
-  categoria: {
-    type: String,
-    required: [true, 'La categoria è obbligatoria'],
-    enum: ['farina', 'latticini', 'carne', 'pesce', 'frutta', 'verdura', 'spezie', 'uova', 'semola', 'formaggio', 'imballaggio', 'altro'],
-    default: 'altro'
+  quantitaIniziale: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  quantitaAttuale: {
+    type: Number,
+    required: true,
+    min: 0
   },
   unitaMisura: {
     type: String,
-    required: [true, 'L\'unità di misura è obbligatoria'],
-    enum: ['kg', 'g', 'l', 'ml', 'pz', 'unità', 'altro'],
+    enum: ['kg', 'g', 'l', 'ml', 'pz'],
     default: 'kg'
   },
   prezzoUnitario: {
     type: Number,
-    required: [true, 'Il prezzo unitario è obbligatorio'],
-    min: [0, 'Il prezzo unitario deve essere maggiore o uguale a 0']
-  },
-  prezzoMedio: {
-    type: Number,
     default: 0,
-    min: [0, 'Il prezzo medio deve essere maggiore o uguale a 0']
+    min: 0
   },
-  scorteMinime: {
-    type: Number,
-    default: 0,
-    min: [0, 'Le scorte minime devono essere maggiori o uguali a 0']
+  // ============ RINTRACCIABILITÀ FORNITORE ============
+  fornitore: {
+    id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Fornitore',
+      required: true
+    },
+    ragioneSociale: String,
+    partitaIVA: String
   },
-  scorteMassime: {
-    type: Number,
-    default: 0,
-    min: [0, 'Le scorte massime devono essere maggiori o uguali a 0']
-  },
-  lottoMinimo: {
-    type: Number,
-    default: 1,
-    min: [0, 'Il lotto minimo deve essere maggiore o uguale a 0']
-  },
-  tempoConsegna: {
-    type: Number,
-    default: 0,
-    min: [0, 'Il tempo di consegna deve essere maggiore o uguale a 0']
-  },
-  attivo: {
-    type: Boolean,
-    default: true
-  },
-  fornitoriPrimari: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Fornitore'
-  }],
-  lotti: [{
-    codice: {
+  // ============ DOCUMENTO DI ORIGINE ============
+  documentoOrigine: {
+    tipo: {
       type: String,
-      required: true,
-      trim: true
+      enum: ['fattura', 'ddt', 'ordine', 'altro'],
+      default: 'fattura'
     },
-    quantita: {
-      type: Number,
-      required: true,
-      min: 0
-    },
-    dataScadenza: {
-      type: Date
-    },
-    dataAcquisto: {
+    numero: String,
+    data: Date,
+    // Riferimento all'importazione (se da XML)
+    importazioneId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ImportazioneFattura'
+    }
+  },
+  // ============ RINTRACCIABILITÀ UPSTREAM (da fornitore) ============
+  lottoFornitore: {
+    codice: String, // Lotto del fornitore
+    dataProduzioneFornitore: Date,
+    stabilimentoProduzioneFornitore: String
+  },
+  // ============ STATO E QUALITÀ ============
+  stato: {
+    type: String,
+    enum: ['disponibile', 'in_uso', 'esaurito', 'scaduto', 'richiamato', 'quarantena'],
+    default: 'disponibile',
+    index: true
+  },
+  // ============ UTILIZZI - Per rintracciabilità downstream ============
+  utilizzi: [{
+    dataUtilizzo: {
       type: Date,
       default: Date.now
     },
+    quantitaUsata: Number,
+    prodottoFinito: {
+      nome: String,
+      id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Prodotto'
+      }
+    },
+    ordineCliente: {
+      id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Ordine'
+      },
+      numeroOrdine: String,
+      cliente: String
+    },
+    // Movimento magazzino collegato
+    movimentoId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Movimento'
+    }
+  }],
+  // ============ ALERT E NOTIFICHE ============
+  alertInviati: [{
+    tipo: {
+      type: String,
+      enum: ['scadenza_7gg', 'scadenza_3gg', 'scadenza_1gg', 'scaduto', 'sotto_scorta']
+    },
+    dataInvio: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  note: String,
+  // ============ HACCP ============
+  certificazioniHACCP: [{
+    tipo: String, // Es: "Certificato origine", "Analisi microbiologiche"
+    numero: String,
+    dataRilascio: Date,
+    fileUrl: String
+  }],
+  temperaturaConservazione: {
+    min: Number,
+    max: Number,
+    attuale: Number
+  }
+}, {
+  timestamps: true
+});
+
+// Indici compositi per performance
+LottoSchema.index({ codiceLotto: 1, stato: 1 });
+LottoSchema.index({ 'fornitore.id': 1, dataArrivo: -1 });
+LottoSchema.index({ dataScadenza: 1, stato: 1 });
+
+// Virtual per giorni alla scadenza
+LottoSchema.virtual('giorniAllaScadenza').get(function() {
+  if (!this.dataScadenza) return null;
+  const oggi = new Date();
+  const diff = this.dataScadenza - oggi;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+});
+
+// Virtual per percentuale utilizzata
+LottoSchema.virtual('percentualeUtilizzata').get(function() {
+  if (!this.quantitaIniziale || this.quantitaIniziale === 0) return 0;
+  return ((this.quantitaIniziale - this.quantitaAttuale) / this.quantitaIniziale * 100).toFixed(2);
+});
+
+// =====================================
+// SCHEMA INGREDIENTE PRINCIPALE
+// =====================================
+const IngredienteSchema = new mongoose.Schema({
+  nome: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    index: true
+  },
+  categoria: {
+    type: String,
+    required: true,
+    enum: [
+      'farine',
+      'latticini',
+      'uova',
+      'zuccheri',
+      'grassi',
+      'spezie',
+      'lieviti',
+      'frutta',
+      'confezionamento',
+      'altro'
+    ],
+    default: 'altro'
+  },
+  descrizione: String,
+  // ============ GIACENZE TOTALI ============
+  giacenzaAttuale: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  giacenzaMinima: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  unitaMisura: {
+    type: String,
+    enum: ['kg', 'g', 'l', 'ml', 'pz'],
+    default: 'kg'
+  },
+  // ============ PREZZI MEDI ============
+  prezzoMedioAcquisto: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  ultimoPrezzoAcquisto: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // ============ LOTTI ATTIVI ============
+  lotti: [LottoSchema],
+  // ============ FORNITORI ABITUALI ============
+  fornitoriAbituali: [{
     fornitore: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Fornitore'
     },
-    prezzo: {
-      type: Number,
-      default: 0
-    },
-    numDocumento: {
-      type: String,
-      trim: true
-    },
-    note: {
-      type: String,
-      trim: true
+    preferito: {
+      type: Boolean,
+      default: false
     }
   }],
-  posizioneMagazzino: {
-    type: String,
-    trim: true
+  // ============ MAPPING CON FATTURE ============
+  mappingFornitori: [{
+    fornitoreId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Fornitore'
+    },
+    ragioneSociale: String,
+    nomeFornitore: String, // Es: "FARINA 00 W320" nel XML
+    codiceArticolo: String, // Es: "FAR001"
+    ultimaModifica: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // ============ INFORMAZIONI NUTRIZIONALI (opzionale) ============
+  valoriNutrizionali: {
+    caloriePer100g: Number,
+    proteinePer100g: Number,
+    grassiPer100g: Number,
+    carboidratiPer100g: Number
   },
-  barcode: {
-    type: String,
-    trim: true,
-    unique: true,
-    sparse: true
-  },
-  immagine: {
-    type: String
-  },
-  note: {
-    type: String
-  },
-  allergenico: {
-    type: Boolean,
-    default: false
-  },
-  tipiAllergene: [{
+  // ============ ALLERGENI ============
+  allergeni: [{
     type: String,
     enum: [
-      'glutine', 
-      'latte', 
-      'uova', 
-      'frutta_a_guscio', 
-      'pesce', 
-      'crostacei', 
-      'soia', 
-      'sesamo', 
-      'senape',
-      'sedano',
-      'lupini',
-      'molluschi',
+      'glutine',
+      'crostacei',
+      'uova',
+      'pesce',
       'arachidi',
-      'anidride_solforosa',
-      'altro',
-      ''
-    ],
-    default: ''
+      'soia',
+      'latte',
+      'frutta_a_guscio',
+      'sedano',
+      'senape',
+      'sesamo',
+      'solfiti',
+      'lupini',
+      'molluschi'
+    ]
   }],
-  ricette: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Ricetta'
-  }],
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+  // ============ STATO ============
+  attivo: {
+    type: Boolean,
+    default: true
   },
-  updatedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }
+  // ============ STORICO PREZZI ============
+  storicoPrezzi: [{
+    data: {
+      type: Date,
+      default: Date.now
+    },
+    prezzo: Number,
+    fornitore: String,
+    quantita: Number
+  }],
+  note: String
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
-// Indici - RIMOSSI DUPLICATI (unique/sparse già creano indici)
-IngredienteSchema.index({ nome: 1 });
-IngredienteSchema.index({ categoria: 1 });
-IngredienteSchema.index({ attivo: 1 });
-IngredienteSchema.index({ allergenico: 1 });
-IngredienteSchema.index({ 'lotti.dataScadenza': 1 });
+// =====================================
+// INDICI COMPOSTI PER PERFORMANCE
+// =====================================
+IngredienteSchema.index({ nome: 1, categoria: 1 });
+IngredienteSchema.index({ giacenzaAttuale: 1, giacenzaMinima: 1 });
+IngredienteSchema.index({ 'lotti.stato': 1, 'lotti.dataScadenza': 1 });
 
-// Virtual per ottenere le scorte attuali
-IngredienteSchema.virtual('scorteAttuali').get(async function() {
-  try {
-    const Magazzino = mongoose.model('Magazzino');
-    const magazzini = await Magazzino.find({ attivo: true });
-    
-    let totale = 0;
-    for (const magazzino of magazzini) {
-      const items = magazzino.inventario.filter(i => 
-        i.ingredienteId.toString() === this._id.toString());
-      
-      for (const item of items) {
-        totale += item.quantita;
-      }
-    }
-    
-    return totale;
-  } catch (error) {
-    logger.error(`Errore nel calcolo scorte per ingrediente ${this._id}: ${error.message}`);
-    return 0;
-  }
-});
+// =====================================
+// METODI STATICI
+// =====================================
 
-// Virtual per calcolare le scorte totali da lotti
-IngredienteSchema.virtual('quantitaTotaleLotti').get(function() {
-  if (!this.lotti || this.lotti.length === 0) return 0;
-  return this.lotti.reduce((total, lotto) => total + lotto.quantita, 0);
-});
+/**
+ * Trova ingredienti sotto scorta
+ */
+IngredienteSchema.statics.getSottoScorta = function() {
+  return this.find({
+    $expr: { $lt: ['$giacenzaAttuale', '$giacenzaMinima'] },
+    attivo: true
+  }).sort({ giacenzaAttuale: 1 });
+};
 
-// Virtual per ricavare i lotti in scadenza
-IngredienteSchema.virtual('lottiInScadenza').get(function() {
-  if (!this.lotti || this.lotti.length === 0) return [];
-  
+/**
+ * Trova ingredienti con lotti in scadenza
+ * @param {Number} giorniSoglia - Giorni entro cui considerare "in scadenza"
+ */
+IngredienteSchema.statics.getLottiInScadenza = function(giorniSoglia = 7) {
   const oggi = new Date();
-  const trenta_giorni = new Date();
-  trenta_giorni.setDate(trenta_giorni.getDate() + 30);
+  const dataLimite = new Date();
+  dataLimite.setDate(oggi.getDate() + giorniSoglia);
   
-  return this.lotti.filter(lotto => 
-    lotto.dataScadenza && 
-    lotto.dataScadenza > oggi && 
-    lotto.dataScadenza <= trenta_giorni &&
-    lotto.quantita > 0
-  );
-});
+  return this.aggregate([
+    { $unwind: '$lotti' },
+    {
+      $match: {
+        'lotti.stato': { $in: ['disponibile', 'in_uso'] },
+        'lotti.dataScadenza': {
+          $gte: oggi,
+          $lte: dataLimite
+        }
+      }
+    },
+    {
+      $project: {
+        nome: 1,
+        categoria: 1,
+        lotto: '$lotti',
+        giorniRimanenti: {
+          $divide: [
+            { $subtract: ['$lotti.dataScadenza', oggi] },
+            1000 * 60 * 60 * 24
+          ]
+        }
+      }
+    },
+    { $sort: { giorniRimanenti: 1 } }
+  ]);
+};
 
-// Virtual per valore totale dell'ingrediente
-IngredienteSchema.virtual('valoreTotale').get(function() {
-  if (this.quantitaTotaleLotti === 0) return 0;
-  return this.quantitaTotaleLotti * this.prezzoMedio;
-});
-
-// Virtual per stato scorta
-IngredienteSchema.virtual('statoScorta').get(function() {
-  if (this.quantitaTotaleLotti === 0) return 'ESAURITO';
-  if (this.quantitaTotaleLotti <= this.scorteMinime) return 'SOTTO_SOGLIA';
-  if (this.quantitaTotaleLotti >= this.scorteMassime) return 'ECCESSO';
-  return 'NORMALE';
-});
-
-// Middleware pre-save
-IngredienteSchema.pre('save', function(next) {
-  // Generazione automatica codice se non presente
-  if (!this.codice) {
-    const prefixMap = {
-      'farina': 'FA',
-      'latticini': 'LA',
-      'carne': 'CR',
-      'pesce': 'PS',
-      'frutta': 'FR',
-      'verdura': 'VD',
-      'spezie': 'SP',
-      'uova': 'UV',
-      'semola': 'SM',
-      'formaggio': 'FM',
-      'imballaggio': 'IM',
-      'altro': 'AL'
-    };
-    
-    const prefix = prefixMap[this.categoria] || 'XX';
-    const namePart = this.nome.substring(0, 3).toUpperCase();
-    const timestamp = Date.now().toString().substring(8, 13);
-    
-    this.codice = `${prefix}${namePart}${timestamp}`;
+/**
+ * Genera codice lotto automatico
+ * @param {String} nomeIngrediente - Nome ingrediente
+ */
+IngredienteSchema.statics.generaCodiceLotto = async function(nomeIngrediente) {
+  const anno = new Date().getFullYear();
+  const prefisso = nomeIngrediente
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .substring(0, 10); // Max 10 caratteri
+  
+  // Trova ultimo lotto dell'anno per questo ingrediente
+  const ultimoLotto = await this.findOne(
+    {
+      nome: nomeIngrediente,
+      'lotti.codiceLotto': new RegExp(`^${prefisso}-${anno}-`)
+    },
+    { 'lotti.$': 1 }
+  ).sort({ 'lotti.codiceLotto': -1 });
+  
+  let progressivo = 1;
+  if (ultimoLotto && ultimoLotto.lotti && ultimoLotto.lotti.length > 0) {
+    const match = ultimoLotto.lotti[0].codiceLotto.match(/-(\d+)$/);
+    if (match) {
+      progressivo = parseInt(match[1]) + 1;
+    }
   }
   
-  // Calcola prezzo medio in base ai lotti
-  if (this.lotti && this.lotti.length > 0) {
-    let totalQuantity = 0;
-    let totalValue = 0;
+  // Formato: INGREDIENTE-ANNO-PROGRESSIVO (3 cifre)
+  return `${prefisso}-${anno}-${progressivo.toString().padStart(3, '0')}`;
+};
+
+// =====================================
+// METODI ISTANZA
+// =====================================
+
+/**
+ * Aggiungi nuovo lotto
+ */
+IngredienteSchema.methods.aggiungiLotto = function(datiLotto) {
+  // Calcola giacenza totale
+  this.giacenzaAttuale += datiLotto.quantitaIniziale;
+  
+  // Aggiungi lotto
+  this.lotti.push({
+    ...datiLotto,
+    quantitaAttuale: datiLotto.quantitaIniziale,
+    stato: 'disponibile'
+  });
+  
+  // Aggiorna prezzo medio
+  if (datiLotto.prezzoUnitario > 0) {
+    this.ultimoPrezzoAcquisto = datiLotto.prezzoUnitario;
     
-    this.lotti.forEach(lotto => {
-      if (lotto.prezzo > 0 && lotto.quantita > 0) {
-        totalValue += lotto.prezzo * lotto.quantita;
-        totalQuantity += lotto.quantita;
-      }
+    // Calcola prezzo medio ponderato
+    const lottiDisponibili = this.lotti.filter(l => l.quantitaAttuale > 0);
+    const totaleQuantita = lottiDisponibili.reduce((sum, l) => sum + l.quantitaAttuale, 0);
+    const totaleValore = lottiDisponibili.reduce((sum, l) => sum + (l.quantitaAttuale * l.prezzoUnitario), 0);
+    
+    if (totaleQuantita > 0) {
+      this.prezzoMedioAcquisto = totaleValore / totaleQuantita;
+    }
+  }
+  
+  // Aggiungi a storico prezzi
+  if (datiLotto.prezzoUnitario > 0) {
+    this.storicoPrezzi.push({
+      data: datiLotto.dataArrivo || new Date(),
+      prezzo: datiLotto.prezzoUnitario,
+      fornitore: datiLotto.fornitore?.ragioneSociale || 'N/D',
+      quantita: datiLotto.quantitaIniziale
+    });
+  }
+  
+  return this.save();
+};
+
+/**
+ * Scarica quantità da un lotto specifico
+ */
+IngredienteSchema.methods.scaricoLotto = function(codiceLotto, quantita, datiUtilizzo = {}) {
+  const lotto = this.lotti.find(l => l.codiceLotto === codiceLotto);
+  
+  if (!lotto) {
+    throw new Error(`Lotto ${codiceLotto} non trovato`);
+  }
+  
+  if (lotto.quantitaAttuale < quantita) {
+    throw new Error(`Quantità insufficiente nel lotto ${codiceLotto}. Disponibile: ${lotto.quantitaAttuale}, Richiesta: ${quantita}`);
+  }
+  
+  // Scarica quantità
+  lotto.quantitaAttuale -= quantita;
+  this.giacenzaAttuale -= quantita;
+  
+  // Aggiungi utilizzo per rintracciabilità
+  lotto.utilizzi.push({
+    dataUtilizzo: new Date(),
+    quantitaUsata: quantita,
+    prodottoFinito: datiUtilizzo.prodottoFinito || {},
+    ordineCliente: datiUtilizzo.ordineCliente || {},
+    movimentoId: datiUtilizzo.movimentoId
+  });
+  
+  // Aggiorna stato lotto
+  if (lotto.quantitaAttuale === 0) {
+    lotto.stato = 'esaurito';
+  } else if (lotto.stato === 'disponibile') {
+    lotto.stato = 'in_uso';
+  }
+  
+  return this.save();
+};
+
+/**
+ * Scarica quantità usando FIFO (First In First Out)
+ */
+IngredienteSchema.methods.scaricoFIFO = async function(quantitaRichiesta, datiUtilizzo = {}) {
+  if (this.giacenzaAttuale < quantitaRichiesta) {
+    throw new Error(`Giacenza insufficiente per ${this.nome}. Disponibile: ${this.giacenzaAttuale}, Richiesta: ${quantitaRichiesta}`);
+  }
+  
+  // Ordina lotti per data arrivo (FIFO)
+  const lottiDisponibili = this.lotti
+    .filter(l => l.stato === 'disponibile' || l.stato === 'in_uso')
+    .filter(l => l.quantitaAttuale > 0)
+    .sort((a, b) => a.dataArrivo - b.dataArrivo);
+  
+  if (lottiDisponibili.length === 0) {
+    throw new Error(`Nessun lotto disponibile per ${this.nome}`);
+  }
+  
+  let quantitaResidua = quantitaRichiesta;
+  const lottiUsati = [];
+  
+  for (const lotto of lottiDisponibili) {
+    if (quantitaResidua <= 0) break;
+    
+    const quantitaDaScaricare = Math.min(lotto.quantitaAttuale, quantitaResidua);
+    
+    // Scarica dal lotto
+    lotto.quantitaAttuale -= quantitaDaScaricare;
+    this.giacenzaAttuale -= quantitaDaScaricare;
+    
+    // Aggiungi utilizzo
+    lotto.utilizzi.push({
+      dataUtilizzo: new Date(),
+      quantitaUsata: quantitaDaScaricare,
+      prodottoFinito: datiUtilizzo.prodottoFinito || {},
+      ordineCliente: datiUtilizzo.ordineCliente || {},
+      movimentoId: datiUtilizzo.movimentoId
     });
     
-    if (totalQuantity > 0) {
-      this.prezzoMedio = totalValue / totalQuantity;
-    } else {
-      this.prezzoMedio = this.prezzoUnitario;
+    // Aggiorna stato
+    if (lotto.quantitaAttuale === 0) {
+      lotto.stato = 'esaurito';
+    } else if (lotto.stato === 'disponibile') {
+      lotto.stato = 'in_uso';
     }
-  } else {
-    this.prezzoMedio = this.prezzoUnitario;
+    
+    lottiUsati.push({
+      codiceLotto: lotto.codiceLotto,
+      quantita: quantitaDaScaricare
+    });
+    
+    quantitaResidua -= quantitaDaScaricare;
   }
+  
+  await this.save();
+  return lottiUsati;
+};
+
+/**
+ * Verifica scadenze e aggiorna stati
+ */
+IngredienteSchema.methods.verificaScadenze = function() {
+  const oggi = new Date();
+  let modificato = false;
+  
+  for (const lotto of this.lotti) {
+    if (lotto.stato === 'scaduto') continue;
+    
+    if (lotto.dataScadenza < oggi) {
+      lotto.stato = 'scaduto';
+      modificato = true;
+    }
+  }
+  
+  if (modificato) {
+    return this.save();
+  }
+  return Promise.resolve(this);
+};
+
+// =====================================
+// MIDDLEWARE
+// =====================================
+
+// Pre-save: Aggiorna giacenza attuale sommando tutti i lotti
+IngredienteSchema.pre('save', function(next) {
+  // Ricalcola giacenza attuale dalla somma dei lotti
+  this.giacenzaAttuale = this.lotti
+    .filter(l => l.stato !== 'scaduto' && l.stato !== 'richiamato')
+    .reduce((sum, l) => sum + l.quantitaAttuale, 0);
   
   next();
 });
 
-// Metodi statici
-IngredienteSchema.statics.getInSottoSoglia = async function() {
-  return this.find({
-    attivo: true,
-    $expr: { 
-      $lte: [
-        { $ifNull: [{ $sum: "$lotti.quantita" }, 0] },
-        "$scorteMinime"
-      ]
-    }
-  }).sort('categoria nome');
-};
-
-IngredienteSchema.statics.getInScadenza = async function(giorniMax = 30) {
-  const oggi = new Date();
-  const dataLimite = new Date();
-  dataLimite.setDate(dataLimite.getDate() + giorniMax);
-  
-  return this.find({
-    attivo: true,
-    lotti: {
-      $elemMatch: {
-        dataScadenza: { $gt: oggi, $lte: dataLimite },
-        quantita: { $gt: 0 }
-      }
-    }
-  }).sort('lotti.dataScadenza');
-};
-
+// =====================================
+// EXPORT
+// =====================================
 const Ingrediente = mongoose.model('Ingrediente', IngredienteSchema);
-
 export default Ingrediente;

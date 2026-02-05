@@ -1,6 +1,5 @@
 // controllers/importFattureController.js
 // Controller per l'import delle fatture XML da Danea EasyFatt
-// VERSIONE 2: Accetta XML come testo JSON (parsing lato frontend)
 
 import { parseStringPromise } from 'xml2js';
 import crypto from 'crypto';
@@ -11,23 +10,30 @@ import Movimento from '../models/Movimento.js';
 import Fornitore from '../models/Fornitore.js';
 import logger from '../config/logger.js';
 
+// ==========================================
+// FUNZIONI HELPER
+// ==========================================
+
 /**
  * Parsing del file XML fattura elettronica
  */
 const parseXMLFattura = async (xmlContent) => {
   try {
-    // Parse XML con rimozione namespace
+    // Parse XML
     const result = await parseStringPromise(xmlContent, {
       explicitArray: false,
       ignoreAttrs: false,
-      tagNameProcessors: [(name) => name.replace(/^[\w]+:/, '')]  // Rimuovi qualsiasi namespace prefix
+      tagNameProcessors: [(name) => name.replace(/^ns\d+:/, '')] // Rimuovi namespace
     });
     
-    // Trova il nodo FatturaElettronica
-    let fattura = result.FatturaElettronica || Object.values(result)[0];
+    // Trova il nodo FatturaElettronica (può avere namespace)
+    let fattura = result.FatturaElettronica || 
+                  result['ns3:FatturaElettronica'] || 
+                  result['p:FatturaElettronica'] ||
+                  Object.values(result)[0];
     
     if (!fattura) {
-      throw new Error('Formato XML non riconosciuto: nodo FatturaElettronica non trovato');
+      throw new Error('Formato XML non riconosciuto');
     }
     
     // Estrai header e body
@@ -35,7 +41,7 @@ const parseXMLFattura = async (xmlContent) => {
     const body = fattura.FatturaElettronicaBody;
     
     if (!header || !body) {
-      throw new Error('Struttura fattura non valida: mancano Header o Body');
+      throw new Error('Struttura fattura non valida');
     }
     
     // Dati fornitore (cedente/prestatore)
@@ -60,7 +66,7 @@ const parseXMLFattura = async (xmlContent) => {
     // Dati generali documento
     const datiGenerali = body.DatiGenerali?.DatiGeneraliDocumento;
     const documento = {
-      tipoDocumento: datiGenerali?.TipoDocumento || 'TD01',
+      tipoDocumento: datiGenerali?.TipoDocumento || 'TD24',
       numero: datiGenerali?.Numero || '',
       data: datiGenerali?.Data ? new Date(datiGenerali.Data) : new Date(),
       importoTotale: parseFloat(datiGenerali?.ImportoTotaleDocumento || 0)
@@ -90,20 +96,10 @@ const parseXMLFattura = async (xmlContent) => {
       const lineeArray = Array.isArray(dettaglioLinee) ? dettaglioLinee : [dettaglioLinee];
       
       lineeArray.forEach(linea => {
-        // Gestisci CodiceArticolo (può essere array o oggetto)
-        let codiceArticolo = '';
-        if (linea.CodiceArticolo) {
-          if (Array.isArray(linea.CodiceArticolo)) {
-            codiceArticolo = linea.CodiceArticolo[0]?.CodiceValore || '';
-          } else {
-            codiceArticolo = linea.CodiceArticolo.CodiceValore || '';
-          }
-        }
-        
         righe.push({
           numeroLinea: parseInt(linea.NumeroLinea || 0),
           descrizione: linea.Descrizione || '',
-          codiceArticolo,
+          codiceArticolo: linea.CodiceArticolo?.CodiceValore || '',
           quantita: parseFloat(linea.Quantita || 0),
           unitaMisura: (linea.UnitaMisura || 'PZ').toUpperCase(),
           prezzoUnitario: parseFloat(linea.PrezzoUnitario || 0),
@@ -148,64 +144,45 @@ const calcolaHash = (content) => {
   return crypto.createHash('md5').update(content).digest('hex');
 };
 
+// ==========================================
+// CONTROLLER ENDPOINTS
+// ==========================================
+
 /**
  * Upload e parsing fatture XML
- * Accetta sia file multipart che XML come testo JSON
  */
 export const uploadFatture = async (req, res) => {
   try {
-    let fileDaProcessare = [];
-    
-    // METODO 1: File XML come testo nel body JSON
-    if (req.body && req.body.files && Array.isArray(req.body.files)) {
-      fileDaProcessare = req.body.files.map(f => ({
-        name: f.name,
-        content: f.content,
-        size: f.content ? f.content.length : 0
-      }));
-    }
-    // METODO 2: express-fileupload (fallback)
-    else if (req.files && req.files.fatture) {
-      const files = Array.isArray(req.files.fatture) 
-        ? req.files.fatture 
-        : [req.files.fatture];
-      fileDaProcessare = files.map(f => ({
-        name: f.name,
-        content: f.data.toString('utf8'),
-        size: f.size
-      }));
-    }
-    
-    if (fileDaProcessare.length === 0) {
+    if (!req.files || !req.files.fatture) {
       return res.status(400).json({
         success: false,
         error: 'Nessun file caricato'
       });
     }
     
+    const files = Array.isArray(req.files.fatture) 
+      ? req.files.fatture 
+      : [req.files.fatture];
+    
     const risultati = [];
     
-    for (const file of fileDaProcessare) {
+    for (const file of files) {
       try {
-        const xmlContent = file.content;
+        // Leggi contenuto XML
+        const xmlContent = file.data.toString('utf8');
         const hash = calcolaHash(xmlContent);
         
-        // Verifica se già processato (per hash)
-        const esistente = await ImportFattura.findOne({ 
-          'fileOriginale.hashMD5': hash,
-          stato: { $ne: 'annullato' }
-        });
-        
+        // Verifica se già processato
+        const esistente = await ImportFattura.fileGiaProcessato(hash);
         if (esistente) {
           risultati.push({
             file: file.name,
             stato: 'duplicato',
-            messaggio: `Fattura già importata il ${new Date(esistente.createdAt).toLocaleDateString('it-IT')}`,
+            messaggio: `Fattura già importata il ${esistente.dataImportazione.toLocaleDateString('it-IT')}`,
             fattura: {
               numero: esistente.numero,
               data: esistente.data,
-              fornitore: esistente.fornitore?.ragioneSociale || 
-                `${esistente.fornitore?.nome || ''} ${esistente.fornitore?.cognome || ''}`.trim()
+              fornitore: esistente.nomeFornitore
             }
           });
           continue;
@@ -214,24 +191,22 @@ export const uploadFatture = async (req, res) => {
         // Parse XML
         const dati = await parseXMLFattura(xmlContent);
         
-        // Verifica se fattura già importata (per numero/anno/fornitore)
-        const anno = dati.documento.data.getFullYear();
-        const identificativo = `${dati.fornitore.partitaIva}_${dati.documento.numero}_${anno}`;
-        
-        const esistentePerNumero = await ImportFattura.findOne({ 
-          identificativo,
-          stato: { $ne: 'annullato' }
-        });
+        // Verifica se fattura già importata (per numero/anno)
+        const esistentePerNumero = await ImportFattura.esisteGia(
+          dati.fornitore.partitaIva,
+          dati.documento.numero,
+          dati.documento.data.getFullYear()
+        );
         
         if (esistentePerNumero) {
           risultati.push({
             file: file.name,
             stato: 'duplicato',
-            messaggio: `Fattura ${dati.documento.numero}/${anno} già importata`,
+            messaggio: `Fattura ${dati.documento.numero}/${dati.documento.data.getFullYear()} già importata`,
             fattura: {
               numero: esistentePerNumero.numero,
               data: esistentePerNumero.data,
-              fornitore: esistentePerNumero.fornitore?.ragioneSociale
+              fornitore: esistentePerNumero.nomeFornitore
             }
           });
           continue;
@@ -242,31 +217,35 @@ export const uploadFatture = async (req, res) => {
         
         // Cerca mapping esistenti e suggerisci per ogni riga
         const righeConMapping = await Promise.all(dati.righe.map(async (riga) => {
-          // Cerca mapping esistente per questo fornitore + descrizione
-          const mappingEsistente = await MappingProdottiFornitore.findOne({
-            'fornitore.partitaIva': dati.fornitore.partitaIva,
-            descrizioneFornitore: riga.descrizione,
-            attivo: true
-          });
+          // Cerca mapping esistente
+          const { mapping, nuovo } = await MappingProdottiFornitore.trovaOCrea(
+            dati.fornitore,
+            riga.descrizione,
+            riga.codiceArticolo
+          );
           
-          if (mappingEsistente && mappingEsistente.prodottoMagazzino?.ingredienteId) {
+          if (mapping) {
+            // Mapping esistente trovato
             return {
               ...riga,
               mapping: {
                 trovato: true,
-                ingredienteId: mappingEsistente.prodottoMagazzino.ingredienteId,
-                ingredienteNome: mappingEsistente.prodottoMagazzino.nome,
-                categoria: mappingEsistente.prodottoMagazzino.categoria,
-                confermato: mappingEsistente.confermatoManualmente,
+                ingredienteId: mapping.prodottoMagazzino.ingredienteId,
+                ingredienteNome: mapping.prodottoMagazzino.nome,
+                categoria: mapping.prodottoMagazzino.categoria,
+                confermato: mapping.confermatoManualmente,
                 score: 100
               }
             };
           }
           
-          // Cerca suggerimento fuzzy tra ingredienti
-          const suggerimento = trovaMigliorMatch(riga.descrizione, ingredienti);
+          // Cerca suggerimento automatico
+          const suggerimento = await MappingProdottiFornitore.suggerisciProdotto(
+            riga.descrizione,
+            ingredienti
+          );
           
-          if (suggerimento && suggerimento.score >= 40) {
+          if (suggerimento) {
             return {
               ...riga,
               mapping: {
@@ -280,12 +259,22 @@ export const uploadFatture = async (req, res) => {
             };
           }
           
-          // Nessun mapping trovato
+          // Cerca mapping simili di altri prodotti dello stesso fornitore
+          const simili = await MappingProdottiFornitore.cercaSimilari(
+            dati.fornitore.partitaIva,
+            riga.descrizione
+          );
+          
           return {
             ...riga,
             mapping: {
               trovato: false,
-              suggerito: false
+              suggerito: false,
+              simili: simili.slice(0, 3).map(s => ({
+                descrizione: s.mapping.descrizioneFornitore,
+                ingredienteNome: s.mapping.prodottoMagazzino.nome,
+                score: s.score
+              }))
             }
           };
         }));
@@ -293,8 +282,8 @@ export const uploadFatture = async (req, res) => {
         // Cerca fornitore nel database
         let fornitoreDb = null;
         if (dati.fornitore.partitaIva) {
-          fornitoreDb = await Fornitore.findOne({
-            partitaIVA: dati.fornitore.partitaIva
+          fornitoreDb = await Fornitore.findOne({ 
+            partitaIva: dati.fornitore.partitaIva 
           });
         }
         
@@ -302,16 +291,16 @@ export const uploadFatture = async (req, res) => {
           file: file.name,
           stato: 'analizzato',
           fattura: {
+            tipoDocumento: dati.documento.tipoDocumento,
             numero: dati.documento.numero,
             data: dati.documento.data,
-            tipoDocumento: dati.documento.tipoDocumento,
             importoTotale: dati.documento.importoTotale,
             imponibile: dati.imponibile,
             imposta: dati.imposta
           },
           fornitore: {
             ...dati.fornitore,
-            esisteNelDb: !!fornitoreDb,
+            esisteInDb: !!fornitoreDb,
             fornitoreDbId: fornitoreDb?._id
           },
           ddt: dati.ddt,
@@ -356,54 +345,6 @@ export const uploadFatture = async (req, res) => {
 };
 
 /**
- * Fuzzy matching semplice tra descrizione fattura e ingredienti
- */
-function trovaMigliorMatch(descrizione, ingredienti) {
-  if (!descrizione || !ingredienti.length) return null;
-  
-  const descNorm = normalizzaTesto(descrizione);
-  let miglior = null;
-  let migliorScore = 0;
-  
-  for (const ing of ingredienti) {
-    const nomeNorm = normalizzaTesto(ing.nome);
-    const score = calcolaScore(descNorm, nomeNorm);
-    
-    if (score > migliorScore) {
-      migliorScore = score;
-      miglior = ing;
-    }
-  }
-  
-  return miglior ? { ingrediente: miglior, score: migliorScore } : null;
-}
-
-function normalizzaTesto(testo) {
-  return testo
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // Rimuovi accenti
-    .replace(/[^a-z0-9\s]/g, ' ')  // Solo alfanumerici
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function calcolaScore(desc, nome) {
-  const paroleDesc = desc.split(' ').filter(p => p.length > 2);
-  const paroleNome = nome.split(' ').filter(p => p.length > 2);
-  
-  if (!paroleNome.length) return 0;
-  
-  let match = 0;
-  for (const parola of paroleNome) {
-    if (paroleDesc.some(p => p.includes(parola) || parola.includes(p))) {
-      match++;
-    }
-  }
-  
-  return Math.round((match / paroleNome.length) * 100);
-}
-
-/**
  * Conferma import fattura con mapping
  */
 export const confermaImport = async (req, res) => {
@@ -418,15 +359,14 @@ export const confermaImport = async (req, res) => {
     }
     
     // Genera identificativo
-    const anno = new Date(fattura.data).getFullYear();
-    const identificativo = `${fattura.fornitore.partitaIva}_${fattura.numero}_${anno}`;
+    const identificativo = ImportFattura.generaIdentificativo(
+      fattura.fornitore.partitaIva,
+      fattura.numero,
+      new Date(fattura.data).getFullYear()
+    );
     
     // Verifica di nuovo che non esista
-    const esistente = await ImportFattura.findOne({ 
-      identificativo,
-      stato: { $ne: 'annullato' }
-    });
-    
+    const esistente = await ImportFattura.findOne({ identificativo });
     if (esistente) {
       return res.status(400).json({
         success: false,
@@ -440,17 +380,13 @@ export const confermaImport = async (req, res) => {
       tipoDocumento: fattura.tipoDocumento,
       numero: fattura.numero,
       data: new Date(fattura.data),
-      anno,
+      anno: new Date(fattura.data).getFullYear(),
       fornitore: fattura.fornitore,
       importoTotale: fattura.importoTotale,
       imponibile: fattura.imponibile,
       imposta: fattura.imposta,
       ddt: fattura.ddt || [],
-      fileOriginale: {
-        nome: fileInfo?.nome,
-        dimensione: fileInfo?.dimensione,
-        hashMD5: fileInfo?.hash
-      },
+      fileOriginale: fileInfo,
       createdBy: req.user?.id
     });
     
@@ -472,18 +408,13 @@ export const confermaImport = async (req, res) => {
       };
       
       // Se ha un ingrediente selezionato, crea movimento
-      const ingredienteId = riga.ingredienteId || riga.mapping?.ingredienteId;
-      
-      if (ingredienteId) {
+      if (riga.ingredienteId) {
         try {
-          const ingrediente = await Ingrediente.findById(ingredienteId);
+          // Trova ingrediente
+          const ingrediente = await Ingrediente.findById(riga.ingredienteId);
           
           if (ingrediente) {
             // Crea movimento di carico
-            const nomeFornitore = fattura.fornitore.ragioneSociale || 
-              `${fattura.fornitore.nome || ''} ${fattura.fornitore.cognome || ''}`.trim() ||
-              fattura.fornitore.partitaIva;
-            
             const movimento = new Movimento({
               tipo: 'carico',
               prodotto: {
@@ -494,7 +425,11 @@ export const confermaImport = async (req, res) => {
               quantita: riga.quantita,
               unita: riga.unitaMisura.toLowerCase(),
               prezzoUnitario: riga.prezzoUnitario,
-              fornitore: { nome: nomeFornitore },
+              fornitore: {
+                nome: fattura.fornitore.ragioneSociale || 
+                      `${fattura.fornitore.nome} ${fattura.fornitore.cognome}`.trim() ||
+                      fattura.fornitore.partitaIva
+              },
               documentoRiferimento: {
                 tipo: 'fattura',
                 numero: fattura.numero,
@@ -522,7 +457,8 @@ export const confermaImport = async (req, res) => {
                 $set: {
                   fornitore: {
                     partitaIva: fattura.fornitore.partitaIva,
-                    ragioneSociale: nomeFornitore
+                    ragioneSociale: fattura.fornitore.ragioneSociale || 
+                      `${fattura.fornitore.nome} ${fattura.fornitore.cognome}`.trim()
                   },
                   codiceArticoloFornitore: riga.codiceArticolo,
                   prodottoMagazzino: {
@@ -537,8 +473,7 @@ export const confermaImport = async (req, res) => {
                     fattore: 1
                   },
                   confermatoManualmente: true,
-                  ultimoUtilizzo: new Date(),
-                  attivo: true
+                  ultimoUtilizzo: new Date()
                 },
                 $inc: { utilizzi: 1 }
               },
@@ -556,26 +491,7 @@ export const confermaImport = async (req, res) => {
     
     // Salva righe e aggiorna statistiche
     importFattura.righe = righeProcessate;
-    
-    // Calcola statistiche
-    const totaleRighe = righeProcessate.length;
-    const righeImportate = righeProcessate.filter(r => r.importato).length;
-    const righeIgnorate = righeProcessate.filter(r => !r.importato && !r.errore).length;
-    const righeErrore = righeProcessate.filter(r => r.errore).length;
-    
-    importFattura.statistiche = { totaleRighe, righeImportate, righeIgnorate, righeErrore };
-    
-    // Determina stato
-    if (righeImportate === totaleRighe) {
-      importFattura.stato = 'completato';
-    } else if (righeImportate > 0) {
-      importFattura.stato = 'parziale';
-    } else if (righeErrore > 0) {
-      importFattura.stato = 'errore';
-    } else {
-      importFattura.stato = 'pendente';
-    }
-    
+    importFattura.aggiornaStatistiche();
     await importFattura.save();
     
     // Notifica via WebSocket
@@ -621,8 +537,13 @@ export const listaImportazioni = async (req, res) => {
     
     const query = {};
     
-    if (stato) query.stato = stato;
-    if (fornitore) query['fornitore.partitaIva'] = fornitore;
+    if (stato) {
+      query.stato = stato;
+    }
+    
+    if (fornitore) {
+      query['fornitore.partitaIva'] = fornitore;
+    }
     
     if (dataInizio || dataFine) {
       query.data = {};
@@ -633,16 +554,17 @@ export const listaImportazioni = async (req, res) => {
     const total = await ImportFattura.countDocuments(query);
     
     const importazioni = await ImportFattura.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ dataImportazione: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
+      .populate('createdBy', 'username')
       .lean();
     
-    // Aggiungi nome fornitore
+    // Aggiungi nome fornitore virtuale
     importazioni.forEach(imp => {
-      imp.nomeFornitore = imp.fornitore?.ragioneSociale || 
-        `${imp.fornitore?.nome || ''} ${imp.fornitore?.cognome || ''}`.trim() ||
-        imp.fornitore?.partitaIva || 'Sconosciuto';
+      imp.nomeFornitore = imp.fornitore.ragioneSociale || 
+        `${imp.fornitore.nome || ''} ${imp.fornitore.cognome || ''}`.trim() ||
+        imp.fornitore.partitaIva;
     });
     
     res.json({
@@ -660,7 +582,10 @@ export const listaImportazioni = async (req, res) => {
     
   } catch (error) {
     logger.error('Errore lista importazioni:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 };
 
@@ -669,69 +594,80 @@ export const listaImportazioni = async (req, res) => {
  */
 export const dettaglioImportazione = async (req, res) => {
   try {
-    const importazione = await ImportFattura.findById(req.params.id).lean();
+    const importazione = await ImportFattura.findById(req.params.id)
+      .populate('createdBy', 'username')
+      .populate('righe.ingredienteId', 'nome categoria')
+      .populate('righe.movimentoId', 'quantita data');
     
     if (!importazione) {
-      return res.status(404).json({ success: false, error: 'Importazione non trovata' });
-    }
-    
-    res.json({ success: true, data: importazione });
-  } catch (error) {
-    logger.error('Errore dettaglio importazione:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * Annulla importazione
- */
-export const annullaImportazione = async (req, res) => {
-  try {
-    const { motivo } = req.body;
-    const importazione = await ImportFattura.findById(req.params.id);
-    
-    if (!importazione) {
-      return res.status(404).json({ success: false, error: 'Importazione non trovata' });
-    }
-    
-    if (importazione.stato === 'annullato') {
-      return res.status(400).json({ success: false, error: 'Già annullata' });
-    }
-    
-    // Elimina movimenti collegati
-    let movimentiEliminati = 0;
-    for (const riga of importazione.righe) {
-      if (riga.movimentoId) {
-        await Movimento.findByIdAndDelete(riga.movimentoId);
-        movimentiEliminati++;
-      }
-    }
-    
-    // Aggiorna stato
-    importazione.stato = 'annullato';
-    importazione.annullamento = {
-      annullato: true,
-      dataAnnullamento: new Date(),
-      motivoAnnullamento: motivo || '',
-      annullatoDa: req.user?.id
-    };
-    
-    await importazione.save();
-    
-    // Notifica via WebSocket
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('fattura:annullata', { fatturaId: importazione._id, movimentiEliminati });
+      return res.status(404).json({
+        success: false,
+        error: 'Importazione non trovata'
+      });
     }
     
     res.json({
       success: true,
-      data: { importazione, movimentiEliminati }
+      data: importazione
     });
     
   } catch (error) {
-    logger.error('Errore annullamento:', error);
-    res.status(500).json({ success: false, error: error.message });
+    logger.error('Errore dettaglio importazione:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Annulla importazione (elimina movimenti collegati)
+ */
+export const annullaImportazione = async (req, res) => {
+  try {
+    const { motivo } = req.body;
+    
+    const importazione = await ImportFattura.findById(req.params.id);
+    
+    if (!importazione) {
+      return res.status(404).json({
+        success: false,
+        error: 'Importazione non trovata'
+      });
+    }
+    
+    if (importazione.annullamento?.annullato) {
+      return res.status(400).json({
+        success: false,
+        error: 'Importazione già annullata'
+      });
+    }
+    
+    const movimentiEliminati = await importazione.annulla(req.user?.id, motivo);
+    
+    // Notifica via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('fattura:annullata', {
+        fatturaId: importazione._id,
+        movimentiEliminati
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        messaggio: `Importazione annullata. ${movimentiEliminati} movimenti eliminati.`,
+        movimentiEliminati
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Errore annullamento importazione:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 };
 
@@ -743,12 +679,14 @@ export const listaMapping = async (req, res) => {
     const { fornitore, page = 1, limit = 50 } = req.query;
     
     const query = { attivo: true };
-    if (fornitore) query['fornitore.partitaIva'] = fornitore;
+    if (fornitore) {
+      query['fornitore.partitaIva'] = fornitore;
+    }
     
     const total = await MappingProdottiFornitore.countDocuments(query);
     
-    const mapping = await MappingProdottiFornitore.find(query)
-      .sort({ utilizzi: -1 })
+    const mappings = await MappingProdottiFornitore.find(query)
+      .sort({ utilizzi: -1, updatedAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .lean();
@@ -756,27 +694,51 @@ export const listaMapping = async (req, res) => {
     res.json({
       success: true,
       data: {
-        mapping,
-        pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / limit) }
+        mappings,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
       }
     });
+    
   } catch (error) {
     logger.error('Errore lista mapping:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 };
 
 /**
- * Modifica mapping
+ * Modifica mapping prodotto
  */
 export const modificaMapping = async (req, res) => {
   try {
+    const { ingredienteId } = req.body;
+    
     const mapping = await MappingProdottiFornitore.findById(req.params.id);
-    if (!mapping) return res.status(404).json({ success: false, error: 'Mapping non trovato' });
     
-    const ingrediente = await Ingrediente.findById(req.body.ingredienteId);
-    if (!ingrediente) return res.status(400).json({ success: false, error: 'Ingrediente non valido' });
+    if (!mapping) {
+      return res.status(404).json({
+        success: false,
+        error: 'Mapping non trovato'
+      });
+    }
     
+    // Trova ingrediente
+    const ingrediente = await Ingrediente.findById(ingredienteId);
+    if (!ingrediente) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ingrediente non trovato'
+      });
+    }
+    
+    // Aggiorna mapping
     mapping.prodottoMagazzino = {
       tipo: 'ingrediente',
       ingredienteId: ingrediente._id,
@@ -784,25 +746,53 @@ export const modificaMapping = async (req, res) => {
       categoria: ingrediente.categoria
     };
     mapping.confermatoManualmente = true;
+    mapping.updatedBy = req.user?.id;
+    
     await mapping.save();
     
-    res.json({ success: true, data: mapping });
+    res.json({
+      success: true,
+      data: mapping
+    });
+    
   } catch (error) {
     logger.error('Errore modifica mapping:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 };
 
 /**
- * Elimina mapping
+ * Elimina mapping prodotto
  */
 export const eliminaMapping = async (req, res) => {
   try {
-    await MappingProdottiFornitore.findByIdAndUpdate(req.params.id, { attivo: false });
-    res.json({ success: true, message: 'Mapping disattivato' });
+    const mapping = await MappingProdottiFornitore.findById(req.params.id);
+    
+    if (!mapping) {
+      return res.status(404).json({
+        success: false,
+        error: 'Mapping non trovato'
+      });
+    }
+    
+    mapping.attivo = false;
+    mapping.updatedBy = req.user?.id;
+    await mapping.save();
+    
+    res.json({
+      success: true,
+      data: { messaggio: 'Mapping disattivato' }
+    });
+    
   } catch (error) {
     logger.error('Errore eliminazione mapping:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 };
 
@@ -812,7 +802,13 @@ export const eliminaMapping = async (req, res) => {
 export const statisticheImportazioni = async (req, res) => {
   try {
     const stats = await ImportFattura.aggregate([
-      { $group: { _id: '$stato', count: { $sum: 1 }, totaleImporto: { $sum: '$importoTotale' } } }
+      {
+        $group: {
+          _id: '$stato',
+          count: { $sum: 1 },
+          totaleImporto: { $sum: '$importoTotale' }
+        }
+      }
     ]);
     
     const perFornitore = await ImportFattura.aggregate([
@@ -822,7 +818,7 @@ export const statisticheImportazioni = async (req, res) => {
           ragioneSociale: { $first: '$fornitore.ragioneSociale' },
           count: { $sum: 1 },
           totaleImporto: { $sum: '$importoTotale' },
-          ultimaImportazione: { $max: '$createdAt' }
+          ultimaImportazione: { $max: '$dataImportazione' }
         }
       },
       { $sort: { count: -1 } },
@@ -835,11 +831,19 @@ export const statisticheImportazioni = async (req, res) => {
     
     res.json({
       success: true,
-      data: { perStato: stats, perFornitore, totaleMovimentiDaFatture: totaleMovimenti }
+      data: {
+        perStato: stats,
+        perFornitore,
+        totaleMovimentiDaFatture: totaleMovimenti
+      }
     });
+    
   } catch (error) {
-    logger.error('Errore statistiche:', error);
-    res.status(500).json({ success: false, error: error.message });
+    logger.error('Errore statistiche importazioni:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 };
 

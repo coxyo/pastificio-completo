@@ -75,6 +75,7 @@ import schedulerHACCP from './services/schedulerHACCP.js';
 import cronJobsEmail from './services/cronJobsEmail.js'; // ✅ NUOVO - Cron jobs email
 import pdfCorrispettiviService from './services/pdfCorrispettivi.js'; // ✅ NUOVO - PDF corrispettivi
 import importFattureRoutes from './routes/importFatture.js';
+import rintracciabilitaRoutes from './routes/rintracciabilita.js'; // ✅ NUOVO - Rintracciabilità ingredienti
 
 
 
@@ -335,6 +336,7 @@ app.use('/api/email', emailRoutes);
 app.use('/api/haccp', haccpRoutes);
 app.use('/api/fix', fixPrezziRoutes);
 app.use('/api/import-fatture', importFattureRoutes);
+app.use('/api/rintracciabilita', rintracciabilitaRoutes); // ✅ NUOVO - Rintracciabilità ingredienti
 
 
 // Route Danea

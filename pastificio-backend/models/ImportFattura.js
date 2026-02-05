@@ -1,37 +1,59 @@
 // models/ImportFattura.js
-// Modello per tracciare le fatture già importate nel sistema
+// Modello per tracciare le fatture importate da Danea e prevenire duplicati
 
 import mongoose from 'mongoose';
 
-const RigaFatturaSchema = new mongoose.Schema({
+const RigaImportSchema = new mongoose.Schema({
+  // Dati originali dalla fattura XML
   numeroLinea: Number,
   descrizione: String,
-  codiceArticolo: String,
   quantita: Number,
   unitaMisura: String,
   prezzoUnitario: Number,
   prezzoTotale: Number,
   aliquotaIva: Number,
+  codiceArticolo: String,
   
-  // Risultato dell'import
-  importato: {
-    type: Boolean,
-    default: false
+  // Risultato matching
+  stato: {
+    type: String,
+    enum: ['importato', 'ignorato', 'errore', 'manuale', 'non_abbinato'],
+    default: 'non_abbinato'
   },
-  ingredienteId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Ingrediente'
+  
+  // Riferimento al prodotto abbinato
+  ingredienteAbbinato: {
+    ingredienteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ingrediente'
+    },
+    nome: String,
+    categoria: String,
+    metodoMatch: {
+      type: String,
+      enum: ['mapping_esistente', 'match_automatico', 'manuale', 'nessuno'],
+      default: 'nessuno'
+    },
+    scoreSimilarita: Number
   },
-  ingredienteNome: String,
+  
+  // ID del movimento di magazzino creato
   movimentoId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Movimento'
   },
+  
+  // Quantità effettivamente importata (dopo conversione)
+  quantitaImportata: Number,
+  unitaImportata: String,
+  
+  // Note
+  note: String,
   errore: String
-}, { _id: false });
+}, { _id: true });
 
 const ImportFatturaSchema = new mongoose.Schema({
-  // Identificativo univoco fattura
+  // Identificativo univoco fattura (partitaIva_numero_anno)
   identificativo: {
     type: String,
     required: true,
@@ -39,109 +61,110 @@ const ImportFatturaSchema = new mongoose.Schema({
     index: true
   },
   
-  // Dati documento
-  tipoDocumento: {
+  // Hash MD5 del file XML per prevenire duplicati
+  hashFile: {
     type: String,
-    default: 'TD24' // Fattura differita
-  },
-  numero: {
-    type: String,
-    required: true
-  },
-  data: {
-    type: Date,
-    required: true
-  },
-  anno: {
-    type: Number,
-    required: true
+    required: true,
+    index: true
   },
   
-  // Dati fornitore (cedente/prestatore)
+  // Dati fornitore dalla fattura
   fornitore: {
     partitaIva: {
       type: String,
-      required: true
+      required: true,
+      index: true
     },
     codiceFiscale: String,
-    ragioneSociale: String,
-    nome: String,
-    cognome: String,
-    indirizzo: {
-      via: String,
-      cap: String,
-      comune: String,
-      provincia: String
+    ragioneSociale: {
+      type: String,
+      required: true
+    },
+    indirizzo: String,
+    cap: String,
+    comune: String,
+    provincia: String
+  },
+  
+  // Dati fattura
+  fattura: {
+    tipo: {
+      type: String,
+      default: 'FatturaPA'
+    },
+    numero: {
+      type: String,
+      required: true
+    },
+    data: {
+      type: Date,
+      required: true
+    },
+    divisa: {
+      type: String,
+      default: 'EUR'
     }
   },
-  
-  // Totali
-  importoTotale: {
-    type: Number,
-    default: 0
-  },
-  imponibile: {
-    type: Number,
-    default: 0
-  },
-  imposta: {
-    type: Number,
-    default: 0
-  },
-  
-  // Righe prodotti
-  righe: [RigaFatturaSchema],
   
   // DDT collegati
   ddt: [{
     numero: String,
-    data: Date
+    data: Date,
+    riferimento: String
   }],
+  
+  // Righe della fattura con stato import
+  righe: [RigaImportSchema],
+  
+  // Totali dalla fattura
+  totali: {
+    imponibile: Number,
+    iva: Number,
+    totaleDocumento: Number,
+    arrotondamento: Number
+  },
   
   // Stato importazione
   stato: {
     type: String,
-    enum: ['pendente', 'parziale', 'completato', 'errore', 'annullato'],
-    default: 'pendente'
+    enum: ['analizzato', 'importato', 'importato_parziale', 'annullato', 'errore', 'duplicato'],
+    default: 'analizzato',
+    index: true
   },
   
-  // Statistiche import
+  // Statistiche
   statistiche: {
     totaleRighe: { type: Number, default: 0 },
     righeImportate: { type: Number, default: 0 },
     righeIgnorate: { type: Number, default: 0 },
-    righeErrore: { type: Number, default: 0 }
+    righeErrore: { type: Number, default: 0 },
+    righeManuali: { type: Number, default: 0 }
   },
   
-  // File XML originale (opzionale, per riferimento)
-  fileOriginale: {
-    nome: String,
-    dimensione: Number,
-    hash: String // Per evitare reimport dello stesso file
-  },
-  
-  // Data importazione
+  // Metadati import
   dataImportazione: {
     type: Date,
-    default: Date.now
+    default: null
   },
   
-  // Annullamento
-  annullamento: {
-    annullato: { type: Boolean, default: false },
-    dataAnnullamento: Date,
-    motivo: String,
-    annullatoDa: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }
+  dataAnnullamento: Date,
+  motivoAnnullamento: String,
+  
+  // Nome file originale
+  nomeFile: {
+    type: String,
+    required: true
   },
   
-  // Note
-  note: String,
+  // Dimensione file in bytes
+  dimensioneFile: Number,
   
   // Audit
-  createdBy: {
+  importatoDa: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  annullatoDa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }
@@ -149,90 +172,81 @@ const ImportFatturaSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indici per ricerche comuni
-ImportFatturaSchema.index({ 'fornitore.partitaIva': 1, data: -1 });
-ImportFatturaSchema.index({ numero: 1, anno: 1 });
-ImportFatturaSchema.index({ stato: 1 });
-ImportFatturaSchema.index({ dataImportazione: -1 });
-ImportFatturaSchema.index({ 'fileOriginale.hash': 1 });
+// Indice composto per ricerca rapida
+ImportFatturaSchema.index({ 'fornitore.partitaIva': 1, 'fattura.data': -1 });
+ImportFatturaSchema.index({ stato: 1, createdAt: -1 });
+ImportFatturaSchema.index({ 'fattura.numero': 1, 'fattura.data': 1 });
 
-// Virtual per nome completo fornitore
-ImportFatturaSchema.virtual('nomeFornitore').get(function() {
-  if (this.fornitore.ragioneSociale) {
-    return this.fornitore.ragioneSociale;
+// Metodo statico: verifica se fattura già importata
+ImportFatturaSchema.statics.verificaDuplicato = async function(identificativo, hashFile) {
+  const existing = await this.findOne({
+    $or: [
+      { identificativo },
+      { hashFile }
+    ],
+    stato: { $ne: 'annullato' }
+  });
+  
+  return existing;
+};
+
+// Metodo statico: statistiche importazioni
+ImportFatturaSchema.statics.getStatistiche = async function(filtri = {}) {
+  const match = {};
+  
+  if (filtri.dataInizio) match.createdAt = { $gte: new Date(filtri.dataInizio) };
+  if (filtri.dataFine) {
+    match.createdAt = match.createdAt || {};
+    match.createdAt.$lte = new Date(filtri.dataFine);
   }
-  if (this.fornitore.nome && this.fornitore.cognome) {
-    return `${this.fornitore.nome} ${this.fornitore.cognome}`;
-  }
-  return this.fornitore.partitaIva;
-});
-
-// Metodo statico per generare identificativo univoco
-ImportFatturaSchema.statics.generaIdentificativo = function(partitaIva, numero, anno) {
-  return `${partitaIva}_${numero}_${anno}`.replace(/[^a-zA-Z0-9_]/g, '');
+  if (filtri.fornitore) match['fornitore.partitaIva'] = filtri.fornitore;
+  
+  const stats = await this.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: '$stato',
+        count: { $sum: 1 },
+        totaleDocumenti: { $sum: '$totali.totaleDocumento' },
+        totaleRighe: { $sum: '$statistiche.totaleRighe' },
+        righeImportate: { $sum: '$statistiche.righeImportate' }
+      }
+    }
+  ]);
+  
+  const perFornitore = await this.aggregate([
+    { $match: { ...match, stato: { $in: ['importato', 'importato_parziale'] } } },
+    {
+      $group: {
+        _id: '$fornitore.ragioneSociale',
+        partitaIva: { $first: '$fornitore.partitaIva' },
+        count: { $sum: 1 },
+        totaleSpeso: { $sum: '$totali.totaleDocumento' }
+      }
+    },
+    { $sort: { totaleSpeso: -1 } }
+  ]);
+  
+  return { perStato: stats, perFornitore };
 };
 
-// Metodo statico per verificare se fattura già importata
-ImportFatturaSchema.statics.esisteGia = async function(partitaIva, numero, anno) {
-  const id = this.generaIdentificativo(partitaIva, numero, anno);
-  const esistente = await this.findOne({ identificativo: id });
-  return esistente;
-};
-
-// Metodo statico per verificare se file già processato (tramite hash)
-ImportFatturaSchema.statics.fileGiaProcessato = async function(hash) {
-  const esistente = await this.findOne({ 'fileOriginale.hash': hash });
-  return esistente;
-};
-
-// Metodo per annullare importazione
+// Metodo istanza: annulla importazione
 ImportFatturaSchema.methods.annulla = async function(userId, motivo) {
-  const Movimento = mongoose.model('Movimento');
-  
-  // Elimina i movimenti collegati
-  const movimentiIds = this.righe
-    .filter(r => r.movimentoId)
-    .map(r => r.movimentoId);
-  
-  if (movimentiIds.length > 0) {
-    await Movimento.deleteMany({ _id: { $in: movimentiIds } });
-  }
-  
-  // Aggiorna stato
   this.stato = 'annullato';
-  this.annullamento = {
-    annullato: true,
-    dataAnnullamento: new Date(),
-    motivo: motivo,
-    annullatoDa: userId
-  };
+  this.dataAnnullamento = new Date();
+  this.motivoAnnullamento = motivo;
+  this.annullatoDa = userId;
   
-  // Resetta statistiche
-  this.statistiche.righeImportate = 0;
-  
-  await this.save();
-  
-  return movimentiIds.length;
+  return this.save();
 };
 
-// Metodo per aggiornare statistiche
+// Metodo istanza: aggiorna statistiche
 ImportFatturaSchema.methods.aggiornaStatistiche = function() {
   this.statistiche.totaleRighe = this.righe.length;
-  this.statistiche.righeImportate = this.righe.filter(r => r.importato).length;
-  this.statistiche.righeErrore = this.righe.filter(r => r.errore).length;
-  this.statistiche.righeIgnorate = this.statistiche.totaleRighe - 
-    this.statistiche.righeImportate - this.statistiche.righeErrore;
-  
-  // Aggiorna stato
-  if (this.statistiche.righeImportate === this.statistiche.totaleRighe) {
-    this.stato = 'completato';
-  } else if (this.statistiche.righeImportate > 0) {
-    this.stato = 'parziale';
-  } else if (this.statistiche.righeErrore === this.statistiche.totaleRighe) {
-    this.stato = 'errore';
-  }
+  this.statistiche.righeImportate = this.righe.filter(r => r.stato === 'importato').length;
+  this.statistiche.righeIgnorate = this.righe.filter(r => r.stato === 'ignorato').length;
+  this.statistiche.righeErrore = this.righe.filter(r => r.stato === 'errore').length;
+  this.statistiche.righeManuali = this.righe.filter(r => r.stato === 'manuale').length;
 };
 
-const ImportFattura = mongoose.model('ImportFattura', ImportFatturaSchema);
-
-export default ImportFattura;
+export default mongoose.model('ImportFattura', ImportFatturaSchema);
