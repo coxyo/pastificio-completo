@@ -19,21 +19,48 @@ import logger from '../config/logger.js';
  */
 const parseXMLFattura = async (xmlContent) => {
   try {
+    // Rimuovi BOM e caratteri problematici all'inizio
+    let cleanXml = xmlContent.replace(/^\uFEFF/, ''); // Remove UTF-8 BOM
+    cleanXml = cleanXml.replace(/^[\s\S]*?(<\?xml)/, '$1'); // Remove anything before <?xml
+    
+    // Se non inizia con <?xml, cerca il tag radice
+    if (!cleanXml.trim().startsWith('<?xml') && !cleanXml.trim().startsWith('<')) {
+      throw new Error('Contenuto XML non valido');
+    }
+    
     // Parse XML
-    const result = await parseStringPromise(xmlContent, {
+    const result = await parseStringPromise(cleanXml, {
       explicitArray: false,
       ignoreAttrs: false,
-      tagNameProcessors: [(name) => name.replace(/^ns\d+:/, '')] // Rimuovi namespace
+      tagNameProcessors: [(name) => name.replace(/^(ns\d+|p|a):/, '')] // Rimuovi namespace comuni
     });
     
-    // Trova il nodo FatturaElettronica (può avere namespace)
+    if (!result) {
+      throw new Error('Parsing XML fallito - risultato nullo');
+    }
+    
+    // Trova il nodo FatturaElettronica (può avere namespace diversi)
     let fattura = result.FatturaElettronica || 
                   result['ns3:FatturaElettronica'] || 
+                  result['ns2:FatturaElettronica'] ||
                   result['p:FatturaElettronica'] ||
-                  Object.values(result)[0];
+                  result['a:FatturaElettronica'];
+    
+    // Fallback: cerca la prima chiave che contiene "FatturaElettronica"
+    if (!fattura) {
+      const fatturaKey = Object.keys(result).find(k => k.includes('FatturaElettronica'));
+      if (fatturaKey) {
+        fattura = result[fatturaKey];
+      }
+    }
+    
+    // Ultimo fallback: prendi il primo valore
+    if (!fattura) {
+      fattura = Object.values(result)[0];
+    }
     
     if (!fattura) {
-      throw new Error('Formato XML non riconosciuto');
+      throw new Error('Formato XML non riconosciuto - nodo FatturaElettronica non trovato');
     }
     
     // Estrai header e body
@@ -41,7 +68,7 @@ const parseXMLFattura = async (xmlContent) => {
     const body = fattura.FatturaElettronicaBody;
     
     if (!header || !body) {
-      throw new Error('Struttura fattura non valida');
+      throw new Error(`Struttura fattura non valida - Header: ${!!header}, Body: ${!!body}`);
     }
     
     // Dati fornitore (cedente/prestatore)
@@ -132,7 +159,10 @@ const parseXMLFattura = async (xmlContent) => {
     };
     
   } catch (error) {
-    logger.error('Errore parsing XML fattura:', error);
+    logger.error('Errore parsing XML fattura:', {
+      message: error.message,
+      stack: error.stack?.substring(0, 500)
+    });
     throw new Error(`Errore parsing XML: ${error.message}`);
   }
 };
