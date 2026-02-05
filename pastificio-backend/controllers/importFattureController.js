@@ -596,7 +596,7 @@ export const dettaglioImportazione = async (req, res) => {
   try {
     const importazione = await ImportFattura.findById(req.params.id)
       .populate('createdBy', 'username')
-      .populate('righe.ingredienteId', 'nome categoria')
+      .populate('righe.ingredienteAbbinato.ingredienteId', 'nome categoria')
       .populate('righe.movimentoId', 'quantita data');
     
     if (!importazione) {

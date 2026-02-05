@@ -167,6 +167,10 @@ const ImportFatturaSchema = new mongoose.Schema({
   annullatoDa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, {
   timestamps: true
@@ -187,6 +191,29 @@ ImportFatturaSchema.statics.verificaDuplicato = async function(identificativo, h
     stato: { $ne: 'annullato' }
   });
   
+  return existing;
+};
+
+// Metodo statico: verifica se file già processato tramite hash
+ImportFatturaSchema.statics.fileGiaProcessato = async function(hashFile) {
+  const existing = await this.findOne({
+    hashFile,
+    stato: { $ne: 'annullato' }
+  });
+  return existing;
+};
+
+// Metodo statico: verifica se fattura già esiste per partitaIva + numero + anno
+ImportFatturaSchema.statics.esisteGia = async function(partitaIva, numero, anno) {
+  const dataInizio = new Date(anno, 0, 1);
+  const dataFine = new Date(anno, 11, 31, 23, 59, 59);
+  
+  const existing = await this.findOne({
+    'fornitore.partitaIva': partitaIva,
+    'fattura.numero': numero,
+    'fattura.data': { $gte: dataInizio, $lte: dataFine },
+    stato: { $ne: 'annullato' }
+  });
   return existing;
 };
 
