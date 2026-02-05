@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, Container, CircularProgress, Typography } from '@mui/material';
-import ImportFatture from '../../components/ImportFatture';
+import ImportFatture from '@/components/ImportFatture';
 
 export default function ImportFatturePage() {
   const router = useRouter();
