@@ -7,30 +7,26 @@ import mongoose from 'mongoose';
 const LottoSchema = new mongoose.Schema({
   codiceLotto: {
     type: String,
-    required: true,
-    unique: true,
+    // RIMOSSO unique: true - causa errori con lotti vuoti
+    // RIMOSSO required: true - i lotti sono opzionali
     index: true
     // Formato: {INGREDIENTE}-{ANNO}-{PROGRESSIVO}
     // Es: FARINA00-2025-001, RICOTTA-2025-042
   },
   dataArrivo: {
     type: Date,
-    required: true,
     default: Date.now
   },
   dataScadenza: {
     type: Date,
-    required: true,
     index: true // Per query scadenze rapide
   },
   quantitaIniziale: {
     type: Number,
-    required: true,
     min: 0
   },
   quantitaAttuale: {
     type: Number,
-    required: true,
     min: 0
   },
   unitaMisura: {
@@ -47,8 +43,8 @@ const LottoSchema = new mongoose.Schema({
   fornitore: {
     id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Fornitore',
-      required: true
+      ref: 'Fornitore'
+      // RIMOSSO required: true
     },
     ragioneSociale: String,
     partitaIVA: String
@@ -137,7 +133,7 @@ const LottoSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indici compositi per performance
+// Indici compositi per performance (RIMOSSO indice unique su codiceLotto)
 LottoSchema.index({ codiceLotto: 1, stato: 1 });
 LottoSchema.index({ 'fornitore.id': 1, dataArrivo: -1 });
 LottoSchema.index({ dataScadenza: 1, stato: 1 });
@@ -545,11 +541,15 @@ IngredienteSchema.methods.verificaScadenze = function() {
 // =====================================
 
 // Pre-save: Aggiorna giacenza attuale sommando tutti i lotti
+// SOLO se ci sono lotti, altrimenti mantiene la giacenza manuale
 IngredienteSchema.pre('save', function(next) {
-  // Ricalcola giacenza attuale dalla somma dei lotti
-  this.giacenzaAttuale = this.lotti
-    .filter(l => l.stato !== 'scaduto' && l.stato !== 'richiamato')
-    .reduce((sum, l) => sum + l.quantitaAttuale, 0);
+  // Ricalcola giacenza SOLO se ci sono lotti effettivi
+  if (this.lotti && this.lotti.length > 0) {
+    this.giacenzaAttuale = this.lotti
+      .filter(l => l.stato !== 'scaduto' && l.stato !== 'richiamato')
+      .reduce((sum, l) => sum + (l.quantitaAttuale || 0), 0);
+  }
+  // Se non ci sono lotti, mantiene la giacenza impostata manualmente
   
   next();
 });
