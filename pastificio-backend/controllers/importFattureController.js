@@ -3,6 +3,7 @@
 
 import { parseStringPromise } from 'xml2js';
 import crypto from 'crypto';
+import fs from 'fs';
 import ImportFattura from '../models/ImportFattura.js';
 import MappingProdottiFornitore from '../models/MappingProdottiFornitore.js';
 import Ingrediente from '../models/Ingrediente.js';
@@ -217,10 +218,20 @@ export const uploadFatture = async (req, res) => {
     for (const file of files) {
       try {
         // Debug: info sul file ricevuto
-        logger.info(`File ricevuto: nome=${file.name}, size=${file.size || file.data?.length || 0}, mimetype=${file.mimetype}`);
+        logger.info(`File ricevuto: nome=${file.name}, size=${file.size}, mimetype=${file.mimetype}, tempFilePath=${file.tempFilePath || 'N/A'}`);
         
-        // Leggi contenuto XML
-        const xmlContent = file.data ? file.data.toString('utf8') : '';
+        // Leggi contenuto XML - supporta sia tempFiles che buffer
+        let xmlContent = '';
+        
+        if (file.tempFilePath) {
+          // express-fileupload con useTempFiles: true
+          xmlContent = fs.readFileSync(file.tempFilePath, 'utf8');
+          logger.info(`Letto da tempFile: ${file.tempFilePath}`);
+        } else if (file.data) {
+          // express-fileupload con useTempFiles: false (buffer)
+          xmlContent = file.data.toString('utf8');
+          logger.info(`Letto da buffer data`);
+        }
         
         logger.info(`Contenuto file ${file.name}: lunghezza=${xmlContent.length}`);
         
