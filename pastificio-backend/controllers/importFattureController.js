@@ -17,62 +17,66 @@ import logger from '../config/logger.js';
 
 /**
  * Determina categoria automaticamente in base al nome prodotto
+ * IMPORTANTE: Le categorie devono essere lowercase come da enum nel model Ingrediente
  */
 const determinaCategoria = (nome) => {
   const nomeUpper = (nome || '').toUpperCase();
   
   // Farine e derivati
   if (nomeUpper.includes('FARINA') || nomeUpper.includes('SEMOLA') || nomeUpper.includes('SEMOLINO')) {
-    return 'Farine';
+    return 'farine';
   }
   
   // Lieviti
   if (nomeUpper.includes('LIEVITO') || nomeUpper.includes('LIEVIT')) {
-    return 'Lieviti';
+    return 'lieviti';
   }
   
   // Oli e grassi
   if (nomeUpper.includes('OLIO') || nomeUpper.includes('STRUTTO') || nomeUpper.includes('BURRO') || nomeUpper.includes('MARGARINA')) {
-    return 'Oli e Grassi';
+    return 'grassi';
   }
   
   // Zuccheri
   if (nomeUpper.includes('ZUCCHERO') || nomeUpper.includes('MIELE') || nomeUpper.includes('GLUCOSIO')) {
-    return 'Zuccheri';
+    return 'zuccheri';
   }
   
   // Uova e latticini
-  if (nomeUpper.includes('UOVA') || nomeUpper.includes('UOVO') || nomeUpper.includes('LATTE') || nomeUpper.includes('PANNA') || nomeUpper.includes('RICOTTA') || nomeUpper.includes('FORMAGGIO')) {
-    return 'Latticini e Uova';
+  if (nomeUpper.includes('UOVA') || nomeUpper.includes('UOVO')) {
+    return 'uova';
+  }
+  if (nomeUpper.includes('LATTE') || nomeUpper.includes('PANNA') || nomeUpper.includes('RICOTTA') || nomeUpper.includes('FORMAGGIO')) {
+    return 'latticini';
   }
   
-  // Frutta secca
-  if (nomeUpper.includes('MANDORLE') || nomeUpper.includes('NOCCIOLE') || nomeUpper.includes('NOCI') || nomeUpper.includes('PISTACCHI') || nomeUpper.includes('PINOLI')) {
-    return 'Frutta Secca';
+  // Frutta secca e frutta
+  if (nomeUpper.includes('MANDORLE') || nomeUpper.includes('NOCCIOLE') || nomeUpper.includes('NOCI') || nomeUpper.includes('PISTACCHI') || nomeUpper.includes('PINOLI') || nomeUpper.includes('FRUTTA')) {
+    return 'frutta';
   }
   
   // Aromi e spezie
-  if (nomeUpper.includes('VANIGLIA') || nomeUpper.includes('CANNELLA') || nomeUpper.includes('ANICE') || nomeUpper.includes('ZAFFERANO') || nomeUpper.includes('AROMA')) {
-    return 'Aromi e Spezie';
+  if (nomeUpper.includes('VANIGLIA') || nomeUpper.includes('CANNELLA') || nomeUpper.includes('ANICE') || nomeUpper.includes('ZAFFERANO') || nomeUpper.includes('AROMA') || nomeUpper.includes('SPEZIE')) {
+    return 'spezie';
   }
   
-  // Confetture e creme
+  // Confetture e creme - vanno in altro
   if (nomeUpper.includes('MARMELLATA') || nomeUpper.includes('CONFETTURA') || nomeUpper.includes('NUTELLA') || nomeUpper.includes('CREMA') || nomeUpper.includes('CIOCCOLAT')) {
-    return 'Creme e Confetture';
+    return 'altro';
   }
   
-  // Imballaggi
-  if (nomeUpper.includes('VASSOIO') || nomeUpper.includes('BUSTA') || nomeUpper.includes('SACCHETTO') || nomeUpper.includes('SCATOLA') || nomeUpper.includes('CARTA') || nomeUpper.includes('PIROTTINI')) {
-    return 'Imballaggi';
+  // Imballaggi e confezionamento
+  if (nomeUpper.includes('VASSOIO') || nomeUpper.includes('BUSTA') || nomeUpper.includes('SACCHETTO') || nomeUpper.includes('SCATOLA') || nomeUpper.includes('CARTA') || nomeUpper.includes('PIROTTINI') || nomeUpper.includes('ROLLS') || nomeUpper.includes('IMBALL')) {
+    return 'confezionamento';
   }
   
-  // Prodotti surgelati
+  // Prodotti surgelati - vanno in altro
   if (nomeUpper.includes('SURG') || nomeUpper.includes('CONGELAT')) {
-    return 'Surgelati';
+    return 'altro';
   }
   
   // Default
-  return 'Altro';
+  return 'altro';
 };
 
 /**
