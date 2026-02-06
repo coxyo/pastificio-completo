@@ -641,15 +641,12 @@ export const confermaImport = async (req, res) => {
       }
       
       try {
-        // OPZIONE C: Crea automaticamente l'ingrediente se non esiste
-        let ingrediente;
-        
-        // Prima cerca per nome esatto (case-insensitive)
-        ingrediente = await Ingrediente.findOne({
+        // Cerca ingrediente esistente per nome (case-insensitive)
+        let ingrediente = await Ingrediente.findOne({
           nome: { $regex: new RegExp(`^${riga.descrizione.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
         });
         
-        // Se non esiste, crealo
+        // Se non esiste, crealo SENZA lotti
         if (!ingrediente) {
           // Determina categoria automaticamente in base al nome
           const categoria = determinaCategoria(riga.descrizione);
@@ -661,12 +658,13 @@ export const confermaImport = async (req, res) => {
             nome: riga.descrizione.trim(),
             categoria: categoria,
             unitaMisura: unitaMisura,
-            giacenzaAttuale: 0,
+            giacenzaAttuale: 0, // Sarà aggiornato dopo
             giacenzaMinima: 0,
             prezzoMedioAcquisto: riga.prezzoUnitario || 0,
             attivo: true,
+            lotti: [], // Nessun lotto - gestiamo solo giacenza
             fornitoriAbituali: [{
-              fornitore: null, // Lo aggiorneremo se abbiamo l'ID fornitore
+              fornitore: null,
               ragioneSociale: nomeFornitore,
               codiceArticolo: riga.codiceArticolo,
               prezzoUltimo: riga.prezzoUnitario
@@ -704,10 +702,14 @@ export const confermaImport = async (req, res) => {
         await movimento.save();
         movimentiCreati.push(movimento);
         
-        // Aggiorna giacenza ingrediente
-        ingrediente.giacenzaAttuale = (ingrediente.giacenzaAttuale || 0) + riga.quantita;
-        ingrediente.prezzoMedioAcquisto = riga.prezzoUnitario; // Aggiorna prezzo
-        await ingrediente.save();
+        // Aggiorna giacenza ingrediente (senza usare lotti)
+        await Ingrediente.findByIdAndUpdate(ingrediente._id, {
+          $inc: { giacenzaAttuale: riga.quantita },
+          $set: { 
+            prezzoMedioAcquisto: riga.prezzoUnitario,
+            ultimoPrezzoAcquisto: riga.prezzoUnitario
+          }
+        });
         
         rigaProcessata.importato = true;
         rigaProcessata.ingredienteId = ingrediente._id;
