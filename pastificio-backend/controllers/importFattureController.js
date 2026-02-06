@@ -80,27 +80,30 @@ const determinaCategoria = (nome) => {
 };
 
 /**
- * Normalizza unità di misura
+ * Normalizza unità di misura - DEVE ritornare solo valori accettati dall'enum:
+ * ['kg', 'g', 'l', 'ml', 'pz']
+ * Tutte le altre unità vengono convertite in 'pz' (pezzi/unità)
  */
 const normalizzaUnitaMisura = (um) => {
   if (!um) return 'pz';
   
   const umUpper = um.toUpperCase().trim();
   
+  // Chilogrammi
   if (umUpper === 'KG' || umUpper === 'KGM' || umUpper === 'CHILO' || umUpper === 'CHILI') return 'kg';
-  if (umUpper === 'G' || umUpper === 'GR' || umUpper === 'GRM' || umUpper === 'GRAMMI') return 'g';
-  if (umUpper === 'L' || umUpper === 'LT' || umUpper === 'LTR' || umUpper === 'LITRI' || umUpper === 'LITRO') return 'l';
-  if (umUpper === 'ML' || umUpper === 'MLT') return 'ml';
-  if (umUpper === 'PZ' || umUpper === 'NR' || umUpper === 'N' || umUpper === 'PEZZI' || umUpper === 'PEZZO' || umUpper === 'UNITA') return 'pz';
-  if (umUpper === 'CF' || umUpper === 'CONF' || umUpper === 'CONFEZIONE') return 'cf';
-  if (umUpper === 'CT' || umUpper === 'CARTONE' || umUpper === 'CARTONI') return 'ct';
-  if (umUpper === 'SC' || umUpper === 'SACCO' || umUpper === 'SACCHI') return 'sc';
-  if (umUpper === 'BT' || umUpper === 'BTL' || umUpper === 'BOTTIGLIA' || umUpper === 'BOTTIGLIE') return 'bt';
-  if (umUpper === 'FL' || umUpper === 'FLACONE') return 'fl';
-  if (umUpper === 'CR' || umUpper === 'CARTONE') return 'cr';
-  if (umUpper === 'BR' || umUpper === 'BARATTOLO') return 'br';
   
-  return um.toLowerCase();
+  // Grammi
+  if (umUpper === 'G' || umUpper === 'GR' || umUpper === 'GRM' || umUpper === 'GRAMMI') return 'g';
+  
+  // Litri
+  if (umUpper === 'L' || umUpper === 'LT' || umUpper === 'LTR' || umUpper === 'LITRI' || umUpper === 'LITRO') return 'l';
+  
+  // Millilitri
+  if (umUpper === 'ML' || umUpper === 'MLT') return 'ml';
+  
+  // Tutto il resto diventa pezzi (pz)
+  // Include: PZ, NR, N, CF, CT, SC, BT, FL, CR, BR, CONF, CARTONE, SACCO, etc.
+  return 'pz';
 };
 
 /**
