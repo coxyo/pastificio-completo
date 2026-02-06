@@ -16,6 +16,90 @@ import logger from '../config/logger.js';
 // ==========================================
 
 /**
+ * Determina categoria automaticamente in base al nome prodotto
+ */
+const determinaCategoria = (nome) => {
+  const nomeUpper = (nome || '').toUpperCase();
+  
+  // Farine e derivati
+  if (nomeUpper.includes('FARINA') || nomeUpper.includes('SEMOLA') || nomeUpper.includes('SEMOLINO')) {
+    return 'Farine';
+  }
+  
+  // Lieviti
+  if (nomeUpper.includes('LIEVITO') || nomeUpper.includes('LIEVIT')) {
+    return 'Lieviti';
+  }
+  
+  // Oli e grassi
+  if (nomeUpper.includes('OLIO') || nomeUpper.includes('STRUTTO') || nomeUpper.includes('BURRO') || nomeUpper.includes('MARGARINA')) {
+    return 'Oli e Grassi';
+  }
+  
+  // Zuccheri
+  if (nomeUpper.includes('ZUCCHERO') || nomeUpper.includes('MIELE') || nomeUpper.includes('GLUCOSIO')) {
+    return 'Zuccheri';
+  }
+  
+  // Uova e latticini
+  if (nomeUpper.includes('UOVA') || nomeUpper.includes('UOVO') || nomeUpper.includes('LATTE') || nomeUpper.includes('PANNA') || nomeUpper.includes('RICOTTA') || nomeUpper.includes('FORMAGGIO')) {
+    return 'Latticini e Uova';
+  }
+  
+  // Frutta secca
+  if (nomeUpper.includes('MANDORLE') || nomeUpper.includes('NOCCIOLE') || nomeUpper.includes('NOCI') || nomeUpper.includes('PISTACCHI') || nomeUpper.includes('PINOLI')) {
+    return 'Frutta Secca';
+  }
+  
+  // Aromi e spezie
+  if (nomeUpper.includes('VANIGLIA') || nomeUpper.includes('CANNELLA') || nomeUpper.includes('ANICE') || nomeUpper.includes('ZAFFERANO') || nomeUpper.includes('AROMA')) {
+    return 'Aromi e Spezie';
+  }
+  
+  // Confetture e creme
+  if (nomeUpper.includes('MARMELLATA') || nomeUpper.includes('CONFETTURA') || nomeUpper.includes('NUTELLA') || nomeUpper.includes('CREMA') || nomeUpper.includes('CIOCCOLAT')) {
+    return 'Creme e Confetture';
+  }
+  
+  // Imballaggi
+  if (nomeUpper.includes('VASSOIO') || nomeUpper.includes('BUSTA') || nomeUpper.includes('SACCHETTO') || nomeUpper.includes('SCATOLA') || nomeUpper.includes('CARTA') || nomeUpper.includes('PIROTTINI')) {
+    return 'Imballaggi';
+  }
+  
+  // Prodotti surgelati
+  if (nomeUpper.includes('SURG') || nomeUpper.includes('CONGELAT')) {
+    return 'Surgelati';
+  }
+  
+  // Default
+  return 'Altro';
+};
+
+/**
+ * Normalizza unità di misura
+ */
+const normalizzaUnitaMisura = (um) => {
+  if (!um) return 'pz';
+  
+  const umUpper = um.toUpperCase().trim();
+  
+  if (umUpper === 'KG' || umUpper === 'KGM' || umUpper === 'CHILO' || umUpper === 'CHILI') return 'kg';
+  if (umUpper === 'G' || umUpper === 'GR' || umUpper === 'GRM' || umUpper === 'GRAMMI') return 'g';
+  if (umUpper === 'L' || umUpper === 'LT' || umUpper === 'LTR' || umUpper === 'LITRI' || umUpper === 'LITRO') return 'l';
+  if (umUpper === 'ML' || umUpper === 'MLT') return 'ml';
+  if (umUpper === 'PZ' || umUpper === 'NR' || umUpper === 'N' || umUpper === 'PEZZI' || umUpper === 'PEZZO' || umUpper === 'UNITA') return 'pz';
+  if (umUpper === 'CF' || umUpper === 'CONF' || umUpper === 'CONFEZIONE') return 'cf';
+  if (umUpper === 'CT' || umUpper === 'CARTONE' || umUpper === 'CARTONI') return 'ct';
+  if (umUpper === 'SC' || umUpper === 'SACCO' || umUpper === 'SACCHI') return 'sc';
+  if (umUpper === 'BT' || umUpper === 'BTL' || umUpper === 'BOTTIGLIA' || umUpper === 'BOTTIGLIE') return 'bt';
+  if (umUpper === 'FL' || umUpper === 'FLACONE') return 'fl';
+  if (umUpper === 'CR' || umUpper === 'CARTONE') return 'cr';
+  if (umUpper === 'BR' || umUpper === 'BARATTOLO') return 'br';
+  
+  return um.toLowerCase();
+};
+
+/**
  * Parsing del file XML fattura elettronica
  */
 const parseXMLFattura = async (xmlContent) => {
@@ -437,9 +521,12 @@ export const confermaImport = async (req, res) => {
     // Genera identificativo
     const identificativo = ImportFattura.generaIdentificativo(
       fattura.fornitore.partitaIva,
-      fattura.numero,
-      new Date(fattura.data).getFullYear()
+      fattura.documento?.numero || fattura.numero,
+      new Date(fattura.documento?.data || fattura.data).getFullYear()
     );
+    
+    // Calcola hash dal contenuto (se non fornito)
+    const hashFile = fileInfo?.hash || crypto.createHash('md5').update(identificativo + Date.now()).digest('hex');
     
     // Verifica di nuovo che non esista
     const esistente = await ImportFattura.findOne({ identificativo });
@@ -450,25 +537,66 @@ export const confermaImport = async (req, res) => {
       });
     }
     
-    // Crea record ImportFattura
+    // Costruisci indirizzo come stringa
+    const indirizzoFornitore = fattura.fornitore.indirizzo;
+    let indirizzoStr = '';
+    if (typeof indirizzoFornitore === 'object') {
+      indirizzoStr = [
+        indirizzoFornitore.via,
+        indirizzoFornitore.cap,
+        indirizzoFornitore.comune,
+        indirizzoFornitore.provincia
+      ].filter(Boolean).join(', ');
+    } else {
+      indirizzoStr = indirizzoFornitore || '';
+    }
+    
+    // Costruisci ragione sociale
+    const ragioneSociale = fattura.fornitore.ragioneSociale || 
+      `${fattura.fornitore.nome || ''} ${fattura.fornitore.cognome || ''}`.trim() ||
+      fattura.fornitore.partitaIva;
+    
+    // Crea record ImportFattura con struttura corretta
     const importFattura = new ImportFattura({
       identificativo,
-      tipoDocumento: fattura.tipoDocumento,
-      numero: fattura.numero,
-      data: new Date(fattura.data),
-      anno: new Date(fattura.data).getFullYear(),
-      fornitore: fattura.fornitore,
-      importoTotale: fattura.importoTotale,
-      imponibile: fattura.imponibile,
-      imposta: fattura.imposta,
+      hashFile,
+      nomeFile: fileInfo?.nome || fileInfo?.name || `fattura_${identificativo}.xml`,
+      dimensioneFile: fileInfo?.size || 0,
+      fornitore: {
+        partitaIva: fattura.fornitore.partitaIva,
+        codiceFiscale: fattura.fornitore.codiceFiscale || '',
+        ragioneSociale: ragioneSociale,
+        indirizzo: indirizzoStr,
+        cap: typeof indirizzoFornitore === 'object' ? indirizzoFornitore.cap : '',
+        comune: typeof indirizzoFornitore === 'object' ? indirizzoFornitore.comune : '',
+        provincia: typeof indirizzoFornitore === 'object' ? indirizzoFornitore.provincia : ''
+      },
+      fattura: {
+        tipo: fattura.tipoDocumento || 'FatturaPA',
+        numero: fattura.documento?.numero || fattura.numero,
+        data: new Date(fattura.documento?.data || fattura.data),
+        divisa: 'EUR'
+      },
+      totali: {
+        imponibile: fattura.imponibile || 0,
+        iva: fattura.imposta || 0,
+        totaleDocumento: fattura.importoTotale || 0
+      },
       ddt: fattura.ddt || [],
-      fileOriginale: fileInfo,
-      createdBy: req.user?.id
+      stato: 'analizzato',
+      createdBy: req.user?.id,
+      importatoDa: req.user?.id
     });
     
     // Processa ogni riga
     const righeProcessate = [];
     const movimentiCreati = [];
+    const ingredientiCreati = [];
+    
+    // Costruisci nome fornitore per i movimenti
+    const nomeFornitore = fattura.fornitore.ragioneSociale || 
+      `${fattura.fornitore.nome || ''} ${fattura.fornitore.cognome || ''}`.trim() ||
+      fattura.fornitore.partitaIva;
     
     for (const riga of righe) {
       const rigaProcessata = {
@@ -483,83 +611,139 @@ export const confermaImport = async (req, res) => {
         importato: false
       };
       
-      // Se ha un ingrediente selezionato, crea movimento
-      if (riga.ingredienteId) {
-        try {
-          // Trova ingrediente
-          const ingrediente = await Ingrediente.findById(riga.ingredienteId);
+      // Salta righe con quantità 0 o descrizioni generiche (es. "Spese di Incasso", "Ordine Cl.")
+      const descrizioneUpper = (riga.descrizione || '').toUpperCase();
+      const isRigaDaSaltare = 
+        !riga.quantita || 
+        riga.quantita === 0 ||
+        riga.prezzoUnitario === 0 ||
+        descrizioneUpper.includes('SPESE') ||
+        descrizioneUpper.includes('INCASSO') ||
+        descrizioneUpper.includes('ORDINE CL') ||
+        descrizioneUpper.includes('COMMISSION') ||
+        descrizioneUpper.includes('TRASPORTO') ||
+        descrizioneUpper.includes('IMBALLO') ||
+        descrizioneUpper.startsWith('VS.') ||
+        descrizioneUpper.startsWith('NS.');
+      
+      if (isRigaDaSaltare) {
+        rigaProcessata.stato = 'ignorato';
+        rigaProcessata.note = 'Riga non importabile (spese/commissioni o quantità zero)';
+        righeProcessate.push(rigaProcessata);
+        continue;
+      }
+      
+      try {
+        // OPZIONE C: Crea automaticamente l'ingrediente se non esiste
+        let ingrediente;
+        
+        // Prima cerca per nome esatto (case-insensitive)
+        ingrediente = await Ingrediente.findOne({
+          nome: { $regex: new RegExp(`^${riga.descrizione.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+        });
+        
+        // Se non esiste, crealo
+        if (!ingrediente) {
+          // Determina categoria automaticamente in base al nome
+          const categoria = determinaCategoria(riga.descrizione);
           
-          if (ingrediente) {
-            // Crea movimento di carico
-            const movimento = new Movimento({
-              tipo: 'carico',
-              prodotto: {
+          // Normalizza unità di misura
+          const unitaMisura = normalizzaUnitaMisura(riga.unitaMisura);
+          
+          ingrediente = new Ingrediente({
+            nome: riga.descrizione.trim(),
+            categoria: categoria,
+            unitaMisura: unitaMisura,
+            giacenzaAttuale: 0,
+            giacenzaMinima: 0,
+            prezzoMedioAcquisto: riga.prezzoUnitario || 0,
+            attivo: true,
+            fornitoriAbituali: [{
+              fornitore: null, // Lo aggiorneremo se abbiamo l'ID fornitore
+              ragioneSociale: nomeFornitore,
+              codiceArticolo: riga.codiceArticolo,
+              prezzoUltimo: riga.prezzoUnitario
+            }]
+          });
+          
+          await ingrediente.save();
+          ingredientiCreati.push(ingrediente);
+          logger.info(`Ingrediente creato automaticamente: ${ingrediente.nome} (${categoria})`);
+        }
+        
+        // Crea movimento di carico
+        const movimento = new Movimento({
+          tipo: 'carico',
+          prodotto: {
+            nome: ingrediente.nome,
+            categoria: ingrediente.categoria
+          },
+          ingredienteId: ingrediente._id,
+          quantita: riga.quantita,
+          unita: normalizzaUnitaMisura(riga.unitaMisura),
+          prezzoUnitario: riga.prezzoUnitario,
+          fornitore: {
+            nome: nomeFornitore
+          },
+          documentoRiferimento: {
+            tipo: 'fattura',
+            numero: fattura.documento?.numero || fattura.numero,
+            data: new Date(fattura.documento?.data || fattura.data)
+          },
+          note: `Import automatico da fattura ${fattura.documento?.numero || fattura.numero}`,
+          createdBy: req.user?.id
+        });
+        
+        await movimento.save();
+        movimentiCreati.push(movimento);
+        
+        // Aggiorna giacenza ingrediente
+        ingrediente.giacenzaAttuale = (ingrediente.giacenzaAttuale || 0) + riga.quantita;
+        ingrediente.prezzoMedioAcquisto = riga.prezzoUnitario; // Aggiorna prezzo
+        await ingrediente.save();
+        
+        rigaProcessata.importato = true;
+        rigaProcessata.ingredienteId = ingrediente._id;
+        rigaProcessata.ingredienteNome = ingrediente.nome;
+        rigaProcessata.movimentoId = movimento._id;
+        rigaProcessata.stato = 'importato';
+        
+        // Salva mapping per riconoscimento futuro
+        await MappingProdottiFornitore.findOneAndUpdate(
+          {
+            'fornitore.partitaIva': fattura.fornitore.partitaIva,
+            descrizioneFornitore: riga.descrizione
+          },
+          {
+            $set: {
+              fornitore: {
+                partitaIva: fattura.fornitore.partitaIva,
+                ragioneSociale: nomeFornitore
+              },
+              codiceArticoloFornitore: riga.codiceArticolo,
+              prodottoMagazzino: {
+                tipo: 'ingrediente',
+                ingredienteId: ingrediente._id,
                 nome: ingrediente.nome,
                 categoria: ingrediente.categoria
               },
-              ingredienteId: ingrediente._id,
-              quantita: riga.quantita,
-              unita: riga.unitaMisura.toLowerCase(),
-              prezzoUnitario: riga.prezzoUnitario,
-              fornitore: {
-                nome: fattura.fornitore.ragioneSociale || 
-                      `${fattura.fornitore.nome} ${fattura.fornitore.cognome}`.trim() ||
-                      fattura.fornitore.partitaIva
+              conversione: {
+                unitaFornitore: riga.unitaMisura,
+                unitaMagazzino: ingrediente.unitaMisura,
+                fattore: 1
               },
-              documentoRiferimento: {
-                tipo: 'fattura',
-                numero: fattura.numero,
-                data: new Date(fattura.data)
-              },
-              note: `Import automatico da fattura ${fattura.numero}`,
-              createdBy: req.user?.id
-            });
-            
-            await movimento.save();
-            movimentiCreati.push(movimento);
-            
-            rigaProcessata.importato = true;
-            rigaProcessata.ingredienteId = ingrediente._id;
-            rigaProcessata.ingredienteNome = ingrediente.nome;
-            rigaProcessata.movimentoId = movimento._id;
-            
-            // Salva/aggiorna mapping
-            await MappingProdottiFornitore.findOneAndUpdate(
-              {
-                'fornitore.partitaIva': fattura.fornitore.partitaIva,
-                descrizioneFornitore: riga.descrizione
-              },
-              {
-                $set: {
-                  fornitore: {
-                    partitaIva: fattura.fornitore.partitaIva,
-                    ragioneSociale: fattura.fornitore.ragioneSociale || 
-                      `${fattura.fornitore.nome} ${fattura.fornitore.cognome}`.trim()
-                  },
-                  codiceArticoloFornitore: riga.codiceArticolo,
-                  prodottoMagazzino: {
-                    tipo: 'ingrediente',
-                    ingredienteId: ingrediente._id,
-                    nome: ingrediente.nome,
-                    categoria: ingrediente.categoria
-                  },
-                  conversione: {
-                    unitaFornitore: riga.unitaMisura,
-                    unitaMagazzino: ingrediente.unitaMisura,
-                    fattore: 1
-                  },
-                  confermatoManualmente: true,
-                  ultimoUtilizzo: new Date()
-                },
-                $inc: { utilizzi: 1 }
-              },
-              { upsert: true, new: true }
-            );
-          }
-        } catch (movError) {
-          rigaProcessata.errore = movError.message;
-          logger.error('Errore creazione movimento:', movError);
-        }
+              confermatoManualmente: false,
+              ultimoUtilizzo: new Date()
+            },
+            $inc: { utilizzi: 1 }
+          },
+          { upsert: true, new: true }
+        );
+        
+      } catch (movError) {
+        rigaProcessata.errore = movError.message;
+        rigaProcessata.stato = 'errore';
+        logger.error('Errore creazione movimento/ingrediente:', movError);
       }
       
       righeProcessate.push(rigaProcessata);
@@ -584,7 +768,8 @@ export const confermaImport = async (req, res) => {
       data: {
         fattura: importFattura,
         statistiche: importFattura.statistiche,
-        movimentiCreati: movimentiCreati.length
+        movimentiCreati: movimentiCreati.length,
+        ingredientiCreati: ingredientiCreati.length
       }
     });
     
