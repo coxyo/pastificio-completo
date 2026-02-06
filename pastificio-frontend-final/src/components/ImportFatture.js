@@ -284,10 +284,13 @@ export default function ImportFatture() {
         fileInfo: fatturaData.fileInfo
       };
       
+      const token = localStorage.getItem('token');
+      console.log('Token per confermaImport:', token ? 'presente' : 'MANCANTE');
+      
       const response = await fetch(`${API_URL}/import-fatture/conferma`, {
         method: 'POST',
         headers: {
-          ...getHeaders(),
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
