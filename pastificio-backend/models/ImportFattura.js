@@ -217,6 +217,11 @@ ImportFatturaSchema.statics.esisteGia = async function(partitaIva, numero, anno)
   return existing;
 };
 
+// Metodo statico: genera identificativo univoco per fattura
+ImportFatturaSchema.statics.generaIdentificativo = function(partitaIva, numero, anno) {
+  return `${partitaIva}_${numero}_${anno}`;
+};
+
 // Metodo statico: statistiche importazioni
 ImportFatturaSchema.statics.getStatistiche = async function(filtri = {}) {
   const match = {};

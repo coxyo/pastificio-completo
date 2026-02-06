@@ -401,6 +401,8 @@ export const uploadFatture = async (req, res) => {
       .sort('nome')
       .lean();
     
+    logger.info(`Ingredienti trovati per dropdown: ${ingredienti.length}`);
+    
     res.json({
       success: true,
       data: {
