@@ -518,9 +518,16 @@ export const confermaImport = async (req, res) => {
       });
     }
     
+    // Normalizza struttura fornitore (può arrivare in formati diversi)
+    const fornitore = fattura.fornitore || {};
+    const partitaIva = fornitore.partitaIva || fornitore.idFiscale || 'SCONOSCIUTO';
+    const ragioneSocialeInput = fornitore.ragioneSociale || 
+      `${fornitore.nome || ''} ${fornitore.cognome || ''}`.trim() ||
+      partitaIva;
+    
     // Genera identificativo
     const identificativo = ImportFattura.generaIdentificativo(
-      fattura.fornitore.partitaIva,
+      partitaIva,
       fattura.documento?.numero || fattura.numero,
       new Date(fattura.documento?.data || fattura.data).getFullYear()
     );
@@ -538,7 +545,7 @@ export const confermaImport = async (req, res) => {
     }
     
     // Costruisci indirizzo come stringa
-    const indirizzoFornitore = fattura.fornitore.indirizzo;
+    const indirizzoFornitore = fornitore.indirizzo || {};
     let indirizzoStr = '';
     if (typeof indirizzoFornitore === 'object') {
       indirizzoStr = [
@@ -551,10 +558,8 @@ export const confermaImport = async (req, res) => {
       indirizzoStr = indirizzoFornitore || '';
     }
     
-    // Costruisci ragione sociale
-    const ragioneSociale = fattura.fornitore.ragioneSociale || 
-      `${fattura.fornitore.nome || ''} ${fattura.fornitore.cognome || ''}`.trim() ||
-      fattura.fornitore.partitaIva;
+    // Usa ragione sociale già calcolata
+    const ragioneSociale = ragioneSocialeInput;
     
     // Crea record ImportFattura con struttura corretta
     const importFattura = new ImportFattura({
@@ -563,8 +568,8 @@ export const confermaImport = async (req, res) => {
       nomeFile: fileInfo?.nome || fileInfo?.name || `fattura_${identificativo}.xml`,
       dimensioneFile: fileInfo?.size || 0,
       fornitore: {
-        partitaIva: fattura.fornitore.partitaIva,
-        codiceFiscale: fattura.fornitore.codiceFiscale || '',
+        partitaIva: partitaIva,
+        codiceFiscale: fornitore.codiceFiscale || '',
         ragioneSociale: ragioneSociale,
         indirizzo: indirizzoStr,
         cap: typeof indirizzoFornitore === 'object' ? indirizzoFornitore.cap : '',
@@ -594,9 +599,7 @@ export const confermaImport = async (req, res) => {
     const ingredientiCreati = [];
     
     // Costruisci nome fornitore per i movimenti
-    const nomeFornitore = fattura.fornitore.ragioneSociale || 
-      `${fattura.fornitore.nome || ''} ${fattura.fornitore.cognome || ''}`.trim() ||
-      fattura.fornitore.partitaIva;
+    const nomeFornitore = ragioneSociale;
     
     for (const riga of righe) {
       const rigaProcessata = {
@@ -711,13 +714,13 @@ export const confermaImport = async (req, res) => {
         // Salva mapping per riconoscimento futuro
         await MappingProdottiFornitore.findOneAndUpdate(
           {
-            'fornitore.partitaIva': fattura.fornitore.partitaIva,
+            'fornitore.partitaIva': partitaIva,
             descrizioneFornitore: riga.descrizione
           },
           {
             $set: {
               fornitore: {
-                partitaIva: fattura.fornitore.partitaIva,
+                partitaIva: partitaIva,
                 ragioneSociale: nomeFornitore
               },
               codiceArticoloFornitore: riga.codiceArticolo,
