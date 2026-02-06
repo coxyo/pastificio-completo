@@ -627,14 +627,18 @@ export const confermaImport = async (req, res) => {
         !riga.quantita || 
         riga.quantita === 0 ||
         riga.prezzoUnitario === 0 ||
-        descrizioneUpper.includes('SPESE') ||
-        descrizioneUpper.includes('INCASSO') ||
-        descrizioneUpper.includes('ORDINE CL') ||
+        descrizioneUpper.includes('SPESE DI') ||
+        descrizioneUpper.includes('SPESE INCASSO') ||
+        descrizioneUpper.includes('ORDINE CL.') ||
+        descrizioneUpper.includes('ORDINE CL NUM') ||
         descrizioneUpper.includes('COMMISSION') ||
-        descrizioneUpper.includes('TRASPORTO') ||
-        descrizioneUpper.includes('IMBALLO') ||
+        descrizioneUpper.includes('COSTO TRASPORTO') ||
+        descrizioneUpper.includes('SPESE TRASPORTO') ||
         descrizioneUpper.startsWith('VS.') ||
-        descrizioneUpper.startsWith('NS.');
+        descrizioneUpper.startsWith('NS.') ||
+        descrizioneUpper.startsWith('***') ||
+        descrizioneUpper.includes('RIGA AUSILIARIA') ||
+        descrizioneUpper.includes('INFORMAZIONI TECNICHE');
       
       if (isRigaDaSaltare) {
         rigaProcessata.stato = 'ignorato';
