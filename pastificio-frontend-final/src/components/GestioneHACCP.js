@@ -685,14 +685,12 @@ export default function GestioneHACCP() {
         <Tabs 
           value={tabCorrente} 
           onChange={(e, v) => setTabCorrente(v)}
-          variant="scrollable"
-          scrollButtons="auto"
+          variant="fullWidth"
         >
           <Tab label="📊 Dashboard" />
           <Tab label="🌡️ Temperature" />
           <Tab label="🧹 Pulizia" />
           <Tab label="❄️ Abbattimento" />
-          <Tab label="📦 Materie Prime" />
           <Tab label="🍝 Allergeni" />
           <Tab label="📋 CCP" />
           <Tab label="🏢 Fornitori" />
@@ -1137,68 +1135,8 @@ export default function GestioneHACCP() {
             </Box>
           )}
 
-          {/* TAB 4: MATERIE PRIME */}
+          {/* TAB 4: ALLERGENI */}
           {tabCorrente === 4 && (
-            <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6">
-                  📋 Scheda Controllo Materie Prime
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setDialogMateriePrime(true)}
-                >
-                  Registra Controllo
-                </Button>
-              </Box>
-
-              <Alert severity="info" sx={{ mb: 2 }}>
-                <strong>CCP1:</strong> Controllare temperatura all'arrivo (≤ 4°C per deperibili) e integrità confezioni
-              </Alert>
-
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'success.main' }}>
-                      <TableCell sx={{ color: 'white' }}>Data</TableCell>
-                      <TableCell sx={{ color: 'white' }}>Fornitore</TableCell>
-                      <TableCell sx={{ color: 'white' }}>Prodotto</TableCell>
-                      <TableCell sx={{ color: 'white' }}>Lotto</TableCell>
-                      <TableCell sx={{ color: 'white' }}>Scadenza</TableCell>
-                      <TableCell sx={{ color: 'white' }}>Temp.</TableCell>
-                      <TableCell sx={{ color: 'white' }}>Stato</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {registrazioni
-                      .filter(r => r.tipo === 'materie_prime')
-                      .slice(0, 10)
-                      .map((reg, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{new Date(reg.dataOra).toLocaleDateString('it-IT')}</TableCell>
-                          <TableCell>{reg.materiePrime?.fornitore || 'N/D'}</TableCell>
-                          <TableCell>{reg.materiePrime?.prodotto || 'N/D'}</TableCell>
-                          <TableCell>{reg.materiePrime?.lotto || '-'}</TableCell>
-                          <TableCell>{reg.materiePrime?.dataScadenza ? new Date(reg.materiePrime.dataScadenza).toLocaleDateString('it-IT') : '-'}</TableCell>
-                          <TableCell>{reg.materiePrime?.temperatura}°C</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={reg.conforme ? '✅ Accettato' : '❌ Rifiutato'} 
-                              color={reg.conforme ? 'success' : 'error'} 
-                              size="small" 
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-
-          {/* TAB 5: ALLERGENI */}
-          {tabCorrente === 5 && (
             <Box>
               <Typography variant="h6" gutterBottom>
                 📋 Tabella Allergeni nei Prodotti
@@ -1262,8 +1200,8 @@ export default function GestioneHACCP() {
             </Box>
           )}
 
-          {/* TAB 6: CCP */}
-          {tabCorrente === 6 && (
+          {/* TAB 5: CCP */}
+          {tabCorrente === 5 && (
             <Box>
               <Typography variant="h6" gutterBottom>
                 📋 Punti Critici di Controllo (CCP)
@@ -1303,8 +1241,8 @@ export default function GestioneHACCP() {
             </Box>
           )}
 
-          {/* TAB 7: FORNITORI */}
-          {tabCorrente === 7 && (
+          {/* TAB 6: FORNITORI */}
+          {tabCorrente === 6 && (
             <Box>
               <Typography variant="h6" gutterBottom>
                 📋 Lista Fornitori Qualificati
@@ -1333,8 +1271,8 @@ export default function GestioneHACCP() {
             </Box>
           )}
 
-          {/* TAB 8: NON CONFORMITÀ */}
-          {tabCorrente === 8 && (
+          {/* TAB 7: NON CONFORMITÀ */}
+          {tabCorrente === 7 && (
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                 <Typography variant="h6">
@@ -1400,8 +1338,8 @@ export default function GestioneHACCP() {
             </Box>
           )}
 
-          {/* TAB 9: RINTRACCIABILITÀ ✅ NUOVO 07/02/2026 */}
-          {tabCorrente === 9 && (
+          {/* TAB 8: RINTRACCIABILITÀ ✅ NUOVO 07/02/2026 */}
+          {tabCorrente === 8 && (
             <Rintracciabilita />
           )}
         </Box>
