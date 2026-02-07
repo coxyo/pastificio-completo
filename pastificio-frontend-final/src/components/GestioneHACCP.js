@@ -55,6 +55,7 @@ import axios from 'axios';
 import HACCPAutoPopup from './HACCPAutoPopup';  // ✅ NUOVO 23/01/2026
 import PuliziaAutoPopup from './PuliziaAutoPopup';  // ✅ NUOVO 27/01/2026
 import StampaHACCP from './StampaHACCP';
+import Rintracciabilita from './Rintracciabilita';  // ✅ NUOVO 07/02/2026 - Rintracciabilità lotti
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -696,6 +697,7 @@ export default function GestioneHACCP() {
           <Tab label="📋 CCP" />
           <Tab label="🏢 Fornitori" />
           <Tab label="⚠️ Non Conformità" />
+          <Tab label="🔍 Rintracciabilità" />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
@@ -1396,6 +1398,11 @@ export default function GestioneHACCP() {
                 </Table>
               </TableContainer>
             </Box>
+          )}
+
+          {/* TAB 9: RINTRACCIABILITÀ ✅ NUOVO 07/02/2026 */}
+          {tabCorrente === 9 && (
+            <Rintracciabilita />
           )}
         </Box>
       </Paper>
