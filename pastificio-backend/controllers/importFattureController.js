@@ -233,6 +233,69 @@ const parseXMLFattura = async (xmlContent) => {
       const lineeArray = Array.isArray(dettaglioLinee) ? dettaglioLinee : [dettaglioLinee];
       
       lineeArray.forEach(linea => {
+        // ============ ESTRAZIONE LOTTO E SCADENZA ============
+        // I fornitori possono mettere il lotto in diversi posti:
+        // 1. AltriDatiGestionali con TipoDato = "LOTTO" o "NUM_LOTTO" o "LOT"
+        // 2. AltriDatiGestionali con TipoDato = "SCADENZA" o "DATA_SCAD"
+        // 3. Nel CodiceArticolo
+        // 4. Nella Descrizione stessa (es. "FARINA 00 LOTTO L12345")
+        
+        let lottoFornitore = '';
+        let dataScadenza = null;
+        
+        // Cerca in AltriDatiGestionali
+        const altriDati = linea.AltriDatiGestionali;
+        if (altriDati) {
+          const altriDatiArray = Array.isArray(altriDati) ? altriDati : [altriDati];
+          
+          for (const dato of altriDatiArray) {
+            const tipoDato = (dato.TipoDato || '').toUpperCase();
+            const riferimentoTesto = dato.RiferimentoTesto || '';
+            const riferimentoData = dato.RiferimentoData || '';
+            
+            // Cerca lotto
+            if (tipoDato.includes('LOTTO') || tipoDato.includes('LOT') || tipoDato === 'BATCH') {
+              lottoFornitore = riferimentoTesto || lottoFornitore;
+            }
+            
+            // Cerca scadenza
+            if (tipoDato.includes('SCAD') || tipoDato.includes('EXPIRY') || tipoDato === 'SCADENZA') {
+              if (riferimentoData) {
+                dataScadenza = new Date(riferimentoData);
+              } else if (riferimentoTesto) {
+                // Prova a parsare come data
+                const parsed = new Date(riferimentoTesto);
+                if (!isNaN(parsed.getTime())) {
+                  dataScadenza = parsed;
+                }
+              }
+            }
+          }
+        }
+        
+        // Se non trovato in AltriDatiGestionali, cerca nella descrizione
+        if (!lottoFornitore) {
+          const desc = linea.Descrizione || '';
+          // Pattern comuni: "LOTTO: XXX", "LOT XXX", "L.XXX", "BATCH XXX"
+          const lottoMatch = desc.match(/(?:LOTTO|LOT|L\.|BATCH)[:\s]*([A-Z0-9\-]+)/i);
+          if (lottoMatch) {
+            lottoFornitore = lottoMatch[1];
+          }
+        }
+        
+        // Cerca scadenza nella descrizione se non trovata
+        if (!dataScadenza) {
+          const desc = linea.Descrizione || '';
+          // Pattern: "SCAD: 01/2026", "SCAD. 01-2026", "EXP 2026-01"
+          const scadMatch = desc.match(/(?:SCAD|EXP)[.:\s]*(\d{2}[\/-]\d{2,4}|\d{4}[\/-]\d{2})/i);
+          if (scadMatch) {
+            const parsed = new Date(scadMatch[1].replace(/\//g, '-'));
+            if (!isNaN(parsed.getTime())) {
+              dataScadenza = parsed;
+            }
+          }
+        }
+        
         righe.push({
           numeroLinea: parseInt(linea.NumeroLinea || 0),
           descrizione: linea.Descrizione || '',
@@ -241,7 +304,10 @@ const parseXMLFattura = async (xmlContent) => {
           unitaMisura: (linea.UnitaMisura || 'PZ').toUpperCase(),
           prezzoUnitario: parseFloat(linea.PrezzoUnitario || 0),
           prezzoTotale: parseFloat(linea.PrezzoTotale || 0),
-          aliquotaIva: parseFloat(linea.AliquotaIVA || 0)
+          aliquotaIva: parseFloat(linea.AliquotaIVA || 0),
+          // ============ NUOVI CAMPI RINTRACCIABILITÀ ============
+          lottoFornitore: lottoFornitore,
+          dataScadenza: dataScadenza
         });
       });
     }
@@ -653,37 +719,126 @@ export const confermaImport = async (req, res) => {
           nome: { $regex: new RegExp(`^${riga.descrizione.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
         });
         
-        // Se non esiste, crealo SENZA lotti
+        // Determina categoria e unità
+        const categoria = determinaCategoria(riga.descrizione);
+        const unitaMisura = normalizzaUnitaMisura(riga.unitaMisura);
+        
+        // Dati fattura per rintracciabilità
+        const numeroFattura = fattura.documento?.numero || fattura.numero;
+        const dataFattura = new Date(fattura.documento?.data || fattura.data);
+        
+        // ============ LOTTO FORNITORE ============
+        // Usa il lotto dalla riga se presente (passato dal frontend), altrimenti vuoto
+        // Il lotto può essere stato estratto da: AltriDatiGestionali, CodiceArticolo, Descrizione
+        // oppure inserito manualmente dall'utente
+        const lottoFornitore = riga.lottoFornitore || riga.lotto || '';
+        
+        // Data scadenza: usa quella dalla riga se presente, altrimenti null (da inserire manualmente)
+        let dataScadenza = null;
+        if (riga.dataScadenza) {
+          dataScadenza = new Date(riga.dataScadenza);
+        }
+        
+        // Se l'ingrediente non esiste, crealo
         if (!ingrediente) {
-          // Determina categoria automaticamente in base al nome
-          const categoria = determinaCategoria(riga.descrizione);
-          
-          // Normalizza unità di misura
-          const unitaMisura = normalizzaUnitaMisura(riga.unitaMisura);
-          
           ingrediente = new Ingrediente({
             nome: riga.descrizione.trim(),
             categoria: categoria,
             unitaMisura: unitaMisura,
-            giacenzaAttuale: 0, // Sarà aggiornato dopo
+            giacenzaAttuale: riga.quantita,
             giacenzaMinima: 0,
             prezzoMedioAcquisto: riga.prezzoUnitario || 0,
+            ultimoPrezzoAcquisto: riga.prezzoUnitario || 0,
             attivo: true,
-            lotti: [], // Nessun lotto - gestiamo solo giacenza
+            lotti: [{
+              codiceLotto: lottoFornitore, // Lotto originale fornitore (può essere vuoto)
+              dataArrivo: dataFattura,
+              dataScadenza: dataScadenza, // Può essere null se non specificata
+              quantitaIniziale: riga.quantita,
+              quantitaAttuale: riga.quantita,
+              unitaMisura: unitaMisura,
+              prezzoUnitario: riga.prezzoUnitario || 0,
+              fornitore: {
+                ragioneSociale: nomeFornitore,
+                partitaIVA: partitaIva
+              },
+              documentoOrigine: {
+                tipo: 'fattura',
+                numero: numeroFattura,
+                data: dataFattura,
+                importazioneId: importazione._id
+              },
+              lottoFornitore: {
+                codice: lottoFornitore // Salva anche qui per rintracciabilità
+              },
+              stato: 'disponibile',
+              utilizzi: []
+            }],
             fornitoriAbituali: [{
               fornitore: null,
               ragioneSociale: nomeFornitore,
               codiceArticolo: riga.codiceArticolo,
               prezzoUltimo: riga.prezzoUnitario
+            }],
+            storicoPrezzi: [{
+              data: dataFattura,
+              prezzo: riga.prezzoUnitario || 0,
+              fornitore: nomeFornitore,
+              quantita: riga.quantita
             }]
           });
           
           await ingrediente.save();
           ingredientiCreati.push(ingrediente);
-          logger.info(`Ingrediente creato automaticamente: ${ingrediente.nome} (${categoria})`);
+          logger.info(`✅ Ingrediente creato: ${ingrediente.nome} | Lotto: ${lottoFornitore || 'N/D'} | Fornitore: ${nomeFornitore}`);
+        } else {
+          // Ingrediente esiste: aggiungi nuovo lotto
+          const nuovoLotto = {
+            codiceLotto: lottoFornitore, // Lotto originale fornitore
+            dataArrivo: dataFattura,
+            dataScadenza: dataScadenza,
+            quantitaIniziale: riga.quantita,
+            quantitaAttuale: riga.quantita,
+            unitaMisura: unitaMisura,
+            prezzoUnitario: riga.prezzoUnitario || 0,
+            fornitore: {
+              ragioneSociale: nomeFornitore,
+              partitaIVA: partitaIva
+            },
+            documentoOrigine: {
+              tipo: 'fattura',
+              numero: numeroFattura,
+              data: dataFattura,
+              importazioneId: importazione._id
+            },
+            lottoFornitore: {
+              codice: lottoFornitore
+            },
+            stato: 'disponibile',
+            utilizzi: []
+          };
+          
+          // Aggiorna ingrediente con nuovo lotto
+          await Ingrediente.findByIdAndUpdate(ingrediente._id, {
+            $push: { 
+              lotti: nuovoLotto,
+              storicoPrezzi: {
+                data: dataFattura,
+                prezzo: riga.prezzoUnitario || 0,
+                fornitore: nomeFornitore,
+                quantita: riga.quantita
+              }
+            },
+            $inc: { giacenzaAttuale: riga.quantita },
+            $set: { 
+              ultimoPrezzoAcquisto: riga.prezzoUnitario || 0
+            }
+          });
+          
+          logger.info(`✅ Lotto aggiunto a ${ingrediente.nome}: ${lottoFornitore || 'N/D'} | Fornitore: ${nomeFornitore}`);
         }
         
-        // Crea movimento di carico
+        // Crea movimento di carico con riferimento al lotto
         const movimento = new Movimento({
           tipo: 'carico',
           prodotto: {
@@ -692,31 +847,27 @@ export const confermaImport = async (req, res) => {
           },
           ingredienteId: ingrediente._id,
           quantita: riga.quantita,
-          unita: normalizzaUnitaMisura(riga.unitaMisura),
+          unita: unitaMisura,
           prezzoUnitario: riga.prezzoUnitario,
+          valoreMovimento: (riga.prezzoUnitario || 0) * riga.quantita,
           fornitore: {
-            nome: nomeFornitore
+            nome: nomeFornitore,
+            partitaIva: partitaIva
           },
+          lotto: lottoFornitore || null,
+          dataScadenza: dataScadenza,
           documentoRiferimento: {
             tipo: 'fattura',
-            numero: fattura.documento?.numero || fattura.numero,
-            data: new Date(fattura.documento?.data || fattura.data)
+            numero: numeroFattura,
+            data: dataFattura
           },
-          note: `Import automatico da fattura ${fattura.documento?.numero || fattura.numero}`,
+          note: `Import automatico da fattura ${numeroFattura}${lottoFornitore ? ' - Lotto: ' + lottoFornitore : ''}`,
+          dataMovimento: dataFattura,
           createdBy: req.user?.id
         });
         
         await movimento.save();
         movimentiCreati.push(movimento);
-        
-        // Aggiorna giacenza ingrediente (senza usare lotti)
-        await Ingrediente.findByIdAndUpdate(ingrediente._id, {
-          $inc: { giacenzaAttuale: riga.quantita },
-          $set: { 
-            prezzoMedioAcquisto: riga.prezzoUnitario,
-            ultimoPrezzoAcquisto: riga.prezzoUnitario
-          }
-        });
         
         rigaProcessata.importato = true;
         rigaProcessata.ingredienteId = ingrediente._id;
