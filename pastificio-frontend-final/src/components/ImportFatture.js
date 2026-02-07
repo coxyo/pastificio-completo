@@ -1,5 +1,6 @@
 // components/ImportFatture.js
 // Componente per l'import delle fatture XML da Danea EasyFatt
+// AGGIORNATO: Aggiunto campi Lotto e Scadenza editabili per rintracciabilità HACCP
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -58,7 +59,9 @@ import {
   Info as InfoIcon,
   Inventory as InventoryIcon,
   LinkOff as LinkOffIcon,
-  Link as LinkIcon
+  Link as LinkIcon,
+  QrCode as LottoIcon,
+  CalendarMonth as CalendarIcon
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 
@@ -202,7 +205,18 @@ export default function ImportFatture() {
       const data = await response.json();
       
       if (data.success) {
-        setFattureAnalizzate(data.data.risultati);
+        // Aggiungi campi editabili per lotto e scadenza a ogni riga
+        const risultatiConCampiEditabili = data.data.risultati.map(fattura => ({
+          ...fattura,
+          righe: (fattura.righe || []).map(riga => ({
+            ...riga,
+            // Campi editabili - usa quelli estratti dall'XML o vuoti
+            lottoFornitoreEdit: riga.lottoFornitore || '',
+            dataScadenzaEdit: riga.dataScadenza ? new Date(riga.dataScadenza).toISOString().split('T')[0] : ''
+          }))
+        }));
+        
+        setFattureAnalizzate(risultatiConCampiEditabili);
         setIngredienti(data.data.ingredienti);
         
         const analizzate = data.data.risultati.filter(r => r.stato === 'analizzato').length;
@@ -257,16 +271,37 @@ export default function ImportFatture() {
     });
   };
 
+  // ==================== GESTIONE LOTTO E SCADENZA ====================
+
+  const handleLottoChange = (fatturaIndex, rigaIndex, lotto) => {
+    setFattureAnalizzate(prev => {
+      const updated = [...prev];
+      updated[fatturaIndex].righe[rigaIndex].lottoFornitoreEdit = lotto;
+      return updated;
+    });
+  };
+
+  const handleScadenzaChange = (fatturaIndex, rigaIndex, scadenza) => {
+    setFattureAnalizzate(prev => {
+      const updated = [...prev];
+      updated[fatturaIndex].righe[rigaIndex].dataScadenzaEdit = scadenza;
+      return updated;
+    });
+  };
+
   // ==================== CONFERMA IMPORT ====================
 
   const confermaImport = async (fatturaData) => {
     setLoading(true);
     
     try {
-      // Prepara righe con mapping
+      // Prepara righe con mapping + lotto + scadenza
       const righe = fatturaData.righe.map(riga => ({
         ...riga,
-        ingredienteId: riga.ingredienteId || riga.mapping?.ingredienteId
+        ingredienteId: riga.ingredienteId || riga.mapping?.ingredienteId,
+        // Usa i valori editati dall'utente
+        lottoFornitore: riga.lottoFornitoreEdit || riga.lottoFornitore || '',
+        dataScadenza: riga.dataScadenzaEdit || riga.dataScadenza || null
       }));
       
       const payload = {
@@ -571,18 +606,30 @@ export default function ImportFatture() {
                       </Box>
                     )}
 
-                    {/* Tabella Righe */}
+                    {/* Tabella Righe CON LOTTO E SCADENZA */}
                     {fattura.righe && fattura.righe.length > 0 && (
                       <TableContainer>
                         <Table size="small">
                           <TableHead>
-                            <TableRow>
+                            <TableRow sx={{ bgcolor: 'grey.100' }}>
                               <TableCell>#</TableCell>
                               <TableCell>Descrizione Fattura</TableCell>
                               <TableCell align="right">Qtà</TableCell>
                               <TableCell>UM</TableCell>
                               <TableCell align="right">Prezzo</TableCell>
                               <TableCell align="right">Totale</TableCell>
+                              <TableCell sx={{ minWidth: 120 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <LottoIcon fontSize="small" />
+                                  Lotto
+                                </Box>
+                              </TableCell>
+                              <TableCell sx={{ minWidth: 140 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <CalendarIcon fontSize="small" />
+                                  Scadenza
+                                </Box>
+                              </TableCell>
                               <TableCell sx={{ minWidth: 200 }}>→ Prodotto Magazzino</TableCell>
                             </TableRow>
                           </TableHead>
@@ -610,6 +657,55 @@ export default function ImportFatture() {
                                 <TableCell>{riga.unitaMisura}</TableCell>
                                 <TableCell align="right">{formatValuta(riga.prezzoUnitario)}</TableCell>
                                 <TableCell align="right">{formatValuta(riga.prezzoTotale)}</TableCell>
+                                
+                                {/* CAMPO LOTTO EDITABILE */}
+                                <TableCell>
+                                  <TextField
+                                    size="small"
+                                    variant="outlined"
+                                    placeholder="Lotto"
+                                    value={riga.lottoFornitoreEdit || ''}
+                                    onChange={(e) => handleLottoChange(fatturaIndex, rigaIndex, e.target.value)}
+                                    sx={{ 
+                                      width: '100%',
+                                      '& .MuiInputBase-input': { 
+                                        fontSize: '0.875rem',
+                                        py: 0.75
+                                      }
+                                    }}
+                                    InputProps={{
+                                      sx: { 
+                                        bgcolor: riga.lottoFornitoreEdit ? 'success.lighter' : 'inherit'
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                
+                                {/* CAMPO SCADENZA EDITABILE */}
+                                <TableCell>
+                                  <TextField
+                                    size="small"
+                                    variant="outlined"
+                                    type="date"
+                                    value={riga.dataScadenzaEdit || ''}
+                                    onChange={(e) => handleScadenzaChange(fatturaIndex, rigaIndex, e.target.value)}
+                                    sx={{ 
+                                      width: '100%',
+                                      '& .MuiInputBase-input': { 
+                                        fontSize: '0.875rem',
+                                        py: 0.75
+                                      }
+                                    }}
+                                    InputProps={{
+                                      sx: { 
+                                        bgcolor: riga.dataScadenzaEdit ? 'info.lighter' : 'inherit'
+                                      }
+                                    }}
+                                    InputLabelProps={{ shrink: true }}
+                                  />
+                                </TableCell>
+
+                                {/* PRODOTTO MAGAZZINO */}
                                 <TableCell>
                                   {riga.mapping?.trovato ? (
                                     <Tooltip title={`Match confermato (${riga.mapping.score}%)`}>
@@ -654,6 +750,18 @@ export default function ImportFatture() {
                         </Table>
                       </TableContainer>
                     )}
+
+                    {/* Legenda campi rintracciabilità */}
+                    <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <Typography variant="caption" color="textSecondary">
+                        <LottoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                        Lotto: codice lotto del fornitore (per rintracciabilità HACCP)
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        <CalendarIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                        Scadenza: data di scadenza del prodotto
+                      </Typography>
+                    </Box>
                   </CardContent>
                 </Card>
               ))}
@@ -733,7 +841,7 @@ export default function ImportFatture() {
                       </TableCell>
                     </TableRow>
                     
-                    {/* Dettaglio Espanso */}
+                    {/* Dettaglio Espanso CON LOTTO E SCADENZA */}
                     <TableRow>
                       <TableCell colSpan={8} sx={{ py: 0, border: expandedFattura[imp._id] ? undefined : 'none' }}>
                         <Collapse in={expandedFattura[imp._id]} timeout="auto" unmountOnExit>
@@ -747,6 +855,8 @@ export default function ImportFatture() {
                                   <TableCell>UM</TableCell>
                                   <TableCell align="right">Prezzo</TableCell>
                                   <TableCell>Ingrediente</TableCell>
+                                  <TableCell>Lotto</TableCell>
+                                  <TableCell>Scadenza</TableCell>
                                   <TableCell>Stato</TableCell>
                                 </TableRow>
                               </TableHead>
@@ -759,6 +869,14 @@ export default function ImportFatture() {
                                     <TableCell align="right">{formatValuta(riga.prezzoUnitario)}</TableCell>
                                     <TableCell>
                                       {riga.ingredienteNome || '-'}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="body2" fontFamily="monospace">
+                                        {riga.lottoFornitore || '-'}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                      {formatData(riga.dataScadenza)}
                                     </TableCell>
                                     <TableCell>
                                       {riga.importato ? (
