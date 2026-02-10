@@ -950,6 +950,97 @@ export const confermaImport = async (req, res) => {
 };
 
 /**
+ * Ignora fattura (segna come processata senza importare ingredienti)
+ */
+export const ignoraFattura = async (req, res) => {
+  try {
+    const { fattura, fornitore, fileInfo, motivo } = req.body;
+    
+    if (!fattura) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati fattura mancanti'
+      });
+    }
+    
+    const partitaIva = fornitore?.partitaIva || fornitore?.idFiscale || 'SCONOSCIUTO';
+    const numeroFattura = fattura.numero;
+    const annoFattura = new Date(fattura.data).getFullYear();
+    
+    // Genera identificativo
+    const identificativo = ImportFattura.generaIdentificativo(
+      partitaIva,
+      numeroFattura,
+      annoFattura
+    );
+    
+    // Verifica che non esista già
+    const esistente = await ImportFattura.findOne({ identificativo });
+    if (esistente) {
+      return res.status(400).json({
+        success: false,
+        error: 'Fattura già processata'
+      });
+    }
+    
+    // Calcola hash
+    const hashFile = fileInfo?.hash || crypto.createHash('md5').update(identificativo + Date.now()).digest('hex');
+    
+    // Crea record con stato 'ignorato'
+    const importFattura = new ImportFattura({
+      identificativo,
+      hashFile,
+      nomeFile: fileInfo?.nome || `fattura_${numeroFattura}.xml`,
+      statoProcessamento: 'completato',
+      stato: 'ignorato',
+      dataImportazione: new Date(),
+      fornitore: {
+        partitaIva,
+        ragioneSociale: fornitore?.ragioneSociale || partitaIva,
+        indirizzo: ''
+      },
+      fattura: {
+        numero: numeroFattura,
+        data: new Date(fattura.data),
+        tipoDocumento: fattura.tipoDocumento || 'TD01'
+      },
+      totali: {
+        imponibile: fattura.imponibile || 0,
+        imposta: fattura.imposta || 0,
+        totaleDocumento: fattura.importoTotale || 0
+      },
+      righe: [], // Nessuna riga importata
+      statistiche: {
+        totaleRighe: 0,
+        righeImportate: 0,
+        righeIgnorate: 0,
+        righeErrore: 0
+      },
+      note: motivo || 'Fattura ignorata manualmente'
+    });
+    
+    await importFattura.save();
+    
+    logger.info(`📋 Fattura ignorata: ${numeroFattura} di ${fornitore?.ragioneSociale}`);
+    
+    res.json({
+      success: true,
+      data: {
+        importazione: importFattura,
+        messaggio: 'Fattura segnata come ignorata'
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Errore ignora fattura:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
  * Lista fatture importate
  */
 export const listaImportazioni = async (req, res) => {
@@ -1278,6 +1369,7 @@ export const statisticheImportazioni = async (req, res) => {
 export default {
   uploadFatture,
   confermaImport,
+  ignoraFattura,
   listaImportazioni,
   dettaglioImportazione,
   annullaImportazione,

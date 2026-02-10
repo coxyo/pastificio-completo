@@ -27,6 +27,14 @@ router.post('/upload', importFattureController.uploadFatture);
 router.post('/conferma', importFattureController.confermaImport);
 
 /**
+ * @route   POST /api/import-fatture/ignora
+ * @desc    Ignora fattura (segna come processata senza importare)
+ * @access  Privato
+ * @body    { fattura, fornitore, fileInfo, motivo }
+ */
+router.post('/ignora', importFattureController.ignoraFattura);
+
+/**
  * @route   GET /api/import-fatture
  * @desc    Lista fatture importate
  * @access  Privato
