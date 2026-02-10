@@ -306,6 +306,55 @@ export default function ImportFatture() {
     }
   };
 
+  // ==================== IGNORA FATTURA ====================
+
+  const ignoraFattura = async (fatturaData) => {
+    setLoading(true);
+    
+    try {
+      const payload = {
+        fattura: {
+          numero: fatturaData.fattura.numero,
+          data: fatturaData.fattura.data,
+          tipoDocumento: fatturaData.fattura.tipoDocumento,
+          importoTotale: fatturaData.fattura.importoTotale,
+          fornitore: fatturaData.fornitore
+        },
+        fornitore: fatturaData.fornitore,
+        fileInfo: fatturaData.fileInfo,
+        motivo: 'Fattura non contiene ingredienti'
+      };
+      
+      const response = await fetch(`${API_URL}/import-fatture/ignora`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.info(`Fattura ${fatturaData.fattura.numero} ignorata`);
+        
+        // Rimuovi fattura dalla lista
+        setFattureAnalizzate(prev => prev.filter(f => f !== fatturaData));
+        
+        // Ricarica storico
+        caricaStorico();
+      } else {
+        toast.error(data.error || 'Errore durante l\'operazione');
+      }
+    } catch (error) {
+      console.error('Errore ignora fattura:', error);
+      toast.error('Errore durante l\'operazione');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ==================== ANNULLA IMPORTAZIONE ====================
 
   const annullaImportazione = async () => {
@@ -502,17 +551,28 @@ export default function ImportFatture() {
                           </Typography>
                         )}
                       </Box>
-                      <Box>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
                         {fattura.stato === 'analizzato' && (
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<CheckIcon />}
-                            onClick={() => confermaImport(fattura)}
-                            disabled={loading}
-                          >
-                            Importa
-                          </Button>
+                          <>
+                            <Button
+                              variant="outlined"
+                              color="warning"
+                              startIcon={<CloseIcon />}
+                              onClick={() => ignoraFattura(fattura)}
+                              disabled={loading}
+                            >
+                              Ignora
+                            </Button>
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              startIcon={<CheckIcon />}
+                              onClick={() => confermaImport(fattura)}
+                              disabled={loading}
+                            >
+                              Importa
+                            </Button>
+                          </>
                         )}
                       </Box>
                     </Box>
