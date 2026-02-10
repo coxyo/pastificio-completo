@@ -283,6 +283,27 @@ const parseXMLFattura = async (xmlContent) => {
           }
         }
         
+        // ============ GENERAZIONE AUTOMATICA LOTTO ============
+        // Se non trovato da nessuna parte, genera automaticamente
+        // Formato: YYYYMMDD-XXX-NN (data + prime 3 lettere fornitore + numero riga)
+        if (!lottoFornitore) {
+          const dataFatt = documento.data || new Date();
+          const anno = dataFatt.getFullYear();
+          const mese = String(dataFatt.getMonth() + 1).padStart(2, '0');
+          const giorno = String(dataFatt.getDate()).padStart(2, '0');
+          const dataStr = `${anno}${mese}${giorno}`;
+          
+          // Prende le prime 3 lettere della ragione sociale (solo lettere)
+          const nomeFornitoreClean = (fornitore.ragioneSociale || fornitore.nome || 'XXX')
+            .replace(/[^A-Za-z]/g, '')
+            .substring(0, 3)
+            .toUpperCase() || 'XXX';
+          
+          const numRiga = String(linea.NumeroLinea || righe.length + 1).padStart(2, '0');
+          
+          lottoFornitore = `${dataStr}-${nomeFornitoreClean}${numRiga}`;
+        }
+        
         // Cerca scadenza nella descrizione se non trovata
         if (!dataScadenza) {
           const desc = linea.Descrizione || '';
