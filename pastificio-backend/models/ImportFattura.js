@@ -14,6 +14,10 @@ const RigaImportSchema = new mongoose.Schema({
   aliquotaIva: Number,
   codiceArticolo: String,
   
+  // NUOVI CAMPI RINTRACCIABILITÀ
+  lottoFornitore: String,
+  dataScadenza: Date,
+  
   // Risultato matching
   stato: {
     type: String,
@@ -100,6 +104,10 @@ const ImportFatturaSchema = new mongoose.Schema({
       type: Date,
       required: true
     },
+    tipoDocumento: {
+      type: String,
+      default: 'TD01'
+    },
     divisa: {
       type: String,
       default: 'EUR'
@@ -120,16 +128,24 @@ const ImportFatturaSchema = new mongoose.Schema({
   totali: {
     imponibile: Number,
     iva: Number,
+    imposta: Number,
     totaleDocumento: Number,
     arrotondamento: Number
   },
   
-  // Stato importazione
+  // Stato importazione - AGGIUNTO 'ignorato'
   stato: {
     type: String,
-    enum: ['analizzato', 'importato', 'importato_parziale', 'annullato', 'errore', 'duplicato'],
+    enum: ['analizzato', 'importato', 'importato_parziale', 'annullato', 'errore', 'duplicato', 'ignorato'],
     default: 'analizzato',
     index: true
+  },
+  
+  // Stato processamento
+  statoProcessamento: {
+    type: String,
+    enum: ['in_corso', 'completato', 'errore'],
+    default: 'in_corso'
   },
   
   // Statistiche
@@ -158,6 +174,9 @@ const ImportFatturaSchema = new mongoose.Schema({
   
   // Dimensione file in bytes
   dimensioneFile: Number,
+  
+  // Note
+  note: String,
   
   // Audit
   importatoDa: {
