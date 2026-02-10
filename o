@@ -1,0 +1,5 @@
+[33mf9c005a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m ✅ HACCP completo: REGISTRA ORA + Fix salvataggio + 654 registrazioni visibili
+[33mc8350d0[m ✅ HACCP: REGISTRA ORA + Fix salvataggio temperature
+[33mf305088[m ✅ Fix salvataggio temperature HACCP - formato corretto
+[33m49ea545[m fix: CallPopup controlla DOM ogni 500ms - GARANTITO
+[33me667f0a[m fix: CallPopup ora rispetta isOpen

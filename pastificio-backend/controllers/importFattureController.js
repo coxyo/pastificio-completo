@@ -766,7 +766,7 @@ export const confermaImport = async (req, res) => {
                 tipo: 'fattura',
                 numero: numeroFattura,
                 data: dataFattura,
-                importazioneId: importazione._id
+                importazioneId: importFattura._id
               },
               lottoFornitore: {
                 codice: lottoFornitore // Salva anche qui per rintracciabilità
@@ -809,7 +809,7 @@ export const confermaImport = async (req, res) => {
               tipo: 'fattura',
               numero: numeroFattura,
               data: dataFattura,
-              importazioneId: importazione._id
+              importazioneId: importFattura._id
             },
             lottoFornitore: {
               codice: lottoFornitore
