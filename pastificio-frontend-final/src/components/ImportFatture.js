@@ -178,15 +178,24 @@ export default function ImportFatture() {
     
     try {
       const formData = new FormData();
+      let fileCount = 0;
+      
+      // DEBUG: Log numero file selezionati
+      console.log(`📁 File selezionati: ${files.length}`);
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        console.log(`  → File ${i + 1}: ${file.name} (${file.size} bytes)`);
         if (file.name.endsWith('.xml')) {
           formData.append('fatture', file);
+          fileCount++;
         } else {
           toast.warning(`File ${file.name} ignorato (solo XML)`);
         }
       }
+      
+      // DEBUG: Log numero file XML validi
+      console.log(`📤 File XML da inviare: ${fileCount}`);
       
       if (!formData.has('fatture')) {
         toast.error('Nessun file XML valido selezionato');
@@ -203,6 +212,15 @@ export default function ImportFatture() {
       });
       
       const data = await response.json();
+      
+      // DEBUG: Log risposta server
+      console.log(`📥 Risposta server:`, data);
+      console.log(`   → Risultati ricevuti: ${data.data?.risultati?.length || 0}`);
+      if (data.data?.risultati) {
+        data.data.risultati.forEach((r, i) => {
+          console.log(`   → Fattura ${i + 1}: ${r.file} - stato: ${r.stato}`);
+        });
+      }
       
       if (data.success) {
         // Aggiungi campi editabili per lotto e scadenza a ogni riga
