@@ -82,6 +82,16 @@ export const CONFIGURAZIONE_VARIANTI = {
       { id: 'zucchero_velo', label: 'Con zucchero a velo', valore: 'con zucchero a velo' }
     ],
     nomeBase: 'Pardulas'
+  },
+  // ✅ NUOVO 11/02/2026: Chiacchere con varianti
+  'Chiacchere': {
+    tipo: 'select',
+    varianti: [
+      { id: 'zucchero_velo', label: 'Zucchero a velo', valore: 'con zucchero a velo' },
+      { id: 'zucchero_granulato', label: 'Zucchero granulato', valore: 'con zucchero granulato' },
+      { id: 'cioccolato', label: 'Cioccolato', valore: 'con cioccolato' }
+    ],
+    nomeBase: 'Chiacchere'
   }
 };
 
