@@ -23,6 +23,7 @@ import {
   Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
+import dispositivoService from '@/services/dispositivoService';
 
 // Configurazione - PATH CARTELLA FATTURE
 const CARTELLA_FATTURE = 'C:\\Users\\Maurizio Mameli\\pastificio-completo\\Fatture';
@@ -37,6 +38,13 @@ export default function NotificaFatture() {
   }, []);
 
   const verificaNotifica = () => {
+    // ============ CONTROLLO DISPOSITIVO ============
+    // Verifica se la notifica fatture è abilitata per questo dispositivo
+    if (!dispositivoService.isNotificaAbilitata('fatture')) {
+      console.log('[NotificaFatture] Notifica disabilitata per questo dispositivo');
+      return;
+    }
+    
     // Controlla se già mostrata oggi
     const oggi = new Date().toDateString();
     const ultimaNotifica = localStorage.getItem('ultimaNotificaFatture');
@@ -78,9 +86,9 @@ export default function NotificaFatture() {
   const handleApriCartella = () => {
     // Copia il path negli appunti
     navigator.clipboard.writeText(CARTELLA_FATTURE).then(() => {
-      alert('📋 Path copiato negli appunti:\\n' + CARTELLA_FATTURE + '\\n\\nIncollalo in Esplora File per aprire la cartella.');
+      alert('📋 Path copiato negli appunti:\n' + CARTELLA_FATTURE + '\n\nIncollalo in Esplora File per aprire la cartella.');
     }).catch(() => {
-      alert('📂 Apri questa cartella:\\n' + CARTELLA_FATTURE);
+      alert('📂 Apri questa cartella:\n' + CARTELLA_FATTURE);
     });
   };
 
@@ -91,12 +99,12 @@ export default function NotificaFatture() {
 
   const handleApriDanea = () => {
     alert(
-      '📋 Per scaricare le fatture:\\n\\n' +
-      '1. Apri Danea EasyFatt\\n' +
-      '2. Vai su "Fatture Ricevute"\\n' +
-      '3. Clicca "Scarica Nuove"\\n' +
-      '4. Seleziona le fatture e clicca "Esporta XML"\\n' +
-      '5. Salva in: ' + CARTELLA_FATTURE + '\\n\\n' +
+      '📋 Per scaricare le fatture:\n\n' +
+      '1. Apri Danea EasyFatt\n' +
+      '2. Vai su "Fatture Ricevute"\n' +
+      '3. Clicca "Scarica Nuove"\n' +
+      '4. Seleziona le fatture e clicca "Esporta XML"\n' +
+      '5. Salva in: ' + CARTELLA_FATTURE + '\n\n' +
       '6. Poi clicca "Importa nel Gestionale" qui!'
     );
   };

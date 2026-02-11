@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE AGGIORNATA CON NOTIFICA FATTURE
+// app/ClientLayout.js - VERSIONE AGGIORNATA CON CONTROLLO DISPOSITIVO
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -35,7 +35,8 @@ import {
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
-import NotificaFatture from '@/components/NotificaFatture';  // ✅ NUOVO
+import NotificaFatture from '@/components/NotificaFatture';
+import dispositivoService from '@/services/dispositivoService';  // ✅ NUOVO
 
 const drawerWidth = 240;
 
@@ -274,8 +275,8 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* Popup Chiamata in Arrivo */}
-      {mounted && chiamataCorrente && (
+      {/* Popup Chiamata in Arrivo - Solo se abilitato per questo dispositivo */}
+      {mounted && chiamataCorrente && dispositivoService.isNotificaAbilitata('chiamate3cx') && (
         <CallPopup
           chiamata={chiamataCorrente}
           onClose={clearChiamata}
@@ -283,7 +284,7 @@ export default function ClientLayout({ children }) {
         />
       )}
 
-      {/* ✅ NUOVO: Notifica Giornaliera Fatture */}
+      {/* Notifica Giornaliera Fatture - Controllata internamente dal componente */}
       {mounted && <NotificaFatture />}
     </Box>
   );

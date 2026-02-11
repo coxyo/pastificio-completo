@@ -9,9 +9,11 @@ import {
 } from '@mui/material';
 import { 
   Save, Business, Receipt, Email, 
-  CloudUpload // ✅ AGGIUNTO per icona Backup
+  CloudUpload,
+  Computer as ComputerIcon  // ✅ AGGIUNTO per icona Dispositivo
 } from '@mui/icons-material';
-import BackupManager from '@/components/Backup/BackupManager'; // ✅ IMPORT
+import BackupManager from '@/components/Backup/BackupManager';
+import ConfiguraDispositivo from '@/components/ConfiguraDispositivo';  // ✅ NUOVO
 
 export default function ImpostazioniPage() {
   const [tabValue, setTabValue] = useState(0);
@@ -78,7 +80,8 @@ export default function ImpostazioniPage() {
           <Tab icon={<Business />} label="Dati Azienda" />
           <Tab icon={<Receipt />} label="Fatturazione" />
           <Tab icon={<Email />} label="Notifiche" />
-          <Tab icon={<CloudUpload />} label="Backup" /> {/* ✅ NUOVA TAB */}
+          <Tab icon={<CloudUpload />} label="Backup" />
+          <Tab icon={<ComputerIcon />} label="Dispositivo" />  {/* ✅ NUOVA TAB */}
         </Tabs>
       </Paper>
 
@@ -265,13 +268,18 @@ export default function ImpostazioniPage() {
         </Paper>
       )}
 
-      {/* ✅ NUOVA TAB BACKUP */}
+      {/* TAB BACKUP */}
       {tabValue === 3 && (
         <BackupManager />
       )}
 
-      {/* Pulsante Salva solo per le altre tab */}
-      {tabValue !== 3 && (
+      {/* ✅ NUOVA TAB DISPOSITIVO */}
+      {tabValue === 4 && (
+        <ConfiguraDispositivo />
+      )}
+
+      {/* Pulsante Salva solo per le tab 0, 1, 2 */}
+      {tabValue < 3 && (
         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             variant="contained"
