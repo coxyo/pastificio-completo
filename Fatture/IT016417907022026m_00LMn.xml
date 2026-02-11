@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>01641790702</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>01A57</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>M5UXCR1</CodiceDestinatario>
+            <ContattiTrasmittente>
+                <Telefono>0874-60561</Telefono>
+            </ContattiTrasmittente>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>01471500924</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>01471500924</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>ELLEDI SRL</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA EDISON, 6 - Z.INDUSTRIALE</Indirizzo>
+                <CAP>09047</CAP>
+                <Comune>SELARGIUS</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Nome>CLAUDIA Pastif.di MA</Nome>
+                    <Cognome>NONNA</Cognome>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA CARMINE, 20/B</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>ASSEMINI</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+        <TerzoIntermediarioOSoggettoEmittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>01641790702</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>01641790702</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>TEAMSYSTEM SERVICE SRL</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+        </TerzoIntermediarioOSoggettoEmittente>
+        <SoggettoEmittente>TZ</SoggettoEmittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-01-22</Data>
+                <Numero>314/01</Numero>
+                <ImportoTotaleDocumento>675.75</ImportoTotaleDocumento>
+            </DatiGeneraliDocumento>
+            <DatiOrdineAcquisto>
+                <IdDocumento>I202600783</IdDocumento>
+            </DatiOrdineAcquisto>
+            <DatiOrdineAcquisto>
+                <IdDocumento>I202600785</IdDocumento>
+            </DatiOrdineAcquisto>
+            <DatiTrasporto>
+                <CausaleTrasporto>C/Vendita</CausaleTrasporto>
+                <Descrizione>VISIBILE</Descrizione>
+                <PesoNetto>308.60</PesoNetto>
+                <DataInizioTrasporto>2026-01-22</DataInizioTrasporto>
+            </DatiTrasporto>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>1</NumeroLinea>
+                <Descrizione>Ordine Cl. num. 767/00 del 22/01/2026 Vs. num. I202600783</Descrizione>
+                <PrezzoUnitario>0.00000000</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Descrittivo #DE#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>2</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>FRNDLVRD</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>FRNDLVRD</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>FARINA 00 DELI VERDE W 130  KG.25 - GMI</Descrizione>
+                <Quantita>50.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>0.78300000</PrezzoUnitario>
+                <PrezzoTotale>39.15</PrezzoTotale>
+                <AliquotaIVA>4.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>3</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>FRNMDN380</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>FRNMDN380</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>FARINA 00 MADONNINA W380 KG.25 - MOLINO COLOMBO</Descrizione>
+                <Quantita>50.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>1.19000000</PrezzoUnitario>
+                <PrezzoTotale>59.50</PrezzoTotale>
+                <AliquotaIVA>4.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>4</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>FRNGRN25</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>FRNGRN25</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>GRANITO 00 DI GRANO TENERO KG.25 - GMI</Descrizione>
+                <Quantita>25.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>1.07000000</PrezzoUnitario>
+                <PrezzoTotale>26.75</PrezzoTotale>
+                <AliquotaIVA>4.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>5</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>PPA912P</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>PPA912P</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>PASSATA ALBICOCCA "PANAMA" KG.12 - ITALCANDITI</Descrizione>
+                <Quantita>12.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>4.19000000</PrezzoUnitario>
+                <PrezzoTotale>50.28</PrezzoTotale>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>6</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>STR125PS</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>STR125PS</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>STRUTTO PURO IN SECCHIO KG.25 - RP GRASSI</Descrizione>
+                <Quantita>25.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>2.59000000</PrezzoUnitario>
+                <PrezzoTotale>64.75</PrezzoTotale>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>7</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>VSSRG3LS</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>VSSRG3LS</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>VASSOI GIOLLY N.3LS KG.10 - MONTEVERDI</Descrizione>
+                <Quantita>10.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>2.18280000</PrezzoUnitario>
+                <PrezzoTotale>21.83</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>8</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>VSSRG3</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>VSSRG3</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>VASSOI GIOLLY N.3S KG.5 - MONTEVERDI</Descrizione>
+                <Quantita>5.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>2.18280000</PrezzoUnitario>
+                <PrezzoTotale>10.91</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>9</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>VSSRG4</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>VSSRG4</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>VASSOI GIOLLY N.4S KG.10 - MONTEVERDI</Descrizione>
+                <Quantita>10.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>2.18280000</PrezzoUnitario>
+                <PrezzoTotale>21.83</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>10</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>VSSRG5</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>VSSRG5</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>VASSOI GIOLLY N.5S KG.10 - MONTEVERDI</Descrizione>
+                <Quantita>20.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>2.18280000</PrezzoUnitario>
+                <PrezzoTotale>43.66</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>11</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>SCCZAP</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>SCCZAP</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>ZUCCHERO SEMOLATO IN ASTUCCI DA KG. 1 - PININ PERO</Descrizione>
+                <Quantita>20.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>1.30000000</PrezzoUnitario>
+                <PrezzoTotale>26.00</PrezzoTotale>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>12</NumeroLinea>
+                <Descrizione>Ordine Cl. num. 769/00 del 22/01/2026 Vs. num. I202600785</Descrizione>
+                <PrezzoUnitario>0.00000000</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Descrittivo #DE#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>13</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>MRG410MMCC</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>MRG410MMCC</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>AG1BDT - MARGARINA MAXIME CREAM/CAKE KG.10 - MASTER MARTINI</Descrizione>
+                <Quantita>10.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>4.58000000</PrezzoUnitario>
+                <PrezzoTotale>45.80</PrezzoTotale>
+                <AliquotaIVA>4.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>14</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>LOI1525F</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>LOI1525F</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>AH10DD - FRIGGITUTTO OLIO DI PALMA BIFRAZIONATO L.25 - MASTER MARTINI</Descrizione>
+                <Quantita>50.000</Quantita>
+                <UnitaMisura>L</UnitaMisura>
+                <PrezzoUnitario>2.32000000</PrezzoUnitario>
+                <ScontoMaggiorazione>
+                    <Tipo>SC</Tipo>
+                    <Percentuale>15.00</Percentuale>
+                </ScontoMaggiorazione>
+                <PrezzoTotale>98.60</PrezzoTotale>
+                <AliquotaIVA>4.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>15</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>VSSRG8</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>VSSRG8</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>VASSOI GIOLLY N.8S KG.10 - MONTEVERDI</Descrizione>
+                <Quantita>20.000</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>2.18300000</PrezzoUnitario>
+                <PrezzoTotale>43.66</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>16</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>LVT2100V</CodiceValore>
+                </CodiceArticolo>
+                <CodiceArticolo>
+                    <CodiceTipo>Codice Art. fornitore</CodiceTipo>
+                    <CodiceValore>LVT2100V</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>LIEVITO VANIGLIATO BERTOLINI IN BUSTINE 1x100 - BERTOLINI</Descrizione>
+                <Quantita>1.000</Quantita>
+                <UnitaMisura>N</UnitaMisura>
+                <PrezzoUnitario>60.82600000</PrezzoUnitario>
+                <PrezzoTotale>60.83</PrezzoTotale>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Normale #NO#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>17</NumeroLinea>
+                <Descrizione>******************************************************** Assolve gli obblighi di cui all'art. 62, del decreto legge 24 gennaio 2010,n.1, convertito con modificazioni, dalla legge 24 marzo 2012, n.27. Il presente contratto e da intendersi a spot e si esaurisce con la consegna delle merci.</Descrizione>
+                <PrezzoUnitario>0.00000000</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Descrittivo #DE#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>18</NumeroLinea>
+                <Descrizione>Riga ausiliaria contenente informazioni tecniche e aggiuntive del documento</Descrizione>
+                <PrezzoUnitario>0.00000000</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswRelStd</TipoDato>
+                    <RiferimentoTesto>Versione #Asw0106#</RiferimentoTesto>
+                </AltriDatiGestionali>
+                <AltriDatiGestionali>
+                    <TipoDato>AswSwHouse</TipoDato>
+                    <RiferimentoTesto>TeamSystem S.p.a. / TS Enterprise</RiferimentoTesto>
+                </AltriDatiGestionali>
+                <AltriDatiGestionali>
+                    <TipoDato>AswDestB2B</TipoDato>
+                    <RiferimentoTesto>Recipient #M5UXCR1#</RiferimentoTesto>
+                </AltriDatiGestionali>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTipoDoc</TipoDato>
+                    <RiferimentoTesto>Fattura #TPD01#</RiferimentoTesto>
+                </AltriDatiGestionali>
+                <AltriDatiGestionali>
+                    <TipoDato>AswCarDoc</TipoDato>
+                    <RiferimentoTesto>Fattura documento di trasporto (accompagnatoria) #CD03#</RiferimentoTesto>
+                </AltriDatiGestionali>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTratSco</TipoDato>
+                    <RiferimentoTesto>Percentuali come righe sconto #PRS#</RiferimentoTesto>
+                </AltriDatiGestionali>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTratSco</TipoDato>
+                    <RiferimentoTesto>Valori come righe sconto #PRS#</RiferimentoTesto>
+                </AltriDatiGestionali>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Informazioni documento #ID#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>4.00</AliquotaIVA>
+                <ImponibileImporto>269.80</ImponibileImporto>
+                <Imposta>10.79</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+            </DatiRiepilogo>
+            <DatiRiepilogo>
+                <AliquotaIVA>10.00</AliquotaIVA>
+                <ImponibileImporto>201.86</ImponibileImporto>
+                <Imposta>20.19</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+            </DatiRiepilogo>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>141.89</ImponibileImporto>
+                <Imposta>31.22</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+        <DatiPagamento>
+            <CondizioniPagamento>TP02</CondizioniPagamento>
+            <DettaglioPagamento>
+                <ModalitaPagamento>MP05</ModalitaPagamento>
+                <DataRiferimentoTerminiPagamento>2026-01-22</DataRiferimentoTerminiPagamento>
+                <GiorniTerminiPagamento>39</GiorniTerminiPagamento>
+                <DataScadenzaPagamento>2026-03-02</DataScadenzaPagamento>
+                <ImportoPagamento>675.75</ImportoPagamento>
+            </DettaglioPagamento>
+        </DatiPagamento>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

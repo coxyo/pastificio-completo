@@ -116,19 +116,33 @@ export default function ImportFatture() {
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
-    const xmlFiles = files.filter(f => f.name.toLowerCase().endsWith('.xml'));
+    // Accetta sia XML che ZIP
+    const validFiles = files.filter(f => 
+      f.name.toLowerCase().endsWith('.xml') || 
+      f.name.toLowerCase().endsWith('.zip')
+    );
     
-    if (xmlFiles.length === 0) {
-      toast.error('Seleziona almeno un file XML');
+    if (validFiles.length === 0) {
+      toast.error('Seleziona almeno un file XML o ZIP');
       return;
     }
     
-    if (xmlFiles.length < files.length) {
-      toast.warning(`${files.length - xmlFiles.length} file non XML ignorati`);
+    if (validFiles.length < files.length) {
+      toast.warning(`${files.length - validFiles.length} file ignorati (solo XML e ZIP)`);
     }
     
-    setSelectedFiles(xmlFiles);
-    toast.info(`${xmlFiles.length} file XML selezionati`);
+    const xmlCount = validFiles.filter(f => f.name.toLowerCase().endsWith('.xml')).length;
+    const zipCount = validFiles.filter(f => f.name.toLowerCase().endsWith('.zip')).length;
+    
+    setSelectedFiles(validFiles);
+    
+    if (zipCount > 0 && xmlCount > 0) {
+      toast.info(`${xmlCount} XML + ${zipCount} ZIP selezionati`);
+    } else if (zipCount > 0) {
+      toast.info(`${zipCount} file ZIP selezionati (verranno estratti automaticamente)`);
+    } else {
+      toast.info(`${xmlCount} file XML selezionati`);
+    }
   };
 
   const handleUpload = async () => {
@@ -442,7 +456,7 @@ export default function ImportFatture() {
           {/* Area Selezione File */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
-              📁 Seleziona Fatture XML
+              📁 Seleziona Fatture XML o ZIP
             </Typography>
             
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -450,7 +464,7 @@ export default function ImportFatture() {
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".xml"
+                accept=".xml,.zip"
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
                 id="file-input"

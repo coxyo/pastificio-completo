@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>01879020517</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>9025706977</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>0000000</CodiceDestinatario>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>01573850516</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>04552920482</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>ARUBA SPA</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA SAN CLEMENTE</Indirizzo>
+                <NumeroCivico>53</NumeroCivico>
+                <CAP>24036</CAP>
+                <Comune>PONTE SAN PIETRO</Comune>
+                <Provincia>BG</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+            <IscrizioneREA>
+                <Ufficio>BG</Ufficio>
+                <NumeroREA>434483</NumeroREA>
+                <CapitaleSociale>4000000.00</CapitaleSociale>
+                <StatoLiquidazione>LN</StatoLiquidazione>
+            </IscrizioneREA>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>Pastificio Nonna Claudia di Mameli Mauri zio</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>Via Carmine</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>Assemini</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2025-12-31</Data>
+                <Numero>1000251000541157</Numero>
+                <ImportoTotaleDocumento>12.21</ImportoTotaleDocumento>
+            </DatiGeneraliDocumento>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>10</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>FORN</CodiceTipo>
+                    <CodiceValore>FIB_FIB_MAT_PXL_001</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>Ordine nr: 180316897  - Fibra Aruba PRO XL  -   - - Codice Migrazione: U0AOFCSPDJAV4KAOFA-B - Codice Migrazione Fonia: 9AX12345678222G - Mese Traffico: 11/2025 - Numero Chiamate: 0 - Durata Totale: 00:00:00 - Durata Media: 00:00:00</Descrizione>
+                <Quantita>1.000</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <DataInizioPeriodo>2025-12-03</DataInizioPeriodo>
+                <DataFinePeriodo>2026-01-03</DataFinePeriodo>
+                <PrezzoUnitario>55.50000000</PrezzoUnitario>
+                <PrezzoTotale>55.50</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>20</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>FORN</CodiceTipo>
+                    <CodiceValore>FIB_FIB_MAT_CBM_001</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>Ordine nr: 180316897  - Contributo ministeriale canone mensile  -   -</Descrizione>
+                <Quantita>1.000</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <PrezzoUnitario>-55.50000000</PrezzoUnitario>
+                <PrezzoTotale>-55.50</PrezzoTotale>
+                <AliquotaIVA>0.00</AliquotaIVA>
+                <Natura>N2.2</Natura>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>55.50</ImponibileImporto>
+                <Imposta>12.21</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+                <RiferimentoNormativo>Iva vendite 22%</RiferimentoNormativo>
+            </DatiRiepilogo>
+            <DatiRiepilogo>
+                <AliquotaIVA>0.00</AliquotaIVA>
+                <Natura>N2.2</Natura>
+                <ImponibileImporto>-55.50</ImponibileImporto>
+                <Imposta>0.00</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+                <RiferimentoNormativo>Fuori campo Iva su vendite</RiferimentoNormativo>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

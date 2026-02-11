@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE AGGIORNATA CON GRAFICI CORRISPETTIVI
+// app/ClientLayout.js - VERSIONE AGGIORNATA CON NOTIFICA FATTURE
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -30,11 +30,12 @@ import {
   Phone as PhoneIcon,
   HealthAndSafety,
   AccountBalance,
-  TrendingUp,  // ✅ Icona Grafici
-  UploadFile   // ✅ NUOVO: Icona Import Fatture
+  TrendingUp,
+  UploadFile
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
+import NotificaFatture from '@/components/NotificaFatture';  // ✅ NUOVO
 
 const drawerWidth = 240;
 
@@ -47,10 +48,10 @@ const menuItems = [
   { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
   { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
   { id: 'fatturazione', title: 'Fatturazione', icon: <Receipt />, path: '/fatturazione' },
-  { id: 'import-fatture', title: 'Import Fatture', icon: <UploadFile />, path: '/import-fatture' },  // ✅ NUOVO
+  { id: 'import-fatture', title: 'Import Fatture', icon: <UploadFile />, path: '/import-fatture' },
   { id: 'haccp', title: 'HACCP', icon: <HealthAndSafety />, path: '/haccp' },
   { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi' },
-  { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici' },  // ✅ NUOVO
+  { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici' },
   { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni' }
 ];
 
@@ -61,14 +62,14 @@ export default function ClientLayout({ children }) {
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
 
-  // ✅ Hook per gestire chiamate in arrivo
+  // Hook per gestire chiamate in arrivo
   const { chiamataCorrente, clearChiamata, connected, pusherService } = useIncomingCall();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // ✅ INIZIALIZZAZIONE ESPLICITA PUSHER
+  // INIZIALIZZAZIONE ESPLICITA PUSHER
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
 
@@ -200,7 +201,7 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* ✅ Indicatore Pusher WebSocket */}
+          {/* Indicatore Pusher WebSocket */}
           {mounted && (
             <Box
               sx={{
@@ -273,7 +274,7 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* ✅ Popup Chiamata in Arrivo */}
+      {/* Popup Chiamata in Arrivo */}
       {mounted && chiamataCorrente && (
         <CallPopup
           chiamata={chiamataCorrente}
@@ -281,6 +282,9 @@ export default function ClientLayout({ children }) {
           onSaveNote={handleSaveNote}
         />
       )}
+
+      {/* ✅ NUOVO: Notifica Giornaliera Fatture */}
+      {mounted && <NotificaFatture />}
     </Box>
   );
 }

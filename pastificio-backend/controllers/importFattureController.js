@@ -4,6 +4,7 @@
 import { parseStringPromise } from 'xml2js';
 import crypto from 'crypto';
 import fs from 'fs';
+import AdmZip from 'adm-zip';
 import ImportFattura from '../models/ImportFattura.js';
 import MappingProdottiFornitore from '../models/MappingProdottiFornitore.js';
 import Ingrediente from '../models/Ingrediente.js';
@@ -376,7 +377,7 @@ const calcolaHash = (content) => {
 // ==========================================
 
 /**
- * Upload e parsing fatture XML
+ * Upload e parsing fatture XML (supporta anche file ZIP)
  */
 export const uploadFatture = async (req, res) => {
   try {
@@ -393,199 +394,143 @@ export const uploadFatture = async (req, res) => {
     
     const risultati = [];
     
+    // Funzione helper per processare un singolo XML
+    const processaXML = async (xmlContent, nomeFile) => {
+      logger.info(`Contenuto file ${nomeFile}: lunghezza=${xmlContent.length}`);
+      
+      if (!xmlContent || xmlContent.length === 0) {
+        return {
+          file: nomeFile,
+          stato: 'errore',
+          messaggio: 'File vuoto o non leggibile'
+        };
+      }
+      
+      // Calcola hash per verifica duplicati
+      const hash = calcolaHash(xmlContent);
+      
+      // Verifica se già processato
+      const esistente = await ImportFattura.fileGiaProcessato(hash);
+      if (esistente) {
+        return {
+          file: nomeFile,
+          stato: 'duplicato',
+          messaggio: `Fattura già importata il ${esistente.createdAt?.toLocaleDateString('it-IT') || 'data sconosciuta'}`,
+          importazioneEsistente: esistente._id
+        };
+      }
+      
+      // Parsing XML
+      const datiParsed = await parseXMLFattura(xmlContent);
+      
+      return {
+        file: nomeFile,
+        stato: 'analizzato',
+        ...datiParsed,
+        fileInfo: {
+          nome: nomeFile,
+          hash: hash
+        }
+      };
+    };
+    
     for (const file of files) {
       try {
         // Debug: info sul file ricevuto
-        logger.info(`File ricevuto: nome=${file.name}, size=${file.size}, mimetype=${file.mimetype}, tempFilePath=${file.tempFilePath || 'N/A'}`);
+        logger.info(`File ricevuto: nome=${file.name}, size=${file.size}, mimetype=${file.mimetype}`);
         
-        // Leggi contenuto XML - supporta sia tempFiles che buffer
-        let xmlContent = '';
+        // Determina se è un file ZIP
+        const isZip = file.name.toLowerCase().endsWith('.zip');
         
-        if (file.tempFilePath) {
-          // express-fileupload con useTempFiles: true
-          xmlContent = fs.readFileSync(file.tempFilePath, 'utf8');
-          logger.info(`Letto da tempFile: ${file.tempFilePath}`);
-        } else if (file.data) {
-          // express-fileupload con useTempFiles: false (buffer)
-          xmlContent = file.data.toString('utf8');
-          logger.info(`Letto da buffer data`);
-        }
-        
-        logger.info(`Contenuto file ${file.name}: lunghezza=${xmlContent.length}`);
-        
-        if (!xmlContent || xmlContent.length === 0) {
-          risultati.push({
-            file: file.name,
-            stato: 'errore',
-            messaggio: 'File vuoto o non leggibile'
-          });
-          continue;
-        }
-        
-        const hash = calcolaHash(xmlContent);
-        
-        // Verifica se già processato
-        const esistente = await ImportFattura.fileGiaProcessato(hash);
-        if (esistente) {
-          risultati.push({
-            file: file.name,
-            stato: 'duplicato',
-            messaggio: `Fattura già importata il ${esistente.dataImportazione.toLocaleDateString('it-IT')}`,
-            fattura: {
-              numero: esistente.numero,
-              data: esistente.data,
-              fornitore: esistente.nomeFornitore
-            }
-          });
-          continue;
-        }
-        
-        // Parse XML
-        const dati = await parseXMLFattura(xmlContent);
-        
-        // Verifica se fattura già importata (per numero/anno)
-        const esistentePerNumero = await ImportFattura.esisteGia(
-          dati.fornitore.partitaIva,
-          dati.documento.numero,
-          dati.documento.data.getFullYear()
-        );
-        
-        if (esistentePerNumero) {
-          risultati.push({
-            file: file.name,
-            stato: 'duplicato',
-            messaggio: `Fattura ${dati.documento.numero}/${dati.documento.data.getFullYear()} già importata`,
-            fattura: {
-              numero: esistentePerNumero.numero,
-              data: esistentePerNumero.data,
-              fornitore: esistentePerNumero.nomeFornitore
-            }
-          });
-          continue;
-        }
-        
-        // Carica ingredienti per matching
-        const ingredienti = await Ingrediente.find({ attivo: true }).lean();
-        
-        // Cerca mapping esistenti e suggerisci per ogni riga
-        const righeConMapping = await Promise.all(dati.righe.map(async (riga) => {
-          // Cerca mapping esistente
-          const { mapping, nuovo } = await MappingProdottiFornitore.trovaOCrea(
-            dati.fornitore,
-            riga.descrizione,
-            riga.codiceArticolo
-          );
+        if (isZip) {
+          // ========== GESTIONE FILE ZIP ==========
+          logger.info(`📦 Elaborazione file ZIP: ${file.name}`);
           
-          if (mapping) {
-            // Mapping esistente trovato
-            return {
-              ...riga,
-              mapping: {
-                trovato: true,
-                ingredienteId: mapping.prodottoMagazzino.ingredienteId,
-                ingredienteNome: mapping.prodottoMagazzino.nome,
-                categoria: mapping.prodottoMagazzino.categoria,
-                confermato: mapping.confermatoManualmente,
-                score: 100
-              }
-            };
+          let zipBuffer;
+          if (file.tempFilePath) {
+            zipBuffer = fs.readFileSync(file.tempFilePath);
+          } else if (file.data) {
+            zipBuffer = file.data;
           }
           
-          // Cerca suggerimento automatico
-          const suggerimento = await MappingProdottiFornitore.suggerisciProdotto(
-            riga.descrizione,
-            ingredienti
+          const zip = new AdmZip(zipBuffer);
+          const zipEntries = zip.getEntries();
+          
+          // Filtra solo file XML
+          const xmlEntries = zipEntries.filter(entry => 
+            !entry.isDirectory && 
+            entry.entryName.toLowerCase().endsWith('.xml')
           );
           
-          if (suggerimento) {
-            return {
-              ...riga,
-              mapping: {
-                trovato: false,
-                suggerito: true,
-                ingredienteId: suggerimento.ingrediente._id,
-                ingredienteNome: suggerimento.ingrediente.nome,
-                categoria: suggerimento.ingrediente.categoria,
-                score: suggerimento.score
-              }
-            };
-          }
+          logger.info(`📦 Trovati ${xmlEntries.length} file XML nel ZIP ${file.name}`);
           
-          // Cerca mapping simili di altri prodotti dello stesso fornitore
-          const simili = await MappingProdottiFornitore.cercaSimilari(
-            dati.fornitore.partitaIva,
-            riga.descrizione
-          );
-          
-          return {
-            ...riga,
-            mapping: {
-              trovato: false,
-              suggerito: false,
-              simili: simili.slice(0, 3).map(s => ({
-                descrizione: s.mapping.descrizioneFornitore,
-                ingredienteNome: s.mapping.prodottoMagazzino.nome,
-                score: s.score
-              }))
+          for (const entry of xmlEntries) {
+            try {
+              const xmlContent = entry.getData().toString('utf8');
+              const nomeFile = entry.entryName.split('/').pop(); // Prendi solo il nome file senza path
+              
+              const risultato = await processaXML(xmlContent, nomeFile);
+              risultati.push(risultato);
+              
+            } catch (entryError) {
+              logger.error(`Errore parsing ${entry.entryName} da ZIP:`, entryError);
+              risultati.push({
+                file: entry.entryName,
+                stato: 'errore',
+                messaggio: `Errore parsing: ${entryError.message}`
+              });
             }
-          };
-        }));
-        
-        // Cerca fornitore nel database
-        let fornitoreDb = null;
-        if (dati.fornitore.partitaIva) {
-          fornitoreDb = await Fornitore.findOne({ 
-            partitaIva: dati.fornitore.partitaIva 
-          });
-        }
-        
-        risultati.push({
-          file: file.name,
-          stato: 'analizzato',
-          fattura: {
-            tipoDocumento: dati.documento.tipoDocumento,
-            numero: dati.documento.numero,
-            data: dati.documento.data,
-            importoTotale: dati.documento.importoTotale,
-            imponibile: dati.imponibile,
-            imposta: dati.imposta
-          },
-          fornitore: {
-            ...dati.fornitore,
-            esisteInDb: !!fornitoreDb,
-            fornitoreDbId: fornitoreDb?._id
-          },
-          ddt: dati.ddt,
-          righe: righeConMapping,
-          fileInfo: {
-            nome: file.name,
-            dimensione: file.size,
-            hash: hash
           }
-        });
+          
+          if (xmlEntries.length === 0) {
+            risultati.push({
+              file: file.name,
+              stato: 'errore',
+              messaggio: 'Nessun file XML trovato nel ZIP'
+            });
+          }
+          
+        } else {
+          // ========== GESTIONE FILE XML SINGOLO ==========
+          let xmlContent = '';
+          
+          if (file.tempFilePath) {
+            xmlContent = fs.readFileSync(file.tempFilePath, 'utf8');
+            logger.info(`Letto da tempFile: ${file.tempFilePath}`);
+          } else if (file.data) {
+            xmlContent = file.data.toString('utf8');
+            logger.info(`Letto da buffer data`);
+          }
+          
+          const risultato = await processaXML(xmlContent, file.name);
+          risultati.push(risultato);
+        }
         
       } catch (fileError) {
+        logger.error(`Errore elaborazione file ${file.name}:`, fileError);
         risultati.push({
           file: file.name,
           stato: 'errore',
-          messaggio: fileError.message
+          messaggio: `Errore: ${fileError.message}`
         });
       }
     }
     
-    // Carica lista ingredienti per dropdown frontend
-    const ingredienti = await Ingrediente.find({ attivo: true })
-      .select('_id nome categoria unitaMisura')
-      .sort('nome')
-      .lean();
+    // Statistiche
+    const stats = {
+      totale: risultati.length,
+      analizzati: risultati.filter(r => r.stato === 'analizzato').length,
+      duplicati: risultati.filter(r => r.stato === 'duplicato').length,
+      errori: risultati.filter(r => r.stato === 'errore').length
+    };
     
-    logger.info(`Ingredienti trovati per dropdown: ${ingredienti.length}`);
+    logger.info(`📊 Upload completato: ${stats.analizzati} analizzati, ${stats.duplicati} duplicati, ${stats.errori} errori`);
     
     res.json({
       success: true,
       data: {
         risultati,
-        ingredienti
+        statistiche: stats
       }
     });
     

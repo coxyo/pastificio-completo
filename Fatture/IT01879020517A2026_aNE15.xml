@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>01879020517</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>114</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>M5UXCR1</CodiceDestinatario>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>03505220925</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>03505220925</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>Quattro Mori Antincendio snc di Alberto ed Emanuele Casu</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>Via Funtana Manna</Indirizzo>
+                <NumeroCivico>11</NumeroCivico>
+                <CAP>09040</CAP>
+                <Comune>Barrali</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+            <Contatti>
+                <Email>info@4moriantincendio.com</Email>
+            </Contatti>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>PASTIFICIO NONNA CLAUDIA DI MAMELI MAURIZIO</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA CARMINE</Indirizzo>
+                <NumeroCivico>20/B</NumeroCivico>
+                <CAP>09032</CAP>
+                <Comune>Assemini</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-02-04</Data>
+                <Numero>FPR 114/26</Numero>
+                <ImportoTotaleDocumento>20.00</ImportoTotaleDocumento>
+            </DatiGeneraliDocumento>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>1</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>4MAEST</CodiceTipo>
+                    <CodiceValore>ESTINTORE</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>MANUTENZIONE SEMESTRALE ORDINARIA UNI 9994-1 4.5 ESTINTORI</Descrizione>
+                <Quantita>2.00</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <PrezzoUnitario>8.19672131</PrezzoUnitario>
+                <PrezzoTotale>16.39344262</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>16.39</ImponibileImporto>
+                <Imposta>3.61</Imposta>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+        <DatiPagamento>
+            <CondizioniPagamento>TP02</CondizioniPagamento>
+            <DettaglioPagamento>
+                <ModalitaPagamento>MP01</ModalitaPagamento>
+                <DataScadenzaPagamento>2026-02-04</DataScadenzaPagamento>
+                <ImportoPagamento>20.00</ImportoPagamento>
+            </DettaglioPagamento>
+        </DatiPagamento>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>
