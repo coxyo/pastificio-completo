@@ -1,6 +1,6 @@
 // config/prodottiConfig.js
-// ✅ VERSIONE AGGIORNATA - 12 Dicembre 2025
-// Aggiunto: Panada Anguille, migliorata ricerca prodotti
+// ✅ VERSIONE AGGIORNATA - 11 Febbraio 2026
+// Aggiunto: Chiacchere (dolce carnevale)
 
 export const MODALITA_VENDITA = {
   SOLO_KG: 'solo_kg',
@@ -269,6 +269,15 @@ export const PRODOTTI_CONFIG = {
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
+  // ✅ NUOVO 11/02/2026: Chiacchere
+  'Chiacchere': {
+    categoria: 'Dolci',
+    prezzoKg: 17.00,
+    pezziPerKg: 25,
+    modalitaVendita: MODALITA_VENDITA.MISTA,
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+  },
+
   'Gueffus': {
     categoria: 'Dolci',
     prezzoKg: 22.00,
@@ -531,7 +540,9 @@ export const getProdottoConfig = (nomeProdotto) => {
     'dolci misti': 'Dolci misti',
     'fregula': 'Fregula',
     'torta': 'Torta di saba',
-    'zeppole': 'Zeppole'        // ✅ NUOVO
+    'zeppole': 'Zeppole',        // ✅ NUOVO
+    'chiacchere': 'Chiacchere',   // ✅ NUOVO 11/02/2026
+    'chiacchiere': 'Chiacchere'   // ✅ ALIAS (ortografia alternativa)
   };
   
   const nomeLower = nomeNormalizzato.toLowerCase();
