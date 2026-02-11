@@ -269,13 +269,31 @@ export const PRODOTTI_CONFIG = {
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
   },
 
-  // ✅ NUOVO 11/02/2026: Chiacchere
+  // ✅ NUOVO 11/02/2026: Chiacchere (15g/pezzo = ~67 pz/kg)
   'Chiacchere': {
     categoria: 'Dolci',
+    hasVarianti: true,
     prezzoKg: 17.00,
-    pezziPerKg: 25,
+    pezziPerKg: 67,
     modalitaVendita: MODALITA_VENDITA.MISTA,
-    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+    unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.PEZZI, UNITA_MISURA.EURO],
+    varianti: [
+      {
+        nome: 'zucchero_velo',
+        label: 'Chiacchere con zucchero a velo',
+        prezzoKg: 17.00
+      },
+      {
+        nome: 'zucchero_granulato',
+        label: 'Chiacchere con zucchero granulato',
+        prezzoKg: 17.00
+      },
+      {
+        nome: 'cioccolato',
+        label: 'Chiacchere con cioccolato',
+        prezzoKg: 17.00
+      }
+    ]
   },
 
   'Gueffus': {
