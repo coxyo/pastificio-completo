@@ -36,6 +36,7 @@ import {
   Divider,
   CircularProgress,
   Chip,
+  InputAdornment,
   Tabs,
   Tab,
   Alert,
@@ -2281,89 +2282,163 @@ useEffect(() => {
                 </Typography>
                 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {/* Nome */}
-                  <Autocomplete
-                    freeSolo
-                    size="small"
-                    blurOnSelect={true}
-                    clearOnBlur={false}
-                    openOnFocus={false}
-                    autoHighlight={false}
-                    disablePortal
-                    ListboxProps={{
-                      style: { maxHeight: 180 }
-                    }}
-                    componentsProps={{
-                      popper: {
-                        sx: { zIndex: 1300 }
-                      }
-                    }}
-                    options={clienti}
-                    getOptionLabel={(option) => {
-                      if (typeof option === 'string') return option;
-                      return option.nome || '';
-                    }}
-                    filterOptions={(options, { inputValue }) => {
-                      const input = inputValue.toLowerCase().trim();
-                      if (input.length < 2) return [];
-                      return options.filter(opt => {
-                        const nome = (opt.nome || '').toLowerCase();
-                        const cognome = (opt.cognome || '').toLowerCase();
-                        const nomeCompleto = `${nome} ${cognome}`;
-                        const telefono = (opt.telefono || '').toLowerCase();
-                        return nome.includes(input) || cognome.includes(input) || 
-                               nomeCompleto.includes(input) || telefono.includes(input);
-                      }).slice(0, 5);
-                    }}
-                    value={formData.cliente || formData.nome}
-                    inputValue={formData.nome}
-                    onInputChange={(event, newInputValue, reason) => {
-                      if (reason === 'reset') return;
-                      setFormData(prev => ({
-                        ...prev,
-                        nome: capitalizeFirst(newInputValue),
-                        nomeCliente: `${capitalizeFirst(newInputValue)} ${prev.cognome || ''}`.trim(),
-                        cliente: null
-                      }));
-                    }}
-                    onChange={(event, newValue) => {
-                      if (newValue && typeof newValue === 'object') {
+                  {/* Nome - Inline Autocomplete + Chip */}
+                  <Box sx={{ position: 'relative' }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Nome *"
+                      placeholder="Cerca cliente..."
+                      value={formData.nome}
+                      onChange={(e) => {
+                        const val = capitalizeFirst(e.target.value);
                         setFormData(prev => ({
                           ...prev,
-                          cliente: newValue,
-                          nome: newValue.nome || '',
-                          cognome: newValue.cognome || '',
-                          nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
-                          telefono: prev.telefono || newValue.telefono || ''
+                          nome: val,
+                          nomeCliente: `${val} ${prev.cognome || ''}`.trim(),
+                          cliente: null
                         }));
-                        // Focus sul campo cognome dopo selezione
-                        setTimeout(() => {
-                          const cognomeField = document.getElementById('campo-cognome');
-                          if (cognomeField) cognomeField.focus();
-                        }, 100);
-                      }
-                    }}
-                    loading={loadingClienti}
-                    renderOption={(props, option) => (
-                      <li {...props} key={option._id} style={{ ...props.style, padding: '10px 16px' }}>
-                        <Box>
-                          <Typography variant="body2" fontWeight="bold">
-                            {option.nome} {option.cognome || ''}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            📞 {option.telefono || 'N/D'}
-                          </Typography>
-                        </Box>
-                      </li>
-                    )}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Nome *"
-                        placeholder="Cerca cliente..."
-                      />
-                    )}
-                  />
+                      }}
+                      onKeyDown={(e) => {
+                        // Tab o Freccia Destra → accetta suggerimento inline
+                        if ((e.key === 'Tab' || e.key === 'ArrowRight') && formData.nome.length >= 2) {
+                          const input = formData.nome.toLowerCase().trim();
+                          const match = clienti.find(c => {
+                            const nome = (c.nome || '').toLowerCase();
+                            return nome.startsWith(input) && nome !== input;
+                          });
+                          if (match) {
+                            e.preventDefault();
+                            setFormData(prev => ({
+                              ...prev,
+                              cliente: match,
+                              nome: match.nome || '',
+                              cognome: match.cognome || '',
+                              nomeCliente: `${match.nome} ${match.cognome || ''}`.trim(),
+                              telefono: prev.telefono || match.telefono || ''
+                            }));
+                            setTimeout(() => {
+                              const cognomeField = document.getElementById('campo-cognome');
+                              if (cognomeField) cognomeField.focus();
+                            }, 50);
+                          }
+                        }
+                      }}
+                      InputProps={{
+                        endAdornment: (() => {
+                          // Mostra suggerimento inline in grigio
+                          if (formData.nome.length >= 2 && !formData.cliente) {
+                            const input = formData.nome.toLowerCase().trim();
+                            const match = clienti.find(c => {
+                              const nome = (c.nome || '').toLowerCase();
+                              return nome.startsWith(input) && nome !== input;
+                            });
+                            if (match) {
+                              return (
+                                <InputAdornment position="end">
+                                  <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                      color: '#999', 
+                                      fontSize: '0.85rem',
+                                      whiteSpace: 'nowrap',
+                                      pointerEvents: 'none'
+                                    }}
+                                  >
+                                    → {match.nome} {match.cognome || ''}
+                                  </Typography>
+                                </InputAdornment>
+                              );
+                            }
+                          }
+                          return null;
+                        })()
+                      }}
+                    />
+                  </Box>
+
+                  {/* Chip suggerimenti clienti - appaiono sotto il campo nome */}
+                  {formData.nome.length >= 2 && !formData.cliente && (() => {
+                    const input = formData.nome.toLowerCase().trim();
+                    const matches = clienti.filter(c => {
+                      const nome = (c.nome || '').toLowerCase();
+                      const cognome = (c.cognome || '').toLowerCase();
+                      const nomeCompleto = `${nome} ${cognome}`;
+                      const telefono = (c.telefono || '').toLowerCase();
+                      return nome.includes(input) || cognome.includes(input) || 
+                             nomeCompleto.includes(input) || telefono.includes(input);
+                    }).slice(0, 4);
+                    
+                    if (matches.length === 0) return null;
+                    
+                    return (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: 0.5, 
+                        mt: -0.5,
+                        mb: 0.5
+                      }}>
+                        {matches.map((cliente) => (
+                          <Chip
+                            key={cliente._id}
+                            label={`${cliente.nome} ${cliente.cognome || ''} ${cliente.telefono ? '📞' + cliente.telefono.slice(-4) : ''}`}
+                            size="small"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                cliente: cliente,
+                                nome: cliente.nome || '',
+                                cognome: cliente.cognome || '',
+                                nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
+                                telefono: prev.telefono || cliente.telefono || ''
+                              }));
+                              setTimeout(() => {
+                                const cognomeField = document.getElementById('campo-cognome');
+                                if (cognomeField) cognomeField.focus();
+                              }, 50);
+                            }}
+                            sx={{
+                              cursor: 'pointer',
+                              bgcolor: '#e3f2fd',
+                              border: '1px solid #90caf9',
+                              fontWeight: 500,
+                              fontSize: '0.8rem',
+                              height: 36,
+                              '&:hover': { bgcolor: '#bbdefb' },
+                              '&:active': { bgcolor: '#90caf9', transform: 'scale(0.95)' }
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    );
+                  })()}
+
+                  {/* Cliente selezionato - conferma visiva */}
+                  {formData.cliente && (
+                    <Chip
+                      label={`✅ ${formData.cliente.nome} ${formData.cliente.cognome || ''} ${formData.cliente.telefono ? '- 📞' + formData.cliente.telefono : ''}`}
+                      onDelete={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          cliente: null,
+                          nome: '',
+                          cognome: '',
+                          telefono: '',
+                          nomeCliente: ''
+                        }));
+                      }}
+                      size="small"
+                      sx={{
+                        bgcolor: '#c8e6c9',
+                        border: '1px solid #66bb6a',
+                        fontWeight: 'bold',
+                        fontSize: '0.8rem',
+                        height: 32,
+                        mt: -0.5
+                      }}
+                    />
+                  )}
                   
                   {/* Cognome */}
                   <TextField
