@@ -2440,19 +2440,125 @@ useEffect(() => {
                     />
                   )}
                   
-                  {/* Cognome */}
-                  <TextField
-                    fullWidth
-                    size="small"
-                    id="campo-cognome"
-                    label="Cognome"
-                    value={formData.cognome}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      cognome: capitalizeFirst(e.target.value),
-                      nomeCliente: `${prev.nome || ''} ${capitalizeFirst(e.target.value)}`.trim()
-                    }))}
-                  />
+                  {/* Cognome - con inline suggestion + chip */}
+                  <Box sx={{ position: 'relative' }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      id="campo-cognome"
+                      label="Cognome"
+                      placeholder="Cerca per cognome..."
+                      value={formData.cognome}
+                      onChange={(e) => {
+                        const val = capitalizeFirst(e.target.value);
+                        setFormData(prev => ({
+                          ...prev,
+                          cognome: val,
+                          nomeCliente: `${prev.nome || ''} ${val}`.trim(),
+                          cliente: null
+                        }));
+                      }}
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Tab' || e.key === 'ArrowRight') && formData.cognome.length >= 2) {
+                          const input = formData.cognome.toLowerCase().trim();
+                          const match = clienti.find(c => {
+                            const cognome = (c.cognome || '').toLowerCase();
+                            return cognome.startsWith(input) && cognome !== input;
+                          });
+                          if (match) {
+                            e.preventDefault();
+                            setFormData(prev => ({
+                              ...prev,
+                              cliente: match,
+                              nome: match.nome || '',
+                              cognome: match.cognome || '',
+                              nomeCliente: `${match.nome} ${match.cognome || ''}`.trim(),
+                              telefono: prev.telefono || match.telefono || ''
+                            }));
+                          }
+                        }
+                      }}
+                      InputProps={{
+                        endAdornment: (() => {
+                          if (formData.cognome.length >= 2 && !formData.cliente) {
+                            const input = formData.cognome.toLowerCase().trim();
+                            const match = clienti.find(c => {
+                              const cognome = (c.cognome || '').toLowerCase();
+                              return cognome.startsWith(input) && cognome !== input;
+                            });
+                            if (match) {
+                              return (
+                                <InputAdornment position="end">
+                                  <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                      color: '#999', 
+                                      fontSize: '0.85rem',
+                                      whiteSpace: 'nowrap',
+                                      pointerEvents: 'none'
+                                    }}
+                                  >
+                                    → {match.nome} {match.cognome || ''}
+                                  </Typography>
+                                </InputAdornment>
+                              );
+                            }
+                          }
+                          return null;
+                        })()
+                      }}
+                    />
+                  </Box>
+
+                  {/* Chip suggerimenti per cognome */}
+                  {formData.cognome.length >= 2 && !formData.cliente && (() => {
+                    const input = formData.cognome.toLowerCase().trim();
+                    const matches = clienti.filter(c => {
+                      const cognome = (c.cognome || '').toLowerCase();
+                      const nomeCompleto = `${(c.nome || '')} ${cognome}`.toLowerCase();
+                      return cognome.includes(input) || nomeCompleto.includes(input);
+                    }).slice(0, 4);
+                    
+                    if (matches.length === 0) return null;
+                    
+                    return (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: 0.5, 
+                        mt: -0.5,
+                        mb: 0.5
+                      }}>
+                        {matches.map((cliente) => (
+                          <Chip
+                            key={cliente._id}
+                            label={`${cliente.nome} ${cliente.cognome || ''} ${cliente.telefono ? '📞' + cliente.telefono.slice(-4) : ''}`}
+                            size="small"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                cliente: cliente,
+                                nome: cliente.nome || '',
+                                cognome: cliente.cognome || '',
+                                nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
+                                telefono: prev.telefono || cliente.telefono || ''
+                              }));
+                            }}
+                            sx={{
+                              cursor: 'pointer',
+                              bgcolor: '#e3f2fd',
+                              border: '1px solid #90caf9',
+                              fontWeight: 500,
+                              fontSize: '0.8rem',
+                              height: 36,
+                              '&:hover': { bgcolor: '#bbdefb' },
+                              '&:active': { bgcolor: '#90caf9', transform: 'scale(0.95)' }
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    );
+                  })()}
                   
                   {/* Telefono */}
                   <TextField
