@@ -1,4 +1,4 @@
-// models/LimiteGiornaliero.js - ✅ CON METODO AGGIORNA
+// models/LimiteGiornaliero.js - ✅ AGGIORNAMENTO 12/02/2026: Supporto fascia MATTINA/SERA
 import mongoose from 'mongoose';
 
 const limiteGiornalieroSchema = new mongoose.Schema({
@@ -16,6 +16,12 @@ const limiteGiornalieroSchema = new mongoose.Schema({
     type: String,
     index: true,
     sparse: true
+  },
+  // ✅ NUOVO 12/02/2026: Fascia oraria
+  fascia: {
+    type: String,
+    enum: ['giornaliero', 'mattina', 'sera'],
+    default: 'giornaliero'
   },
   limiteQuantita: {
     type: Number,
@@ -49,9 +55,9 @@ const limiteGiornalieroSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index composto per evitare duplicati
-limiteGiornalieroSchema.index({ data: 1, prodotto: 1 }, { unique: true, sparse: true });
-limiteGiornalieroSchema.index({ data: 1, categoria: 1 }, { unique: true, sparse: true });
+// ✅ AGGIORNATO: Index composto con fascia per evitare duplicati
+limiteGiornalieroSchema.index({ data: 1, prodotto: 1, fascia: 1 }, { unique: true, sparse: true });
+limiteGiornalieroSchema.index({ data: 1, categoria: 1, fascia: 1 }, { unique: true, sparse: true });
 
 // Validazione: deve avere O prodotto O categoria
 limiteGiornalieroSchema.pre('save', function(next) {
@@ -66,7 +72,8 @@ limiteGiornalieroSchema.pre('save', function(next) {
 
 // ✅ METODO STATICO: Verifica se ordine supera limiti
 // FIX 20/01/2026: Calcola totale ordini DINAMICAMENTE invece di usare quantitaOrdinata
-limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prodotti) {
+// FIX 12/02/2026: Supporto fascia mattina/sera
+limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prodotti, oraRitiro) {
   try {
     const data = new Date(dataRitiro);
     data.setHours(0, 0, 0, 0);
@@ -74,10 +81,17 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
     const dataFine = new Date(data);
     dataFine.setDate(dataFine.getDate() + 1);
     
-    // Trova tutti i limiti attivi per quella data
+    // ✅ Determina fascia dall'ora di ritiro
+    const fasciaOrdine = (oraRitiro && oraRitiro >= '14:00') ? 'sera' : 'mattina';
+    
+    // Trova tutti i limiti attivi per quella data (sia giornalieri che per fascia)
     const limiti = await this.find({
       data,
-      attivo: true
+      attivo: true,
+      $or: [
+        { fascia: 'giornaliero' },
+        { fascia: fasciaOrdine }
+      ]
     });
     
     if (limiti.length === 0) {
@@ -104,14 +118,13 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
       
       if (unit === 'kg') return qty;
       if (unit === 'g') return qty / 1000;
-      if (unit === 'pz' || unit === 'pezzi') return qty / 24; // Zeppole: 24 pz = 1 Kg
-      if (unit === '€' || unit === 'euro') return qty / 21;   // Zeppole: €21 = 1 Kg
+      if (unit === 'pz' || unit === 'pezzi') return qty / 24;
+      if (unit === '€' || unit === 'euro') return qty / 21;
       
       return qty;
     };
     
     prodotti.forEach(p => {
-      // Skip vassoi (già espansi nei dettagli)
       if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti') {
         return;
       }
@@ -120,24 +133,29 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
       const categoria = p.categoria || 'Altro';
       const quantitaKg = convertiInKg(p.quantita, p.unita || p.unitaMisura);
       
-      // Raggruppa per prodotto
       prodottiMap[nome] = (prodottiMap[nome] || 0) + quantitaKg;
-      
-      // Raggruppa per categoria
       categorieMap[categoria] = (categorieMap[categoria] || 0) + quantitaKg;
     });
     
     // Verifica ogni limite
     for (const limite of limiti) {
-      // Limite per prodotto specifico
       if (limite.prodotto) {
         const quantitaOrdineNuovo = prodottiMap[limite.prodotto] || 0;
         
-        // ✅ FIX: Calcola totale ordini ESISTENTI dinamicamente
-        const ordiniEsistenti = await Ordine.find({
+        // ✅ Calcola totale ordini ESISTENTI dinamicamente, filtrato per fascia
+        let queryOrdini = {
           dataRitiro: { $gte: data, $lt: dataFine },
           'prodotti.nome': { $regex: new RegExp(`^${limite.prodotto}$`, 'i') }
-        }).lean();
+        };
+        
+        // ✅ NUOVO: Filtra ordini per fascia oraria
+        if (limite.fascia === 'mattina') {
+          queryOrdini.oraRitiro = { $lt: '14:00' };
+        } else if (limite.fascia === 'sera') {
+          queryOrdini.oraRitiro = { $gte: '14:00' };
+        }
+        
+        const ordiniEsistenti = await Ordine.find(queryOrdini).lean();
         
         let totaleOrdiniEsistenti = 0;
         ordiniEsistenti.forEach(ordine => {
@@ -148,18 +166,18 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
           });
         });
         
-        // Totale = ordini esistenti + vendite dirette + nuovo ordine
         const venditeDirette = limite.quantitaOrdinata || 0;
         const quantitaTotale = totaleOrdiniEsistenti + venditeDirette + quantitaOrdineNuovo;
         const disponibile = limite.limiteQuantita - totaleOrdiniEsistenti - venditeDirette;
         
-        console.log(`[VERIFICA] ${limite.prodotto}: esistenti=${totaleOrdiniEsistenti.toFixed(2)}, dirette=${venditeDirette.toFixed(2)}, nuovo=${quantitaOrdineNuovo.toFixed(2)}, disponibile=${disponibile.toFixed(2)}`);
+        console.log(`[VERIFICA] ${limite.prodotto} (${limite.fascia}): esistenti=${totaleOrdiniEsistenti.toFixed(2)}, dirette=${venditeDirette.toFixed(2)}, nuovo=${quantitaOrdineNuovo.toFixed(2)}, disponibile=${disponibile.toFixed(2)}`);
         
         if (quantitaOrdineNuovo > disponibile) {
           errori.push({
             tipo: 'prodotto',
             nome: limite.prodotto,
-            messaggio: `Limite superato per ${limite.prodotto}`,
+            fascia: limite.fascia,
+            messaggio: `Limite superato per ${limite.prodotto} (${limite.fascia})`,
             quantitaRichiesta: quantitaOrdineNuovo,
             quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
@@ -170,7 +188,8 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
           errori.push({
             tipo: 'prodotto',
             nome: limite.prodotto,
-            messaggio: `Attenzione: ${limite.prodotto} vicino al limite`,
+            fascia: limite.fascia,
+            messaggio: `Attenzione: ${limite.prodotto} vicino al limite (${limite.fascia})`,
             quantitaRichiesta: quantitaOrdineNuovo,
             quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
@@ -180,12 +199,9 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
         }
       }
       
-      // Limite per categoria (stesso fix)
+      // Limite per categoria
       if (limite.categoria) {
         const quantitaOrdineNuovo = categorieMap[limite.categoria] || 0;
-        
-        // Per categoria, calcolo semplificato (usa quantitaOrdinata come prima)
-        // TODO: implementare calcolo dinamico anche per categorie se necessario
         const venditeDirette = limite.quantitaOrdinata || 0;
         const disponibile = limite.limiteQuantita - venditeDirette;
         const quantitaTotale = venditeDirette + quantitaOrdineNuovo;
@@ -194,7 +210,8 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
           errori.push({
             tipo: 'categoria',
             nome: limite.categoria,
-            messaggio: `Limite superato per categoria ${limite.categoria}`,
+            fascia: limite.fascia,
+            messaggio: `Limite superato per categoria ${limite.categoria} (${limite.fascia})`,
             quantitaRichiesta: quantitaOrdineNuovo,
             quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
@@ -205,7 +222,8 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
           errori.push({
             tipo: 'categoria',
             nome: limite.categoria,
-            messaggio: `Attenzione: categoria ${limite.categoria} vicina al limite`,
+            fascia: limite.fascia,
+            messaggio: `Attenzione: categoria ${limite.categoria} vicina al limite (${limite.fascia})`,
             quantitaRichiesta: quantitaOrdineNuovo,
             quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
@@ -234,12 +252,10 @@ limiteGiornalieroSchema.statics.aggiornaDopoOrdine = async function(dataRitiro, 
     const data = new Date(dataRitiro);
     data.setHours(0, 0, 0, 0);
     
-    // Raggruppa prodotti
     const prodottiMap = {};
     const categorieMap = {};
     
     prodotti.forEach(p => {
-      // Skip vassoi
       if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti') {
         return;
       }
@@ -249,7 +265,6 @@ limiteGiornalieroSchema.statics.aggiornaDopoOrdine = async function(dataRitiro, 
       const quantita = parseFloat(p.quantita) || 0;
       const unita = p.unita || p.unitaMisura || 'Kg';
       
-      // Converti in Kg
       let quantitaKg = quantita;
       if (unita === 'g') {
         quantitaKg = quantita / 1000;

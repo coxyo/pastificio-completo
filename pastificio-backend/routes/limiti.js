@@ -1,4 +1,4 @@
-// routes/limiti.js - ✅ FIX 18/01/2026: Filtro data + Auth opzionale
+// routes/limiti.js - ✅ AGGIORNAMENTO 12/02/2026: Supporto fascia MATTINA/SERA
 import express from 'express';
 import { optionalAuth } from '../middleware/auth.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
@@ -9,8 +9,11 @@ const router = express.Router();
 // ✅ Autenticazione OPZIONALE per compatibilità
 router.use(optionalAuth);
 
+// ✅ Ora di cambio fascia mattina → sera
+const ORA_CAMBIO_FASCIA = '14:00';
+
 /**
- * ✅ FIX: Helper per convertire quantità in Kg
+ * ✅ Helper per convertire quantità in Kg
  */
 const convertiInKg = (quantita, unita) => {
   const qty = parseFloat(quantita) || 0;
@@ -18,43 +21,52 @@ const convertiInKg = (quantita, unita) => {
   
   if (unit === 'kg') return qty;
   if (unit === 'g') return qty / 1000;
-  if (unit === 'pz' || unit === 'pezzi') return qty / 24; // Zeppole: 24 pz = 1 Kg
-  if (unit === '€' || unit === 'euro') return qty / 21;   // Zeppole: €21 = 1 Kg
+  if (unit === 'pz' || unit === 'pezzi') return qty / 24;
+  if (unit === '€' || unit === 'euro') return qty / 21;
   
   return qty;
 };
 
 /**
  * GET /api/limiti/prodotto/:nome
- * ✅ FIX: Filtra ordini SOLO per la data specificata
+ * ✅ 12/02/2026: Supporto parametro ?fascia=mattina|sera
  */
 router.get('/prodotto/:nome', async (req, res) => {
   try {
     const { nome } = req.params;
-    const { data } = req.query;
+    const { data, fascia } = req.query;
 
-    // ✅ FIX: Usa data da query o oggi
     const dataRichiesta = data ? new Date(data) : new Date();
     dataRichiesta.setHours(0, 0, 0, 0);
     
     const dataFine = new Date(dataRichiesta);
     dataFine.setDate(dataFine.getDate() + 1);
 
-    console.log(`[LIMITI] GET prodotto: ${nome} per data: ${dataRichiesta.toISOString().split('T')[0]}`);
+    // ✅ Fascia: default 'giornaliero' per retrocompatibilità
+    const fasciaRichiesta = fascia || 'giornaliero';
 
-    // 1. Trova/Crea limite
+    console.log(`[LIMITI] GET prodotto: ${nome} fascia: ${fasciaRichiesta} data: ${dataRichiesta.toISOString().split('T')[0]}`);
+
+    // 1. Trova/Crea limite per la fascia specifica
     let limite = await LimiteGiornaliero.findOne({
       data: dataRichiesta,
       prodotto: nome,
+      fascia: fasciaRichiesta,
       attivo: true
     });
 
     if (!limite) {
-      console.log(`[LIMITI] Limite non trovato, creo automaticamente con 27 Kg`);
+      // ✅ Default diversi per fascia
+      let limiteDefault = 27; // giornaliero
+      if (fasciaRichiesta === 'mattina') limiteDefault = 30;
+      if (fasciaRichiesta === 'sera') limiteDefault = 26;
+
+      console.log(`[LIMITI] Limite non trovato, creo automaticamente ${fasciaRichiesta}: ${limiteDefault} Kg`);
       limite = await LimiteGiornaliero.create({
         data: dataRichiesta,
         prodotto: nome,
-        limiteQuantita: 27,
+        fascia: fasciaRichiesta,
+        limiteQuantita: limiteDefault,
         unitaMisura: 'Kg',
         quantitaOrdinata: 0,
         attivo: true,
@@ -62,16 +74,31 @@ router.get('/prodotto/:nome', async (req, res) => {
       });
     }
 
-    // ✅ FIX: Query ordini con filtro data STRETTO
-    const ordini = await Ordine.find({
+    // ✅ Query ordini con filtro data + fascia oraria
+    let queryOrdini = {
       dataRitiro: {
         $gte: dataRichiesta,
         $lt: dataFine
       },
-      'prodotti.nome': { $regex: new RegExp(`^${nome}$`, 'i') } // ✅ Match esatto
-    }).lean();
+      'prodotti.nome': { $regex: new RegExp(`^${nome}$`, 'i') }
+    };
 
-    console.log(`[LIMITI] Trovati ${ordini.length} ordini per ${nome}`);
+    // ✅ NUOVO: Filtra ordini per fascia oraria
+    if (fasciaRichiesta === 'mattina') {
+      queryOrdini.$or = [
+        { oraRitiro: { $lt: ORA_CAMBIO_FASCIA } },
+        { oraRitiro: { $exists: false } },
+        { oraRitiro: null },
+        { oraRitiro: '' }
+      ];
+    } else if (fasciaRichiesta === 'sera') {
+      queryOrdini.oraRitiro = { $gte: ORA_CAMBIO_FASCIA };
+    }
+    // Se 'giornaliero' → nessun filtro ora (tutti gli ordini)
+
+    const ordini = await Ordine.find(queryOrdini).lean();
+
+    console.log(`[LIMITI] Trovati ${ordini.length} ordini per ${nome} (${fasciaRichiesta})`);
 
     // 2. Calcola totale dagli ordini
     let totaleOrdini = 0;
@@ -79,7 +106,6 @@ router.get('/prodotto/:nome', async (req, res) => {
 
     ordini.forEach(ordine => {
       ordine.prodotti.forEach(prodotto => {
-        // ✅ FIX: Match case-insensitive esatto
         if (prodotto.nome && prodotto.nome.toLowerCase() === nome.toLowerCase()) {
           const quantitaKg = convertiInKg(prodotto.quantita, prodotto.unita);
           totaleOrdini += quantitaKg;
@@ -103,12 +129,11 @@ router.get('/prodotto/:nome', async (req, res) => {
     const venditeDirette = limite.quantitaOrdinata || 0;
     const totaleComplessivo = totaleOrdini + venditeDirette;
     const disponibile = limite.limiteQuantita - totaleComplessivo;
-    const percentualeUtilizzo = (totaleComplessivo / limite.limiteQuantita) * 100;
+    const percentualeUtilizzo = limite.limiteQuantita > 0 
+      ? (totaleComplessivo / limite.limiteQuantita) * 100 
+      : 0;
 
-    console.log(`[LIMITI] Totale ordini: ${totaleOrdini.toFixed(2)} Kg`);
-    console.log(`[LIMITI] Vendite dirette: ${venditeDirette.toFixed(2)} Kg`);
-    console.log(`[LIMITI] Totale complessivo: ${totaleComplessivo.toFixed(2)} Kg`);
-    console.log(`[LIMITI] Disponibile: ${disponibile.toFixed(2)} Kg`);
+    console.log(`[LIMITI] ${fasciaRichiesta} - Ordini: ${totaleOrdini.toFixed(2)}, Dirette: ${venditeDirette.toFixed(2)}, Totale: ${totaleComplessivo.toFixed(2)}, Disponibile: ${disponibile.toFixed(2)}`);
 
     res.json({
       success: true,
@@ -116,15 +141,17 @@ router.get('/prodotto/:nome', async (req, res) => {
         _id: limite._id,
         data: limite.data,
         prodotto: limite.prodotto,
+        fascia: limite.fascia,
         limiteQuantita: limite.limiteQuantita,
         unitaMisura: limite.unitaMisura,
         quantitaOrdinata: parseFloat(venditeDirette.toFixed(2)),
         totaleOrdini: parseFloat(totaleOrdini.toFixed(2)),
         totaleComplessivo: parseFloat(totaleComplessivo.toFixed(2)),
-        disponibile: parseFloat(disponibile.toFixed(2)),
+        disponibile: parseFloat(Math.max(0, disponibile).toFixed(2)),
         percentualeUtilizzo: parseFloat(percentualeUtilizzo.toFixed(1)),
         attivo: limite.attivo,
         sogliAllerta: limite.sogliAllerta,
+        totaleOrdiniCount: ordini.length,
         ordini: ordiniDettaglio
       }
     });
@@ -141,12 +168,12 @@ router.get('/prodotto/:nome', async (req, res) => {
 
 /**
  * GET /api/limiti/ordini-prodotto/:nome
- * ✅ FIX: Filtra ordini per data
+ * ✅ 12/02/2026: Supporto parametro ?fascia=mattina|sera
  */
 router.get('/ordini-prodotto/:nome', async (req, res) => {
   try {
     const { nome } = req.params;
-    const { data } = req.query;
+    const { data, fascia } = req.query;
 
     const dataRichiesta = data ? new Date(data) : new Date();
     dataRichiesta.setHours(0, 0, 0, 0);
@@ -154,15 +181,31 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
     const dataFine = new Date(dataRichiesta);
     dataFine.setDate(dataFine.getDate() + 1);
 
-    console.log(`[LIMITI] GET ordini prodotto: ${nome} per data: ${dataRichiesta.toISOString().split('T')[0]}`);
+    const fasciaRichiesta = fascia || 'giornaliero';
 
-    const ordini = await Ordine.find({
+    console.log(`[LIMITI] GET ordini prodotto: ${nome} fascia: ${fasciaRichiesta} data: ${dataRichiesta.toISOString().split('T')[0]}`);
+
+    let queryOrdini = {
       dataRitiro: {
         $gte: dataRichiesta,
         $lt: dataFine
       },
       'prodotti.nome': { $regex: new RegExp(`^${nome}$`, 'i') }
-    }).sort({ oraRitiro: 1 }).lean();
+    };
+
+    // ✅ NUOVO: Filtra per fascia oraria
+    if (fasciaRichiesta === 'mattina') {
+      queryOrdini.$or = [
+        { oraRitiro: { $lt: ORA_CAMBIO_FASCIA } },
+        { oraRitiro: { $exists: false } },
+        { oraRitiro: null },
+        { oraRitiro: '' }
+      ];
+    } else if (fasciaRichiesta === 'sera') {
+      queryOrdini.oraRitiro = { $gte: ORA_CAMBIO_FASCIA };
+    }
+
+    const ordini = await Ordine.find(queryOrdini).sort({ oraRitiro: 1 }).lean();
 
     let totaleKg = 0;
     const ordiniFormattati = [];
@@ -181,17 +224,20 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
             quantita: prodotto.quantita,
             unita: prodotto.unita,
             quantitaKg: parseFloat(quantitaKg.toFixed(3)),
-            note: prodotto.note || '',
+            notes: prodotto.note || '',
             stato: ordine.stato
           });
         }
       });
     });
 
+    console.log(`[LIMITI] Trovati ${ordiniFormattati.length} ordini ${nome} (${fasciaRichiesta})`);
+
     res.json({
       success: true,
       count: ordiniFormattati.length,
       totaleKg: parseFloat(totaleKg.toFixed(2)),
+      fascia: fasciaRichiesta,
       data: ordiniFormattati
     });
 
@@ -207,11 +253,11 @@ router.get('/ordini-prodotto/:nome', async (req, res) => {
 
 /**
  * POST /api/limiti/vendita-diretta
- * Registra vendita diretta
+ * ✅ 12/02/2026: Supporto campo fascia nel body
  */
 router.post('/vendita-diretta', async (req, res) => {
   try {
-    const { prodotto, quantitaKg, data } = req.body;
+    const { prodotto, quantitaKg, data, fascia } = req.body;
 
     if (!prodotto || !quantitaKg) {
       return res.status(400).json({
@@ -220,37 +266,57 @@ router.post('/vendita-diretta', async (req, res) => {
       });
     }
 
+    const fasciaRichiesta = fascia || 'giornaliero';
     const dataVendita = data ? new Date(data) : new Date();
     dataVendita.setHours(0, 0, 0, 0);
 
-    console.log(`[LIMITI] POST vendita diretta: ${prodotto} - ${quantitaKg} Kg per ${dataVendita.toISOString().split('T')[0]}`);
+    console.log(`[LIMITI] POST vendita diretta: ${prodotto} ${fasciaRichiesta} - ${quantitaKg} Kg`);
 
-    // Trova limite
+    // Trova limite per fascia
     let limite = await LimiteGiornaliero.findOne({
       data: dataVendita,
       prodotto,
+      fascia: fasciaRichiesta,
       attivo: true
     });
 
     if (!limite) {
+      let limiteDefault = 27;
+      if (fasciaRichiesta === 'mattina') limiteDefault = 30;
+      if (fasciaRichiesta === 'sera') limiteDefault = 26;
+
       limite = await LimiteGiornaliero.create({
         data: dataVendita,
         prodotto,
-        limiteQuantita: 27,
+        fascia: fasciaRichiesta,
+        limiteQuantita: limiteDefault,
         unitaMisura: 'Kg',
         quantitaOrdinata: 0,
         attivo: true
       });
     }
 
-    // Calcola totale ordini
+    // Calcola totale ordini per la fascia
     const dataFine = new Date(dataVendita);
     dataFine.setDate(dataFine.getDate() + 1);
 
-    const ordini = await Ordine.find({
+    let queryOrdini = {
       dataRitiro: { $gte: dataVendita, $lt: dataFine },
       'prodotti.nome': { $regex: new RegExp(`^${prodotto}$`, 'i') }
-    }).lean();
+    };
+
+    if (fasciaRichiesta === 'mattina') {
+      queryOrdini.$or = [
+        { oraRitiro: { $lt: ORA_CAMBIO_FASCIA } },
+        { oraRitiro: { $exists: false } },
+        { oraRitiro: null },
+        { oraRitiro: '' }
+      ];
+    } else if (fasciaRichiesta === 'sera') {
+      queryOrdini.oraRitiro = { $gte: ORA_CAMBIO_FASCIA };
+    }
+
+    const ordini = await Ordine.find(queryOrdini).lean();
 
     let totaleOrdini = 0;
     ordini.forEach(ordine => {
@@ -268,7 +334,7 @@ router.post('/vendita-diretta', async (req, res) => {
       const disponibile = limite.limiteQuantita - totaleOrdini - limite.quantitaOrdinata;
       return res.status(400).json({
         success: false,
-        message: `Quantità non disponibile. Disponibile: ${Math.max(0, disponibile).toFixed(2)} Kg`,
+        message: `[${fasciaRichiesta.toUpperCase()}] Disponibile: ${Math.max(0, disponibile).toFixed(2)} Kg`,
         disponibile: Math.max(0, disponibile)
       });
     }
@@ -277,13 +343,14 @@ router.post('/vendita-diretta', async (req, res) => {
     limite.quantitaOrdinata += quantitaKg;
     await limite.save();
 
-    console.log(`[LIMITI] Vendita registrata. Vendite dirette: ${limite.quantitaOrdinata} Kg`);
+    console.log(`[LIMITI] Vendita ${fasciaRichiesta} registrata. Dirette: ${limite.quantitaOrdinata} Kg`);
 
     // Emetti evento Pusher
     try {
       const pusher = (await import('../services/pusherService.js')).default;
       await pusher.trigger('zeppole-channel', 'vendita-diretta', {
         prodotto,
+        fascia: fasciaRichiesta,
         quantitaKg,
         totaleComplessivo: totaleOrdini + limite.quantitaOrdinata,
         disponibile: limite.limiteQuantita - totaleOrdini - limite.quantitaOrdinata,
@@ -295,9 +362,10 @@ router.post('/vendita-diretta', async (req, res) => {
 
     res.json({
       success: true,
-      message: `Vendita di ${quantitaKg} Kg registrata`,
+      message: `Vendita ${fasciaRichiesta} di ${quantitaKg} Kg registrata`,
       data: {
         prodotto: limite.prodotto,
+        fascia: fasciaRichiesta,
         quantitaVenduta: quantitaKg,
         venditeDirette: limite.quantitaOrdinata,
         totaleOrdini: parseFloat(totaleOrdini.toFixed(2)),
@@ -319,11 +387,11 @@ router.post('/vendita-diretta', async (req, res) => {
 
 /**
  * POST /api/limiti/reset-prodotto
- * Reset disponibilità prodotto
+ * ✅ 12/02/2026: Supporto campo fascia nel body
  */
 router.post('/reset-prodotto', async (req, res) => {
   try {
-    const { prodotto, data } = req.body;
+    const { prodotto, data, fascia } = req.body;
 
     if (!prodotto) {
       return res.status(400).json({
@@ -332,21 +400,23 @@ router.post('/reset-prodotto', async (req, res) => {
       });
     }
 
+    const fasciaRichiesta = fascia || 'giornaliero';
     const dataReset = data ? new Date(data) : new Date();
     dataReset.setHours(0, 0, 0, 0);
 
-    console.log(`[LIMITI] POST reset prodotto: ${prodotto} per data: ${dataReset.toISOString().split('T')[0]}`);
+    console.log(`[LIMITI] POST reset: ${prodotto} ${fasciaRichiesta} data: ${dataReset.toISOString().split('T')[0]}`);
 
     const limite = await LimiteGiornaliero.findOne({
       data: dataReset,
       prodotto,
+      fascia: fasciaRichiesta,
       attivo: true
     });
 
     if (!limite) {
       return res.status(404).json({
         success: false,
-        message: 'Limite non trovato per questa data'
+        message: `Limite ${fasciaRichiesta} non trovato per questa data`
       });
     }
 
@@ -354,13 +424,14 @@ router.post('/reset-prodotto', async (req, res) => {
     limite.quantitaOrdinata = 0;
     await limite.save();
 
-    console.log(`[LIMITI] Reset completato per ${prodotto}`);
+    console.log(`[LIMITI] Reset ${fasciaRichiesta} completato per ${prodotto}`);
 
     // Emetti evento Pusher
     try {
       const pusher = (await import('../services/pusherService.js')).default;
       await pusher.trigger('zeppole-channel', 'reset-disponibilita', {
         prodotto,
+        fascia: fasciaRichiesta,
         limiteKg: limite.limiteQuantita,
         timestamp: new Date()
       });
@@ -370,7 +441,7 @@ router.post('/reset-prodotto', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Disponibilità resettata (solo vendite dirette)',
+      message: `Reset ${fasciaRichiesta} completato (solo vendite dirette)`,
       data: limite
     });
 
@@ -386,21 +457,23 @@ router.post('/reset-prodotto', async (req, res) => {
 
 /**
  * PUT /api/limiti/prodotto/:nome
- * Modifica limite prodotto
+ * ✅ 12/02/2026: Supporto campo fascia nel body
  */
 router.put('/prodotto/:nome', async (req, res) => {
   try {
     const { nome } = req.params;
-    const { limiteQuantita, data } = req.body;
+    const { limiteQuantita, data, fascia } = req.body;
 
+    const fasciaRichiesta = fascia || 'giornaliero';
     const dataLimite = data ? new Date(data) : new Date();
     dataLimite.setHours(0, 0, 0, 0);
 
-    console.log(`[LIMITI] PUT modifica limite: ${nome} → ${limiteQuantita} Kg`);
+    console.log(`[LIMITI] PUT modifica limite: ${nome} ${fasciaRichiesta} → ${limiteQuantita} Kg`);
 
     let limite = await LimiteGiornaliero.findOne({
       data: dataLimite,
       prodotto: nome,
+      fascia: fasciaRichiesta,
       attivo: true
     });
 
@@ -408,6 +481,7 @@ router.put('/prodotto/:nome', async (req, res) => {
       limite = await LimiteGiornaliero.create({
         data: dataLimite,
         prodotto: nome,
+        fascia: fasciaRichiesta,
         limiteQuantita,
         unitaMisura: 'Kg',
         quantitaOrdinata: 0,
@@ -423,6 +497,7 @@ router.put('/prodotto/:nome', async (req, res) => {
       const pusher = (await import('../services/pusherService.js')).default;
       await pusher.trigger('zeppole-channel', 'limite-aggiornato', {
         prodotto: nome,
+        fascia: fasciaRichiesta,
         limiteQuantita,
         timestamp: new Date()
       });
@@ -432,7 +507,7 @@ router.put('/prodotto/:nome', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Limite aggiornato',
+      message: `Limite ${fasciaRichiesta} aggiornato a ${limiteQuantita} Kg`,
       data: limite
     });
 
