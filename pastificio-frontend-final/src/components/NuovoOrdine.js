@@ -2285,6 +2285,19 @@ useEffect(() => {
                   <Autocomplete
                     freeSolo
                     size="small"
+                    blurOnSelect={true}
+                    clearOnBlur={false}
+                    openOnFocus={false}
+                    autoHighlight={false}
+                    disablePortal
+                    ListboxProps={{
+                      style: { maxHeight: 180 }
+                    }}
+                    componentsProps={{
+                      popper: {
+                        sx: { zIndex: 1300 }
+                      }
+                    }}
                     options={clienti}
                     getOptionLabel={(option) => {
                       if (typeof option === 'string') return option;
@@ -2292,7 +2305,7 @@ useEffect(() => {
                     }}
                     filterOptions={(options, { inputValue }) => {
                       const input = inputValue.toLowerCase().trim();
-                      if (!input) return [];
+                      if (input.length < 2) return [];
                       return options.filter(opt => {
                         const nome = (opt.nome || '').toLowerCase();
                         const cognome = (opt.cognome || '').toLowerCase();
@@ -2300,11 +2313,12 @@ useEffect(() => {
                         const telefono = (opt.telefono || '').toLowerCase();
                         return nome.includes(input) || cognome.includes(input) || 
                                nomeCompleto.includes(input) || telefono.includes(input);
-                      }).slice(0, 8);
+                      }).slice(0, 5);
                     }}
                     value={formData.cliente || formData.nome}
                     inputValue={formData.nome}
-                    onInputChange={(event, newInputValue) => {
+                    onInputChange={(event, newInputValue, reason) => {
+                      if (reason === 'reset') return;
                       setFormData(prev => ({
                         ...prev,
                         nome: capitalizeFirst(newInputValue),
@@ -2322,11 +2336,16 @@ useEffect(() => {
                           nomeCliente: `${newValue.nome} ${newValue.cognome || ''}`.trim(),
                           telefono: prev.telefono || newValue.telefono || ''
                         }));
+                        // Focus sul campo cognome dopo selezione
+                        setTimeout(() => {
+                          const cognomeField = document.getElementById('campo-cognome');
+                          if (cognomeField) cognomeField.focus();
+                        }, 100);
                       }
                     }}
                     loading={loadingClienti}
                     renderOption={(props, option) => (
-                      <li {...props} key={option._id}>
+                      <li {...props} key={option._id} style={{ ...props.style, padding: '10px 16px' }}>
                         <Box>
                           <Typography variant="body2" fontWeight="bold">
                             {option.nome} {option.cognome || ''}
@@ -2350,6 +2369,7 @@ useEffect(() => {
                   <TextField
                     fullWidth
                     size="small"
+                    id="campo-cognome"
                     label="Cognome"
                     value={formData.cognome}
                     onChange={(e) => setFormData(prev => ({
