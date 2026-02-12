@@ -36,7 +36,8 @@ import {
   DateRange as DateRangeIcon,  // ✅ NUOVO per periodo
   Clear as ClearIcon,  // ✅ NUOVO per pulire ricerca
   Calculate as CalculateIcon,
-  Timer as TimerIcon  // ✅ NUOVO per calcolo totali
+  Timer as TimerIcon,  // ✅ NUOVO per calcolo totali
+  ExpandMore as ExpandMoreIcon  // ✅ 12/02/2026 per triangolini dettagli
 } from '@mui/icons-material';
 
 import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
@@ -296,6 +297,13 @@ const COMPOSIZIONE_DOLCI_MISTI = {
 };
 
 function TotaliProduzione({ ordini, dataSelezionata }) {
+  // ✅ 12/02/2026: State per dettagli espandibili
+  const [dettagliAperti, setDettagliAperti] = useState({});
+  
+  const toggleDettaglio = (categoria) => {
+    setDettagliAperti(prev => ({ ...prev, [categoria]: !prev[categoria] }));
+  };
+
   // Filtra ordini per data
   const ordiniFiltrati = ordini.filter(o => {
     const dataOrdine = o.dataRitiro || o.createdAt || '';
@@ -603,57 +611,113 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         <Chip label={`TOTALE: ${totaleGenerale.toFixed(1)} KG`} color="primary" sx={{ fontWeight: 'bold', ml: 'auto' }} />
       </Box>
       
-      {/* ✅ FIX 19/12/2025: Riga dettaglio RAVIOLI per variante! */}
+      {/* ✅ 12/02/2026: Dettaglio RAVIOLI espandibile con triangolino */}
       {totaleRavioli > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #f44336' }}>
-          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5, fontWeight: 'bold' }}>Dettaglio Ravioli:</Typography>
-          <ChipDettaglio label="R.Zaff" value={totali.RavioliZafferano} color="error" />
-          <ChipDettaglio label="R.Zaff.Dolci" value={totali.RavioliZafferanoDolci} color="error" />
-          <ChipDettaglio label="R.Zaff.PocoDolci" value={totali.RavioliZafferanoPocoDolci} color="error" />
-          <ChipDettaglio label="R.Zaff.MoltoDolci" value={totali.RavioliZafferanoMoltoDolci} color="error" />
-          <ChipDettaglio label="R.Spin+Zaff" value={totali.RavioliSpinaciZafferano} color="error" />
-          <ChipDettaglio label="R.Spin" value={totali.RavioliSpinaci} color="error" />
-          <ChipDettaglio label="R.Spin.Dolci" value={totali.RavioliSpinaciDolci} color="error" />
-          <ChipDettaglio label="R.Spin.PocoDolci" value={totali.RavioliSpinaciPocoDolci} color="error" />
-          <ChipDettaglio label="R.Spin.MoltoDolci" value={totali.RavioliSpinaciMoltoDolci} color="error" />
-          <ChipDettaglio label="R.Dolci" value={totali.RavioliDolci} color="error" />
-          <ChipDettaglio label="R.Formagg" value={totali.RavioliFormaggio} color="error" />
-          <ChipDettaglio label="R.Altri" value={totali.RavioliAltri} color="error" />
-          <ChipDettaglio label="Culurg" value={totali.Culurgiones} color="error" />
-        </Box>
-      )}
-      
-      {/* Riga dettaglio dolci */}
-      {totaleDolci > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #4caf50' }}>
-          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Dolci:</Typography>
-          <ChipDettaglio label="Ciambelle" value={totali.Ciambelle} color="success" />
-          <ChipDettaglio label="Amaretti" value={totali.Amaretti} color="success" />
-          <ChipDettaglio label="Gueffus" value={totali.Gueffus} color="success" />
-          <ChipDettaglio label="Bianchini" value={totali.Bianchini} color="success" />
-          <ChipDettaglio label="Pabassine" value={totali.Pabassine} color="success" />
+        <Box sx={{ mt: 1, pl: 2, borderLeft: '3px solid #f44336' }}>
+          <Box 
+            onClick={() => toggleDettaglio('ravioli')}
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { opacity: 0.7 } }}
+          >
+            <ExpandMoreIcon sx={{ 
+              fontSize: 18, mr: 0.5, color: '#666',
+              transform: dettagliAperti.ravioli ? 'rotate(0deg)' : 'rotate(-90deg)',
+              transition: 'transform 0.2s'
+            }} />
+            <Typography variant="caption" sx={{ color: '#666', fontWeight: 'bold' }}>Dettaglio Ravioli:</Typography>
           </Box>
-      )}
-      
-      {/* ✅ Riga dettaglio panadas farcite */}
-      {totalePanadas > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #ff9800' }}>
-          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Panadas:</Typography>
-          <ChipDettaglio label="Agnello" value={totali.PanadaAgnello} color="warning" />
-          <ChipDettaglio label="Maiale" value={totali.PanadaMaiale} color="warning" />
-          <ChipDettaglio label="Vitella" value={totali.PanadaVitella} color="warning" />
-          <ChipDettaglio label="Verdure" value={totali.PanadaVerdure} color="warning" />
-          <ChipDettaglio label="Anguille" value={totali.PanadaAnguille} color="warning" />
+          <Collapse in={!!dettagliAperti.ravioli}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+              <ChipDettaglio label="R.Zaff" value={totali.RavioliZafferano} color="error" />
+              <ChipDettaglio label="R.Zaff.Dolci" value={totali.RavioliZafferanoDolci} color="error" />
+              <ChipDettaglio label="R.Zaff.PocoDolci" value={totali.RavioliZafferanoPocoDolci} color="error" />
+              <ChipDettaglio label="R.Zaff.MoltoDolci" value={totali.RavioliZafferanoMoltoDolci} color="error" />
+              <ChipDettaglio label="R.Spin+Zaff" value={totali.RavioliSpinaciZafferano} color="error" />
+              <ChipDettaglio label="R.Spin" value={totali.RavioliSpinaci} color="error" />
+              <ChipDettaglio label="R.Spin.Dolci" value={totali.RavioliSpinaciDolci} color="error" />
+              <ChipDettaglio label="R.Spin.PocoDolci" value={totali.RavioliSpinaciPocoDolci} color="error" />
+              <ChipDettaglio label="R.Spin.MoltoDolci" value={totali.RavioliSpinaciMoltoDolci} color="error" />
+              <ChipDettaglio label="R.Dolci" value={totali.RavioliDolci} color="error" />
+              <ChipDettaglio label="R.Formagg" value={totali.RavioliFormaggio} color="error" />
+              <ChipDettaglio label="R.Altri" value={totali.RavioliAltri} color="error" />
+              <ChipDettaglio label="Culurg" value={totali.Culurgiones} color="error" />
+            </Box>
+          </Collapse>
         </Box>
       )}
       
-      {/* Riga dettaglio altri */}
+      {/* ✅ 12/02/2026: Dettaglio DOLCI espandibile */}
+      {totaleDolci > 0 && (
+        <Box sx={{ mt: 1, pl: 2, borderLeft: '3px solid #4caf50' }}>
+          <Box 
+            onClick={() => toggleDettaglio('dolci')}
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { opacity: 0.7 } }}
+          >
+            <ExpandMoreIcon sx={{ 
+              fontSize: 18, mr: 0.5, color: '#666',
+              transform: dettagliAperti.dolci ? 'rotate(0deg)' : 'rotate(-90deg)',
+              transition: 'transform 0.2s'
+            }} />
+            <Typography variant="caption" sx={{ color: '#666' }}>Dettaglio Dolci:</Typography>
+          </Box>
+          <Collapse in={!!dettagliAperti.dolci}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+              <ChipDettaglio label="Ciambelle" value={totali.Ciambelle} color="success" />
+              <ChipDettaglio label="Amaretti" value={totali.Amaretti} color="success" />
+              <ChipDettaglio label="Gueffus" value={totali.Gueffus} color="success" />
+              <ChipDettaglio label="Bianchini" value={totali.Bianchini} color="success" />
+              <ChipDettaglio label="Pabassine" value={totali.Pabassine} color="success" />
+            </Box>
+          </Collapse>
+        </Box>
+      )}
+      
+      {/* ✅ 12/02/2026: Dettaglio PANADAS espandibile */}
+      {totalePanadas > 0 && (
+        <Box sx={{ mt: 1, pl: 2, borderLeft: '3px solid #ff9800' }}>
+          <Box 
+            onClick={() => toggleDettaglio('panadas')}
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { opacity: 0.7 } }}
+          >
+            <ExpandMoreIcon sx={{ 
+              fontSize: 18, mr: 0.5, color: '#666',
+              transform: dettagliAperti.panadas ? 'rotate(0deg)' : 'rotate(-90deg)',
+              transition: 'transform 0.2s'
+            }} />
+            <Typography variant="caption" sx={{ color: '#666' }}>Dettaglio Panadas:</Typography>
+          </Box>
+          <Collapse in={!!dettagliAperti.panadas}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+              <ChipDettaglio label="Agnello" value={totali.PanadaAgnello} color="warning" />
+              <ChipDettaglio label="Maiale" value={totali.PanadaMaiale} color="warning" />
+              <ChipDettaglio label="Vitella" value={totali.PanadaVitella} color="warning" />
+              <ChipDettaglio label="Verdure" value={totali.PanadaVerdure} color="warning" />
+              <ChipDettaglio label="Anguille" value={totali.PanadaAnguille} color="warning" />
+            </Box>
+          </Collapse>
+        </Box>
+      )}
+      
+      {/* ✅ 12/02/2026: Dettaglio ALTRI espandibile */}
       {totaleAltri > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1, pl: 2, borderLeft: '3px solid #2196f3' }}>
-          <Typography variant="caption" sx={{ width: '100%', color: '#666', mb: 0.5 }}>Dettaglio Altri:</Typography>
-          <ChipDettaglio label="Pasta Panada" value={totali.PastaPerPanada} color="info" />
-          <ChipDettaglio label="Pizzette" value={totali.Pizzette} color="info" />
-          <ChipDettaglio label="Fregula" value={totali.Fregula} color="info" />
+        <Box sx={{ mt: 1, pl: 2, borderLeft: '3px solid #2196f3' }}>
+          <Box 
+            onClick={() => toggleDettaglio('altri')}
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', '&:hover': { opacity: 0.7 } }}
+          >
+            <ExpandMoreIcon sx={{ 
+              fontSize: 18, mr: 0.5, color: '#666',
+              transform: dettagliAperti.altri ? 'rotate(0deg)' : 'rotate(-90deg)',
+              transition: 'transform 0.2s'
+            }} />
+            <Typography variant="caption" sx={{ color: '#666' }}>Dettaglio Altri:</Typography>
+          </Box>
+          <Collapse in={!!dettagliAperti.altri}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+              <ChipDettaglio label="Pasta Panada" value={totali.PastaPerPanada} color="info" />
+              <ChipDettaglio label="Pizzette" value={totali.Pizzette} color="info" />
+              <ChipDettaglio label="Fregula" value={totali.Fregula} color="info" />
+            </Box>
+          </Collapse>
         </Box>
       )}
     </Paper>
