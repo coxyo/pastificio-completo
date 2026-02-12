@@ -3015,7 +3015,6 @@ return (
             </Typography>
             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-              <InstallPWA />
               
               <Tooltip title={syncInProgress ? "Sincronizzazione in corso..." : "Sincronizza"}>
                 <span>
@@ -3087,54 +3086,7 @@ return (
                 🎂 ZEPPOLE
               </Button>
               
-              <Button
-              variant="contained"
-              size="small"
-              color="primary"
-              startIcon={<ListAltIcon />}
-              onClick={() => setRiepilogoAperto(true)}
->
-              Riepilogo
-</Button>
-
-              <Button
-                variant="contained"
-                size="small"
-                color="warning"
-                startIcon={<PrintIcon />}
-                onClick={() => setRiepilogoStampabileAperto(true)}
-                sx={{ ml: 1 }}
-              >
-                📄 Stampabile
-              </Button>
-              
-<Button
-  variant="outlined"
-  size="small"
-  startIcon={<ExportIcon />}
-  onClick={(e) => setMenuExport(e.currentTarget)}
->
-  Export
-</Button>
-              <Menu
-                anchorEl={menuExport}
-                open={Boolean(menuExport)}
-                onClose={() => setMenuExport(null)}
-              >
-                <MenuItem onClick={() => handleExport('csv')}>
-                  <ExportIcon sx={{ mr: 1 }} /> CSV
-                </MenuItem>
-                <MenuItem onClick={() => handleExport('excel')}>
-                  <ExportIcon sx={{ mr: 1 }} /> Excel
-                </MenuItem>
-                <MenuItem onClick={() => handleExport('pdf')}>
-                  <ExportIcon sx={{ mr: 1 }} /> PDF
-                </MenuItem>
-                <Divider />
-                <MenuItem onClick={() => handleExport('print')}>
-                  <PrintIcon sx={{ mr: 1 }} /> Stampa
-                </MenuItem>
-              </Menu>
+              {/* ✅ 12/02/2026: Rimossi pulsanti Riepilogo, Stampabile, Export */}
               
               <Chip 
                 label={`${statistiche.totaleOrdini} ordini`}
