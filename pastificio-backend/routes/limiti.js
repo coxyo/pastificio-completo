@@ -28,6 +28,174 @@ const convertiInKg = (quantita, unita) => {
 };
 
 /**
+ * GET /api/limiti
+ * Lista tutti i limiti (usato dalla pagina Gestione Ordini)
+ */
+router.get('/', async (req, res) => {
+  try {
+    const { data, attivo } = req.query;
+    
+    let query = {};
+    
+    if (data) {
+      const inizioGiorno = new Date(data);
+      inizioGiorno.setHours(0, 0, 0, 0);
+      
+      const fineGiorno = new Date(data);
+      fineGiorno.setHours(23, 59, 59, 999);
+      
+      query.data = { $gte: inizioGiorno, $lte: fineGiorno };
+    }
+    
+    if (attivo !== undefined) {
+      query.attivo = attivo === 'true';
+    }
+    
+    const limiti = await LimiteGiornaliero.find(query).sort({ data: 1, prodotto: 1 });
+    
+    res.json({
+      success: true,
+      count: limiti.length,
+      data: limiti
+    });
+    
+  } catch (error) {
+    console.error('[LIMITI] Errore GET /:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore recupero limiti',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/limiti
+ * Crea nuovo limite
+ */
+router.post('/', async (req, res) => {
+  try {
+    const limite = new LimiteGiornaliero(req.body);
+    await limite.save();
+    
+    console.log(`✅ Limite creato: ${limite.prodotto || limite.categoria} (${limite.fascia}) per ${limite.data}`);
+    
+    res.status(201).json({
+      success: true,
+      data: limite
+    });
+    
+  } catch (error) {
+    console.error('[LIMITI] Errore POST /:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Errore creazione limite',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/limiti/:id
+ * Aggiorna limite per ID
+ */
+router.put('/:id', async (req, res) => {
+  try {
+    const limite = await LimiteGiornaliero.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    
+    if (!limite) {
+      return res.status(404).json({
+        success: false,
+        message: 'Limite non trovato'
+      });
+    }
+    
+    console.log(`✅ Limite aggiornato: ${limite._id}`);
+    
+    res.json({
+      success: true,
+      data: limite
+    });
+    
+  } catch (error) {
+    console.error('[LIMITI] Errore PUT /:id:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Errore aggiornamento limite',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/limiti/:id
+ * Elimina limite per ID
+ */
+router.delete('/:id', async (req, res) => {
+  try {
+    const limite = await LimiteGiornaliero.findByIdAndDelete(req.params.id);
+    
+    if (!limite) {
+      return res.status(404).json({
+        success: false,
+        message: 'Limite non trovato'
+      });
+    }
+    
+    console.log(`✅ Limite eliminato: ${limite._id}`);
+    
+    res.json({
+      success: true,
+      message: 'Limite eliminato'
+    });
+    
+  } catch (error) {
+    console.error('[LIMITI] Errore DELETE /:id:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore eliminazione limite',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/limiti/verifica
+ * Verifica se ordine supera limiti
+ */
+router.post('/verifica', async (req, res) => {
+  try {
+    const { dataRitiro, prodotti, oraRitiro } = req.body;
+    
+    if (!dataRitiro || !prodotti) {
+      return res.status(400).json({
+        success: false,
+        message: 'dataRitiro e prodotti sono obbligatori'
+      });
+    }
+    
+    const risultato = await LimiteGiornaliero.verificaOrdine(dataRitiro, prodotti, oraRitiro);
+    
+    res.json({
+      success: true,
+      ...risultato
+    });
+    
+  } catch (error) {
+    console.error('[LIMITI] Errore POST /verifica:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore verifica limiti',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/limiti/prodotto/:nome
  * ✅ 12/02/2026: Supporto parametro ?fascia=mattina|sera
  */
