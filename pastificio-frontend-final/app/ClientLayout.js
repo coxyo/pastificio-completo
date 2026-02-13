@@ -1,4 +1,4 @@
-// app/ClientLayout.js - VERSIONE AGGIORNATA CON CONTROLLO DISPOSITIVO
+// app/ClientLayout.js - VERSIONE AGGIORNATA CON ETICHETTE NEL MENU
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -31,12 +31,13 @@ import {
   HealthAndSafety,
   AccountBalance,
   TrendingUp,
-  UploadFile
+  UploadFile,
+  Label as LabelIcon
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
 import NotificaFatture from '@/components/NotificaFatture';
-import dispositivoService from '@/services/dispositivoService';  // ✅ NUOVO
+import dispositivoService from '@/services/dispositivoService';
 
 const drawerWidth = 240;
 
@@ -45,6 +46,7 @@ const menuItems = [
   { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/' },
   { id: 'clienti', title: 'Clienti', icon: <People />, path: '/clienti' },
   { id: 'magazzino', title: 'Magazzino', icon: <Inventory />, path: '/magazzino' },
+  { id: 'etichette', title: 'Etichette', icon: <LabelIcon />, path: '/etichette' },
   { id: 'report', title: 'Report', icon: <Assessment />, path: '/report' },
   { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
   { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
