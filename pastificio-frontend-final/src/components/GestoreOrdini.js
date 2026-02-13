@@ -1419,6 +1419,9 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     if (shouldOpen === 'true') {
       console.log('📞 Apertura automatica Nuovo Ordine da CallPopup');
       
+      // ✅ FIX 13/02/2026: Reset ordine precedente per evitare dati residui
+      setOrdineSelezionato(null);
+      
       // Rimuovi flag
       localStorage.removeItem('_openNuovoOrdineOnLoad');
       
@@ -1458,6 +1461,9 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     // Listener per evento custom (se già in /ordini)
     const handleOpenNuovoOrdine = () => {
       console.log('📞 Evento open-nuovo-ordine ricevuto');
+      
+      // ✅ FIX 13/02/2026: Reset ordine precedente per evitare dati residui
+      setOrdineSelezionato(null);
       
       // ✅ NUOVO: Leggi cliente anche qui
       const clientePreselezionato = localStorage.getItem('nuovoOrdine_clientePreselezionato');
