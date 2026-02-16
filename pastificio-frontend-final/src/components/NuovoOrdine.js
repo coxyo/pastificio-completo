@@ -1373,6 +1373,23 @@ useEffect(() => {
 
     console.log('✅ Validazione prodotti OK - tutti hanno quantità e prezzo validi');
 
+    // ✅ FIX 16/02/2026: ALERT se data ritiro è OGGI
+    const oggi = new Date().toISOString().split('T')[0];
+    const dataRitiroSelezionata = formData.dataRitiro?.split('T')[0];
+    
+    if (dataRitiroSelezionata === oggi) {
+      const confermaData = window.confirm(
+        `⚠️ ATTENZIONE!\n\n` +
+        `La data di RITIRO è impostata a OGGI (${new Date().toLocaleDateString('it-IT')}).\n\n` +
+        `Sei sicuro che il cliente ritira OGGI?\n\n` +
+        `• Premi "OK" → Salva con data di oggi\n` +
+        `• Premi "Annulla" → Torna indietro per cambiare la data`
+      );
+      
+      if (!confermaData) {
+        return;
+      }
+    }
 
     const erroriCritici = alertLimiti.filter(a => a.tipo === 'error');
     let forceOverride = false;
