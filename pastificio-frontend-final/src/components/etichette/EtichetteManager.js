@@ -335,7 +335,7 @@ const EtichetteManager = () => {
     try {
       setLoadingOrdini(true);
       const token = localStorage.getItem('token');
-const { data } = await axios.get(`${API_URL}/ordini`, {
+      const { data } = await axios.get(`${API_URL}/api/ordini`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -570,7 +570,33 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
   // ═══════════════════════════════════════════════════════════
 
   const generaCSSStampa = (formato) => {
-    const { larghezza, altezza, tipo } = formato;
+    const { larghezza, altezza, colonne, righe, tipo } = formato;
+
+    // Font sizes calibrati per altezza etichetta
+    // 29.7mm = molto piccola, 48mm = media, >48mm = grande
+    const isMinuscola = altezza <= 30;
+    const isMedia = altezza > 30 && altezza <= 50;
+    
+    const fontCognome = isMinuscola ? '7.5' : isMedia ? '10' : '12';
+    const fontOra = isMinuscola ? '6.5' : isMedia ? '9' : '10';
+    const fontProdotto = isMinuscola ? '6' : isMedia ? '8' : '9';
+    const fontQuantita = isMinuscola ? '7' : isMedia ? '9' : '10';
+    const fontPacco = isMinuscola ? '5' : '7';
+    const paddingEtichetta = isMinuscola ? '1mm 1.5mm' : '2mm';
+    const marginRigaTop = isMinuscola ? '0.3mm' : '1mm';
+
+    // Font per etichette prodotto
+    const fontNomeProdotto = isMinuscola ? '7' : isMedia ? '10' : '14';
+    const fontIngredienti = isMinuscola ? '4.5' : isMedia ? '6' : '8';
+    const fontCampo = isMinuscola ? '5' : isMedia ? '6.5' : '7.5';
+    const fontFooter = isMinuscola ? '4' : isMedia ? '5.5' : '6.5';
+
+    // Calcolo margini foglio A4 per centrare la griglia di etichette
+    // A4 = 210mm x 297mm
+    const larghezzaTotale = colonne * larghezza;
+    const altezzaTotale = righe * altezza;
+    const margineSx = (210 - larghezzaTotale) / 2;
+    const margineSup = (297 - altezzaTotale) / 2;
 
     return `
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -582,36 +608,41 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
       }
 
       @page {
-        ${tipo === 'foglio' ? 'size: A4; margin: 0;' : `size: ${larghezza}mm ${altezza}mm; margin: 0;`}
+        ${tipo === 'foglio' ? `size: A4; margin: 0;` : `size: ${larghezza}mm ${altezza}mm; margin: 0;`}
       }
 
       /* ===== ETICHETTE ORDINE ===== */
       .etichetta-ordine {
         width: ${larghezza}mm;
         height: ${altezza}mm;
-        padding: 2mm;
-        display: inline-flex;
-        flex-direction: column;
-        justify-content: center;
-        overflow: hidden;
-        border: 0.3px solid #ccc;
-        page-break-inside: avoid;
+        padding: ${paddingEtichetta};
+        display: inline-block;
         vertical-align: top;
+        overflow: hidden;
+        page-break-inside: avoid;
+        line-height: 1.2;
+        font-size: 0;
       }
       .etichetta-ordine .riga-top {
         display: flex;
         justify-content: space-between;
         align-items: baseline;
-        margin-bottom: 1mm;
+        margin-bottom: ${marginRigaTop};
       }
       .etichetta-ordine .cognome {
-        font-size: ${larghezza < 60 ? '9' : '12'}pt;
+        font-size: ${fontCognome}pt;
         font-weight: bold;
         text-transform: uppercase;
+        max-width: 70%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .etichetta-ordine .ora {
-        font-size: ${larghezza < 60 ? '8' : '10'}pt;
+        font-size: ${fontOra}pt;
         color: #333;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
       .etichetta-ordine .riga-bottom {
         display: flex;
@@ -619,20 +650,21 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
         align-items: baseline;
       }
       .etichetta-ordine .prodotto {
-        font-size: ${larghezza < 60 ? '7' : '9'}pt;
+        font-size: ${fontProdotto}pt;
         flex: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
       .etichetta-ordine .quantita {
-        font-size: ${larghezza < 60 ? '8' : '10'}pt;
+        font-size: ${fontQuantita}pt;
         font-weight: bold;
-        margin-left: 2mm;
+        margin-left: 1mm;
         white-space: nowrap;
+        flex-shrink: 0;
       }
       .etichetta-ordine .pacco-info {
-        font-size: 7pt;
+        font-size: ${fontPacco}pt;
         color: #666;
         text-align: right;
       }
@@ -642,32 +674,37 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
         width: ${larghezza}mm;
         height: ${tipo === 'foglio' ? altezza + 'mm' : 'auto'};
         min-height: ${altezza}mm;
-        padding: 2.5mm;
-        display: inline-flex;
-        flex-direction: column;
-        overflow: hidden;
-        border: 0.3px solid #ccc;
-        page-break-inside: avoid;
+        padding: ${paddingEtichetta};
+        display: inline-block;
         vertical-align: top;
+        overflow: hidden;
+        page-break-inside: avoid;
+        line-height: 1.2;
+        font-size: 0;
       }
       .etichetta-prodotto .nome-prodotto {
-        font-size: ${larghezza < 60 ? '9' : larghezza > 100 ? '14' : '11'}pt;
+        font-size: ${fontNomeProdotto}pt;
         font-weight: bold;
         text-transform: uppercase;
-        margin-bottom: 1.5mm;
+        margin-bottom: ${isMinuscola ? '0.5mm' : '1.5mm'};
         text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .etichetta-prodotto .ingredienti {
-        font-size: ${larghezza < 60 ? '5.5' : larghezza > 100 ? '8' : '6.5'}pt;
-        line-height: 1.3;
-        margin-bottom: 1mm;
+        font-size: ${fontIngredienti}pt;
+        line-height: 1.2;
+        margin-bottom: ${isMinuscola ? '0.3mm' : '1mm'};
+        overflow: hidden;
+        ${isMinuscola ? 'max-height: 7mm;' : ''}
       }
       .etichetta-prodotto .ingredienti-label {
         font-weight: bold;
       }
       .etichetta-prodotto .allergeni {
-        font-size: ${larghezza < 60 ? '5.5' : larghezza > 100 ? '8' : '6.5'}pt;
-        margin-bottom: 1.5mm;
+        font-size: ${fontIngredienti}pt;
+        margin-bottom: ${isMinuscola ? '0.3mm' : '1.5mm'};
       }
       .etichetta-prodotto .allergeni-label {
         font-weight: bold;
@@ -677,8 +714,8 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
         text-transform: uppercase;
       }
       .etichetta-prodotto .campo-compilabile {
-        font-size: ${larghezza < 60 ? '6' : '7.5'}pt;
-        margin-bottom: 0.5mm;
+        font-size: ${fontCampo}pt;
+        margin-bottom: 0.3mm;
         display: flex;
         align-items: baseline;
       }
@@ -686,17 +723,17 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
         flex: 1;
         border-bottom: 0.5pt solid #000;
         margin-left: 1mm;
-        min-width: 15mm;
+        min-width: 10mm;
       }
       .etichetta-prodotto .data-precompilata {
         font-weight: normal;
         margin-left: 1mm;
       }
       .etichetta-prodotto .footer-azienda {
-        font-size: ${larghezza < 60 ? '5' : '6.5'}pt;
+        font-size: ${fontFooter}pt;
         text-align: center;
         margin-top: auto;
-        padding-top: 1mm;
+        padding-top: 0.5mm;
         border-top: 0.3pt solid #999;
         color: #555;
       }
@@ -767,29 +804,30 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
       .etichetta-produzione-singola {
         width: ${larghezza}mm;
         height: ${altezza}mm;
-        padding: 2mm;
-        display: inline-flex;
-        flex-direction: column;
-        justify-content: center;
-        border: 0.3px solid #ccc;
-        page-break-inside: avoid;
+        padding: ${paddingEtichetta};
+        display: inline-block;
         vertical-align: top;
+        overflow: hidden;
+        page-break-inside: avoid;
+        line-height: 1.2;
+        font-size: 0;
       }
       .etichetta-produzione-singola .nome {
-        font-size: ${larghezza < 60 ? '9' : '12'}pt;
+        font-size: ${fontCognome}pt;
         font-weight: bold;
         text-transform: uppercase;
-        margin-bottom: 1mm;
+        margin-bottom: ${isMinuscola ? '0.3mm' : '1mm'};
       }
       .etichetta-produzione-singola .info {
-        font-size: ${larghezza < 60 ? '7' : '9'}pt;
+        font-size: ${fontProdotto}pt;
       }
 
       /* ===== GRIGLIA FOGLIO A4 ===== */
       .griglia-etichette {
         width: 210mm;
+        min-height: 297mm;
         margin: 0;
-        padding: 0;
+        padding: ${margineSup}mm 0 0 ${margineSx}mm;
         font-size: 0;
         line-height: 0;
       }
@@ -799,6 +837,9 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
         body { margin: 0; padding: 0; }
         .no-print { display: none !important; }
         .griglia-etichette { page-break-inside: auto; }
+        .etichetta-ordine, .etichetta-prodotto, .etichetta-produzione-singola {
+          border: none;
+        }
       }
 
       /* ===== ANTEPRIMA SCREEN ===== */
@@ -811,7 +852,6 @@ const { data } = await axios.get(`${API_URL}/ordini`, {
           background: white;
           box-shadow: 0 2px 10px rgba(0,0,0,0.2);
           margin: 0 auto;
-          padding: 0;
         }
         .foglio-produzione {
           background: white;
