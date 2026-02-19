@@ -55,7 +55,8 @@ import {
   Cake as CakeIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
-  CheckCircle as CheckIcon
+  CheckCircle as CheckIcon,
+  CalendarToday as CalendarIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
 import { PRODOTTI_CONFIG } from '../config/prodottiConfig';
@@ -195,6 +196,9 @@ const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(nul
   // ✅ NUOVO: States per vassoi multipli e dimensione vassoio
   const [numeroVassoiProdotto, setNumeroVassoiProdotto] = useState(''); // ✅ VUOTO DI DEFAULT
   const [dimensioneVassoio, setDimensioneVassoio] = useState('');
+
+  // ✅ FIX 19/02/2026: Dialog conferma data ritiro = oggi
+  const [showConfermaDataOggi, setShowConfermaDataOggi] = useState(false);
 
   // ✅ FIX 17/01/2026: Sposto caricaProdotti PRIMA degli useEffect per evitare hoisting error
   const caricaProdotti = async () => {
@@ -1373,23 +1377,23 @@ useEffect(() => {
 
     console.log('✅ Validazione prodotti OK - tutti hanno quantità e prezzo validi');
 
-    // ✅ FIX 16/02/2026: ALERT se data ritiro è OGGI
+    // ✅ FIX 19/02/2026: Controlla se data ritiro è OGGI → mostra dialog conferma
     const oggi = new Date().toISOString().split('T')[0];
     const dataRitiroSelezionata = formData.dataRitiro?.split('T')[0];
     
     if (dataRitiroSelezionata === oggi) {
-      const confermaData = window.confirm(
-        `⚠️ ATTENZIONE!\n\n` +
-        `La data di RITIRO è impostata a OGGI (${new Date().toLocaleDateString('it-IT')}).\n\n` +
-        `Sei sicuro che il cliente ritira OGGI?\n\n` +
-        `• Premi "OK" → Salva con data di oggi\n` +
-        `• Premi "Annulla" → Torna indietro per cambiare la data`
-      );
-      
-      if (!confermaData) {
-        return;
-      }
+      setShowConfermaDataOggi(true);
+      return; // Aspetta conferma utente dal dialog
     }
+
+    // Se data NON è oggi → procedi direttamente
+    eseguiSalvataggio();
+  };
+
+  // ✅ Funzione separata per il salvataggio effettivo (chiamata dopo conferma)
+  const eseguiSalvataggio = () => {
+    const nomeClienteCompleto = formData.nomeCliente || 
+      `${formData.nome || ''} ${formData.cognome || ''}`.trim();
 
     const erroriCritici = alertLimiti.filter(a => a.tipo === 'error');
     let forceOverride = false;
@@ -1454,6 +1458,7 @@ useEffect(() => {
   };
 
   return (
+    <>
     <Dialog 
       open={open} 
       onClose={onClose} 
@@ -2760,5 +2765,59 @@ useEffect(() => {
         </Box>
       </DialogContent>
     </Dialog>
+
+    {/* ✅ FIX 19/02/2026: Dialog elegante conferma data ritiro = oggi */}
+    <Dialog
+      open={showConfermaDataOggi}
+      onClose={() => setShowConfermaDataOggi(false)}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{
+        sx: { borderRadius: 3, p: 1 }
+      }}
+    >
+      <Box sx={{ textAlign: 'center', pt: 3, pb: 1, px: 3 }}>
+        <CalendarIcon sx={{ fontSize: 48, color: '#f59e0b', mb: 1 }} />
+        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+          Ritiro oggi?
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          La data di ritiro è impostata a <strong>oggi ({new Date().toLocaleDateString('it-IT')})</strong>.
+          Confermi?
+        </Typography>
+      </Box>
+      <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 3, px: 3 }}>
+        <Button
+          variant="outlined"
+          onClick={() => setShowConfermaDataOggi(false)}
+          sx={{ 
+            minWidth: 130, 
+            py: 1.2,
+            borderRadius: 2,
+            fontSize: '1rem'
+          }}
+        >
+          Cambio data
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => {
+            setShowConfermaDataOggi(false);
+            eseguiSalvataggio();
+          }}
+          sx={{ 
+            minWidth: 130, 
+            py: 1.2,
+            borderRadius: 2,
+            fontSize: '1rem',
+            bgcolor: '#f59e0b',
+            '&:hover': { bgcolor: '#d97706' }
+          }}
+        >
+          Sì, è oggi
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 }
