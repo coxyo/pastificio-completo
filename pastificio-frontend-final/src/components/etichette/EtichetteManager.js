@@ -335,7 +335,7 @@ const EtichetteManager = () => {
     try {
       setLoadingOrdini(true);
       const token = localStorage.getItem('token');
-      const { data } = await axios.get(`${API_URL}/api/ordini`, {
+      const { data } = await axios.get(`${API_URL}/ordini`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
