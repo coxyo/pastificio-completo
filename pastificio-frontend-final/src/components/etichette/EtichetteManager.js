@@ -620,48 +620,41 @@ const EtichetteManager = () => {
         vertical-align: top;
         overflow: hidden;
         page-break-inside: avoid;
-        line-height: 1.2;
-        font-size: 0;
       }
-      .etichetta-ordine .riga-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        margin-bottom: ${marginRigaTop};
+      .etichetta-ordine table {
+        width: 100%;
+        height: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .etichetta-ordine td {
+        padding: 0;
+        vertical-align: middle;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
       }
       .etichetta-ordine .cognome {
         font-size: ${fontCognome}pt;
         font-weight: bold;
         text-transform: uppercase;
-        max-width: 70%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        text-align: left;
       }
       .etichetta-ordine .ora {
         font-size: ${fontOra}pt;
         color: #333;
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-      .etichetta-ordine .riga-bottom {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
+        text-align: right;
+        width: 30%;
       }
       .etichetta-ordine .prodotto {
         font-size: ${fontProdotto}pt;
-        flex: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        text-align: left;
       }
       .etichetta-ordine .quantita {
         font-size: ${fontQuantita}pt;
         font-weight: bold;
-        margin-left: 1mm;
-        white-space: nowrap;
-        flex-shrink: 0;
+        text-align: right;
+        width: 30%;
       }
       .etichetta-ordine .pacco-info {
         font-size: ${fontPacco}pt;
@@ -834,7 +827,7 @@ const EtichetteManager = () => {
 
       /* ===== PRINT SPECIFICO ===== */
       @media print {
-        body { margin: 0; padding: 0; }
+        html, body { margin: 0 !important; padding: 0 !important; }
         .no-print { display: none !important; }
         .griglia-etichette { page-break-inside: auto; }
         .etichetta-ordine, .etichetta-prodotto, .etichetta-produzione-singola {
@@ -895,16 +888,18 @@ const EtichetteManager = () => {
       case 'ordine':
         return `
           <div class="etichetta-ordine">
-            <div class="riga-top">
-              <span class="cognome">${etichetta.cognome}</span>
-              <span class="ora">ore ${etichetta.ora}</span>
-            </div>
-            <div class="riga-bottom">
-              <span class="prodotto">${etichetta.prodotto}</span>
-              <span class="quantita">${etichetta.quantita}</span>
-            </div>
-            ${etichetta.pacco ? `<div class="pacco-info">Pacco ${etichetta.pacco}</div>` : ''}
-            ${etichetta.vassoio ? `<div class="pacco-info">Vassoio ${etichetta.vassoio}</div>` : ''}
+            <table>
+              <tr>
+                <td class="cognome">${etichetta.cognome}</td>
+                <td class="ora">ore ${etichetta.ora}</td>
+              </tr>
+              <tr>
+                <td class="prodotto">${etichetta.prodotto}</td>
+                <td class="quantita">${etichetta.quantita}</td>
+              </tr>
+              ${etichetta.pacco ? `<tr><td colspan="2" class="pacco-info">Pacco ${etichetta.pacco}</td></tr>` : ''}
+              ${etichetta.vassoio ? `<tr><td colspan="2" class="pacco-info">Vassoio ${etichetta.vassoio}</td></tr>` : ''}
+            </table>
           </div>
         `;
 
