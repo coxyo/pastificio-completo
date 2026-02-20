@@ -335,7 +335,7 @@ const EtichetteManager = () => {
     try {
       setLoadingOrdini(true);
       const token = localStorage.getItem('token');
-      const { data } = await axios.get(`${API_URL}/ordini`, {
+      const { data } = await axios.get(`${API_URL}/api/ordini`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -577,19 +577,19 @@ const EtichetteManager = () => {
     const isMinuscola = altezza <= 30;
     const isMedia = altezza > 30 && altezza <= 50;
     
-    const fontCognome = isMinuscola ? '7.5' : isMedia ? '10' : '12';
-    const fontOra = isMinuscola ? '6.5' : isMedia ? '9' : '10';
-    const fontProdotto = isMinuscola ? '6' : isMedia ? '8' : '9';
-    const fontQuantita = isMinuscola ? '7' : isMedia ? '9' : '10';
-    const fontPacco = isMinuscola ? '5' : '7';
-    const paddingEtichetta = isMinuscola ? '1mm 1.5mm' : '2mm';
+    const fontCognome = isMinuscola ? '11' : isMedia ? '14' : '16';
+    const fontOra = isMinuscola ? '9' : isMedia ? '11' : '12';
+    const fontProdotto = isMinuscola ? '8' : isMedia ? '10' : '12';
+    const fontQuantita = isMinuscola ? '10' : isMedia ? '12' : '14';
+    const fontPacco = isMinuscola ? '7' : '9';
+    const paddingEtichetta = isMinuscola ? '0.5mm 1mm' : '1.5mm';
     const marginRigaTop = isMinuscola ? '0.3mm' : '1mm';
 
     // Font per etichette prodotto
-    const fontNomeProdotto = isMinuscola ? '7' : isMedia ? '10' : '14';
-    const fontIngredienti = isMinuscola ? '4.5' : isMedia ? '6' : '8';
-    const fontCampo = isMinuscola ? '5' : isMedia ? '6.5' : '7.5';
-    const fontFooter = isMinuscola ? '4' : isMedia ? '5.5' : '6.5';
+    const fontNomeProdotto = isMinuscola ? '10' : isMedia ? '13' : '16';
+    const fontIngredienti = isMinuscola ? '5.5' : isMedia ? '7' : '9';
+    const fontCampo = isMinuscola ? '6' : isMedia ? '7.5' : '9';
+    const fontFooter = isMinuscola ? '5' : isMedia ? '6' : '7';
 
     // Calcolo margini foglio A4 per centrare la griglia di etichette
     // A4 = 210mm x 297mm
