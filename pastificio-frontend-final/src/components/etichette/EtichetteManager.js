@@ -378,9 +378,8 @@ const EtichetteManager = () => {
   // LOGICA GENERAZIONE ETICHETTE ORDINE
   // ═══════════════════════════════════════════════════════════
 
-  // Helper: abbrevia nome cliente → "M. Mameli" invece di "Maurizio Mameli"
+  // Helper: abbrevia nome cliente → "F. ALESSANDRA" o "FLORIS AL."
   const abbreviaNomeCliente = (nome, cognome) => {
-    // Determina il testo completo del cliente
     let testo = '';
     if (nome && cognome) {
       testo = `${nome} ${cognome}`;
@@ -392,20 +391,23 @@ const EtichetteManager = () => {
       return 'N/D';
     }
     
-    // Se contiene spazio e è lungo, abbrevia la prima parola
     const parti = testo.trim().split(/\s+/);
     if (parti.length >= 2) {
       const completo = parti.join(' ');
-      if (completo.length > 14) {
-        // Abbrevia: prima lettera prima parola + resto
-        return `${parti[0].charAt(0).toUpperCase()}. ${parti.slice(1).join(' ').toUpperCase()}`;
-      }
-      return completo.toUpperCase();
+      if (completo.length <= 12) return completo.toUpperCase();
+      // Abbrevia: prima lettera prima parola + seconda parola
+      const abbr1 = `${parti[0].charAt(0).toUpperCase()}. ${parti.slice(1).join(' ').toUpperCase()}`;
+      if (abbr1.length <= 14) return abbr1;
+      // Se ancora troppo lungo: prima parola + iniziale seconda
+      const abbr2 = `${parti[0].toUpperCase()} ${parti[1].charAt(0).toUpperCase()}.`;
+      if (abbr2.length <= 14) return abbr2;
+      // Ultima risorsa: tronca
+      return completo.toUpperCase().substring(0, 12);
     }
     return testo.toUpperCase();
   };
 
-  // Helper: abbrevia composizione vassoio → "C P A G B"
+  // Helper: abbrevia composizione vassoio → "P 0.5 C 0.3 A 0.2"
   const ABBREVIAZIONI_DOLCI = {
     'ciambelle': 'C',
     'pardulas': 'P',
@@ -421,55 +423,72 @@ const EtichetteManager = () => {
     'pizzette': 'Piz',
   };
 
+  const getAbbrDolce = (nome) => {
+    const nomeLC = (nome || '').toLowerCase();
+    for (const [chiave, abbr] of Object.entries(ABBREVIAZIONI_DOLCI)) {
+      if (nomeLC.includes(chiave)) return abbr;
+    }
+    return nomeLC.charAt(0).toUpperCase();
+  };
+
+  // Ritorna: { descrizione: "P 0.5 C 0.3 A 0.2", pesoTotale: "1 Kg" }
   const abbreviaComposizioneVassoio = (prodotto) => {
-    // Cerca composizione in dettagliCalcolo o composizione
+    let risultato = { descrizione: '', pesoTotale: '' };
+    
+    // 1) Prova composizione array (dettagliCalcolo.composizione[])
     const composizione = prodotto.dettagliCalcolo?.composizione 
       || prodotto.composizione 
       || [];
     
-    if (composizione.length === 0) {
-      // Prova a parsare dal campo dettagli (stringa tipo "Amaretti: 0.2 Kg, Pardulas: 0.3 Kg")
-      const dettagli = prodotto.dettagliCalcolo?.dettagli || prodotto.dettagli || '';
-      if (dettagli) {
-        const parti = dettagli.split(/[,|;]\s*/);
-        const abbrs = [];
-        for (const parte of parti) {
-          const nomeProdotto = parte.split(':')[0]?.trim().toLowerCase() || '';
-          if (!nomeProdotto) continue;
-          let trovato = false;
-          for (const [chiave, abbr] of Object.entries(ABBREVIAZIONI_DOLCI)) {
-            if (nomeProdotto.includes(chiave)) {
-              abbrs.push(abbr);
-              trovato = true;
-              break;
-            }
-          }
-          if (!trovato && nomeProdotto.length > 0) {
-            abbrs.push(nomeProdotto.charAt(0).toUpperCase());
-          }
+    if (composizione.length > 0) {
+      let pesoTot = 0;
+      const parti = [];
+      for (const item of composizione) {
+        const abbr = getAbbrDolce(item.nome);
+        const q = parseFloat(item.quantita) || 0;
+        if (q > 0) {
+          // Formatta: rimuovi .0 inutili
+          const qStr = q % 1 === 0 ? String(q) : String(q);
+          parti.push(`${abbr} ${qStr}`);
+          pesoTot += q;
         }
-        if (abbrs.length > 0) return abbrs.join(' ');
       }
-      return 'Dolci misti';
+      if (parti.length > 0) {
+        risultato.descrizione = parti.join(' ');
+        risultato.pesoTotale = `${Math.round(pesoTot * 100) / 100} Kg`;
+        return risultato;
+      }
     }
 
-    // Composizione è array di oggetti {nome, quantita}
-    const abbrs = [];
-    for (const item of composizione) {
-      const nomeLC = (item.nome || '').toLowerCase();
-      let trovato = false;
-      for (const [chiave, abbr] of Object.entries(ABBREVIAZIONI_DOLCI)) {
-        if (nomeLC.includes(chiave)) {
-          abbrs.push(abbr);
-          trovato = true;
-          break;
+    // 2) Prova campo dettagli stringa ("Amaretti: 0.2 Kg, Pardulas: 0.3 Kg")
+    const dettagli = prodotto.dettagliCalcolo?.dettagli || prodotto.dettagli || '';
+    if (dettagli) {
+      const segmenti = dettagli.split(/[,|;]\s*/);
+      let pesoTot = 0;
+      const parti = [];
+      for (const seg of segmenti) {
+        const match = seg.match(/^(.+?):\s*([\d.,]+)\s*(Kg|g|pz)?/i);
+        if (match) {
+          const abbr = getAbbrDolce(match[1]);
+          const q = parseFloat(match[2].replace(',', '.')) || 0;
+          if (q > 0) {
+            const qStr = q % 1 === 0 ? String(q) : String(q);
+            parti.push(`${abbr} ${qStr}`);
+            pesoTot += q;
+          }
         }
       }
-      if (!trovato && nomeLC.length > 0) {
-        abbrs.push(nomeLC.charAt(0).toUpperCase());
+      if (parti.length > 0) {
+        risultato.descrizione = parti.join(' ');
+        risultato.pesoTotale = `${Math.round(pesoTot * 100) / 100} Kg`;
+        return risultato;
       }
     }
-    return abbrs.length > 0 ? abbrs.join(' ') : 'Dolci misti';
+
+    // 3) Fallback
+    risultato.descrizione = 'Dolci misti';
+    risultato.pesoTotale = prodotto.quantita ? `${prodotto.quantita} Kg` : '';
+    return risultato;
   };
 
   // Helper: abbrevia nome prodotto per etichetta
@@ -577,27 +596,37 @@ const EtichetteManager = () => {
         const vassoi = prodotto.numeroVassoi || 1;
         const dimVassoio = prodotto.dimensioneVassoio || '';
         
-        // Se è un vassoio dolci misti, mostra la composizione
+        // Se è un vassoio dolci misti, mostra la composizione con quantità
         const isVassoioMisti = nome.toLowerCase().includes('vassoio') || 
                                (nome.toLowerCase().includes('dolci misti') && unita === 'vassoio');
-        const prodottoDisplay = isVassoioMisti 
-          ? abbreviaComposizioneVassoio(prodotto) 
-          : nomeAbbreviato;
         
-        for (let v = 0; v < vassoi; v++) {
-          const qDisplay = unita === 'vassoio' 
-            ? `${vassoi > 1 ? (v + 1) + '/' + vassoi : '1'} vassoio`
-            : `${quantita} ${unita}`;
-          etichette.push({
-            tipo: 'ordine',
-            cognome: cognomeDisplay,
-            ora,
-            prodotto: prodottoDisplay,
-            quantita: qDisplay,
-            vassoio: vassoi > 1 ? `${v + 1}/${vassoi}` : null,
-            dimensione: dimVassoio,
-            ordineId: ordine._id
-          });
+        if (isVassoioMisti) {
+          const comp = abbreviaComposizioneVassoio(prodotto);
+          for (let v = 0; v < vassoi; v++) {
+            etichette.push({
+              tipo: 'ordine',
+              cognome: cognomeDisplay,
+              ora,
+              prodotto: comp.descrizione,
+              quantita: comp.pesoTotale || `${quantita} Kg`,
+              vassoio: vassoi > 1 ? `${v + 1}/${vassoi}` : null,
+              dimensione: dimVassoio,
+              ordineId: ordine._id
+            });
+          }
+        } else {
+          for (let v = 0; v < vassoi; v++) {
+            etichette.push({
+              tipo: 'ordine',
+              cognome: cognomeDisplay,
+              ora,
+              prodotto: nomeAbbreviato,
+              quantita: `${quantita} ${unita}`,
+              vassoio: vassoi > 1 ? `${v + 1}/${vassoi}` : null,
+              dimensione: dimVassoio,
+              ordineId: ordine._id
+            });
+          }
         }
       }
     });
