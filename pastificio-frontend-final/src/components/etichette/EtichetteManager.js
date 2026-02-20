@@ -405,6 +405,73 @@ const EtichetteManager = () => {
     return testo.toUpperCase();
   };
 
+  // Helper: abbrevia composizione vassoio → "C P A G B"
+  const ABBREVIAZIONI_DOLCI = {
+    'ciambelle': 'C',
+    'pardulas': 'P',
+    'amaretti': 'A',
+    'papassin': 'Pab',   // papassini/papassinas
+    'gueffus': 'G',
+    'bianchini': 'B',
+    'cantucci': 'Cnt',
+    'crostate': 'Cr',
+    'zeppole': 'Z',
+    'torta': 'T',
+    'sebadas': 'Seb',
+    'pizzette': 'Piz',
+  };
+
+  const abbreviaComposizioneVassoio = (prodotto) => {
+    // Cerca composizione in dettagliCalcolo o composizione
+    const composizione = prodotto.dettagliCalcolo?.composizione 
+      || prodotto.composizione 
+      || [];
+    
+    if (composizione.length === 0) {
+      // Prova a parsare dal campo dettagli (stringa tipo "Amaretti: 0.2 Kg, Pardulas: 0.3 Kg")
+      const dettagli = prodotto.dettagliCalcolo?.dettagli || prodotto.dettagli || '';
+      if (dettagli) {
+        const parti = dettagli.split(/[,|;]\s*/);
+        const abbrs = [];
+        for (const parte of parti) {
+          const nomeProdotto = parte.split(':')[0]?.trim().toLowerCase() || '';
+          if (!nomeProdotto) continue;
+          let trovato = false;
+          for (const [chiave, abbr] of Object.entries(ABBREVIAZIONI_DOLCI)) {
+            if (nomeProdotto.includes(chiave)) {
+              abbrs.push(abbr);
+              trovato = true;
+              break;
+            }
+          }
+          if (!trovato && nomeProdotto.length > 0) {
+            abbrs.push(nomeProdotto.charAt(0).toUpperCase());
+          }
+        }
+        if (abbrs.length > 0) return abbrs.join(' ');
+      }
+      return 'Dolci misti';
+    }
+
+    // Composizione è array di oggetti {nome, quantita}
+    const abbrs = [];
+    for (const item of composizione) {
+      const nomeLC = (item.nome || '').toLowerCase();
+      let trovato = false;
+      for (const [chiave, abbr] of Object.entries(ABBREVIAZIONI_DOLCI)) {
+        if (nomeLC.includes(chiave)) {
+          abbrs.push(abbr);
+          trovato = true;
+          break;
+        }
+      }
+      if (!trovato && nomeLC.length > 0) {
+        abbrs.push(nomeLC.charAt(0).toUpperCase());
+      }
+    }
+    return abbrs.length > 0 ? abbrs.join(' ') : 'Dolci misti';
+  };
+
   // Helper: abbrevia nome prodotto per etichetta
   const abbreviaProdotto = (nome) => {
     if (!nome) return '';
@@ -509,13 +576,24 @@ const EtichetteManager = () => {
         // DOLCI e altri: 1 etichetta per voce
         const vassoi = prodotto.numeroVassoi || 1;
         const dimVassoio = prodotto.dimensioneVassoio || '';
+        
+        // Se è un vassoio dolci misti, mostra la composizione
+        const isVassoioMisti = nome.toLowerCase().includes('vassoio') || 
+                               (nome.toLowerCase().includes('dolci misti') && unita === 'vassoio');
+        const prodottoDisplay = isVassoioMisti 
+          ? abbreviaComposizioneVassoio(prodotto) 
+          : nomeAbbreviato;
+        
         for (let v = 0; v < vassoi; v++) {
+          const qDisplay = unita === 'vassoio' 
+            ? `${vassoi > 1 ? (v + 1) + '/' + vassoi : '1'} vassoio`
+            : `${quantita} ${unita}`;
           etichette.push({
             tipo: 'ordine',
             cognome: cognomeDisplay,
             ora,
-            prodotto: nomeAbbreviato,
-            quantita: `${quantita} ${unita}`,
+            prodotto: prodottoDisplay,
+            quantita: qDisplay,
             vassoio: vassoi > 1 ? `${v + 1}/${vassoi}` : null,
             dimensione: dimVassoio,
             ordineId: ordine._id
