@@ -378,9 +378,58 @@ const EtichetteManager = () => {
   // LOGICA GENERAZIONE ETICHETTE ORDINE
   // ═══════════════════════════════════════════════════════════
 
+  // Helper: abbrevia nome cliente → "M. Mameli" invece di "Maurizio Mameli"
+  const abbreviaNomeCliente = (nome, cognome) => {
+    if (!nome && !cognome) return 'N/D';
+    if (!nome) return (cognome || '').toUpperCase();
+    if (!cognome) return (nome || '').toUpperCase();
+    // Se nome+cognome è corto (≤14 char), mostra tutto
+    const completo = `${nome} ${cognome}`;
+    if (completo.length <= 14) return completo.toUpperCase();
+    // Abbrevia: prima lettera nome + punto + cognome
+    return `${nome.charAt(0).toUpperCase()}. ${cognome.toUpperCase()}`;
+  };
+
+  // Helper: abbrevia nome prodotto per etichetta
+  const abbreviaProdotto = (nome) => {
+    if (!nome) return '';
+    const abbreviazioni = {
+      'Ravioli ricotta con Spinaci e con Zafferano': 'Rav. Ric. Sp. Zaff.',
+      'Ravioli ricotta con Spinaci': 'Rav. Ric. Spinaci',
+      'Ravioli ricotta con Zafferano': 'Rav. Ric. Zaff.',
+      'Ravioli ricotta': 'Rav. Ricotta',
+      'Culurgiones': 'Culurg.',
+      'Culurgiones di patate': 'Culurg. Patate',
+      'Panada di Agnello': 'Pan. Agnello',
+      'Panada di Agnello (con patate)': 'Pan. Agn. Pat.',
+      'Panada di verdure': 'Pan. Verdure',
+      'Panada di verdure (con patate)': 'Pan. Verd. Pat.',
+      'Panada Anguille': 'Pan. Anguille',
+      'Sebadas arancia': 'Seb. Arancia',
+      'Sebadas limone': 'Seb. Limone',
+      'Vassoio Dolci Misti': 'Vass. Misti',
+      'Ciambelle': 'Ciambelle',
+      'Pardulas': 'Pardulas',
+      'Panadine': 'Panadine',
+      'Zeppole': 'Zeppole',
+    };
+    // Cerca match esatto prima
+    if (abbreviazioni[nome]) return abbreviazioni[nome];
+    // Cerca match parziale (contiene)
+    for (const [chiave, abbr] of Object.entries(abbreviazioni)) {
+      if (nome.toLowerCase().includes(chiave.toLowerCase())) return abbr;
+    }
+    // Se il nome è lungo (>20 char), tronca
+    if (nome.length > 20) return nome.substring(0, 18) + '..';
+    return nome;
+  };
+
   const generaEtichetteOrdine = (ordine) => {
     const etichette = [];
-    const cognome = ordine.cognomeCliente || ordine.nomeCliente || 'N/D';
+    const cognomeDisplay = abbreviaNomeCliente(
+      ordine.nomeCliente, 
+      ordine.cognomeCliente
+    );
     const ora = ordine.oraRitiro || '--:--';
 
     (ordine.prodotti || []).forEach(prodotto => {
@@ -389,6 +438,7 @@ const EtichetteManager = () => {
       const unita = prodotto.unita || 'Kg';
       const variante = prodotto.variante || '';
       const nomeCompleto = variante ? `${nome} ${variante}` : nome;
+      const nomeAbbreviato = abbreviaProdotto(nomeCompleto);
 
       // Determina categoria prodotto
       const isPasta = nome.toLowerCase().includes('ravioli') || 
@@ -402,9 +452,9 @@ const EtichetteManager = () => {
           // Un solo pacco
           etichette.push({
             tipo: 'ordine',
-            cognome: cognome.toUpperCase(),
+            cognome: cognomeDisplay,
             ora,
-            prodotto: nomeCompleto,
+            prodotto: nomeAbbreviato,
             quantita: `${quantita} ${unita}`,
             ordineId: ordine._id
           });
@@ -417,9 +467,9 @@ const EtichetteManager = () => {
             const qPacco = rimanente > 1.3 ? 1 : rimanente;
             etichette.push({
               tipo: 'ordine',
-              cognome: cognome.toUpperCase(),
+              cognome: cognomeDisplay,
               ora,
-              prodotto: nomeCompleto,
+              prodotto: nomeAbbreviato,
               quantita: `${qPacco} ${unita}`,
               pacco: totPacchi > 1 ? `${numPacco}/${totPacchi}` : null,
               ordineId: ordine._id
@@ -434,9 +484,9 @@ const EtichetteManager = () => {
         const qDisplay = unita === 'Pezzi' ? `x${quantita}` : `${quantita} ${unita}`;
         etichette.push({
           tipo: 'ordine',
-          cognome: cognome.toUpperCase(),
+          cognome: cognomeDisplay,
           ora,
-          prodotto: nomeCompleto,
+          prodotto: nomeAbbreviato,
           quantita: qDisplay,
           ordineId: ordine._id
         });
@@ -447,9 +497,9 @@ const EtichetteManager = () => {
         for (let v = 0; v < vassoi; v++) {
           etichette.push({
             tipo: 'ordine',
-            cognome: cognome.toUpperCase(),
+            cognome: cognomeDisplay,
             ora,
-            prodotto: nomeCompleto,
+            prodotto: nomeAbbreviato,
             quantita: `${quantita} ${unita}`,
             vassoio: vassoi > 1 ? `${v + 1}/${vassoi}` : null,
             dimensione: dimVassoio,
