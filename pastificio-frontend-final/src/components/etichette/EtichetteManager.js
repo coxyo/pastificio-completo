@@ -628,11 +628,18 @@ const EtichetteManager = () => {
         table-layout: fixed;
       }
       .etichetta-ordine td {
-        padding: 0;
+        padding: 0 0.5mm;
         vertical-align: middle;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
+        max-width: 0;
+      }
+      .etichetta-ordine .col-sinistra {
+        width: 62%;
+      }
+      .etichetta-ordine .col-destra {
+        width: 38%;
       }
       .etichetta-ordine .cognome {
         font-size: ${fontCognome}pt;
@@ -644,7 +651,6 @@ const EtichetteManager = () => {
         font-size: ${fontOra}pt;
         color: #333;
         text-align: right;
-        width: 30%;
       }
       .etichetta-ordine .prodotto {
         font-size: ${fontProdotto}pt;
@@ -654,7 +660,6 @@ const EtichetteManager = () => {
         font-size: ${fontQuantita}pt;
         font-weight: bold;
         text-align: right;
-        width: 30%;
       }
       .etichetta-ordine .pacco-info {
         font-size: ${fontPacco}pt;
@@ -889,9 +894,13 @@ const EtichetteManager = () => {
         return `
           <div class="etichetta-ordine">
             <table>
+              <colgroup>
+                <col class="col-sinistra">
+                <col class="col-destra">
+              </colgroup>
               <tr>
                 <td class="cognome">${etichetta.cognome}</td>
-                <td class="ora">ore ${etichetta.ora}</td>
+                <td class="ora">${etichetta.ora}</td>
               </tr>
               <tr>
                 <td class="prodotto">${etichetta.prodotto}</td>
