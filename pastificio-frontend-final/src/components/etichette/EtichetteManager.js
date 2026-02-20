@@ -380,14 +380,29 @@ const EtichetteManager = () => {
 
   // Helper: abbrevia nome cliente → "M. Mameli" invece di "Maurizio Mameli"
   const abbreviaNomeCliente = (nome, cognome) => {
-    if (!nome && !cognome) return 'N/D';
-    if (!nome) return (cognome || '').toUpperCase();
-    if (!cognome) return (nome || '').toUpperCase();
-    // Se nome+cognome è corto (≤14 char), mostra tutto
-    const completo = `${nome} ${cognome}`;
-    if (completo.length <= 14) return completo.toUpperCase();
-    // Abbrevia: prima lettera nome + punto + cognome
-    return `${nome.charAt(0).toUpperCase()}. ${cognome.toUpperCase()}`;
+    // Determina il testo completo del cliente
+    let testo = '';
+    if (nome && cognome) {
+      testo = `${nome} ${cognome}`;
+    } else if (cognome) {
+      testo = cognome;
+    } else if (nome) {
+      testo = nome;
+    } else {
+      return 'N/D';
+    }
+    
+    // Se contiene spazio e è lungo, abbrevia la prima parola
+    const parti = testo.trim().split(/\s+/);
+    if (parti.length >= 2) {
+      const completo = parti.join(' ');
+      if (completo.length > 14) {
+        // Abbrevia: prima lettera prima parola + resto
+        return `${parti[0].charAt(0).toUpperCase()}. ${parti.slice(1).join(' ').toUpperCase()}`;
+      }
+      return completo.toUpperCase();
+    }
+    return testo.toUpperCase();
   };
 
   // Helper: abbrevia nome prodotto per etichetta
@@ -629,8 +644,8 @@ const EtichetteManager = () => {
     
     const fontCognome = isMinuscola ? '11' : isMedia ? '14' : '16';
     const fontOra = isMinuscola ? '9' : isMedia ? '11' : '12';
-    const fontProdotto = isMinuscola ? '8' : isMedia ? '10' : '12';
-    const fontQuantita = isMinuscola ? '10' : isMedia ? '12' : '14';
+    const fontProdotto = isMinuscola ? '10' : isMedia ? '12' : '14';
+    const fontQuantita = isMinuscola ? '11' : isMedia ? '13' : '15';
     const fontPacco = isMinuscola ? '7' : '9';
     const paddingEtichetta = isMinuscola ? '0.5mm 1mm' : '1.5mm';
     const marginRigaTop = isMinuscola ? '0.3mm' : '1mm';
