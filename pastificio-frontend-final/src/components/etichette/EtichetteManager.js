@@ -435,6 +435,12 @@ const EtichetteManager = () => {
   const abbreviaComposizioneVassoio = (prodotto) => {
     let risultato = { descrizione: '', pesoTotale: '' };
     
+    // Helper: arrotonda a 1 decimale e formatta (0.5 non 0.50)
+    const fmtQ = (n) => {
+      const r = Math.round(n * 10) / 10;
+      return r % 1 === 0 ? String(Math.round(r)) : r.toFixed(1);
+    };
+    
     // 1) Prova composizione array (dettagliCalcolo.composizione[])
     const composizione = prodotto.dettagliCalcolo?.composizione 
       || prodotto.composizione 
@@ -447,15 +453,13 @@ const EtichetteManager = () => {
         const abbr = getAbbrDolce(item.nome);
         const q = parseFloat(item.quantita) || 0;
         if (q > 0) {
-          // Formatta: rimuovi .0 inutili
-          const qStr = q % 1 === 0 ? String(q) : String(q);
-          parti.push(`${abbr} ${qStr}`);
+          parti.push(`${abbr} ${fmtQ(q)}`);
           pesoTot += q;
         }
       }
       if (parti.length > 0) {
         risultato.descrizione = parti.join(' ');
-        risultato.pesoTotale = `${Math.round(pesoTot * 100) / 100} Kg`;
+        risultato.pesoTotale = `${fmtQ(pesoTot)} Kg`;
         return risultato;
       }
     }
@@ -472,15 +476,14 @@ const EtichetteManager = () => {
           const abbr = getAbbrDolce(match[1]);
           const q = parseFloat(match[2].replace(',', '.')) || 0;
           if (q > 0) {
-            const qStr = q % 1 === 0 ? String(q) : String(q);
-            parti.push(`${abbr} ${qStr}`);
+            parti.push(`${abbr} ${fmtQ(q)}`);
             pesoTot += q;
           }
         }
       }
       if (parti.length > 0) {
         risultato.descrizione = parti.join(' ');
-        risultato.pesoTotale = `${Math.round(pesoTot * 100) / 100} Kg`;
+        risultato.pesoTotale = `${fmtQ(pesoTot)} Kg`;
         return risultato;
       }
     }
@@ -605,6 +608,7 @@ const EtichetteManager = () => {
           for (let v = 0; v < vassoi; v++) {
             etichette.push({
               tipo: 'ordine',
+              isVassoio: true,
               cognome: cognomeDisplay,
               ora,
               prodotto: comp.descrizione,
@@ -838,6 +842,15 @@ const EtichetteManager = () => {
         color: #666;
         text-align: right;
       }
+      .etichetta-ordine .composizione {
+        font-size: ${fontProdotto}pt;
+        font-weight: bold;
+        text-align: left;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.2;
+        padding: 0 0.5mm;
+      }
 
       /* ===== ETICHETTE PRODOTTO ===== */
       .etichetta-prodotto {
@@ -1063,6 +1076,26 @@ const EtichetteManager = () => {
   const renderEtichettaHTML = (etichetta) => {
     switch (etichetta.tipo) {
       case 'ordine':
+        if (etichetta.isVassoio) {
+          // Layout vassoio: nome+ora in riga 1, composizione su riga 2 a tutta larghezza
+          return `
+            <div class="etichetta-ordine">
+              <table>
+                <colgroup>
+                  <col class="col-sinistra">
+                  <col class="col-destra">
+                </colgroup>
+                <tr>
+                  <td class="cognome">${etichetta.cognome}</td>
+                  <td class="ora">${etichetta.ora}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" class="composizione">${etichetta.prodotto} = ${etichetta.quantita}</td>
+                </tr>
+              </table>
+            </div>
+          `;
+        }
         return `
           <div class="etichetta-ordine">
             <table>
