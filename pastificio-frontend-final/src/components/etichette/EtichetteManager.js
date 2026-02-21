@@ -409,6 +409,11 @@ const EtichetteManager = () => {
 
   // Helper: abbrevia composizione vassoio → "P 0.5 C 0.3 A 0.2"
   const ABBREVIAZIONI_DOLCI = {
+    'ciambelle con marmellata': 'Cm',
+    'ciambelle con nutella': 'Cn',
+    'ciambelle miste': 'Cmix',
+    'ciambelle con zucchero': 'Cz',
+    'ciambelle solo base': 'Cb',
     'ciambelle': 'C',
     'pardulas': 'P',
     'amaretti': 'A',
@@ -450,16 +455,24 @@ const EtichetteManager = () => {
       let pesoTot = 0;
       const parti = [];
       for (const item of composizione) {
-        const abbr = getAbbrDolce(item.nome);
+        const nomeItem = item.nome || '';
+        const varianteItem = item.variante || '';
+        const nomeCompleto = varianteItem ? `${nomeItem} ${varianteItem}` : nomeItem;
+        const abbr = getAbbrDolce(nomeCompleto);
         const q = parseFloat(item.quantita) || 0;
+        const unitaItem = (item.unita || 'Kg').toLowerCase();
         if (q > 0) {
-          parti.push(`${abbr} ${fmtQ(q)}`);
-          pesoTot += q;
+          if (unitaItem === 'pezzi' || unitaItem === 'unità' || unitaItem === 'pz') {
+            parti.push(`${abbr}${Math.round(q)}pz`);
+          } else {
+            parti.push(`${abbr} ${fmtQ(q)}`);
+            pesoTot += q;
+          }
         }
       }
       if (parti.length > 0) {
         risultato.descrizione = parti.join(' ');
-        risultato.pesoTotale = `${fmtQ(pesoTot)} Kg`;
+        risultato.pesoTotale = pesoTot > 0 ? `${fmtQ(pesoTot)} Kg` : '';
         return risultato;
       }
     }
@@ -471,19 +484,24 @@ const EtichetteManager = () => {
       let pesoTot = 0;
       const parti = [];
       for (const seg of segmenti) {
-        const match = seg.match(/^(.+?):\s*([\d.,]+)\s*(Kg|g|pz)?/i);
+        const match = seg.match(/^(.+?):\s*([\d.,]+)\s*(Kg|g|pz|pezzi|unità)?/i);
         if (match) {
           const abbr = getAbbrDolce(match[1]);
           const q = parseFloat(match[2].replace(',', '.')) || 0;
+          const u = (match[3] || 'Kg').toLowerCase();
           if (q > 0) {
-            parti.push(`${abbr} ${fmtQ(q)}`);
-            pesoTot += q;
+            if (u === 'pz' || u === 'pezzi' || u === 'unità') {
+              parti.push(`${abbr}${Math.round(q)}pz`);
+            } else {
+              parti.push(`${abbr} ${fmtQ(q)}`);
+              pesoTot += q;
+            }
           }
         }
       }
       if (parti.length > 0) {
         risultato.descrizione = parti.join(' ');
-        risultato.pesoTotale = `${fmtQ(pesoTot)} Kg`;
+        risultato.pesoTotale = pesoTot > 0 ? `${fmtQ(pesoTot)} Kg` : '';
         return risultato;
       }
     }
@@ -498,24 +516,46 @@ const EtichetteManager = () => {
   const abbreviaProdotto = (nome) => {
     if (!nome) return '';
     const abbreviazioni = {
+      // Ravioli - ordine specifico prima (match più lungo prima)
       'Ravioli ricotta con Spinaci e con Zafferano': 'Rav. Ric. Sp. Zaff.',
       'Ravioli ricotta con Spinaci': 'Rav. Ric. Spinaci',
       'Ravioli ricotta con Zafferano': 'Rav. Ric. Zaff.',
+      'Ravioli ricotta Dolci': 'Rav. Ric. Dolci',
+      'Ravioli formaggio': 'Rav. Formaggio',
       'Ravioli ricotta': 'Rav. Ricotta',
       'Culurgiones': 'Culurg.',
       'Culurgiones di patate': 'Culurg. Patate',
-      'Panada di Agnello': 'Pan. Agnello',
+      // Panadas
       'Panada di Agnello (con patate)': 'Pan. Agn. Pat.',
-      'Panada di verdure': 'Pan. Verdure',
+      'Panada di Agnello': 'Pan. Agnello',
       'Panada di verdure (con patate)': 'Pan. Verd. Pat.',
-      'Panada Anguille': 'Pan. Anguille',
+      'Panada di verdure': 'Pan. Verdure',
+      'Panada di anguille': 'Pan. Anguille',
+      'Panada di Maiale': 'Pan. Maiale',
+      'Panada di Vitella': 'Pan. Vitella',
+      'Pasta per panada': 'Pasta panada',
+      // Ciambelle con variante
+      'Ciambelle con marmellata': 'Ciamb. Marm.',
+      'Ciambelle con nutella': 'Ciamb. Nutella',
+      'Ciambelle con zucchero': 'Ciamb. Zucch.',
+      'Ciambelle miste': 'Ciamb. Miste',
+      'Ciambelle solo base': 'Ciamb. Base',
+      'Ciambelle albicocca': 'Ciamb. Albic.',
+      'Ciambelle ciliegia': 'Ciamb. Cileg.',
+      // Ciambelle generico (last)
+      'Ciambelle': 'Ciambelle',
+      // Altri dolci
       'Sebadas arancia': 'Seb. Arancia',
       'Sebadas limone': 'Seb. Limone',
       'Vassoio Dolci Misti': 'Vass. Misti',
-      'Ciambelle': 'Ciambelle',
       'Pardulas': 'Pardulas',
       'Panadine': 'Panadine',
       'Zeppole': 'Zeppole',
+      'Pizzette sfoglia': 'Pizzette sf.',
+      'Torta di sapa': 'Torta sapa',
+      'Torta di saba': 'Torta saba',
+      'Fregola': 'Fregola',
+      'Lasagne': 'Lasagne',
     };
     // Cerca match esatto prima
     if (abbreviazioni[nome]) return abbreviazioni[nome];
@@ -551,8 +591,17 @@ const EtichetteManager = () => {
                        nome.toLowerCase().includes('panadin');
 
       if (isPasta) {
-        // RAVIOLI/CULURGIONES: max 1 Kg per pacco
-        if (quantita <= 1.3) {
+        if (unita === 'Pezzi') {
+          // RAVIOLI A PEZZI: 1 etichetta con quantità totale
+          etichette.push({
+            tipo: 'ordine',
+            cognome: cognomeDisplay,
+            ora,
+            prodotto: nomeAbbreviato,
+            quantita: `${quantita} Pezzi`,
+            ordineId: ordine._id
+          });
+        } else if (quantita <= 1.3) {
           // Un solo pacco
           etichette.push({
             tipo: 'ordine',
