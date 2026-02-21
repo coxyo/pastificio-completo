@@ -407,109 +407,142 @@ const EtichetteManager = () => {
     return testo.toUpperCase();
   };
 
-  // Helper: abbrevia composizione vassoio → "P 0.5 C 0.3 A 0.2"
-  const ABBREVIAZIONI_DOLCI = {
-    'ciambelle con marmellata': 'Cm',
-    'ciambelle con nutella': 'Cn',
-    'ciambelle miste': 'Cmix',
-    'ciambelle con zucchero': 'Cz',
-    'ciambelle solo base': 'Cb',
-    'ciambelle': 'C',
-    'pardulas': 'P',
-    'amaretti': 'A',
-    'papassin': 'Pab',   // papassini/papassinas
-    'gueffus': 'G',
-    'bianchini': 'B',
-    'cantucci': 'Cnt',
-    'crostate': 'Cr',
-    'zeppole': 'Z',
-    'torta': 'T',
-    'sebadas': 'Seb',
-    'pizzette': 'Piz',
+  // ═══ COMPOSIZIONE VASSOIO - Logica da RiepilogoStampabile.js ═══
+
+  // Conversione pezzi → Kg (stessi valori di RiepilogoStampabile)
+  const PEZZI_PER_KG = {
+    'Pardulas': 25, 'Amaretti': 35, 'Bianchini': 100,
+    'Papassinas': 30, 'Papassine': 30, 'Pabassine': 30, 'Pabassinas': 30,
+    'Gueffus': 65, 'Ciambelle': 30, 'Sebadas': 10, 'Zeppole': 24,
+    'Ciambelle con marmellata di albicocca': 30,
+    'Ciambelle con marmellata di ciliegia': 30,
+    'Ciambelle con nutella': 30,
+    'Ciambelle con zucchero a velo': 30,
+    'Pizzette sfoglia': 30,
   };
 
-  const getAbbrDolce = (nome) => {
-    const nomeLC = (nome || '').toLowerCase();
-    for (const [chiave, abbr] of Object.entries(ABBREVIAZIONI_DOLCI)) {
-      if (nomeLC.includes(chiave)) return abbr;
+  const getPezziPerKgComp = (nome) => {
+    if (PEZZI_PER_KG[nome]) return PEZZI_PER_KG[nome];
+    for (const [chiave, val] of Object.entries(PEZZI_PER_KG)) {
+      if (nome.toLowerCase().includes(chiave.toLowerCase()) ||
+          chiave.toLowerCase().includes(nome.toLowerCase())) return val;
     }
-    return nomeLC.charAt(0).toUpperCase();
+    return 30;
   };
 
-  // Ritorna: { descrizione: "P 0.5 C 0.3 A 0.2", pesoTotale: "1 Kg" }
-  const abbreviaComposizioneVassoio = (prodotto) => {
-    let risultato = { descrizione: '', pesoTotale: '' };
-    
-    // Helper: arrotonda a 1 decimale e formatta (0.5 non 0.50)
-    const fmtQ = (n) => {
-      const r = Math.round(n * 10) / 10;
-      return r % 1 === 0 ? String(Math.round(r)) : r.toFixed(1);
+  // Abbreviazioni composizione (stesse del RiepilogoStampabile)
+  const getAbbrComp = (nome, variante) => {
+    const ABBR = {
+      'Pardulas': 'P', 'Amaretti': 'A', 'Bianchini': 'B', 'Gueffus': 'G',
+      'Papassinas': 'Pab', 'Papassine': 'Pab', 'Pabassine': 'Pab',
+      'Ciambelle': 'C', 'Sebadas': 'Seb', 'Zeppole': 'Z',
+      'Torta di saba': 'T', 'Pizzette sfoglia': 'Piz',
     };
     
-    // 1) Prova composizione array (dettagliCalcolo.composizione[])
+    // Match esatto nome
+    if (ABBR[nome]) {
+      let base = ABBR[nome];
+      // Varianti ciambelle
+      if (base === 'C' && variante) {
+        const vl = variante.toLowerCase();
+        if (vl.includes('albicocca')) return 'C.Alb';
+        if (vl.includes('ciliegia') || vl.includes('cilieg')) return 'C.Cil';
+        if (vl.includes('nutella')) return 'C.Nut';
+        if (vl.includes('zucchero')) return 'C.Zuc';
+        if (vl.includes('miste')) return 'C.Mix';
+      }
+      // Varianti pardulas
+      if (base === 'P' && variante) {
+        const vl = variante.toLowerCase();
+        if (vl.includes('glassa')) return 'P.Gl';
+      }
+      return base;
+    }
+    // Match parziale
+    for (const [chiave, abbr] of Object.entries(ABBR)) {
+      if (nome.toLowerCase().includes(chiave.toLowerCase())) return abbr;
+    }
+    return nome.charAt(0).toUpperCase();
+  };
+
+  // Ritorna: { descrizione: "P 0,5 C.Alb 0,3", pesoTotale: "1 Kg" }
+  const abbreviaComposizioneVassoio = (prodotto) => {
+    const fmtQ = (n) => {
+      const r = Math.round(n * 10) / 10;
+      return r % 1 === 0 ? String(Math.round(r)) : r.toFixed(1).replace('.', ',');
+    };
+    
     const composizione = prodotto.dettagliCalcolo?.composizione 
-      || prodotto.composizione 
-      || [];
+      || prodotto.composizione || [];
     
     if (composizione.length > 0) {
-      let pesoTot = 0;
+      let pesoTotKg = 0;
       const parti = [];
+      
       for (const item of composizione) {
-        const nomeItem = item.nome || '';
-        const varianteItem = item.variante || '';
-        const nomeCompleto = varianteItem ? `${nomeItem} ${varianteItem}` : nomeItem;
-        const abbr = getAbbrDolce(nomeCompleto);
+        const abbr = getAbbrComp(item.nome || '', item.variante || '');
         const q = parseFloat(item.quantita) || 0;
         const unitaItem = (item.unita || 'Kg').toLowerCase();
-        if (q > 0) {
-          if (unitaItem === 'pezzi' || unitaItem === 'unità' || unitaItem === 'pz') {
-            parti.push(`${abbr}${Math.round(q)}pz`);
-          } else {
-            parti.push(`${abbr} ${fmtQ(q)}`);
-            pesoTot += q;
-          }
+        
+        if (q <= 0) continue;
+        
+        if (unitaItem === 'pezzi' || unitaItem === 'pz' || unitaItem === 'unità') {
+          // CONVERTI pezzi in Kg
+          const ppk = getPezziPerKgComp(item.nome || '');
+          const kgEquiv = q / ppk;
+          pesoTotKg += kgEquiv;
+          parti.push(`${abbr} ${fmtQ(kgEquiv)}`);
+        } else {
+          pesoTotKg += q;
+          parti.push(`${abbr} ${fmtQ(q)}`);
         }
       }
+      
       if (parti.length > 0) {
-        risultato.descrizione = parti.join(' ');
-        risultato.pesoTotale = pesoTot > 0 ? `${fmtQ(pesoTot)} Kg` : '';
-        return risultato;
+        return {
+          descrizione: parti.join(' '),
+          pesoTotale: `${fmtQ(pesoTotKg)} Kg`
+        };
       }
     }
 
-    // 2) Prova campo dettagli stringa ("Amaretti: 0.2 Kg, Pardulas: 0.3 Kg")
+    // Fallback campo dettagli stringa
     const dettagli = prodotto.dettagliCalcolo?.dettagli || prodotto.dettagli || '';
     if (dettagli) {
       const segmenti = dettagli.split(/[,|;]\s*/);
-      let pesoTot = 0;
+      let pesoTotKg = 0;
       const parti = [];
       for (const seg of segmenti) {
         const match = seg.match(/^(.+?):\s*([\d.,]+)\s*(Kg|g|pz|pezzi|unità)?/i);
         if (match) {
-          const abbr = getAbbrDolce(match[1]);
           const q = parseFloat(match[2].replace(',', '.')) || 0;
           const u = (match[3] || 'Kg').toLowerCase();
+          const abbr = getAbbrComp(match[1].trim(), '');
           if (q > 0) {
             if (u === 'pz' || u === 'pezzi' || u === 'unità') {
-              parti.push(`${abbr}${Math.round(q)}pz`);
+              const ppk = getPezziPerKgComp(match[1].trim());
+              const kgEquiv = q / ppk;
+              pesoTotKg += kgEquiv;
+              parti.push(`${abbr} ${fmtQ(kgEquiv)}`);
             } else {
+              pesoTotKg += q;
               parti.push(`${abbr} ${fmtQ(q)}`);
-              pesoTot += q;
             }
           }
         }
       }
       if (parti.length > 0) {
-        risultato.descrizione = parti.join(' ');
-        risultato.pesoTotale = pesoTot > 0 ? `${fmtQ(pesoTot)} Kg` : '';
-        return risultato;
+        return {
+          descrizione: parti.join(' '),
+          pesoTotale: `${fmtQ(pesoTotKg)} Kg`
+        };
       }
     }
 
-    // 3) Fallback
-    risultato.descrizione = 'Dolci misti';
-    risultato.pesoTotale = prodotto.quantita ? `${prodotto.quantita} Kg` : '';
-    return risultato;
+    return {
+      descrizione: 'Dolci misti',
+      pesoTotale: prodotto.quantita ? `${prodotto.quantita} Kg` : ''
+    };
   };
 
   // Helper: abbrevia nome prodotto per etichetta
