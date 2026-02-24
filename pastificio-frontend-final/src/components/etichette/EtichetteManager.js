@@ -41,25 +41,25 @@ const PRODOTTI_INFO = {
   // DOLCI
   'Pardulas': {
     categoria: 'Dolci',
-    ingredienti: 'Ricotta, zucchero, uova, aromi vari, farina 00, strutto, lievito',
+    ingredienti: 'Ricotta, zucchero, uova, zafferano, limone, farina 00, strutto, lievito',
     allergeni: ['GLUTINE', 'UOVA', 'LATTE'],
     scadenzaGiorni: 7
   },
   'Amaretti': {
     categoria: 'Dolci',
-    ingredienti: 'Mandorle, zucchero, uova, aromi vari',
+    ingredienti: 'Mandorle, zucchero, uova, limone',
     allergeni: ['FRUTTA A GUSCIO', 'UOVA'],
     scadenzaGiorni: 7
   },
   'Papassinas': {
     categoria: 'Dolci',
-    ingredienti: 'Farina, mandorle, uva sultanina, noci, sapa, zucchero, strutto, aromi vari, lievito',
+    ingredienti: 'Farina, mandorle, uva sultanina, noci, sapa, zucchero, strutto, latte, ammoniaca per dolci, limone, vanillina, lievito',
     allergeni: ['GLUTINE', 'FRUTTA A GUSCIO'],
     scadenzaGiorni: 7
   },
   'Ciambelle con marmellata': {
     categoria: 'Dolci',
-    ingredienti: 'Farina 00, zucchero, strutto, margarina vegetale, uova, passata di albicocche, aromi vari, lievito',
+    ingredienti: 'Farina 00, zucchero, strutto, margarina vegetale, uova, passata di albicocche, limone, vanillina, lievito',
     allergeni: ['GLUTINE', 'UOVA'],
     scadenzaGiorni: 7
   },
@@ -71,13 +71,13 @@ const PRODOTTI_INFO = {
   },
   'Crostate': {
     categoria: 'Dolci',
-    ingredienti: 'Farina, zucchero, strutto, margarina vegetale, uova, passata di albicocche, aromi vari, lievito',
+    ingredienti: 'Farina, zucchero, strutto, margarina vegetale, uova, passata di albicocche, limone, vanillina, lievito',
     allergeni: ['GLUTINE', 'UOVA'],
     scadenzaGiorni: 7
   },
   'Cantucci': {
     categoria: 'Dolci',
-    ingredienti: 'Mandorle, farina 00, zucchero, uova, aromi vari',
+    ingredienti: 'Mandorle, farina 00, zucchero, uova, limone',
     allergeni: ['GLUTINE', 'FRUTTA A GUSCIO', 'UOVA'],
     scadenzaGiorni: 7
   },
@@ -89,13 +89,13 @@ const PRODOTTI_INFO = {
   },
   'Gueffus': {
     categoria: 'Dolci',
-    ingredienti: 'Mandorle, zucchero, aromi vari',
+    ingredienti: "Mandorle, zucchero, acqua fior d'arancio",
     allergeni: ['FRUTTA A GUSCIO'],
     scadenzaGiorni: 7
   },
   'Zeppole': {
     categoria: 'Dolci',
-    ingredienti: 'Farina, latte, uova, ricotta, patate, aromi vari, lievito',
+    ingredienti: 'Farina, latte, uova, ricotta, patate, zafferano, acquavite, lievito, fritte in olio di palma',
     allergeni: ['GLUTINE', 'UOVA', 'LATTE'],
     scadenzaGiorni: 7
   },
@@ -107,7 +107,7 @@ const PRODOTTI_INFO = {
   },
   'Torta di sapa': {
     categoria: 'Dolci',
-    ingredienti: 'Farina, sapa, zucchero, uova, noci, mandorle, uva sultanina, aromi vari, lievito',
+    ingredienti: 'Farina, sapa, zucchero, uova, noci, mandorle, uva sultanina, limone, lievito',
     allergeni: ['GLUTINE', 'UOVA', 'FRUTTA A GUSCIO'],
     scadenzaGiorni: 7
   },
@@ -115,31 +115,31 @@ const PRODOTTI_INFO = {
   // PANADAS
   'Panada di anguille': {
     categoria: 'Panadas',
-    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (anguille, patate o piselli, olio extra vergine, aromi vari)',
+    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (anguille, patate o piselli, olio extra vergine, prezzemolo, aglio, pomodoro secco)',
     allergeni: ['GLUTINE', 'PESCE'],
     scadenzaGiorni: 3
   },
   'Panada di Agnello': {
     categoria: 'Panadas',
-    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (agnello, patate o piselli, olio extra vergine, aromi vari)',
+    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (agnello, patate o piselli, olio extra vergine, prezzemolo, aglio, pomodoro secco)',
     allergeni: ['GLUTINE'],
     scadenzaGiorni: 3
   },
   'Panada di Maiale': {
     categoria: 'Panadas',
-    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (maiale, patate o piselli, olio extra vergine, aromi vari)',
+    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (maiale, patate o piselli, olio extra vergine, prezzemolo, aglio, pomodoro secco)',
     allergeni: ['GLUTINE'],
     scadenzaGiorni: 3
   },
   'Panada di Vitella': {
     categoria: 'Panadas',
-    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (vitella, patate o piselli, olio extra vergine, aromi vari)',
+    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (vitella, patate o piselli, olio extra vergine, prezzemolo, aglio, pomodoro secco)',
     allergeni: ['GLUTINE'],
     scadenzaGiorni: 3
   },
   'Panada di verdure': {
     categoria: 'Panadas',
-    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (melanzane, patate, piselli, olio extra vergine, aromi vari)',
+    ingredienti: 'Pasta (Farina, semola, strutto, sale), Ripieno (melanzane, patate, piselli, olio extra vergine, prezzemolo, aglio, pomodoro secco)',
     allergeni: ['GLUTINE'],
     scadenzaGiorni: 3
   },
