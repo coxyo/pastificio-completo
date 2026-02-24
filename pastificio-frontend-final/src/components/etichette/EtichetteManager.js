@@ -317,6 +317,8 @@ const EtichetteManager = () => {
   const [dataProduzioneFoglio, setDataProduzioneFoglio] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [formatoProduzione, setFormatoProduzione] = useState('foglio'); // foglio o singole
   const [righeExtra, setRigheExtra] = useState(2);
+  const [operatoreSelezionato, setOperatoreSelezionato] = useState('');
+  const OPERATORI = ['MAURIZIO', 'FRANCESCA', 'VALENTINA'];
 
   const printRef = useRef(null);
 
@@ -764,14 +766,16 @@ const EtichetteManager = () => {
         tipo: 'produzione-foglio',
         data: format(new Date(dataProduzioneFoglio), 'dd/MM/yyyy'),
         paste: righe,
-        pasteSelezionate: Array.from(pasteSelezionate)
+        pasteSelezionate: Array.from(pasteSelezionate),
+        operatore: operatoreSelezionato
       }];
     } else {
       // Etichette singole per tipo
       return Array.from(pasteSelezionate).map(pasta => ({
         tipo: 'produzione-singola',
         nome: pasta,
-        data: format(new Date(dataProduzioneFoglio), 'dd/MM/yyyy')
+        data: format(new Date(dataProduzioneFoglio), 'dd/MM/yyyy'),
+        operatore: operatoreSelezionato
       }));
     }
   };
@@ -1259,10 +1263,13 @@ const EtichetteManager = () => {
         return wrapTermica('etichetta-prodotto', innerProdotto);
 
       case 'produzione-singola':
+        const operatoreDisplay = etichetta.operatore 
+          ? `<span style="font-weight:bold">${etichetta.operatore}</span>` 
+          : '_______________';
         const innerProduz = `
             <div class="nome">${etichetta.nome}</div>
             <div class="info">Prodotta il: ${etichetta.data}</div>
-            <div class="info">Operatore: _______________</div>`;
+            <div class="info">Operatore: ${operatoreDisplay}</div>`;
         return wrapTermica('etichetta-produzione-singola', innerProduz);
 
       default:
@@ -1288,7 +1295,7 @@ const EtichetteManager = () => {
         <div class="data-foglio">Data: ${foglio.data}</div>
         ${righeHTML}
         <div class="operatore">
-          Operatore: ________________________________________
+          Operatore: ${foglio.operatore ? `<strong>${foglio.operatore}</strong>` : '________________________________________'}
         </div>
         <div class="footer-foglio">
           Pastificio Nonna Claudia — Via Carmine 20/B - Assemini
@@ -1710,6 +1717,22 @@ const EtichetteManager = () => {
               </Select>
             </FormControl>
 
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Operatore (opzionale)</InputLabel>
+              <Select
+                value={operatoreSelezionato}
+                onChange={(e) => setOperatoreSelezionato(e.target.value)}
+                label="Operatore (opzionale)"
+              >
+                <MenuItem value="">
+                  <em>Nessuno (scrivi a mano)</em>
+                </MenuItem>
+                {OPERATORI.map(op => (
+                  <MenuItem key={op} value={op}>{op}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
             {formatoProduzione === 'foglio' && (
               <TextField
                 type="number"
@@ -1856,7 +1879,7 @@ const EtichetteManager = () => {
 
                 <Box sx={{ mt: 3 }}>
                   <Typography>
-                    Operatore: ________________________________________
+                    Operatore: {operatoreSelezionato ? <strong>{operatoreSelezionato}</strong> : '________________________________________'}
                   </Typography>
                 </Box>
                 <Typography variant="caption" align="center" display="block" color="text.secondary" sx={{ mt: 2 }}>
@@ -1885,7 +1908,7 @@ const EtichetteManager = () => {
                         Prodotta il: {format(new Date(dataProduzioneFoglio), 'dd/MM/yyyy')}
                       </Typography>
                       <Typography variant="body2">
-                        Operatore: ___________
+                        Operatore: {operatoreSelezionato ? <strong>{operatoreSelezionato}</strong> : '___________'}
                       </Typography>
                     </Box>
                   ))
@@ -2018,7 +2041,7 @@ const EtichetteManager = () => {
                       {etichetta.nome}
                     </Typography>
                     <Typography variant="body2">Prodotta il: {etichetta.data}</Typography>
-                    <Typography variant="body2">Operatore: ___________</Typography>
+                    <Typography variant="body2">Operatore: {etichetta.operatore ? <strong>{etichetta.operatore}</strong> : '___________'}</Typography>
                   </Box>
                 )}
               </Box>
