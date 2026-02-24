@@ -875,7 +875,7 @@ const EtichetteManager = () => {
       }
 
       ${tipo === 'termica' ? `
-      /* Stampanti termiche: etichetta ruotata per orientamento rotolo */
+      /* Stampanti termiche: pagina portrait (30×50), contenuto ruotato 90° */
       body {
         margin: 0;
         padding: 0;
@@ -885,6 +885,18 @@ const EtichetteManager = () => {
         height: ${larghezza}mm !important;
         page-break-after: always;
         overflow: hidden;
+        position: relative;
+      }
+      .etichetta-ordine .contenuto-ruotato,
+      .etichetta-prodotto .contenuto-ruotato {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: ${larghezza}mm;
+        height: ${altezza}mm;
+        transform: rotate(90deg);
+        transform-origin: top left;
+        margin-left: ${altezza}mm;
       }
       .etichetta-ordine table {
         width: 100%;
@@ -1166,65 +1178,62 @@ const EtichetteManager = () => {
 
     // Etichette singole (termica/rullo)
     if (formato.tipo !== 'foglio') {
-      return etichette.map(e => renderEtichettaHTML(e)).join('\n');
+      const isTermica = formato.tipo === 'termica';
+      return etichette.map(e => renderEtichettaHTML(e, isTermica)).join('\n');
     }
 
     // Griglia per foglio A4
     let html = '<div class="griglia-etichette">';
     etichette.forEach(e => {
-      html += renderEtichettaHTML(e);
+      html += renderEtichettaHTML(e, false);
     });
     html += '</div>';
     return html;
   };
 
-  const renderEtichettaHTML = (etichetta) => {
+  const renderEtichettaHTML = (etichetta, isTermica = false) => {
+    // Per termiche: wrappa contenuto in div ruotato
+    const wrapTermica = (classe, contenuto) => {
+      if (isTermica) {
+        return `<div class="${classe}"><div class="contenuto-ruotato">${contenuto}</div></div>`;
+      }
+      return `<div class="${classe}">${contenuto}</div>`;
+    };
+
     switch (etichetta.tipo) {
       case 'ordine':
         if (etichetta.isVassoio) {
-          // Layout vassoio: nome+ora in riga 1, composizione su riga 2 a tutta larghezza
-          return `
-            <div class="etichetta-ordine">
-              <table>
-                <colgroup>
-                  <col class="col-sinistra">
-                  <col class="col-destra">
-                </colgroup>
-                <tr>
-                  <td class="cognome">${etichetta.cognome}</td>
-                  <td class="ora">${etichetta.ora}</td>
-                </tr>
-                <tr>
-                  <td colspan="2" class="composizione">${etichetta.prodotto} = ${etichetta.quantita}</td>
-                </tr>
-              </table>
-            </div>
-          `;
-        }
-        return `
-          <div class="etichetta-ordine">
+          const innerVassoio = `
             <table>
-              <colgroup>
-                <col class="col-sinistra">
-                <col class="col-destra">
-              </colgroup>
+              <colgroup><col class="col-sinistra"><col class="col-destra"></colgroup>
               <tr>
                 <td class="cognome">${etichetta.cognome}</td>
                 <td class="ora">${etichetta.ora}</td>
               </tr>
               <tr>
-                <td class="prodotto">${etichetta.prodotto}</td>
-                <td class="quantita">${etichetta.quantita}</td>
+                <td colspan="2" class="composizione">${etichetta.prodotto} = ${etichetta.quantita}</td>
               </tr>
-              ${etichetta.pacco ? `<tr><td colspan="2" class="pacco-info">Pacco ${etichetta.pacco}</td></tr>` : ''}
-              ${etichetta.vassoio ? `<tr><td colspan="2" class="pacco-info">Vassoio ${etichetta.vassoio}</td></tr>` : ''}
-            </table>
-          </div>
-        `;
+            </table>`;
+          return wrapTermica('etichetta-ordine', innerVassoio);
+        }
+        const innerOrdine = `
+          <table>
+            <colgroup><col class="col-sinistra"><col class="col-destra"></colgroup>
+            <tr>
+              <td class="cognome">${etichetta.cognome}</td>
+              <td class="ora">${etichetta.ora}</td>
+            </tr>
+            <tr>
+              <td class="prodotto">${etichetta.prodotto}</td>
+              <td class="quantita">${etichetta.quantita}</td>
+            </tr>
+            ${etichetta.pacco ? `<tr><td colspan="2" class="pacco-info">Pacco ${etichetta.pacco}</td></tr>` : ''}
+            ${etichetta.vassoio ? `<tr><td colspan="2" class="pacco-info">Vassoio ${etichetta.vassoio}</td></tr>` : ''}
+          </table>`;
+        return wrapTermica('etichetta-ordine', innerOrdine);
 
       case 'prodotto':
-        return `
-          <div class="etichetta-prodotto">
+        const innerProdotto = `
             <div class="nome-prodotto">${etichetta.nome}</div>
             <div class="ingredienti">
               <span class="ingredienti-label">Ingredienti:</span> ${etichetta.ingredienti}
@@ -1244,9 +1253,8 @@ const EtichetteManager = () => {
             </div>
             <div class="footer-azienda">
               Pastificio Nonna Claudia — Via Carmine 20/B - Assemini
-            </div>
-          </div>
-        `;
+            </div>`;
+        return wrapTermica('etichetta-prodotto', innerProdotto);
 
       case 'produzione-singola':
         return `
