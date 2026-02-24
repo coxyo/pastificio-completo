@@ -880,7 +880,7 @@ const EtichetteManager = () => {
         margin: 0;
         padding: 0;
       }
-      .etichetta-ordine, .etichetta-prodotto {
+      .etichetta-ordine, .etichetta-prodotto, .etichetta-produzione-singola {
         width: ${altezza}mm !important;
         height: ${larghezza}mm !important;
         page-break-after: always;
@@ -888,15 +888,17 @@ const EtichetteManager = () => {
         position: relative;
       }
       .etichetta-ordine .contenuto-ruotato,
-      .etichetta-prodotto .contenuto-ruotato {
+      .etichetta-prodotto .contenuto-ruotato,
+      .etichetta-produzione-singola .contenuto-ruotato {
         position: absolute;
-        top: 0;
+        top: 1mm;
         left: 0;
-        width: ${larghezza}mm;
-        height: ${altezza}mm;
+        width: ${larghezza - 3}mm;
+        height: ${altezza - 2}mm;
         transform: rotate(90deg);
         transform-origin: top left;
-        margin-left: ${altezza}mm;
+        margin-left: ${altezza - 1}mm;
+        padding: 0 1mm;
       }
       .etichetta-ordine table {
         width: 100%;
@@ -1257,13 +1259,11 @@ const EtichetteManager = () => {
         return wrapTermica('etichetta-prodotto', innerProdotto);
 
       case 'produzione-singola':
-        return `
-          <div class="etichetta-produzione-singola">
+        const innerProduz = `
             <div class="nome">${etichetta.nome}</div>
             <div class="info">Prodotta il: ${etichetta.data}</div>
-            <div class="info">Operatore: _______________</div>
-          </div>
-        `;
+            <div class="info">Operatore: _______________</div>`;
+        return wrapTermica('etichetta-produzione-singola', innerProduz);
 
       default:
         return '';
