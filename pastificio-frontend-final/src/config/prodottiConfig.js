@@ -226,6 +226,21 @@ export const PRODOTTI_CONFIG = {
     ]
   },
 
+  // ✅ FIX 24/02/2026: Alias espliciti per prezzi corretti dal database
+  'Sebadas arancia': {
+    categoria: 'Dolci',
+    prezzoPezzo: 2.00,
+    modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
+    unitaMisuraDisponibili: [UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+  },
+
+  'Sebadas al mirto': {
+    categoria: 'Dolci',
+    prezzoPezzo: 2.50,
+    modalitaVendita: MODALITA_VENDITA.SOLO_PEZZO,
+    unitaMisuraDisponibili: [UNITA_MISURA.PEZZI, UNITA_MISURA.EURO]
+  },
+
   'Amaretti': {
     categoria: 'Dolci',
     prezzoKg: 22.00,
@@ -599,6 +614,8 @@ export const getProdottoConfig = (nomeProdotto) => {
     'ravioli': 'Ravioli',
     'culurgiones': 'Culurgiones',
     'sebadas': 'Sebadas',
+    'sebadas arancia': 'Sebadas arancia',
+    'sebadas al mirto': 'Sebadas al mirto',
     'amaretti': 'Amaretti',
     'bianchini': 'Bianchini',
     'gueffus': 'Gueffus',
