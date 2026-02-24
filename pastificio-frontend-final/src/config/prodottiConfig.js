@@ -340,6 +340,25 @@ export const PRODOTTI_CONFIG = {
     modalitaVendita: MODALITA_VENDITA.SOLO_KG,
     categoria: 'Panadas',
     unitaMisuraDisponibili: [UNITA_MISURA.KG, UNITA_MISURA.EURO],
+    opzioniAggiuntive: {
+      aglio: [
+        { nome: 'con_aglio', label: 'Con aglio' },
+        { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      pepe: [
+        { nome: 'con_pepe', label: 'Con pepe' },
+        { nome: 'senza_pepe', label: 'Senza pepe' }
+      ],
+      pomodorisecchi: [
+        { nome: 'con_pomodori_secchi', label: 'Con pomodori secchi' },
+        { nome: 'senza_pomodori_secchi', label: 'Senza pomodori secchi' }
+      ],
+      contorno: [
+        { nome: 'con_patate', label: 'Con patate' },
+        { nome: 'con_piselli', label: 'Con piselli' },
+        { nome: 'patate_piselli', label: 'Con patate e piselli' }
+      ]
+    },
     supportaVassoiMultipli: true
   },
 
@@ -352,6 +371,14 @@ export const PRODOTTI_CONFIG = {
       aglio: [
         { nome: 'con_aglio', label: 'Con aglio' },
         { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      pepe: [
+        { nome: 'con_pepe', label: 'Con pepe' },
+        { nome: 'senza_pepe', label: 'Senza pepe' }
+      ],
+      pomodorisecchi: [
+        { nome: 'con_pomodori_secchi', label: 'Con pomodori secchi' },
+        { nome: 'senza_pomodori_secchi', label: 'Senza pomodori secchi' }
       ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
@@ -381,6 +408,14 @@ export const PRODOTTI_CONFIG = {
         { nome: 'con_aglio', label: 'Con aglio' },
         { nome: 'senza_aglio', label: 'Senza aglio' }
       ],
+      pepe: [
+        { nome: 'con_pepe', label: 'Con pepe' },
+        { nome: 'senza_pepe', label: 'Senza pepe' }
+      ],
+      pomodorisecchi: [
+        { nome: 'con_pomodori_secchi', label: 'Con pomodori secchi' },
+        { nome: 'senza_pomodori_secchi', label: 'Senza pomodori secchi' }
+      ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
         { nome: 'con_piselli', label: 'Con piselli' },
@@ -409,6 +444,14 @@ export const PRODOTTI_CONFIG = {
         { nome: 'con_aglio', label: 'Con aglio' },
         { nome: 'senza_aglio', label: 'Senza aglio' }
       ],
+      pepe: [
+        { nome: 'con_pepe', label: 'Con pepe' },
+        { nome: 'senza_pepe', label: 'Senza pepe' }
+      ],
+      pomodorisecchi: [
+        { nome: 'con_pomodori_secchi', label: 'Con pomodori secchi' },
+        { nome: 'senza_pomodori_secchi', label: 'Senza pomodori secchi' }
+      ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },
         { nome: 'con_piselli', label: 'Con piselli' },
@@ -427,6 +470,14 @@ export const PRODOTTI_CONFIG = {
       aglio: [
         { nome: 'con_aglio', label: 'Con aglio' },
         { nome: 'senza_aglio', label: 'Senza aglio' }
+      ],
+      pepe: [
+        { nome: 'con_pepe', label: 'Con pepe' },
+        { nome: 'senza_pepe', label: 'Senza pepe' }
+      ],
+      pomodorisecchi: [
+        { nome: 'con_pomodori_secchi', label: 'Con pomodori secchi' },
+        { nome: 'senza_pomodori_secchi', label: 'Senza pomodori secchi' }
       ],
       contorno: [
         { nome: 'con_patate', label: 'Con patate' },

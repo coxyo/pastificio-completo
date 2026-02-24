@@ -183,6 +183,8 @@ clienteIdPreselezionato,
  // ✅ States per panade e panadine
   const [opzioniPanada, setOpzioniPanada] = useState({
     aglio: 'con_aglio',
+    pepe: 'con_pepe',
+    pomodorisecchi: 'con_pomodori_secchi',
     contorno: 'con_patate'
   });
   const [numeroVassoi, setNumeroVassoi] = useState(''); // ✅ VUOTO DI DEFAULT
@@ -907,7 +909,7 @@ useEffect(() => {
       opzioniExtra: [],
       noteProdotto: ''
     });
-    setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+    setOpzioniPanada({ aglio: 'con_aglio', pepe: 'con_pepe', pomodorisecchi: 'con_pomodori_secchi', contorno: 'con_patate' });
     setNumeroVassoi(1);
     setGustiPanadine([]);
     setModalitaPanadine('miste');
@@ -1011,7 +1013,7 @@ useEffect(() => {
         opzioniExtra: [],
         noteProdotto: ''
       });
-      setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+      setOpzioniPanada({ aglio: 'con_aglio', pepe: 'con_pepe', pomodorisecchi: 'con_pomodori_secchi', contorno: 'con_patate' });
       setNumeroVassoi(1);
       setGustiPanadine([]);
       setModalitaPanadine('miste'); // ✅ NUOVO: Default a MISTE invece di rapida
@@ -1027,12 +1029,19 @@ useEffect(() => {
       }
       
       const aglioNote = opzioniPanada.aglio === 'senza_aglio' ? 'senza aglio' : '';
+      const pepeNote = opzioniPanada.pepe === 'senza_pepe' ? 'senza pepe' : '';
+      const pomodoriNote = opzioniPanada.pomodorisecchi === 'senza_pomodori_secchi' ? 'senza pomodori secchi' : '';
       const contornoLabel = opzioniPanada.contorno === 'con_patate' ? 'con patate' : 
                            opzioniPanada.contorno === 'con_piselli' ? 'con piselli' : 'con patate e piselli';
       
-      let nomeCompleto = `${prodottoCorrente.nome} (${contornoLabel})`;
-      if (aglioNote) {
-        nomeCompleto = `${prodottoCorrente.nome} (${aglioNote}, ${contornoLabel})`;
+      // Costruisci le note "senza" (aglio, pepe, pomodori secchi)
+      const noteSenza = [aglioNote, pepeNote, pomodoriNote].filter(Boolean).join(', ');
+      
+      let nomeCompleto;
+      if (noteSenza) {
+        nomeCompleto = `${prodottoCorrente.nome} (${noteSenza}, ${contornoLabel})`;
+      } else {
+        nomeCompleto = `${prodottoCorrente.nome} (${contornoLabel})`;
       }
       
       // ✅ FIX 03/02/2026: Converte numeroVassoi in numero, default 1 se vuoto
@@ -1092,7 +1101,7 @@ useEffect(() => {
         opzioniExtra: [],
         noteProdotto: ''
       });
-      setOpzioniPanada({ aglio: 'con_aglio', contorno: 'con_patate' });
+      setOpzioniPanada({ aglio: 'con_aglio', pepe: 'con_pepe', pomodorisecchi: 'con_pomodori_secchi', contorno: 'con_patate' });
       setNumeroVassoi(1);
       setGustiPanadine([]);
       setModalitaPanadine('miste');
@@ -1851,7 +1860,7 @@ useEffect(() => {
                       </Button>
                     </Grid>
 
-                    {/* Opzioni Panade (Aglio + Contorno) */}
+                    {/* Opzioni Panade (Aglio + Pepe + Pomodori Secchi + Contorno) */}
                     {PRODOTTI_CONFIG[prodottoCorrente.nome]?.opzioniAggiuntive && (
                       <Grid item xs={12}>
                         <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
@@ -1860,7 +1869,7 @@ useEffect(() => {
                           </Typography>
                           
                           <Grid container spacing={2}>
-                            <Grid item xs={6}>
+                            <Grid item xs={6} sm={3}>
                               <FormControl fullWidth size="small">
                                 <InputLabel>Aglio</InputLabel>
                                 <Select
@@ -1873,8 +1882,36 @@ useEffect(() => {
                                 </Select>
                               </FormControl>
                             </Grid>
+
+                            <Grid item xs={6} sm={3}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Pepe</InputLabel>
+                                <Select
+                                  value={opzioniPanada.pepe}
+                                  onChange={(e) => setOpzioniPanada(prev => ({ ...prev, pepe: e.target.value }))}
+                                  label="Pepe"
+                                >
+                                  <MenuItem value="con_pepe">Con pepe</MenuItem>
+                                  <MenuItem value="senza_pepe">Senza pepe</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+
+                            <Grid item xs={6} sm={3}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Pomodori Secchi</InputLabel>
+                                <Select
+                                  value={opzioniPanada.pomodorisecchi}
+                                  onChange={(e) => setOpzioniPanada(prev => ({ ...prev, pomodorisecchi: e.target.value }))}
+                                  label="Pomodori Secchi"
+                                >
+                                  <MenuItem value="con_pomodori_secchi">Con pomodori secchi</MenuItem>
+                                  <MenuItem value="senza_pomodori_secchi">Senza pomodori secchi</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
                             
-                            <Grid item xs={6}>
+                            <Grid item xs={6} sm={3}>
                               <FormControl fullWidth size="small">
                                 <InputLabel>Contorno</InputLabel>
                                 <Select
