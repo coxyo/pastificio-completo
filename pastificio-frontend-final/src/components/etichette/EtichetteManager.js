@@ -866,8 +866,31 @@ const EtichetteManager = () => {
       }
 
       @page {
-        ${tipo === 'foglio' ? `size: A4; margin: 0;` : `size: ${larghezza}mm ${altezza}mm; margin: 0;`}
+        ${tipo === 'foglio' 
+          ? `size: A4; margin: 0;` 
+          : tipo === 'termica'
+            ? `size: ${altezza}mm ${larghezza}mm; margin: 0;`
+            : `size: ${larghezza}mm ${altezza}mm; margin: 0;`
+        }
       }
+
+      ${tipo === 'termica' ? `
+      /* Stampanti termiche: etichetta ruotata per orientamento rotolo */
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .etichetta-ordine, .etichetta-prodotto {
+        width: ${altezza}mm !important;
+        height: ${larghezza}mm !important;
+        page-break-after: always;
+        overflow: hidden;
+      }
+      .etichetta-ordine table {
+        width: 100%;
+        height: 100%;
+      }
+      ` : ''}
 
       /* ===== ETICHETTE ORDINE ===== */
       .etichetta-ordine {
