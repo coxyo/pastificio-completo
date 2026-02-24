@@ -1,6 +1,6 @@
 // GraficiCorrispettivi.js
 // 📊 GRAFICI ANALISI CORRISPETTIVI - Pastificio Nonna Claudia
-// Versione: 1.0.0 - Ottimizzato per struttura dati esistente
+// Versione: 1.1.0 - Fix mapping campi backend
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -48,7 +48,6 @@ const GraficiCorrispettivi = () => {
     setError(null);
 
     try {
-      // Chiama API report annuale
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/corrispettivi/report/${anno}`,
         {
@@ -63,7 +62,7 @@ const GraficiCorrispettivi = () => {
       }
 
       const data = await response.json();
-      console.log('📊 Dati ricevuti:', data);
+      console.log('📊 Dati ricevuti dal backend:', data);
 
       setDatiAnnuali(data);
       calcolaMetriche(data);
@@ -77,8 +76,9 @@ const GraficiCorrispettivi = () => {
   };
 
   const calcolaMetriche = (dati) => {
-    const totaleAnno = dati.reduce((sum, mese) => sum + (mese.totale || 0), 0);
-    const mesiAttivi = dati.filter(m => m.totale > 0).length;
+    // ✅ FIX: Il backend usa "totaleMese" non "totale"
+    const totaleAnno = dati.reduce((sum, mese) => sum + (mese.totaleMese || 0), 0);
+    const mesiAttivi = dati.filter(m => (m.totaleMese || 0) > 0).length;
     const mediaMensile = mesiAttivi > 0 ? totaleAnno / mesiAttivi : 0;
     
     // Calcola IVA totale (somma IVA scorporate)
@@ -104,7 +104,8 @@ const GraficiCorrispettivi = () => {
       const meseNum = index + 1;
       const datiMese = datiAnnuali.find(m => m._id === meseNum) || {};
       
-      const totale = datiMese.totale || 0;
+      // ✅ FIX: usa "totaleMese" dal backend
+      const totale = datiMese.totaleMese || 0;
       const iva22Scorp = totale > 0 ? (datiMese.iva22 || 0) - ((datiMese.iva22 || 0) / 1.22) : 0;
       const iva10Scorp = totale > 0 ? (datiMese.iva10 || 0) - ((datiMese.iva10 || 0) / 1.10) : 0;
       const iva4Scorp = totale > 0 ? (datiMese.iva4 || 0) - ((datiMese.iva4 || 0) / 1.04) : 0;
@@ -120,7 +121,8 @@ const GraficiCorrispettivi = () => {
         iva22: datiMese.iva22 || 0,
         iva10: datiMese.iva10 || 0,
         iva4: datiMese.iva4 || 0,
-        esente: datiMese.esente || 0
+        esente: datiMese.esente || 0,
+        giorniRegistrati: datiMese.giorniRegistrati || 0
       };
     });
   };
@@ -218,12 +220,11 @@ const GraficiCorrispettivi = () => {
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: '#f3e5f5', height: '100%' }}>
+          <Card sx={{ bgcolor: '#e8f5e9', height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <TrendingUp color="secondary" />
+                <TrendingUp color="success" />
                 <Typography variant="body2" color="textSecondary">
                   Media Mensile
                 </Typography>
@@ -234,12 +235,11 @@ const GraficiCorrispettivi = () => {
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: '#e8f5e9', height: '100%' }}>
+          <Card sx={{ bgcolor: '#fff3e0', height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <Assessment color="success" />
+                <Assessment color="warning" />
                 <Typography variant="body2" color="textSecondary">
                   IVA Totale
                 </Typography>
@@ -250,12 +250,11 @@ const GraficiCorrispettivi = () => {
             </CardContent>
           </Card>
         </Grid>
-
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: '#fff3e0', height: '100%' }}>
+          <Card sx={{ bgcolor: '#fce4ec', height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <CalendarToday color="warning" />
+                <CalendarToday color="error" />
                 <Typography variant="body2" color="textSecondary">
                   Mesi Attivi
                 </Typography>
@@ -383,7 +382,9 @@ const GraficiCorrispettivi = () => {
                     </TableHead>
                     <TableBody>
                       {distribuzioneIva.map((item, index) => {
-                        const percentuale = (item.valore / metriche.totaleAnno * 100).toFixed(1);
+                        const percentuale = metriche.totaleAnno > 0 
+                          ? (item.valore / metriche.totaleAnno * 100).toFixed(1) 
+                          : '0.0';
                         return (
                           <TableRow key={index}>
                             <TableCell>
@@ -426,6 +427,7 @@ const GraficiCorrispettivi = () => {
                     <TableCell align="right"><strong>IVA 10%</strong></TableCell>
                     <TableCell align="right"><strong>IVA 4%</strong></TableCell>
                     <TableCell align="right"><strong>Esente</strong></TableCell>
+                    <TableCell align="right"><strong>Giorni</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -439,6 +441,7 @@ const GraficiCorrispettivi = () => {
                       <TableCell align="right">{formatEuro(mese.iva10)}</TableCell>
                       <TableCell align="right">{formatEuro(mese.iva4)}</TableCell>
                       <TableCell align="right">{formatEuro(mese.esente)}</TableCell>
+                      <TableCell align="right">{mese.giorniRegistrati}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow sx={{ bgcolor: '#f5f5f5' }}>
@@ -446,6 +449,7 @@ const GraficiCorrispettivi = () => {
                     <TableCell align="right"><strong>{formatEuro(metriche.totaleAnno)}</strong></TableCell>
                     <TableCell align="right"><strong>{formatEuro(metriche.totaleAnno - metriche.ivaTotale)}</strong></TableCell>
                     <TableCell align="right"><strong>{formatEuro(metriche.ivaTotale)}</strong></TableCell>
+                    <TableCell align="right">-</TableCell>
                     <TableCell align="right">-</TableCell>
                     <TableCell align="right">-</TableCell>
                     <TableCell align="right">-</TableCell>
