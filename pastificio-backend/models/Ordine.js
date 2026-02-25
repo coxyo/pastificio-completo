@@ -475,7 +475,7 @@ const ordineSchema = new mongoose.Schema({
     comment: 'Movimenti di scarico magazzino collegati'
   }]
   // ========== FINE RINTRACCIABILITÀ ==========
-
+  
 }, {
   timestamps: true,
   collection: 'ordini'
