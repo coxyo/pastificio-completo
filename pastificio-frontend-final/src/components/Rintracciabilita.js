@@ -1,8 +1,12 @@
-// components/Rintracciabilita.js - TABELLA RINTRACCIABILITÀ HACCP
-import React, { useState, useEffect, useCallback } from 'react';
+// components/TabellaRintracciabilita.jsx
+// Dashboard HACCP - Rintracciabilità Lotti e Scadenze
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Paper,
+  Card,
+  CardContent,
   Typography,
   Table,
   TableBody,
@@ -10,30 +14,20 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
-  TextField,
-  Button,
+  Paper,
   Chip,
+  TextField,
+  Grid,
+  Button,
+  Alert,
+  Tab,
+  Tabs,
   IconButton,
   Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Grid,
-  Card,
-  CardContent,
-  Alert,
-  CircularProgress,
-  InputAdornment,
-  Tabs,
-  Tab,
-  Badge,
-  Collapse,
   List,
   ListItem,
   ListItemText,
@@ -41,740 +35,634 @@ import {
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  Download as DownloadIcon,
-  Refresh as RefreshIcon,
   Warning as WarningIcon,
-  Error as ErrorIcon,
-  CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  FilterList as FilterListIcon,
-  Clear as ClearIcon,
-  LocalShipping as LocalShippingIcon,
-  Receipt as ReceiptIcon,
-  Timeline as TimelineIcon,
-  Inventory as InventoryIcon
+  CheckCircle as CheckIcon,
+  Description as FileIcon,
+  LocalShipping as ShippingIcon,
+  Restaurant as RestaurantIcon,
+  History as HistoryIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
-const Rintracciabilita = () => {
-  // Stati principali
-  const [tabella, setTabella] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({});
-  const [pagination, setPagination] = useState({ totale: 0, limit: 50, skip: 0 });
-  
-  // Filtri
-  const [filtri, setFiltri] = useState({
-    dataInizio: '',
-    dataFine: '',
-    fornitore: '',
-    categoria: '',
-    ingrediente: '',
-    lotto: '',
-    soloInScadenza: false,
-    soloScaduti: false
-  });
-  const [filtriVisibili, setFiltriVisibili] = useState(false);
-  
-  // Tab attiva
-  const [tabAttiva, setTabAttiva] = useState(0);
-  
-  // Scadenze
-  const [lottiInScadenza, setLottiInScadenza] = useState([]);
-  
-  // Dettaglio lotto
-  const [lottoSelezionato, setLottoSelezionato] = useState(null);
-  const [dialogDettaglio, setDialogDettaglio] = useState(false);
-  const [dettaglioLotto, setDettaglioLotto] = useState(null);
-  
-  // Riga espansa
-  const [rigaEspansa, setRigaEspansa] = useState(null);
+const getToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token');
+  }
+  return null;
+};
 
-  // Carica dati
-  const caricaDati = useCallback(async () => {
+export default function TabellaRintracciabilita() {
+  // State
+  const [activeTab, setActiveTab] = useState(0);
+  const [lotti, setLotti] = useState([]);
+  const [ordini, setOrdini] = useState([]);
+  const [movimenti, setMovimenti] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchLotto, setSearchLotto] = useState('');
+  const [searchOrdine, setSearchOrdine] = useState('');
+  const [dettaglioDialog, setDettaglioDialog] = useState(null);
+
+  // ==================== CARICAMENTO DATI ====================
+
+  useEffect(() => {
+    caricaDati();
+  }, []);
+
+  const caricaDati = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const params = new URLSearchParams();
-      
-      if (filtri.dataInizio) params.append('dataInizio', filtri.dataInizio);
-      if (filtri.dataFine) params.append('dataFine', filtri.dataFine);
-      if (filtri.fornitore) params.append('fornitore', filtri.fornitore);
-      if (filtri.categoria) params.append('categoria', filtri.categoria);
-      if (filtri.ingrediente) params.append('ingrediente', filtri.ingrediente);
-      if (filtri.lotto) params.append('lotto', filtri.lotto);
-      if (filtri.soloInScadenza) params.append('soloInScadenza', 'true');
-      if (filtri.soloScaduti) params.append('soloScaduti', 'true');
-      params.append('limit', pagination.limit);
-      params.append('skip', pagination.skip);
-      
-      const response = await axios.get(`${API_URL}/rintracciabilita?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.success) {
-        setTabella(response.data.data);
-        setStats(response.data.stats);
-        setPagination(prev => ({ ...prev, totale: response.data.pagination.totale }));
-      }
+      await Promise.all([
+        caricaLotti(),
+        caricaOrdini(),
+        caricaMovimenti()
+      ]);
     } catch (error) {
-      console.error('Errore caricamento rintracciabilità:', error);
-      toast.error('Errore nel caricamento dei dati');
+      console.error('Errore caricamento dati:', error);
+      toast.error('Errore caricamento dati rintracciabilità');
     } finally {
       setLoading(false);
     }
-  }, [filtri, pagination.limit, pagination.skip]);
+  };
 
-  // Carica scadenze
-  const caricaScadenze = useCallback(async () => {
+  const caricaLotti = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/rintracciabilita/scadenze?giorni=30`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch(`${API_URL}/ingredienti/lotti`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
       });
-      
-      if (response.data.success) {
-        setLottiInScadenza(response.data.data);
+      const data = await response.json();
+      if (data.success) {
+        setLotti(data.data || []);
       }
     } catch (error) {
-      console.error('Errore caricamento scadenze:', error);
+      console.error('Errore caricamento lotti:', error);
     }
-  }, []);
+  };
 
-  // Carica dettaglio lotto
-  const caricaDettaglioLotto = async (codiceLotto) => {
+  const caricaOrdini = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/rintracciabilita/lotto/${encodeURIComponent(codiceLotto)}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch(`${API_URL}/ordini?limit=100&ingredientiScaricati=true`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
       });
-      
-      if (response.data.success) {
-        setDettaglioLotto(response.data.data);
-        setDialogDettaglio(true);
+      const data = await response.json();
+      if (data.success) {
+        setOrdini(data.data || []);
       }
     } catch (error) {
-      console.error('Errore caricamento dettaglio:', error);
-      toast.error('Errore nel caricamento del dettaglio');
+      console.error('Errore caricamento ordini:', error);
     }
   };
 
-  // Export CSV
-  const esportaCSV = async () => {
+  const caricaMovimenti = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const params = new URLSearchParams();
-      params.append('formato', 'csv');
-      if (filtri.dataInizio) params.append('dataInizio', filtri.dataInizio);
-      if (filtri.dataFine) params.append('dataFine', filtri.dataFine);
-      
-      const response = await axios.get(`${API_URL}/rintracciabilita/export?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob'
+      const response = await fetch(`${API_URL}/magazzino?tipo=scarico&limit=200`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
       });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `rintracciabilita_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-      toast.success('Export completato!');
+      const data = await response.json();
+      if (data.success) {
+        setMovimenti(data.data || []);
+      }
     } catch (error) {
-      console.error('Errore export:', error);
-      toast.error('Errore nell\'export');
+      console.error('Errore caricamento movimenti:', error);
     }
   };
 
-  // Effetti
-  useEffect(() => {
-    if (tabAttiva === 0) {
-      caricaDati();
-    } else if (tabAttiva === 1) {
-      caricaScadenze();
+  // ==================== RICERCA ====================
+
+  const lottiFilrati = lotti.filter(lotto => {
+    if (!searchLotto) return true;
+    const search = searchLotto.toLowerCase();
+    return (
+      lotto.codiceLotto?.toLowerCase().includes(search) ||
+      lotto.ingrediente?.nome?.toLowerCase().includes(search) ||
+      lotto.lottoFornitore?.toLowerCase().includes(search)
+    );
+  });
+
+  const ordiniFilrati = ordini.filter(ordine => {
+    if (!searchOrdine) return true;
+    const search = searchOrdine.toLowerCase();
+    return (
+      ordine.numeroOrdine?.toLowerCase().includes(search) ||
+      ordine.nomeCliente?.toLowerCase().includes(search) ||
+      ordine.cliente?.nomeCompleto?.toLowerCase().includes(search)
+    );
+  });
+
+  // ==================== DETTAGLI ====================
+
+  const mostraDettaglioLotto = async (lotto) => {
+    try {
+      // Carica movimenti collegati al lotto
+      const response = await fetch(
+        `${API_URL}/magazzino?ingredienteId=${lotto.ingrediente._id}&lottoId=${lotto._id}`,
+        {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        }
+      );
+      const data = await response.json();
+
+      setDettaglioDialog({
+        tipo: 'lotto',
+        lotto,
+        movimenti: data.success ? data.data : []
+      });
+    } catch (error) {
+      console.error('Errore dettaglio lotto:', error);
+      toast.error('Errore caricamento dettagli');
     }
-  }, [tabAttiva, caricaDati, caricaScadenze]);
-
-  // Gestori paginazione
-  const handleChangePage = (event, newPage) => {
-    setPagination(prev => ({ ...prev, skip: newPage * prev.limit }));
   };
 
-  const handleChangeRowsPerPage = (event) => {
-    setPagination(prev => ({ ...prev, limit: parseInt(event.target.value, 10), skip: 0 }));
-  };
-
-  // Reset filtri
-  const resetFiltri = () => {
-    setFiltri({
-      dataInizio: '',
-      dataFine: '',
-      fornitore: '',
-      categoria: '',
-      ingrediente: '',
-      lotto: '',
-      soloInScadenza: false,
-      soloScaduti: false
+  const mostraDettaglioOrdine = (ordine) => {
+    setDettaglioDialog({
+      tipo: 'ordine',
+      ordine
     });
   };
 
-  // Helper per chip stato
-  const getChipStato = (stato) => {
-    const config = {
-      'disponibile': { color: 'success', label: 'Disponibile', icon: <CheckCircleIcon /> },
-      'in_uso': { color: 'info', label: 'In Uso', icon: <InfoIcon /> },
-      'esaurito': { color: 'default', label: 'Esaurito', icon: <InventoryIcon /> },
-      'scaduto': { color: 'error', label: 'Scaduto', icon: <ErrorIcon /> },
-      'richiamato': { color: 'error', label: 'Richiamato', icon: <WarningIcon /> },
-      'quarantena': { color: 'warning', label: 'Quarantena', icon: <WarningIcon /> }
-    };
-    const c = config[stato] || config['disponibile'];
-    return <Chip size="small" color={c.color} label={c.label} icon={c.icon} />;
+  // ==================== RENDER ====================
+
+  const renderScadenza = (dataScadenza) => {
+    if (!dataScadenza) return <Chip label="N/D" size="small" />;
+    
+    const scadenza = new Date(dataScadenza);
+    const oggi = new Date();
+    const giorniRimasti = Math.ceil((scadenza - oggi) / (1000 * 60 * 60 * 24));
+
+    if (giorniRimasti < 0) {
+      return (
+        <Chip 
+          icon={<WarningIcon />}
+          label={`Scaduto (${Math.abs(giorniRimasti)}gg fa)`}
+          color="error"
+          size="small"
+        />
+      );
+    } else if (giorniRimasti <= 7) {
+      return (
+        <Chip 
+          icon={<WarningIcon />}
+          label={`${giorniRimasti}gg`}
+          color="warning"
+          size="small"
+        />
+      );
+    } else if (giorniRimasti <= 30) {
+      return (
+        <Chip 
+          label={`${giorniRimasti}gg`}
+          color="info"
+          size="small"
+        />
+      );
+    } else {
+      return (
+        <Chip 
+          icon={<CheckIcon />}
+          label={scadenza.toLocaleDateString('it-IT')}
+          color="success"
+          size="small"
+        />
+      );
+    }
   };
 
-  // Helper per alert scadenza
-  const getAlertScadenza = (giorni) => {
-    if (giorni === null) return null;
-    if (giorni <= 0) return <Chip size="small" color="error" label="SCADUTO" />;
-    if (giorni <= 3) return <Chip size="small" color="error" label={`${giorni}gg`} />;
-    if (giorni <= 7) return <Chip size="small" color="warning" label={`${giorni}gg`} />;
-    if (giorni <= 30) return <Chip size="small" color="info" label={`${giorni}gg`} />;
-    return <Chip size="small" color="success" label={`${giorni}gg`} />;
-  };
-
-  // Formatta data
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('it-IT');
-  };
-
-  // Formatta valuta
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0);
+  const renderGiacenza = (giacenza) => {
+    if (!giacenza || giacenza === 0) {
+      return <Chip label="Esaurito" color="error" size="small" />;
+    } else if (giacenza < 5) {
+      return <Chip label={`${giacenza} Kg`} color="warning" size="small" />;
+    } else {
+      return <Chip label={`${giacenza} Kg`} color="success" size="small" />;
+    }
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TimelineIcon color="primary" />
-          Rintracciabilità HACCP
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="outlined"
-            startIcon={<FilterListIcon />}
-            onClick={() => setFiltriVisibili(!filtriVisibili)}
-          >
-            Filtri
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon />}
-            onClick={esportaCSV}
-          >
-            Export CSV
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<RefreshIcon />}
-            onClick={() => tabAttiva === 0 ? caricaDati() : caricaScadenze()}
-          >
-            Aggiorna
-          </Button>
-        </Box>
-      </Box>
+      <Typography variant="h4" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
+        📋 Rintracciabilità HACCP
+      </Typography>
 
-      {/* Stats Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" color="primary">{stats.totaleLotti || 0}</Typography>
-              <Typography variant="body2" color="text.secondary">Totale Lotti</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: stats.lottiScaduti > 0 ? 'error.light' : 'inherit' }}>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" color={stats.lottiScaduti > 0 ? 'error.dark' : 'inherit'}>
-                {stats.lottiScaduti || 0}
-              </Typography>
-              <Typography variant="body2">Lotti Scaduti</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: stats.lottiInScadenza > 0 ? 'warning.light' : 'inherit' }}>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" color={stats.lottiInScadenza > 0 ? 'warning.dark' : 'inherit'}>
-                {stats.lottiInScadenza || 0}
-              </Typography>
-              <Typography variant="body2">In Scadenza (30gg)</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" color="success.main">
-                {formatCurrency(stats.valoreTotale)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">Valore Totale</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} sx={{ mb: 3 }}>
+        <Tab icon={<FileIcon />} label="Lotti Ingredienti" />
+        <Tab icon={<RestaurantIcon />} label="Ordini con Rintracciabilità" />
+        <Tab icon={<ShippingIcon />} label="Movimenti Magazzino" />
+      </Tabs>
 
-      {/* Filtri */}
-      <Collapse in={filtriVisibili}>
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={2}>
+      {/* TAB 1: LOTTI INGREDIENTI */}
+      {activeTab === 0 && (
+        <Card>
+          <CardContent>
+            <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
               <TextField
                 fullWidth
-                size="small"
-                label="Data Inizio"
-                type="date"
-                value={filtri.dataInizio}
-                onChange={(e) => setFiltri(prev => ({ ...prev, dataInizio: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Data Fine"
-                type="date"
-                value={filtri.dataFine}
-                onChange={(e) => setFiltri(prev => ({ ...prev, dataFine: e.target.value }))}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Fornitore"
-                value={filtri.fornitore}
-                onChange={(e) => setFiltri(prev => ({ ...prev, fornitore: e.target.value }))}
+                label="Cerca lotto, ingrediente, lotto fornitore..."
+                value={searchLotto}
+                onChange={(e) => setSearchLotto(e.target.value)}
                 InputProps={{
-                  startAdornment: <InputAdornment position="start"><LocalShippingIcon fontSize="small" /></InputAdornment>
+                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
                 }}
               />
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Categoria</InputLabel>
-                <Select
-                  value={filtri.categoria}
-                  label="Categoria"
-                  onChange={(e) => setFiltri(prev => ({ ...prev, categoria: e.target.value }))}
-                >
-                  <MenuItem value="">Tutte</MenuItem>
-                  <MenuItem value="farine">Farine</MenuItem>
-                  <MenuItem value="latticini">Latticini</MenuItem>
-                  <MenuItem value="uova">Uova</MenuItem>
-                  <MenuItem value="zuccheri">Zuccheri</MenuItem>
-                  <MenuItem value="grassi">Grassi</MenuItem>
-                  <MenuItem value="spezie">Spezie</MenuItem>
-                  <MenuItem value="lieviti">Lieviti</MenuItem>
-                  <MenuItem value="frutta">Frutta</MenuItem>
-                  <MenuItem value="confezionamento">Confezionamento</MenuItem>
-                  <MenuItem value="altro">Altro</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Ingrediente"
-                value={filtri.ingrediente}
-                onChange={(e) => setFiltri(prev => ({ ...prev, ingrediente: e.target.value }))}
-              />
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Codice Lotto"
-                value={filtri.lotto}
-                onChange={(e) => setFiltri(prev => ({ ...prev, lotto: e.target.value }))}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Button
-                  variant={filtri.soloInScadenza ? 'contained' : 'outlined'}
-                  color="warning"
-                  size="small"
-                  onClick={() => setFiltri(prev => ({ ...prev, soloInScadenza: !prev.soloInScadenza, soloScaduti: false }))}
-                >
-                  Solo In Scadenza
-                </Button>
-                <Button
-                  variant={filtri.soloScaduti ? 'contained' : 'outlined'}
-                  color="error"
-                  size="small"
-                  onClick={() => setFiltri(prev => ({ ...prev, soloScaduti: !prev.soloScaduti, soloInScadenza: false }))}
-                >
-                  Solo Scaduti
-                </Button>
-                <Box sx={{ flexGrow: 1 }} />
-                <Button
-                  startIcon={<ClearIcon />}
-                  onClick={resetFiltri}
-                >
-                  Reset
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<SearchIcon />}
-                  onClick={caricaDati}
-                >
-                  Cerca
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
-        </Paper>
-      </Collapse>
-
-      {/* Tabs */}
-      <Paper sx={{ mb: 2 }}>
-        <Tabs value={tabAttiva} onChange={(e, v) => setTabAttiva(v)}>
-          <Tab label="Tabella Rintracciabilità" icon={<InventoryIcon />} iconPosition="start" />
-          <Tab 
-            label={
-              <Badge badgeContent={lottiInScadenza.length} color="warning">
-                Alert Scadenze
-              </Badge>
-            } 
-            icon={<WarningIcon />} 
-            iconPosition="start" 
-          />
-        </Tabs>
-      </Paper>
-
-      {/* Tab 0: Tabella principale */}
-      {tabAttiva === 0 && (
-        <TableContainer component={Paper}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
+              <Button 
+                variant="contained" 
+                onClick={caricaDati}
+                startIcon={<HistoryIcon />}
+              >
+                Aggiorna
+              </Button>
             </Box>
-          ) : (
-            <>
+
+            <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'primary.main' }}>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}></TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Prodotto</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Categoria</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Codice Lotto</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Data Arrivo</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Scadenza</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }} align="right">Qtà Attuale</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Fornitore</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>N. Fattura</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Stato</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Azioni</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Lotto</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Ingrediente</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Lotto Fornitore</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Fattura</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Giacenza</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Scadenza</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Azioni</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {tabella.length === 0 ? (
+                  {lottiFilrati.map((lotto) => (
+                    <TableRow key={lotto._id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>
+                          {lotto.codiceLotto}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {lotto.ingrediente?.nome || 'N/D'}
+                      </TableCell>
+                      <TableCell>
+                        {lotto.lottoFornitore || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {lotto.importazione ? (
+                          <Tooltip title={`Fattura ${lotto.importazione.numeroFattura}`}>
+                            <Chip
+                              icon={<FileIcon />}
+                              label={lotto.importazione.numeroFattura}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Tooltip>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {renderGiacenza(lotto.giacenza)}
+                      </TableCell>
+                      <TableCell>
+                        {renderScadenza(lotto.dataScadenza)}
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title="Vedi dettagli">
+                          <IconButton
+                            size="small"
+                            onClick={() => mostraDettaglioLotto(lotto)}
+                            color="primary"
+                          >
+                            <InfoIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {lottiFilrati.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={11} align="center" sx={{ py: 4 }}>
-                        <Typography color="text.secondary">
-                          Nessun dato trovato. Importa delle fatture per popolare la rintracciabilità.
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+                          Nessun lotto trovato
                         </Typography>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    tabella.map((riga) => (
-                      <React.Fragment key={riga._id}>
-                        <TableRow 
-                          hover
-                          sx={{ 
-                            bgcolor: riga.alertScadenza === 'scaduto' ? 'error.lighter' : 
-                                    riga.alertScadenza === 'urgente' ? 'warning.lighter' : 'inherit'
-                          }}
-                        >
-                          <TableCell>
-                            <IconButton 
-                              size="small"
-                              onClick={() => setRigaEspansa(rigaEspansa === riga._id ? null : riga._id)}
-                            >
-                              {rigaEspansa === riga._id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                            </IconButton>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight="medium">{riga.ingrediente}</Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip size="small" label={riga.categoria} variant="outlined" />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontFamily="monospace">
-                              {riga.codiceLotto || '-'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>{formatDate(riga.dataArrivo)}</TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              {formatDate(riga.dataScadenza)}
-                              {getAlertScadenza(riga.giorniAllaScadenza)}
-                            </Box>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography fontWeight="medium">
-                              {riga.quantitaAttuale} {riga.unitaMisura}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>{riga.fornitore}</TableCell>
-                          <TableCell>
-                            {riga.documentoOrigine?.numero || '-'}
-                          </TableCell>
-                          <TableCell>{getChipStato(riga.stato)}</TableCell>
-                          <TableCell>
-                            <Tooltip title="Dettagli completi">
-                              <IconButton 
-                                size="small"
-                                onClick={() => caricaDettaglioLotto(riga.codiceLotto)}
-                              >
-                                <InfoIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                        
-                        {/* Riga espansa con dettagli */}
-                        <TableRow>
-                          <TableCell colSpan={11} sx={{ py: 0 }}>
-                            <Collapse in={rigaEspansa === riga._id}>
-                              <Box sx={{ p: 2, bgcolor: 'grey.50' }}>
-                                <Grid container spacing={2}>
-                                  <Grid item xs={12} md={4}>
-                                    <Typography variant="subtitle2" color="primary" gutterBottom>
-                                      <ReceiptIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                      Documento Origine
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      Tipo: {riga.documentoOrigine?.tipo || 'Fattura'}<br />
-                                      Numero: {riga.documentoOrigine?.numero || '-'}<br />
-                                      Data: {formatDate(riga.documentoOrigine?.data)}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={12} md={4}>
-                                    <Typography variant="subtitle2" color="primary" gutterBottom>
-                                      <LocalShippingIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                      Fornitore
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      {riga.fornitore}<br />
-                                      P.IVA: {riga.partitaIvaFornitore || '-'}<br />
-                                      Lotto Fornitore: {riga.lottoFornitore || '-'}
-                                    </Typography>
-                                  </Grid>
-                                  <Grid item xs={12} md={4}>
-                                    <Typography variant="subtitle2" color="primary" gutterBottom>
-                                      <InventoryIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                      Quantità e Valore
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      Iniziale: {riga.quantitaIniziale} {riga.unitaMisura}<br />
-                                      Attuale: {riga.quantitaAttuale} {riga.unitaMisura}<br />
-                                      Prezzo: {formatCurrency(riga.prezzoUnitario)}/{riga.unitaMisura}<br />
-                                      Valore: {formatCurrency(riga.valoreTotale)}
-                                    </Typography>
-                                  </Grid>
-                                </Grid>
-                              </Box>
-                            </Collapse>
-                          </TableCell>
-                        </TableRow>
-                      </React.Fragment>
-                    ))
                   )}
                 </TableBody>
               </Table>
-              <TablePagination
-                component="div"
-                count={pagination.totale}
-                page={Math.floor(pagination.skip / pagination.limit)}
-                onPageChange={handleChangePage}
-                rowsPerPage={pagination.limit}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[25, 50, 100]}
-                labelRowsPerPage="Righe per pagina:"
-                labelDisplayedRows={({ from, to, count }) => `${from}-${to} di ${count}`}
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* TAB 2: ORDINI CON RINTRACCIABILITÀ */}
+      {activeTab === 1 && (
+        <Card>
+          <CardContent>
+            <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+              <TextField
+                fullWidth
+                label="Cerca ordine, cliente..."
+                value={searchOrdine}
+                onChange={(e) => setSearchOrdine(e.target.value)}
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                }}
               />
-            </>
-          )}
-        </TableContainer>
-      )}
+              <Button 
+                variant="contained" 
+                onClick={caricaDati}
+                startIcon={<HistoryIcon />}
+              >
+                Aggiorna
+              </Button>
+            </Box>
 
-      {/* Tab 1: Alert Scadenze */}
-      {tabAttiva === 1 && (
-        <Paper>
-          {lottiInScadenza.length === 0 ? (
-            <Alert severity="success" sx={{ m: 2 }}>
-              <Typography>Nessun lotto in scadenza nei prossimi 30 giorni! 🎉</Typography>
-            </Alert>
-          ) : (
-            <List>
-              {lottiInScadenza.map((lotto, index) => (
-                <React.Fragment key={`${lotto.codiceLotto}-${index}`}>
-                  <ListItem
-                    sx={{
-                      bgcolor: lotto.urgenza === 'scaduto' ? 'error.lighter' :
-                              lotto.urgenza === 'critico' ? 'error.light' :
-                              lotto.urgenza === 'urgente' ? 'warning.light' : 'inherit'
-                    }}
-                    secondaryAction={
-                      <Button
-                        size="small"
-                        onClick={() => caricaDettaglioLotto(lotto.codiceLotto)}
-                      >
-                        Dettagli
-                      </Button>
-                    }
-                  >
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {lotto.urgenza === 'scaduto' && <ErrorIcon color="error" />}
-                          {lotto.urgenza === 'critico' && <WarningIcon color="error" />}
-                          {lotto.urgenza === 'urgente' && <WarningIcon color="warning" />}
-                          <Typography fontWeight="bold">{lotto.ingrediente}</Typography>
-                          <Chip 
-                            size="small" 
-                            label={lotto.codiceLotto}
-                            variant="outlined"
-                            sx={{ fontFamily: 'monospace' }}
-                          />
-                        </Box>
-                      }
-                      secondary={
-                        <Typography variant="body2">
-                          Scadenza: {formatDate(lotto.dataScadenza)} 
-                          {lotto.giorniRimanenti <= 0 
-                            ? ` (SCADUTO da ${Math.abs(lotto.giorniRimanenti)} giorni)`
-                            : ` (${lotto.giorniRimanenti} giorni)`
-                          }
-                          {' • '}
-                          Qtà: {lotto.quantitaRimanente} {lotto.unitaMisura}
-                          {' • '}
-                          Fornitore: {lotto.fornitore}
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'primary.main' }}>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Ordine</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Cliente</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Data Ritiro</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Data Scarico</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Prodotti</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Azioni</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {ordiniFilrati.map((ordine) => (
+                    <TableRow key={ordine._id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>
+                          {ordine.numeroOrdine}
                         </Typography>
-                      }
-                    />
-                  </ListItem>
-                  {index < lottiInScadenza.length - 1 && <Divider />}
-                </React.Fragment>
-              ))}
-            </List>
-          )}
-        </Paper>
+                      </TableCell>
+                      <TableCell>
+                        {ordine.nomeCliente || ordine.cliente?.nomeCompleto || 'N/D'}
+                      </TableCell>
+                      <TableCell>
+                        {ordine.dataRitiro ? new Date(ordine.dataRitiro).toLocaleDateString('it-IT') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {ordine.dataScarico ? (
+                          <Chip
+                            icon={<CheckIcon />}
+                            label={new Date(ordine.dataScarico).toLocaleDateString('it-IT')}
+                            color="success"
+                            size="small"
+                          />
+                        ) : (
+                          <Chip label="Non scaricato" size="small" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={`${ordine.prodotti?.length || 0} prodotti`}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title="Vedi dettagli">
+                          <IconButton
+                            size="small"
+                            onClick={() => mostraDettaglioOrdine(ordine)}
+                            color="primary"
+                          >
+                            <InfoIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {ordiniFilrati.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+                          Nessun ordine con rintracciabilità trovato
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Dialog Dettaglio Lotto */}
-      <Dialog open={dialogDettaglio} onClose={() => setDialogDettaglio(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
-          Dettaglio Lotto: {dettaglioLotto?.lotto?.codiceLotto}
-        </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
-          {dettaglioLotto && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Ingrediente</Typography>
-                <Typography><strong>Nome:</strong> {dettaglioLotto.ingrediente.nome}</Typography>
-                <Typography><strong>Categoria:</strong> {dettaglioLotto.ingrediente.categoria}</Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Quantità</Typography>
-                <Typography><strong>Iniziale:</strong> {dettaglioLotto.lotto.quantitaIniziale} {dettaglioLotto.lotto.unitaMisura}</Typography>
-                <Typography><strong>Attuale:</strong> {dettaglioLotto.lotto.quantitaAttuale} {dettaglioLotto.lotto.unitaMisura}</Typography>
-                <Typography><strong>Utilizzato:</strong> {dettaglioLotto.lotto.percentualeUtilizzata}%</Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Date</Typography>
-                <Typography><strong>Arrivo:</strong> {formatDate(dettaglioLotto.lotto.dataArrivo)}</Typography>
-                <Typography><strong>Scadenza:</strong> {formatDate(dettaglioLotto.lotto.dataScadenza)}</Typography>
-                <Typography>
-                  <strong>Giorni rimanenti:</strong> {dettaglioLotto.lotto.giorniAllaScadenza}
-                  {dettaglioLotto.lotto.giorniAllaScadenza <= 0 && 
-                    <Chip size="small" color="error" label="SCADUTO" sx={{ ml: 1 }} />
-                  }
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Fornitore</Typography>
-                <Typography><strong>Nome:</strong> {dettaglioLotto.rintracciabilitaCompleta.fornitore?.ragioneSociale || 'N/D'}</Typography>
-                <Typography><strong>P.IVA:</strong> {dettaglioLotto.rintracciabilitaCompleta.fornitore?.partitaIVA || 'N/D'}</Typography>
-                <Typography><strong>Lotto Fornitore:</strong> {dettaglioLotto.rintracciabilitaCompleta.lottoFornitore || 'N/D'}</Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>Documento Origine</Typography>
-                <Typography>
-                  <strong>Tipo:</strong> {dettaglioLotto.rintracciabilitaCompleta.documentoOrigine?.tipo || 'Fattura'} | 
-                  <strong> Numero:</strong> {dettaglioLotto.rintracciabilitaCompleta.documentoOrigine?.numero || 'N/D'} | 
-                  <strong> Data:</strong> {formatDate(dettaglioLotto.rintracciabilitaCompleta.documentoOrigine?.data)}
-                </Typography>
-              </Grid>
-              {dettaglioLotto.movimenti && dettaglioLotto.movimenti.length > 0 && (
-                <Grid item xs={12}>
-                  <Typography variant="h6" gutterBottom>Movimenti Collegati</Typography>
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Data</TableCell>
-                          <TableCell>Tipo</TableCell>
-                          <TableCell>Quantità</TableCell>
-                          <TableCell>Note</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {dettaglioLotto.movimenti.map((mov, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{formatDate(mov.dataMovimento)}</TableCell>
-                            <TableCell>
-                              <Chip 
-                                size="small" 
-                                color={mov.tipo === 'carico' ? 'success' : 'error'}
-                                label={mov.tipo}
-                              />
-                            </TableCell>
-                            <TableCell>{mov.quantita} {mov.unita}</TableCell>
-                            <TableCell>{mov.note}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+      {/* TAB 3: MOVIMENTI MAGAZZINO */}
+      {activeTab === 2 && (
+        <Card>
+          <CardContent>
+            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button 
+                variant="contained" 
+                onClick={caricaDati}
+                startIcon={<HistoryIcon />}
+              >
+                Aggiorna
+              </Button>
+            </Box>
+
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'primary.main' }}>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Data</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Tipo</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Ingrediente</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Lotto</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Quantità</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Riferimento</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {movimenti.map((movimento) => (
+                    <TableRow key={movimento._id} hover>
+                      <TableCell>
+                        {new Date(movimento.createdAt).toLocaleDateString('it-IT')}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={movimento.tipo}
+                          color={movimento.tipo === 'carico' ? 'success' : 'warning'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {movimento.ingrediente?.nome || 'N/D'}
+                      </TableCell>
+                      <TableCell>
+                        {movimento.lotto?.codiceLotto || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {movimento.quantita} {movimento.unita}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" color="text.secondary">
+                          {movimento.note || '-'}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {movimenti.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+                          Nessun movimento trovato
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* DIALOG DETTAGLI */}
+      <Dialog
+        open={dettaglioDialog !== null}
+        onClose={() => setDettaglioDialog(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        {dettaglioDialog?.tipo === 'lotto' && (
+          <>
+            <DialogTitle>
+              📦 Dettaglio Lotto: {dettaglioDialog.lotto.codiceLotto}
+            </DialogTitle>
+            <DialogContent dividers>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Ingrediente:</Typography>
+                  <Typography variant="body1" fontWeight={600}>
+                    {dettaglioDialog.lotto.ingrediente?.nome}
+                  </Typography>
                 </Grid>
-              )}
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogDettaglio(false)}>Chiudi</Button>
-        </DialogActions>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Lotto Fornitore:</Typography>
+                  <Typography variant="body1" fontWeight={600}>
+                    {dettaglioDialog.lotto.lottoFornitore || '-'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Giacenza Attuale:</Typography>
+                  {renderGiacenza(dettaglioDialog.lotto.giacenza)}
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Scadenza:</Typography>
+                  {renderScadenza(dettaglioDialog.lotto.dataScadenza)}
+                </Grid>
+                {dettaglioDialog.lotto.importazione && (
+                  <>
+                    <Grid item xs={12}>
+                      <Divider sx={{ my: 1 }} />
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Fattura di Provenienza:
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="body2">
+                        <strong>Numero:</strong> {dettaglioDialog.lotto.importazione.numeroFattura}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="body2">
+                        <strong>Fornitore:</strong> {dettaglioDialog.lotto.importazione.fornitore}
+                      </Typography>
+                    </Grid>
+                  </>
+                )}
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Movimenti Collegati:
+                  </Typography>
+                  <List dense>
+                    {dettaglioDialog.movimenti?.map((mov, idx) => (
+                      <ListItem key={idx} divider>
+                        <ListItemText
+                          primary={`${mov.tipo.toUpperCase()}: ${mov.quantita} ${mov.unita}`}
+                          secondary={`${new Date(mov.createdAt).toLocaleDateString('it-IT')} - ${mov.note || ''}`}
+                        />
+                      </ListItem>
+                    ))}
+                    {(!dettaglioDialog.movimenti || dettaglioDialog.movimenti.length === 0) && (
+                      <Typography variant="body2" color="text.secondary">
+                        Nessun movimento registrato
+                      </Typography>
+                    )}
+                  </List>
+                </Grid>
+              </Grid>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDettaglioDialog(null)}>Chiudi</Button>
+            </DialogActions>
+          </>
+        )}
+
+        {dettaglioDialog?.tipo === 'ordine' && (
+          <>
+            <DialogTitle>
+              🛒 Dettaglio Ordine: {dettaglioDialog.ordine.numeroOrdine}
+            </DialogTitle>
+            <DialogContent dividers>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Cliente:</Typography>
+                  <Typography variant="body1" fontWeight={600}>
+                    {dettaglioDialog.ordine.nomeCliente || dettaglioDialog.ordine.cliente?.nomeCompleto}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Data Ritiro:</Typography>
+                  <Typography variant="body1" fontWeight={600}>
+                    {dettaglioDialog.ordine.dataRitiro ? 
+                      new Date(dettaglioDialog.ordine.dataRitiro).toLocaleDateString('it-IT') : '-'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Data Scarico Ingredienti:</Typography>
+                  {dettaglioDialog.ordine.dataScarico ? (
+                    <Chip
+                      icon={<CheckIcon />}
+                      label={new Date(dettaglioDialog.ordine.dataScarico).toLocaleDateString('it-IT')}
+                      color="success"
+                    />
+                  ) : (
+                    <Chip label="Non ancora scaricato" />
+                  )}
+                </Grid>
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Prodotti nell'ordine:
+                  </Typography>
+                  <List dense>
+                    {dettaglioDialog.ordine.prodotti?.map((prod, idx) => (
+                      <ListItem key={idx} divider>
+                        <ListItemText
+                          primary={prod.nome}
+                          secondary={`${prod.quantita} ${prod.unita} - €${prod.prezzo?.toFixed(2) || '0.00'}`}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Grid>
+                {dettaglioDialog.ordine.movimentiCollegati && dettaglioDialog.ordine.movimentiCollegati.length > 0 && (
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 1 }} />
+                    <Alert severity="success">
+                      Scarico ingredienti completato: {dettaglioDialog.ordine.movimentiCollegati.length} movimenti registrati
+                    </Alert>
+                  </Grid>
+                )}
+              </Grid>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDettaglioDialog(null)}>Chiudi</Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
     </Box>
   );
-};
-
-export default Rintracciabilita;
+}
