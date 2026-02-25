@@ -452,7 +452,6 @@ const ordineSchema = new mongoose.Schema({
     type: Date,
     default: null,
     comment: 'Timestamp invio promemoria automatico'
-  }
   },
   
   // ========== ✅ RINTRACCIABILITÀ HACCP ==========
