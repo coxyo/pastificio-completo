@@ -161,7 +161,10 @@ clienteIdPreselezionato,
     note: '',
     daViaggio: false,
     ricordaEtichetta: false,  // ✅ NUOVO: Etichetta ingredienti
-    confezioneRegalo: false   // ✅ NUOVO: Confezione regalo
+    confezioneRegalo: false,  // ✅ NUOVO: Confezione regalo
+    pagato: false,            // ✅ NUOVO 24/02/2026: Pagamento
+    acconto: false,           // ✅ NUOVO 24/02/2026: Acconto
+    importoAcconto: ''        // ✅ NUOVO 24/02/2026: Importo acconto
   });
 
   const [prodottoCorrente, setProdottoCorrente] = useState({
@@ -532,7 +535,10 @@ useEffect(() => {
         note: ordineIniziale.note || '',
         daViaggio: ordineIniziale.daViaggio || false,
         ricordaEtichetta: ordineIniziale.ricordaEtichetta || false,  // ✅ NUOVO
-        confezioneRegalo: ordineIniziale.confezioneRegalo || false   // ✅ NUOVO
+        confezioneRegalo: ordineIniziale.confezioneRegalo || false,  // ✅ NUOVO
+        pagato: ordineIniziale.pagato || false,
+        acconto: ordineIniziale.acconto || false,
+        importoAcconto: ordineIniziale.importoAcconto || ''
       });
     } else {
       setFormData({
@@ -547,7 +553,10 @@ useEffect(() => {
         note: '',
         daViaggio: false,
         ricordaEtichetta: false,  // ✅ NUOVO
-        confezioneRegalo: false   // ✅ NUOVO
+        confezioneRegalo: false,  // ✅ NUOVO
+        pagato: false,
+        acconto: false,
+        importoAcconto: ''
       });
     }
   }, [ordineIniziale, open]);
@@ -1450,6 +1459,9 @@ useEffect(() => {
       daViaggio: formData.daViaggio,
       ricordaEtichetta: formData.ricordaEtichetta,    // ✅ NUOVO
       confezioneRegalo: formData.confezioneRegalo,    // ✅ NUOVO
+      pagato: formData.pagato,                         // ✅ NUOVO 24/02/2026
+      acconto: formData.acconto,                       // ✅ NUOVO 24/02/2026
+      importoAcconto: formData.acconto ? parseFloat(normalizzaDecimale(formData.importoAcconto)) || 0 : 0,  // ✅ NUOVO 24/02/2026
       forceOverride,
       packaging: formData.prodotti.find(p => p.dettagliCalcolo?.packaging)?.dettagliCalcolo.packaging,
       numeroVassoioDimensione: formData.prodotti.find(p => p.dettagliCalcolo?.numeroVassoioDimensione)?.dettagliCalcolo.numeroVassoioDimensione,
@@ -2766,6 +2778,77 @@ useEffect(() => {
                       </Typography>
                     }
                   />
+
+                  <Divider sx={{ my: 0.5 }} />
+
+                  {/* Pagato */}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.pagato}
+                        onChange={(e) => {
+                          const newPagato = e.target.checked;
+                          setFormData({ 
+                            ...formData, 
+                            pagato: newPagato,
+                            // Se pagato, disattiva acconto
+                            acconto: newPagato ? false : formData.acconto,
+                            importoAcconto: newPagato ? '' : formData.importoAcconto
+                          });
+                        }}
+                        size="small"
+                        color="success"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontWeight: formData.pagato ? 'bold' : 'normal', color: formData.pagato ? 'success.main' : 'inherit' }}>
+                        💰 Pagato
+                      </Typography>
+                    }
+                  />
+
+                  {/* Acconto */}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.acconto}
+                        onChange={(e) => {
+                          const newAcconto = e.target.checked;
+                          setFormData({ 
+                            ...formData, 
+                            acconto: newAcconto,
+                            // Se acconto, disattiva pagato
+                            pagato: newAcconto ? false : formData.pagato,
+                            importoAcconto: newAcconto ? formData.importoAcconto : ''
+                          });
+                        }}
+                        size="small"
+                        color="warning"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ fontWeight: formData.acconto ? 'bold' : 'normal', color: formData.acconto ? 'warning.main' : 'inherit' }}>
+                        💳 Acconto
+                      </Typography>
+                    }
+                  />
+
+                  {/* Campo importo acconto - visibile solo se acconto è selezionato */}
+                  {formData.acconto && (
+                    <TextField
+                      label="Importo Acconto"
+                      value={formData.importoAcconto}
+                      onChange={(e) => setFormData({ ...formData, importoAcconto: normalizzaDecimale(e.target.value) })}
+                      size="small"
+                      fullWidth
+                      type="text"
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start">€</InputAdornment>,
+                      }}
+                      placeholder="Es: 20"
+                      sx={{ ml: 4, mt: 0.5 }}
+                    />
+                  )}
                 </Box>
               </Paper>
             </Box>
