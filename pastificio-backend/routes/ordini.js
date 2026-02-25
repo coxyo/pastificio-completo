@@ -885,20 +885,5 @@ router.post('/fix/correggi', async (req, res) => {
   }
 });
 
-// ================================================
-// ✅ NUOVO: SCARICO MANUALE INGREDIENTI
-// ================================================
-/**
- * POST /api/ordini/:id/scarico-ingredienti
- * Scarica manualmente ingredienti per un ordine esistente
- * 
- * @description
- * Esegue lo scarico manuale degli ingredienti dal magazzino per un ordine specifico.
- * Utilizza la stessa logica dello scarico automatico ma può essere triggerato manualmente.
- * 
- * @param {string} id - ID ordine MongoDB
- * @returns {Object} Risultato scarico con successi/errori
- */
-router.post('/:id/scarico-ingredienti', protect, ordiniController.scaricoManuale);
 
 export default router;
