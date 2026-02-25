@@ -31,7 +31,8 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+// ✅ FIX: Forza URL production (ignora variabile ambiente sbagliata)
+const API_URL = 'https://pastificio-completo-production.up.railway.app';
 
 // ============================================
 // CONFIGURAZIONE DISPOSITIVI
