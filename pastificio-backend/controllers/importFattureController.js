@@ -526,18 +526,18 @@ export const uploadFatture = async (req, res) => {
     
     logger.info(`📊 Upload completato: ${stats.analizzati} analizzati, ${stats.duplicati} duplicati, ${stats.errori} errori`);
     
-    // Carica ingredienti per frontend
+    
+    // ✅ Carica ingredienti per frontend
     const ingredienti = await Ingrediente.find({ attivo: true }).select('nome categoria unitaMisura giacenza');
-
+    
     res.json({
       success: true,
       data: {
         risultati,
-        ingredienti,
+        ingredienti,        // ✅ AGGIUNTO per frontend
         statistiche: stats
       }
     });
-    
   } catch (error) {
     logger.error('Errore upload fatture:', error);
     res.status(500).json({
