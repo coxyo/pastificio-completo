@@ -526,10 +526,14 @@ export const uploadFatture = async (req, res) => {
     
     logger.info(`📊 Upload completato: ${stats.analizzati} analizzati, ${stats.duplicati} duplicati, ${stats.errori} errori`);
     
+    // Carica ingredienti per frontend
+    const ingredienti = await Ingrediente.find({ attivo: true }).select('nome categoria unitaMisura giacenza');
+
     res.json({
       success: true,
       data: {
         risultati,
+        ingredienti,
         statistiche: stats
       }
     });
