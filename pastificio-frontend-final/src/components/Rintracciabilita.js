@@ -89,7 +89,7 @@ export default function TabellaRintracciabilita() {
 
   const caricaLotti = async () => {
     try {
-      const response = await fetch(`${API_URL}/ingredienti/lotti`, {
+      const response = await fetch(`${API_URL}/rintracciabilita`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       const data = await response.json();
@@ -103,7 +103,7 @@ export default function TabellaRintracciabilita() {
 
   const caricaOrdini = async () => {
     try {
-      const response = await fetch(`${API_URL}/ordini?limit=100&ingredientiScaricati=true`, {
+      const response = await fetch(`${API_URL}/ordini?limit=100`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       const data = await response.json();
@@ -117,7 +117,7 @@ export default function TabellaRintracciabilita() {
 
   const caricaMovimenti = async () => {
     try {
-      const response = await fetch(`${API_URL}/magazzino?tipo=scarico&limit=200`, {
+      const response = await fetch(`${API_URL}/movimenti?limit=200`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       const data = await response.json();
