@@ -423,10 +423,25 @@ export const uploadFatture = async (req, res) => {
       // Parsing XML
       const datiParsed = await parseXMLFattura(xmlContent);
       
+      
       return {
         file: nomeFile,
         stato: 'analizzato',
-        ...datiParsed,
+        // ✅ Ristruttura per compatibilità frontend
+        fattura: {
+          numero: datiParsed.documento?.numero || '',
+          data: datiParsed.documento?.data || new Date(),
+          tipoDocumento: datiParsed.documento?.tipoDocumento || 'TD24',
+          importoTotale: datiParsed.documento?.importoTotale || 0
+        },
+        fornitore: datiParsed.fornitore,
+        ddt: datiParsed.ddt || [],
+        righe: datiParsed.righe || [],
+        totali: {
+          imponibile: datiParsed.imponibile || 0,
+          iva: datiParsed.imposta || 0,
+          totale: (datiParsed.imponibile || 0) + (datiParsed.imposta || 0)
+        },
         fileInfo: {
           nome: nomeFile,
           hash: hash
@@ -511,21 +526,6 @@ export const uploadFatture = async (req, res) => {
         risultati.push({
           file: file.name,
           stato: 'errore',
-          messaggio: `Errore: ${fileError.message}`
-        });
-      }
-    }
-    
-    // Statistiche
-    const stats = {
-      totale: risultati.length,
-      analizzati: risultati.filter(r => r.stato === 'analizzato').length,
-      duplicati: risultati.filter(r => r.stato === 'duplicato').length,
-      errori: risultati.filter(r => r.stato === 'errore').length
-    };
-    
-    logger.info(`📊 Upload completato: ${stats.analizzati} analizzati, ${stats.duplicati} duplicati, ${stats.errori} errori`);
-    
     
     // ✅ Carica ingredienti per frontend
     const ingredienti = await Ingrediente.find({ attivo: true }).select('nome categoria unitaMisura giacenza');
@@ -534,10 +534,25 @@ export const uploadFatture = async (req, res) => {
       success: true,
       data: {
         risultati,
-        ingredienti,        // ✅ AGGIUNTO per frontend
+        ingredienti,
         statistiche: stats
       }
     });
+      analizzati: risultati.filter(r => r.stato === 'analizzato').length,
+      duplicati: risultati.filter(r => r.stato === 'duplicato').length,
+      errori: risultati.filter(r => r.stato === 'errore').length
+    };
+    
+    logger.info(`📊 Upload completato: ${stats.analizzati} analizzati, ${stats.duplicati} duplicati, ${stats.errori} errori`);
+    
+    res.json({
+      success: true,
+      data: {
+        risultati,
+        statistiche: stats
+      }
+    });
+    
   } catch (error) {
     logger.error('Errore upload fatture:', error);
     res.status(500).json({
