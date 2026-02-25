@@ -423,7 +423,6 @@ export const uploadFatture = async (req, res) => {
       // Parsing XML
       const datiParsed = await parseXMLFattura(xmlContent);
       
-      
       return {
         file: nomeFile,
         stato: 'analizzato',
@@ -526,6 +525,20 @@ export const uploadFatture = async (req, res) => {
         risultati.push({
           file: file.name,
           stato: 'errore',
+          messaggio: `Errore: ${fileError.message}`
+        });
+      }
+    }
+    
+    // Statistiche
+    const stats = {
+      totale: risultati.length,
+      analizzati: risultati.filter(r => r.stato === 'analizzato').length,
+      duplicati: risultati.filter(r => r.stato === 'duplicato').length,
+      errori: risultati.filter(r => r.stato === 'errore').length
+    };
+    
+    logger.info(`📊 Upload completato: ${stats.analizzati} analizzati, ${stats.duplicati} duplicati, ${stats.errori} errori`);
     
     // ✅ Carica ingredienti per frontend
     const ingredienti = await Ingrediente.find({ attivo: true }).select('nome categoria unitaMisura giacenza');
@@ -535,20 +548,6 @@ export const uploadFatture = async (req, res) => {
       data: {
         risultati,
         ingredienti,
-        statistiche: stats
-      }
-    });
-      analizzati: risultati.filter(r => r.stato === 'analizzato').length,
-      duplicati: risultati.filter(r => r.stato === 'duplicato').length,
-      errori: risultati.filter(r => r.stato === 'errore').length
-    };
-    
-    logger.info(`📊 Upload completato: ${stats.analizzati} analizzati, ${stats.duplicati} duplicati, ${stats.errori} errori`);
-    
-    res.json({
-      success: true,
-      data: {
-        risultati,
         statistiche: stats
       }
     });
