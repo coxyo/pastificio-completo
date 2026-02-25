@@ -1,18 +1,18 @@
-// src/App.js - SISTEMA MULTI-UTENTE COMPLETO + GESTIONE PRODOTTI
+// src/App.js - SISTEMA MULTI-UTENTE COMPLETO + RINTRACCIABILITÀ
 import React, { useState, useEffect } from 'react';
 import GestoreOrdini from './components/GestoreOrdini';
-import GestioneProdotti from './components/GestioneProdotti'; // ✅ NUOVO IMPORT
+import GestioneProdotti from './components/GestioneProdotti';
+import TabellaRintracciabilita from './components/TabellaRintracciabilita'; // ✅ NUOVO IMPORT
 
 function App() {
   const [user, setUser] = useState(null);
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [currentView, setCurrentView] = useState('ordini'); // ✅ NUOVO STATE per navigazione
+  const [currentView, setCurrentView] = useState('ordini');
   
   // Auto-login per test
   useEffect(() => {
-    // Simula auto-login come admin
     setUser({ 
       nome: 'Admin', 
       username: 'admin', 
@@ -23,7 +23,6 @@ function App() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    // Login simulato
     if (username === 'admin' && password === 'admin123') {
       setUser({ nome: 'Admin', username: 'admin', ruolo: 'admin' });
     } else if (username === 'maria' && password === 'maria123') {
@@ -37,7 +36,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     setShowLogin(true);
-    setCurrentView('ordini'); // Reset alla vista ordini
+    setCurrentView('ordini');
   };
 
   // Mostra login se richiesto
@@ -98,284 +97,249 @@ function App() {
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '16px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                fontWeight: 'bold'
               }}
             >
               Accedi
             </button>
           </form>
-          
-          <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            <p style={{ fontSize: '12px', color: '#666' }}>Test rapido:</p>
-            <button
-              onClick={() => {
-                setUser({ nome: 'Admin', username: 'admin', ruolo: 'admin' });
-                setShowLogin(false);
-              }}
-              style={{
-                margin: '5px',
-                padding: '8px 16px',
-                backgroundColor: '#f0f0f0',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              Login come Admin
-            </button>
+
+          <div style={{ marginTop: '20px', fontSize: '12px', color: '#666', textAlign: 'center' }}>
+            <p>Test: admin / admin123</p>
+            <p>Test: maria / maria123</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // INTERFACCIA PRINCIPALE MULTI-UTENTE
+  // Interfaccia principale
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-      {/* HEADER MULTI-UTENTE COLORATO */}
+    <div style={{
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: '#f5f5f5'
+    }}>
+      {/* HEADER */}
       <div style={{
-        background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+        backgroundColor: '#667eea',
         color: 'white',
-        padding: '15px 30px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+        padding: '16px 32px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          {/* Logo e Titolo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <h1 style={{ margin: 0, fontSize: '24px' }}>
-              🍝 Pastificio Nonna Claudia
-            </h1>
-            <span style={{
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              padding: '6px 12px',
-              borderRadius: '20px',
-              fontSize: '14px'
-            }}>
-              Sistema Multi-Utente v2.0
-            </span>
-          </div>
-          
-          {/* Info Utente e Logout */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              padding: '8px 16px',
-              borderRadius: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <span>👤</span>
-              <span>{user.nome}</span>
-              <span style={{ opacity: 0.7 }}>|</span>
-              <span>{user.ruolo === 'admin' ? '👨‍💼 Admin' : '👷 Operatore'}</span>
-            </div>
-            
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: '8px 20px',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '14px'
-              }}
-            >
-              🚪 Esci
-            </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <h1 style={{ margin: 0, fontSize: '24px' }}>
+            🍝 Pastificio Nonna Claudia
+          </h1>
+          <div style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            padding: '4px 12px',
+            borderRadius: '12px',
+            fontSize: '12px'
+          }}>
+            v2.0 - Sistema Completo
           </div>
         </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            fontSize: '14px'
+          }}>
+            👤 {user.nome} ({user.ruolo})
+          </div>
+          
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            }}
+          >
+            Esci
+          </button>
+        </div>
       </div>
-      
-      {/* BARRA UTENTI ONLINE */}
-      <div style={{
-        backgroundColor: '#fbbf24',
-        padding: '10px 30px',
-        fontSize: '14px',
-        color: '#92400e',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '15px'
-      }}>
-        <span>👥 Utenti online:</span>
-        <span style={{
-          backgroundColor: '#10b981',
-          color: 'white',
-          padding: '3px 10px',
-          borderRadius: '12px',
-          fontSize: '12px'
-        }}>
-          Maria (Produzione)
-        </span>
-        <span style={{
-          backgroundColor: '#10b981',
-          color: 'white',
-          padding: '3px 10px',
-          borderRadius: '12px',
-          fontSize: '12px'
-        }}>
-          Giuseppe (Ordini)
-        </span>
-        <span style={{
-          backgroundColor: '#f59e0b',
-          color: 'white',
-          padding: '3px 10px',
-          borderRadius: '12px',
-          fontSize: '12px'
-        }}>
-          Anna (Pausa)
-        </span>
-      </div>
-      
-      {/* MENU NAVIGAZIONE */}
+
+      {/* NAVIGATION BAR */}
       <div style={{
         backgroundColor: 'white',
-        padding: '10px 30px',
-        borderBottom: '1px solid #e5e7eb',
+        padding: '16px 32px',
         display: 'flex',
-        gap: '10px',
-        flexWrap: 'wrap' // ✅ Per responsive
+        gap: '12px',
+        borderBottom: '1px solid #e0e0e0',
+        overflowX: 'auto'
       }}>
-        <button 
+        <button
           onClick={() => setCurrentView('dashboard')}
           style={{
-            padding: '8px 16px',
+            padding: '10px 20px',
             backgroundColor: currentView === 'dashboard' ? '#667eea' : 'white',
             color: currentView === 'dashboard' ? 'white' : '#667eea',
             border: currentView === 'dashboard' ? 'none' : '2px solid #667eea',
-            borderRadius: '6px',
+            borderRadius: '8px',
             cursor: 'pointer',
-            fontWeight: currentView === 'dashboard' ? 'bold' : 'normal'
+            fontSize: '14px',
+            fontWeight: currentView === 'dashboard' ? 'bold' : 'normal',
+            transition: 'all 0.3s ease'
           }}
         >
           📊 Dashboard
         </button>
         
-        <button 
+        <button
           onClick={() => setCurrentView('ordini')}
           style={{
-            padding: '8px 16px',
+            padding: '10px 20px',
             backgroundColor: currentView === 'ordini' ? '#667eea' : 'white',
             color: currentView === 'ordini' ? 'white' : '#667eea',
             border: currentView === 'ordini' ? 'none' : '2px solid #667eea',
-            borderRadius: '6px',
+            borderRadius: '8px',
             cursor: 'pointer',
-            fontWeight: currentView === 'ordini' ? 'bold' : 'normal'
+            fontSize: '14px',
+            fontWeight: currentView === 'ordini' ? 'bold' : 'normal',
+            transition: 'all 0.3s ease'
           }}
         >
           🛒 Ordini
         </button>
-        
-        {/* ✅ NUOVO PULSANTE GESTIONE PRODOTTI */}
-        <button 
+
+        <button
           onClick={() => setCurrentView('prodotti')}
           style={{
-            padding: '8px 16px',
+            padding: '10px 20px',
             backgroundColor: currentView === 'prodotti' ? '#667eea' : 'white',
             color: currentView === 'prodotti' ? 'white' : '#667eea',
             border: currentView === 'prodotti' ? 'none' : '2px solid #667eea',
-            borderRadius: '6px',
+            borderRadius: '8px',
             cursor: 'pointer',
+            fontSize: '14px',
             fontWeight: currentView === 'prodotti' ? 'bold' : 'normal',
-            position: 'relative'
+            transition: 'all 0.3s ease'
           }}
         >
           📦 Gestione Prodotti
-          {/* Badge NEW */}
-          <span style={{
-            position: 'absolute',
-            top: '-8px',
-            right: '-8px',
-            backgroundColor: '#ef4444',
-            color: 'white',
-            fontSize: '10px',
-            padding: '2px 6px',
-            borderRadius: '10px',
-            fontWeight: 'bold'
-          }}>
-            NEW
-          </span>
         </button>
-        
-        <button 
+
+        {/* ✅ NUOVO BOTTONE RINTRACCIABILITÀ */}
+        <button
+          onClick={() => setCurrentView('rintracciabilita')}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: currentView === 'rintracciabilita' ? '#667eea' : 'white',
+            color: currentView === 'rintracciabilita' ? 'white' : '#667eea',
+            border: currentView === 'rintracciabilita' ? 'none' : '2px solid #667eea',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: currentView === 'rintracciabilita' ? 'bold' : 'normal',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          📋 Rintracciabilità HACCP
+        </button>
+
+        <button
           onClick={() => setCurrentView('magazzino')}
           style={{
-            padding: '8px 16px',
+            padding: '10px 20px',
             backgroundColor: currentView === 'magazzino' ? '#667eea' : 'white',
             color: currentView === 'magazzino' ? 'white' : '#667eea',
             border: currentView === 'magazzino' ? 'none' : '2px solid #667eea',
-            borderRadius: '6px',
+            borderRadius: '8px',
             cursor: 'pointer',
-            fontWeight: currentView === 'magazzino' ? 'bold' : 'normal'
+            fontSize: '14px',
+            fontWeight: currentView === 'magazzino' ? 'bold' : 'normal',
+            transition: 'all 0.3s ease'
           }}
         >
           📦 Magazzino
         </button>
-        
+
         {user.ruolo === 'admin' && (
-          <button 
+          <button
             onClick={() => setCurrentView('impostazioni')}
             style={{
-              padding: '8px 16px',
+              padding: '10px 20px',
               backgroundColor: currentView === 'impostazioni' ? '#667eea' : 'white',
               color: currentView === 'impostazioni' ? 'white' : '#667eea',
               border: currentView === 'impostazioni' ? 'none' : '2px solid #667eea',
-              borderRadius: '6px',
+              borderRadius: '8px',
               cursor: 'pointer',
-              fontWeight: currentView === 'impostazioni' ? 'bold' : 'normal'
+              fontSize: '14px',
+              fontWeight: currentView === 'impostazioni' ? 'bold' : 'normal',
+              transition: 'all 0.3s ease'
             }}
           >
             ⚙️ Impostazioni
           </button>
         )}
       </div>
-      
-      {/* ✅ CONTENUTO PRINCIPALE - ROUTING MANUALE */}
-      <div style={{ padding: '20px' }}>
+
+      {/* CONTENT AREA */}
+      <div style={{
+        flex: 1,
+        overflow: 'auto',
+        padding: '0'
+      }}>
         {currentView === 'ordini' && <GestoreOrdini />}
         
         {currentView === 'prodotti' && <GestioneProdotti />}
         
+        {/* ✅ NUOVA VISTA RINTRACCIABILITÀ */}
+        {currentView === 'rintracciabilita' && <TabellaRintracciabilita />}
+        
         {currentView === 'dashboard' && (
-          <div style={{
-            backgroundColor: 'white',
-            padding: '40px',
-            borderRadius: '12px',
-            textAlign: 'center'
-          }}>
+          <div style={{ padding: '32px', textAlign: 'center' }}>
             <h2>📊 Dashboard</h2>
-            <p>Vista Dashboard in arrivo...</p>
+            <p>Statistiche e grafici in arrivo...</p>
           </div>
         )}
         
         {currentView === 'magazzino' && (
-          <div style={{
-            backgroundColor: 'white',
-            padding: '40px',
-            borderRadius: '12px',
-            textAlign: 'center'
-          }}>
+          <div style={{ padding: '32px', textAlign: 'center' }}>
             <h2>📦 Magazzino</h2>
-            <p>Vista Magazzino in arrivo...</p>
+            <p>Gestione scorte in arrivo...</p>
           </div>
         )}
         
         {currentView === 'impostazioni' && (
-          <div style={{
-            backgroundColor: 'white',
-            padding: '40px',
-            borderRadius: '12px',
-            textAlign: 'center'
-          }}>
+          <div style={{ padding: '32px' }}>
             <h2>⚙️ Impostazioni</h2>
-            <p>Vista Impostazioni in arrivo...</p>
+            <div style={{
+              backgroundColor: 'white',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              maxWidth: '600px',
+              margin: '0 auto'
+            }}>
+              <h3>Informazioni Sistema</h3>
+              <p><strong>Versione:</strong> 2.0</p>
+              <p><strong>Utente:</strong> {user.nome}</p>
+              <p><strong>Ruolo:</strong> {user.ruolo}</p>
+              <p><strong>Funzionalità:</strong></p>
+              <ul style={{ textAlign: 'left' }}>
+                <li>✅ Gestione Ordini</li>
+                <li>✅ Gestione Prodotti</li>
+                <li>✅ Rintracciabilità HACCP</li>
+                <li>✅ Magazzino</li>
+                <li>⏳ Dashboard Statistiche</li>
+              </ul>
+            </div>
           </div>
         )}
       </div>
