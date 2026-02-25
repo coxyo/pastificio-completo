@@ -472,7 +472,7 @@ const ordineSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Movimento',
     comment: 'Movimenti di scarico magazzino collegati'
-  }]
+  }],
   // ========== FINE RINTRACCIABILITÀ ==========
   
 }, {
