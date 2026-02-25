@@ -453,7 +453,29 @@ const ordineSchema = new mongoose.Schema({
     default: null,
     comment: 'Timestamp invio promemoria automatico'
   }
+  },
   
+  // ========== ✅ RINTRACCIABILITÀ HACCP ==========
+  ingredientiScaricati: {
+    type: Boolean,
+    default: false,
+    index: true,
+    comment: 'Indica se gli ingredienti sono stati scaricati dal magazzino'
+  },
+  
+  dataScarico: {
+    type: Date,
+    default: null,
+    comment: 'Timestamp dello scarico ingredienti'
+  },
+  
+  movimentiCollegati: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Movimento',
+    comment: 'Movimenti di scarico magazzino collegati'
+  }]
+  // ========== FINE RINTRACCIABILITÀ ==========
+
 }, {
   timestamps: true,
   collection: 'ordini'
