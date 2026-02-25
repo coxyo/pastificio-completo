@@ -978,14 +978,23 @@ Pastificio Nonna Claudia`;
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ p: 0.5 }}>
-                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                              {prodotto.nome || prodotto.prodotto}
-                              {prodotto.variante && ` (${prodotto.variante})`}
-                            </Typography>
-                            {composizioneDisplay && (
-                              <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block' }}>
-                                ({composizioneDisplay})
+                            {/* ✅ FIX 25/02/2026: Per i vassoi, mostra direttamente la composizione invece di "Vassoio Dolci Misti" */}
+                            {(prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio' || (prodotto.unita || '').toLowerCase() === 'vassoio') && composizioneDisplay ? (
+                              <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                                {composizioneDisplay}
                               </Typography>
+                            ) : (
+                              <>
+                                <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                                  {prodotto.nome || prodotto.prodotto}
+                                  {prodotto.variante && ` (${prodotto.variante})`}
+                                </Typography>
+                                {composizioneDisplay && (
+                                  <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block' }}>
+                                    ({composizioneDisplay})
+                                  </Typography>
+                                )}
+                              </>
                             )}
                           </TableCell>
                           <TableCell align="right" sx={{ p: 0.5 }}>
@@ -1358,14 +1367,23 @@ Pastificio Nonna Claudia`;
                     <TableCell sx={{ fontSize: '1rem' }}>{ordine.oraRitiro || '-'}</TableCell>
                     <TableCell sx={{ fontSize: '1rem', fontWeight: 'medium' }}>{nomeCliente}</TableCell>
                     <TableCell>
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
-                        {prodotto.nome || prodotto.prodotto}
-                        {prodotto.variante && ` (${prodotto.variante})`}
-                      </Typography>
-                      {composizioneDisplay && (
-                        <Typography variant="body2" sx={{ fontSize: '0.9rem', color: 'text.secondary' }}>
+                      {/* ✅ FIX 25/02/2026: Per i vassoi, mostra direttamente la composizione */}
+                      {(prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio' || (prodotto.unita || '').toLowerCase() === 'vassoio') && composizioneDisplay ? (
+                        <Typography sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
                           {composizioneDisplay}
                         </Typography>
+                      ) : (
+                        <>
+                          <Typography sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
+                            {prodotto.nome || prodotto.prodotto}
+                            {prodotto.variante && ` (${prodotto.variante})`}
+                          </Typography>
+                          {composizioneDisplay && (
+                            <Typography variant="body2" sx={{ fontSize: '0.9rem', color: 'text.secondary' }}>
+                              {composizioneDisplay}
+                            </Typography>
+                          )}
+                        </>
                       )}
                     </TableCell>
                     <TableCell align="right" sx={{ fontSize: '1.1rem', fontFamily: 'monospace', fontWeight: 'bold' }}>
