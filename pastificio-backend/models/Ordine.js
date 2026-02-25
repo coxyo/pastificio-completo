@@ -380,6 +380,16 @@ const ordineSchema = new mongoose.Schema({
     default: false,
     index: true
   },
+
+  acconto: {
+    type: Boolean,
+    default: false
+  },
+
+  importoAcconto: {
+    type: Number,
+    default: 0
+  },
   
   dataPagamento: {
     type: Date
@@ -578,6 +588,9 @@ ordineSchema.methods.getNoteComplete = function() {
     if (this.opzioniExtra.etichettaIngredienti) noteArray.push('⚠️ ATTACCARE ETICHETTA INGREDIENTI');
     if (this.opzioniExtra.confezionGift) noteArray.push('🎁 Confezione Regalo');
   }
+
+  if (this.pagato) noteArray.push('💰 PAGATO');
+  if (this.acconto && this.importoAcconto > 0) noteArray.push(`💳 ACCONTO €${this.importoAcconto.toFixed(2)}`);
   
   return noteArray.join(' | ');
 };
