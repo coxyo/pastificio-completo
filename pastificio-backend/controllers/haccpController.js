@@ -38,6 +38,54 @@ const haccpController = {
         richiedeAttenzione: true
       });
 
+      // ✅ NUOVO: Recupera ultime temperature per ogni dispositivo
+      const ultimeTempPipeline = await RegistrazioneHACCP.aggregate([
+        { 
+          $match: { 
+            tipo: { $in: ['temperatura_frigo', 'temperatura_congelatore', 'abbattimento'] },
+            'temperatura.dispositivo': { $exists: true, $ne: null }
+          } 
+        },
+        { $sort: { dataOra: -1 } },
+        { 
+          $group: { 
+            _id: '$temperatura.dispositivo', 
+            valore: { $first: '$temperatura.valore' },
+            conforme: { $first: '$conforme' },
+            dataOra: { $first: '$dataOra' }
+          } 
+        }
+      ]);
+
+      // Mappa le temperature per nome dispositivo E per ID compatibile col frontend
+      const temperatureAttuali = {};
+      const mapNomeToId = {
+        'Frigo 1 Isa': 'frigo1',
+        'Frigo 2 Icecool': 'frigo2',
+        'Frigo 3 Samsung': 'frigo3',
+        'Freezer Samsung': 'congelatore',
+        'Congelatore Principale': 'congelatore',
+        // Nomi legacy
+        'Frigorifero 1 (Principale)': 'frigo1',
+        'Frigorifero 2': 'frigo2',
+        'Frigorifero 3': 'frigo3',
+        'Frigorifero 1': 'frigo1'
+      };
+
+      ultimeTempPipeline.forEach(t => {
+        const id = mapNomeToId[t._id] || t._id;
+        temperatureAttuali[id] = {
+          valore: t.valore,
+          conforme: t.conforme,
+          dataOra: t.dataOra,
+          dispositivo: t._id
+        };
+        // Salva anche con nome originale per compatibilità
+        temperatureAttuali[t._id] = temperatureAttuali[id];
+      });
+
+      console.log('🌡️ [HACCP Controller] Temperature attuali:', temperatureAttuali);
+
       console.log('✅ [HACCP Controller] Dashboard caricata con successo');
 
       res.json({
@@ -49,6 +97,7 @@ const haccpController = {
             nonConformi,
             daVerificare
           },
+          temperatureAttuali,
           periodo: {
             inizio: dataInizio,
             fine: oggi
