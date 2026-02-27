@@ -3092,7 +3092,16 @@ return (
                 🎂 ZEPPOLE
               </Button>
               
-              {/* ✅ 12/02/2026: Rimossi pulsanti Riepilogo, Stampabile, Export */}
+              <Button
+                variant="contained"
+                color="secondary"
+                size="small"
+                startIcon={<PrintIcon />}
+                onClick={() => setRiepilogoStampabileAperto(true)}
+                sx={{ height: 36 }}
+              >
+                STAMPA ORDINI
+              </Button>
               
               <Chip 
                 label={`${statistiche.totaleOrdini} ordini`}
