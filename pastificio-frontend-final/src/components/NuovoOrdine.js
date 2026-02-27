@@ -709,12 +709,17 @@ useEffect(() => {
         importoAcconto: ordineIniziale.importoAcconto || ''
       });
     } else {
+      // ✅ FIX 27/02/2026: Preserva dati chiamata durante reset
+      // Quando si apre il form da CallPopup, clientePrecompilato/numeroPrecompilato
+      // contengono i dati del chiamante. Il reset NON deve sovrascriverli.
       setFormData({
-        cliente: null,
-        nome: '',
-        cognome: '',
-        nomeCliente: '',
-        telefono: '',
+        cliente: clientePrecompilato || null,
+        nome: clientePrecompilato?.nome || '',
+        cognome: clientePrecompilato?.cognome || '',
+        nomeCliente: clientePrecompilato?.nome 
+          ? `${clientePrecompilato.nome} ${clientePrecompilato.cognome || ''}`.trim()
+          : '',
+        telefono: numeroPrecompilato || clientePrecompilato?.telefono || '',
         dataRitiro: new Date().toISOString().split('T')[0],
         oraRitiro: '',
         prodotti: [],
