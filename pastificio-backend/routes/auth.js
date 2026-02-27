@@ -1,13 +1,14 @@
-// routes/auth.js - ✅ AGGIORNATO: Sicurezza completa + blocco tentativi
+// routes/auth.js - ✅ AGGIORNATO: Login crea sessione, Logout invalida sessione
 import express from 'express';
 import User from '../models/User.js';
+import Session from '../models/Session.js';
 import { protect, generateToken, adminOnly } from '../middleware/auth.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
 
 // ═══════════════════════════════════════════════
-// POST /api/auth/login - Login con blocco tentativi
+// POST /api/auth/login - Login con creazione sessione
 // ═══════════════════════════════════════════════
 router.post('/login', async (req, res) => {
   try {
@@ -63,14 +64,13 @@ router.post('/login', async (req, res) => {
     const isMatch = await user.matchPassword(password);
     
     if (!isMatch) {
-      // ✅ INCREMENTA TENTATIVI FALLITI
+      // Incrementa tentativi falliti
       await user.incrementLoginAttempts();
       
       const tentativiRimanenti = Math.max(0, 5 - (user.loginAttempts + 1));
       
       logger.warn(`[AUTH] Password errata per: ${loginField} (tentativi: ${user.loginAttempts + 1}/5)`);
       
-      // Se appena bloccato (5° tentativo)
       if (user.loginAttempts + 1 >= 5) {
         return res.status(423).json({
           success: false,
@@ -98,6 +98,15 @@ router.post('/login', async (req, res) => {
 
     // ✅ Genera token (scadenza 12h)
     const token = generateToken(user);
+
+    // ✅ NUOVO: Crea sessione nel database
+    try {
+      await Session.creaSessione(user, token, req);
+      logger.info(`[AUTH] ✅ Sessione creata per: ${loginField}`);
+    } catch (sessionError) {
+      // Non bloccare il login se la creazione sessione fallisce
+      logger.warn(`[AUTH] ⚠️ Errore creazione sessione per ${loginField}:`, sessionError.message);
+    }
 
     const userResponse = {
       id: user._id,
@@ -134,7 +143,6 @@ router.post('/register', protect, adminOnly, async (req, res) => {
   try {
     const { nome, email, password, username, role = 'operatore', telefono } = req.body;
 
-    // Validazione input
     if (!nome || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -142,7 +150,6 @@ router.post('/register', protect, adminOnly, async (req, res) => {
       });
     }
 
-    // Validazione password
     if (password.length < 8 || !/\d/.test(password)) {
       return res.status(400).json({
         success: false,
@@ -150,7 +157,6 @@ router.post('/register', protect, adminOnly, async (req, res) => {
       });
     }
 
-    // Validazione ruolo
     if (!['admin', 'operatore', 'visualizzatore'].includes(role)) {
       return res.status(400).json({
         success: false,
@@ -158,7 +164,6 @@ router.post('/register', protect, adminOnly, async (req, res) => {
       });
     }
 
-    // Verifica duplicati
     const existingUser = await User.findOne({
       $or: [
         { email: email.toLowerCase() },
@@ -175,7 +180,6 @@ router.post('/register', protect, adminOnly, async (req, res) => {
       });
     }
 
-    // Crea utente
     const user = await User.create({
       nome,
       email: email.toLowerCase(),
@@ -184,7 +188,7 @@ router.post('/register', protect, adminOnly, async (req, res) => {
       role,
       telefono,
       isActive: true,
-      passwordTemporanea: true  // ✅ Password da cambiare al primo accesso
+      passwordTemporanea: true
     });
 
     const userResponse = {
@@ -257,7 +261,6 @@ router.post('/changepassword', protect, async (req, res) => {
       });
     }
 
-    // ✅ Validazione nuova password
     if (newPassword.length < 8 || !/\d/.test(newPassword)) {
       return res.status(400).json({
         success: false,
@@ -275,13 +278,26 @@ router.post('/changepassword', protect, async (req, res) => {
       });
     }
 
-    // Aggiorna password
     user.password = newPassword;
-    user.passwordTemporanea = false;  // ✅ Non più temporanea
+    user.passwordTemporanea = false;
     await user.save();
 
-    // Genera nuovo token
     const token = generateToken(user);
+
+    // ✅ NUOVO: Disconnetti tutte le vecchie sessioni e crea una nuova
+    try {
+      const oldTokenHash = Session.hashToken(req.headers.authorization?.replace('Bearer ', ''));
+      await Session.disconnettiTutteTranneCorrente(user._id, oldTokenHash, 'Cambio password');
+      // Invalida anche la sessione corrente (vecchio token)
+      await Session.updateMany(
+        { userId: user._id, stato: 'attiva' },
+        { stato: 'disconnessa', disconnessoDa: 'Cambio password', disconnessoAt: new Date() }
+      );
+      // Crea nuova sessione col nuovo token
+      await Session.creaSessione(user, token, req);
+    } catch (sessionError) {
+      logger.warn('[AUTH] Errore gestione sessioni cambio password:', sessionError.message);
+    }
 
     logger.info(`[AUTH] ✅ Password cambiata per: ${user.email}`);
 
@@ -298,17 +314,24 @@ router.post('/changepassword', protect, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════
-// POST /api/auth/logout
+// POST /api/auth/logout - ✅ AGGIORNATO: Invalida sessione specifica
 // ═══════════════════════════════════════════════
 router.post('/logout', protect, async (req, res) => {
   try {
-    // Incrementa tokenVersion per invalidare tutti i token
-    const user = await User.findById(req.user.id);
-    if (user) {
-      user.tokenVersion = (user.tokenVersion || 0) + 1;
-      await user.save({ validateBeforeSave: false });
+    // ✅ NUOVO: Invalida la sessione corrente nel database
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) {
+      try {
+        const tokenHash = Session.hashToken(token);
+        await Session.findOneAndUpdate(
+          { tokenHash, stato: 'attiva' },
+          { stato: 'disconnessa', disconnessoDa: req.user.nome || 'self', disconnessoAt: new Date() }
+        );
+      } catch (sessionError) {
+        logger.warn('[AUTH] Errore invalidazione sessione logout:', sessionError.message);
+      }
     }
-    
+
     logger.info(`[AUTH] Logout: ${req.user.nome || req.user.email}`);
     
     res.json({ success: true, message: 'Logout effettuato con successo' });
@@ -336,9 +359,27 @@ router.get('/verify', async (req, res) => {
                    user.isActive !== false && 
                    (user.tokenVersion === undefined || user.tokenVersion === decoded.tokenVersion);
 
+    // ✅ NUOVO: Verifica anche la sessione
+    let sessionValid = true;
+    if (isValid) {
+      const session = await Session.verificaSessione(token);
+      if (!session) {
+        // Controlla se è stata disconnessa
+        const tokenHash = Session.hashToken(token);
+        const disconnected = await Session.findOne({ tokenHash, stato: 'disconnessa' }).lean();
+        if (disconnected) {
+          sessionValid = false;
+        }
+        // Se non trovata affatto, è un token pre-sistema → accetta
+      }
+    }
+
+    const finalValid = isValid && sessionValid;
+
     res.json({ 
-      valid: isValid,
-      user: isValid ? {
+      valid: finalValid,
+      sessionInvalid: isValid && !sessionValid,
+      user: finalValid ? {
         id: user._id,
         nome: user.nome,
         email: user.email,

@@ -1,8 +1,9 @@
-// middleware/auth.js - ✅ AGGIORNATO: Sicurezza + Controllo Ruoli
+// middleware/auth.js - ✅ AGGIORNATO: Controllo sessione attiva + Ruoli
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Session from '../models/Session.js';
 
-// ✅ Middleware di protezione principale
+// ✅ Middleware di protezione principale - ORA VERIFICA ANCHE LA SESSIONE
 export const protect = async (req, res, next) => {
   let token;
 
@@ -21,7 +22,7 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    // Verifica il token
+    // Verifica il token JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
     
     // Trova l'utente
@@ -42,13 +43,51 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    // ✅ Verifica tokenVersion (per invalidazione sessioni)
+    // ✅ Verifica tokenVersion (per invalidazione sessioni legacy)
     if (decoded.tokenVersion !== undefined && user.tokenVersion !== undefined) {
       if (decoded.tokenVersion !== user.tokenVersion) {
         return res.status(401).json({ 
           success: false, 
-          message: 'Sessione scaduta, effettua nuovamente l\'accesso' 
+          message: 'Sessione scaduta, effettua nuovamente l\'accesso',
+          sessionInvalid: true
         });
+      }
+    }
+
+    // ✅ NUOVO: Verifica che la sessione sia ancora attiva nel database
+    const session = await Session.verificaSessione(token);
+    if (!session) {
+      // Controlla se esiste come disconnessa (logout remoto)
+      const tokenHash = Session.hashToken(token);
+      const disconnectedSession = await Session.findOne({ 
+        tokenHash, 
+        stato: { $in: ['disconnessa', 'scaduta'] } 
+      }).lean();
+
+      if (disconnectedSession) {
+        const messaggio = disconnectedSession.stato === 'disconnessa'
+          ? `Sessione terminata da ${disconnectedSession.disconnessoDa || 'un amministratore'}`
+          : 'Sessione scaduta per inattività';
+        
+        return res.status(401).json({ 
+          success: false, 
+          message: messaggio,
+          sessionInvalid: true,
+          remoteLogout: disconnectedSession.stato === 'disconnessa'
+        });
+      }
+
+      // Sessione non trovata affatto - potrebbe essere un token vecchio (pre-sistema sessioni)
+      // Per retrocompatibilità, permettiamo il passaggio ma loggiamo un warning
+      // Quando tutti i token saranno rinnovati, questa sezione potrà diventare un blocco
+      // Per ora: crea una sessione retroattiva
+      try {
+        await Session.creaSessione(user, token, req);
+      } catch (sessionError) {
+        // Se il token hash esiste già (duplicate key), ignora silenziosamente
+        if (sessionError.code !== 11000) {
+          console.warn('[AUTH] Errore creazione sessione retroattiva:', sessionError.message);
+        }
       }
     }
 
@@ -61,12 +100,14 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ 
         success: false, 
         message: 'Sessione scaduta, effettua nuovamente l\'accesso',
-        expired: true  // ✅ Flag per il frontend
+        expired: true,
+        sessionInvalid: true
       });
     } else if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ 
         success: false, 
-        message: 'Token non valido' 
+        message: 'Token non valido',
+        sessionInvalid: true
       });
     } else {
       console.error('[AUTH] Errore verifica token:', error.message);
@@ -103,7 +144,7 @@ export const optionalAuth = async (req, res, next) => {
   next();
 };
 
-// ✅ NUOVO: Middleware per verificare ruolo admin
+// ✅ Middleware per verificare ruolo admin
 export const adminOnly = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ 
@@ -122,8 +163,7 @@ export const adminOnly = (req, res, next) => {
   next();
 };
 
-// ✅ NUOVO: Middleware per verificare ruoli specifici
-// Uso: authorize('admin', 'operatore')
+// ✅ Middleware per verificare ruoli specifici
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -144,7 +184,7 @@ export const authorize = (...roles) => {
   };
 };
 
-// ✅ NUOVO: Middleware per bloccare i visualizzatori dalle operazioni di scrittura
+// ✅ Middleware per bloccare i visualizzatori dalle operazioni di scrittura
 export const noViewer = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ success: false, message: 'Non autorizzato' });
@@ -169,7 +209,7 @@ export const generateToken = (user) => {
       tokenVersion: user.tokenVersion || 0 
     },
     process.env.JWT_SECRET || 'pastificio-secret-key-2024',
-    { expiresIn: '12h' }  // ✅ 12 ORE
+    { expiresIn: '12h' }
   );
 };
 
