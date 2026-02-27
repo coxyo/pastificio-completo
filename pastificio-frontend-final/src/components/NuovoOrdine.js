@@ -793,19 +793,26 @@ useEffect(() => {
 
   };
 
-  // ✅ NUOVO 21/01/2026: Pre-selezione cliente da CallPopup
+  // ✅ FIX 27/02/2026: Pre-selezione cliente da CallPopup (SOLO per navigazione cross-page)
+  // Il flusso principale ora usa le props React (clientePrecompilato, etc.)
   useEffect(() => {
     if (typeof window === 'undefined' || !open) return;
     
-    // Controlla se c'è un cliente pre-selezionato da CallPopup
+    // ✅ Se abbiamo già dati via props, NON leggere localStorage
+    if (clientePrecompilato || numeroPrecompilato || clienteIdPreselezionato) {
+      console.log('[NuovoOrdine] 📞 Dati già ricevuti via props, skip localStorage');
+      localStorage.removeItem('nuovoOrdine_clientePreselezionato');
+      return;
+    }
+    
+    // Fallback: controlla localStorage (solo per redirect cross-page)
     const clientePreselezionato = localStorage.getItem('nuovoOrdine_clientePreselezionato');
     
     if (clientePreselezionato) {
       try {
         const cliente = JSON.parse(clientePreselezionato);
-        console.log('📞 Cliente pre-selezionato da CallPopup:', cliente);
+        console.log('📞 [NuovoOrdine] Cliente da localStorage (fallback cross-page):', cliente);
         
-        // Imposta il cliente nel formData
         setFormData(prev => ({
           ...prev,
           cliente: cliente,
@@ -815,59 +822,20 @@ useEffect(() => {
           telefono: cliente.telefono || ''
         }));
         
-        // Rimuovi da localStorage (uso una-tantum)
-        localStorage.removeItem('nuovoOrdine_clientePreselezionato');
-        
-        console.log('✅ Cliente pre-compilato da chiamata');
-        
       } catch (error) {
         console.error('Errore parsing cliente pre-selezionato:', error);
+      } finally {
+        // ✅ Sempre pulisci (uso una-tantum)
         localStorage.removeItem('nuovoOrdine_clientePreselezionato');
       }
     }
-  }, [open]); // Dipende solo da open
+  }, [open, clientePrecompilato, numeroPrecompilato, clienteIdPreselezionato]);
 
-  // ✅ Leggi dati chiamata da localStorage
-  useEffect(() => {
-    console.log('🔍 [NuovoOrdine] Controllo chiamata da localStorage...');
-    
-    const chiamataData = localStorage.getItem('chiamataCliente');
-    
-    if (chiamataData) {
-      try {
-        const dati = JSON.parse(chiamataData);
-        console.log('📞 [NuovoOrdine] Dati chiamata trovati:', dati);
-        
-        if (dati.telefono) {
-          setFormData(prev => ({
-            ...prev,
-            telefono: dati.telefono
-          }));
-          console.log('✅ Telefono precompilato:', dati.telefono);
-        }
-        
-        if (dati.nome) {
-          const nomeCompleto = `${dati.nome || ''} ${dati.cognome || ''}`.trim();
-          setFormData(prev => ({
-            ...prev,
-            nomeCliente: nomeCompleto
-          }));
-          console.log('✅ Nome precompilato:', nomeCompleto);
-        } else {
-          console.log('ℹ️ Cliente sconosciuto, solo telefono precompilato');
-        }
-        
-        localStorage.removeItem('chiamataCliente');
-        console.log('🧹 localStorage pulito');
-        
-      } catch (error) {
-        console.error('❌ Errore parsing dati chiamata:', error);
-        localStorage.removeItem('chiamataCliente');
-      }
-    } else {
-      console.log('ℹ️ Nessuna chiamata in localStorage');
-    }
-  }, []);
+  // ═══════════════════════════════════════════════════════════════
+  // NOTA 27/02/2026: useEffect 'chiamataCliente' RIMOSSO
+  // Il passaggio dati da chiamata avviene via props React:
+  // CallPopup → onNuovoOrdine → GestoreOrdini → NuovoOrdine props
+  // ═══════════════════════════════════════════════════════════════
 
   // ✅ Preseleziona cliente da chiamata
   useEffect(() => {

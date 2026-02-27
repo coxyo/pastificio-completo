@@ -1546,33 +1546,36 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
     pusherService
   } = useIncomingCall();
 
- 
   // ✅ Handler personalizzato accettazione chiamata
   const handleAcceptIncomingCall = () => {
     console.log('🟢 [GestoreOrdini] Chiamata accettata, preparo dati per NuovoOrdine');
     
-    // ✅ FIX 17/01/2026: Salva cliente COMPLETO e numero per precompilazione
+    // ✅ FIX 27/02/2026: Pulizia PRIMA, poi impostazione
+    setClienteIdDaChiamata(null);
+    setClienteDaChiamata(null);
+    setNumeroDaChiamata(null);
+    setOrdineSelezionato(null);
+    
     if (chiamataCorrente) {
       if (chiamataCorrente.cliente) {
         setClienteIdDaChiamata(chiamataCorrente.cliente._id);
-        setClienteDaChiamata(chiamataCorrente.cliente); // ✅ NUOVO
-        localStorage.setItem('chiamataCliente', JSON.stringify(chiamataCorrente));
+        setClienteDaChiamata(chiamataCorrente.cliente);
       }
-      // ✅ NUOVO: Salva numero anche se cliente non trovato
       if (chiamataCorrente.numero) {
-        setNumeroDaChiamata(chiamataCorrente.numero);
+        setNumeroDaChiamata(chiamataCorrente.numero.replace(/^\+39/, ''));
       }
     }
     
-    // Apri dialogo nuovo ordine
-    setDialogoNuovoOrdineAperto(true);
+    // ✅ FIX: NON usare più localStorage per passare dati
+    // Il passaggio avviene via React state → props
     
-    // ✅ FIX 14/01/2026: CHIUDI IL POPUP!
-    // Prima mancava questa chiamata, per questo il popup restava aperto
     handleClosePopup();
     
-    // Chiama anche hook (per consistenza)
-    handleAcceptCall();
+    setTimeout(() => {
+      setDialogoNuovoOrdineAperto(true);
+    }, 50);
+    
+    handleAcceptCallFromHook();
   };
   
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1996,90 +1999,17 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
   }, []);
   
   // ----------------------------------------------------------------
-  // EFFETTO 3: Gestione chiamata in arrivo da CallPopup
-  // ----------------------------------------------------------------
-  useEffect(() => {
-    console.log('🔵 [GestoreOrdini] useEffect MOUNT eseguito');
-    
-    const chiamataData = localStorage.getItem('chiamataCliente');
-    console.log('🔵 [GestoreOrdini] localStorage:', chiamataData);
-    
-    if (chiamataData) {
-      try {
-        const { clienteId, telefono } = JSON.parse(chiamataData);
-        
-        console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
-        
-        if (clienteId) {
-          setClienteIdDaChiamata(clienteId);
-          
-          setTimeout(() => {
-            setDialogoNuovoOrdineAperto(true);
-            console.log('✅ Dialog nuovo ordine aperto per cliente:', clienteId);
-          }, 300);
-        } else {
-          console.log('⚠️ Cliente sconosciuto, numero:', telefono);
-          setTimeout(() => {
-            setDialogoNuovoOrdineAperto(true);
-          }, 300);
-        }
-        
-        setTimeout(() => {
-  localStorage.removeItem('chiamataCliente');
-  console.log('🗑️ Dati chiamata rimossi da localStorage');
-}, 500); // ✅ 500ms invece di 3000ms
-        
-      } catch (error) {
-        console.error('❌ Errore parsing chiamata:', error);
-        localStorage.removeItem('chiamataCliente');
-      }
-    }
-  }, []);
+  // ═══════════════════════════════════════════════════════════════
+  // NOTA 27/02/2026: EFFETTO 3 RIMOSSO - Era ridondante
+  // Il passaggio dati chiamata ora avviene SOLO via React props:
+  // CallPopup → onNuovoOrdine → GestoreOrdini state → NuovoOrdine props
+  // localStorage('chiamataCliente') non è più usato per questo flusso.
+  // ═══════════════════════════════════════════════════════════════
   
 // ----------------------------------------------------------------
-// EFFETTO 3bis: Listener per chiamate (gestisce anche component già montato)
+// NOTA 27/02/2026: EFFETTO 3bis RIMOSSO - Era ridondante
+// Evento 'nuova-chiamata' non più necessario, il flusso è via React props.
 // ----------------------------------------------------------------
-useEffect(() => {
-  const handleNuovaChiamata = () => {
-    console.log('🔔 [GestoreOrdini] Evento nuova-chiamata ricevuto');
-    
-    const chiamataData = localStorage.getItem('chiamataCliente');
-    console.log('🔔 [GestoreOrdini] localStorage:', chiamataData);
-    
-    if (chiamataData) {
-      try {
-        const { clienteId, telefono } = JSON.parse(chiamataData);
-        
-        console.log('📞 Gestione chiamata ricevuta:', { clienteId, telefono });
-        
-        if (clienteId) {
-          setClienteIdDaChiamata(clienteId);
-        }
-        
-        setTimeout(() => {
-          setDialogoNuovoOrdineAperto(true);
-          console.log('✅ Dialog nuovo ordine aperto');
-        }, 300);
-        
-        setTimeout(() => {
-  localStorage.removeItem('chiamataCliente');
-  console.log('🗑️ Dati chiamata rimossi da localStorage');
-}, 3000); // ✅ 3 secondi invece di 500ms
-        
-      } catch (error) {
-        console.error('❌ Errore parsing chiamata:', error);
-        localStorage.removeItem('chiamataCliente');
-      }
-    }
-  };
-
-  // Listener per evento custom
-  window.addEventListener('nuova-chiamata', handleNuovaChiamata);
-  
-  return () => {
-    window.removeEventListener('nuova-chiamata', handleNuovaChiamata);
-  };
-}, []);
 
   // ----------------------------------------------------------------
   // EFFETTO 4: Keep-alive Railway
@@ -3346,15 +3276,19 @@ return (
          <NuovoOrdine
   open={dialogoNuovoOrdineAperto}
   onClose={() => {
+    console.log('🧹 [GestoreOrdini] Chiusura NuovoOrdine - pulizia completa');
     setDialogoNuovoOrdineAperto(false);
     setClienteIdDaChiamata(null);
-    setNumeroDaChiamata(null); // ✅ FIX 17/01/2026
-    setClienteDaChiamata(null); // ✅ FIX 17/01/2026
+    setNumeroDaChiamata(null);
+    setClienteDaChiamata(null);
+    setOrdineSelezionato(null);
     
-    // ✅ NUOVO 21/01/2026: Pulisci localStorage per evitare dati vecchi
+    // ✅ FIX 27/02/2026: Pulizia TOTALE localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('nuovoOrdine_clientePreselezionato');
-      console.log('🧹 localStorage pulito alla chiusura dialog');
+      localStorage.removeItem('chiamataCliente');
+      localStorage.removeItem('_openNuovoOrdineOnLoad');
+      localStorage.removeItem('ordini_filtroCliente');
     }
   }}
   onSave={salvaOrdine}
@@ -3576,21 +3510,47 @@ return (
         {/* ✅ NUOVO: CallPopup per chiamate in arrivo da Pusher/3CX */}
         <CallPopup
           chiamata={chiamataCorrente}
-          isOpen={isPopupOpen && !dialogoNuovoOrdineAperto}  // ✅ FIX 21/01/2026: Non mostrare se dialog aperto
+          isOpen={isPopupOpen && !dialogoNuovoOrdineAperto}
           onClose={handleClosePopup}
           onNuovoOrdine={(cliente, numero) => {
-            // ✅ FIX 17/01/2026: Salva cliente e numero
-            if (cliente) {
+            console.log('📞 [GestoreOrdini] onNuovoOrdine da CallPopup:', {
+              cliente: cliente ? `${cliente.nome} ${cliente.cognome}` : 'sconosciuto',
+              clienteId: cliente?._id,
+              numero
+            });
+            
+            // ✅ FIX 27/02/2026: PULIZIA TOTALE prima di impostare nuovi dati
+            setClienteIdDaChiamata(null);
+            setClienteDaChiamata(null);
+            setNumeroDaChiamata(null);
+            setOrdineSelezionato(null);
+            
+            // Pulisci anche localStorage per sicurezza
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('nuovoOrdine_clientePreselezionato');
+              localStorage.removeItem('chiamataCliente');
+              localStorage.removeItem('_openNuovoOrdineOnLoad');
+            }
+            
+            // Imposta NUOVI dati
+            if (cliente && cliente._id) {
               setClienteIdDaChiamata(cliente._id);
               setClienteDaChiamata(cliente);
             }
             if (numero) {
-              setNumeroDaChiamata(numero);
+              setNumeroDaChiamata(numero.replace(/^\+39/, ''));
             }
-            setDialogoNuovoOrdineAperto(true);
+            
+            // Chiudi popup e apri form
             handleClosePopup();
+            
+            // ✅ Piccolo delay per assicurare che gli state siano aggiornati
+            setTimeout(() => {
+              setDialogoNuovoOrdineAperto(true);
+              console.log('✅ [GestoreOrdini] Dialog Nuovo Ordine aperto con dati puliti');
+            }, 50);
           }}
-/>
+        />
 
 {/* ✅ FIX 18/01/2026: GestioneZeppole ha già il proprio Dialog interno */}
 <GestioneZeppole 
