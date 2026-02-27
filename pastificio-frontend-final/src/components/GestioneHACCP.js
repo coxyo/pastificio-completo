@@ -256,6 +256,7 @@ export default function GestioneHACCP() {
     const interval = setInterval(checkAutoPopup, 5 * 60 * 1000);
     
     return () => clearInterval(interval);
+  }, []); // Esegui solo al mount del componente - TEMPERATURE MARTEDÌ
 
   // ============================================
   // ✨ POPUP AUTOMATICO PULIZIE
@@ -318,9 +319,7 @@ export default function GestioneHACCP() {
     const interval = setInterval(checkAutoPuliziaPopup, 5 * 60 * 1000);
     
     return () => clearInterval(interval);
-  }, []); // Esegui solo al mount del componente
-
-  }, []); // Esegui solo al mount del componente
+  }, []); // Esegui solo al mount del componente - PULIZIE
 
 
   // ============================================
@@ -338,7 +337,7 @@ export default function GestioneHACCP() {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/haccp/dashboard`, getAuthHeaders());
-      setDashboard(response.data.dashboard);
+      setDashboard(response.data.data || response.data.dashboard || null);
       
       // Carica anche registrazioni recenti
       try {
