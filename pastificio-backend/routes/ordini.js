@@ -324,6 +324,52 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ✅ NUOVO 27/02/2026: GET /api/ordini/ultimo/:clienteId - Ultimo ordine di un cliente
+router.get('/ultimo/:clienteId', async (req, res) => {
+  try {
+    const { clienteId } = req.params;
+    const { limit = 1 } = req.query; // Default 1, max 5 per "vedi altri"
+    
+    const maxLimit = Math.min(parseInt(limit) || 1, 5);
+    
+    logger.info(`🔍 Ricerca ultimi ${maxLimit} ordini per cliente: ${clienteId}`);
+    
+    const ordini = await Ordine.find({ 
+      cliente: clienteId,
+      stato: { $ne: 'annullato' } // Escludi annullati
+    })
+      .sort({ createdAt: -1 }) // Più recente prima
+      .limit(maxLimit)
+      .select('prodotti nomeCliente dataRitiro oraRitiro totale createdAt note daViaggio ricordaEtichetta confezioneRegalo')
+      .lean();
+    
+    if (!ordini || ordini.length === 0) {
+      return res.json({
+        success: true,
+        found: false,
+        data: null,
+        message: 'Nessun ordine precedente trovato'
+      });
+    }
+    
+    logger.info(`✅ Trovati ${ordini.length} ordini per cliente ${clienteId}`);
+    
+    res.json({
+      success: true,
+      found: true,
+      count: ordini.length,
+      data: maxLimit === 1 ? ordini[0] : ordini
+    });
+  } catch (error) {
+    logger.error('❌ Errore ricerca ultimo ordine:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore ricerca ultimo ordine',
+      error: error.message
+    });
+  }
+});
+
 // GET /api/ordini/:id - Ottieni ordine singolo
 router.get('/:id', async (req, res) => {
   try {
