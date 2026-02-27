@@ -1,8 +1,9 @@
-// app/ClientLayout.js - VERSIONE AGGIORNATA CON ETICHETTE NEL MENU
+// app/ClientLayout.js - ✅ AGGIORNATO: Header con utente + Logout + Menu per ruolo
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Box,
   Drawer,
@@ -14,7 +15,11 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Badge
+  Badge,
+  Button,
+  Chip,
+  Divider,
+  Tooltip
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -32,7 +37,10 @@ import {
   AccountBalance,
   TrendingUp,
   UploadFile,
-  Label as LabelIcon
+  Label as LabelIcon,
+  Logout as LogoutIcon,
+  PersonOutline,
+  AdminPanelSettings
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
@@ -41,71 +49,80 @@ import dispositivoService from '@/services/dispositivoService';
 
 const drawerWidth = 240;
 
-const menuItems = [
-  { id: 'dashboard', title: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-  { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/' },
-  { id: 'clienti', title: 'Clienti', icon: <People />, path: '/clienti' },
-  { id: 'magazzino', title: 'Magazzino', icon: <Inventory />, path: '/magazzino' },
-  { id: 'etichette', title: 'Etichette', icon: <LabelIcon />, path: '/etichette' },
-  { id: 'report', title: 'Report', icon: <Assessment />, path: '/report' },
-  { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario' },
-  { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate' },
-  { id: 'fatturazione', title: 'Fatturazione', icon: <Receipt />, path: '/fatturazione' },
-  { id: 'import-fatture', title: 'Import Fatture', icon: <UploadFile />, path: '/import-fatture' },
-  { id: 'haccp', title: 'HACCP', icon: <HealthAndSafety />, path: '/haccp' },
-  { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi' },
-  { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici' },
-  { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni' }
+// ✅ Menu items con permessi per ruolo
+const allMenuItems = [
+  { id: 'dashboard', title: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['admin', 'operatore', 'visualizzatore'] },
+  { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/', roles: ['admin', 'operatore', 'visualizzatore'] },
+  { id: 'clienti', title: 'Clienti', icon: <People />, path: '/clienti', roles: ['admin', 'operatore', 'visualizzatore'] },
+  { id: 'magazzino', title: 'Magazzino', icon: <Inventory />, path: '/magazzino', roles: ['admin', 'operatore'] },
+  { id: 'etichette', title: 'Etichette', icon: <LabelIcon />, path: '/etichette', roles: ['admin', 'operatore'] },
+  { id: 'report', title: 'Report', icon: <Assessment />, path: '/report', roles: ['admin', 'operatore'] },
+  { id: 'calendario', title: 'Calendario', icon: <CalendarMonth />, path: '/calendario', roles: ['admin', 'operatore', 'visualizzatore'] },
+  { id: 'chiamate', title: 'Chiamate', icon: <PhoneIcon />, path: '/chiamate', roles: ['admin', 'operatore'] },
+  { id: 'fatturazione', title: 'Fatturazione', icon: <Receipt />, path: '/fatturazione', roles: ['admin'] },
+  { id: 'import-fatture', title: 'Import Fatture', icon: <UploadFile />, path: '/import-fatture', roles: ['admin'] },
+  { id: 'haccp', title: 'HACCP', icon: <HealthAndSafety />, path: '/haccp', roles: ['admin', 'operatore'] },
+  { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi', roles: ['admin'] },
+  { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici', roles: ['admin'] },
+  { id: 'utenti', title: 'Gestione Utenti', icon: <AdminPanelSettings />, path: '/utenti', roles: ['admin'] },
+  { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni', roles: ['admin'] }
 ];
+
+// ✅ Colori per ruolo
+const roleColors = {
+  admin: { bg: '#dc2626', text: 'white', label: 'Admin' },
+  operatore: { bg: '#2563eb', text: 'white', label: 'Operatore' },
+  visualizzatore: { bg: '#6b7280', text: 'white', label: 'Visualizzatore' }
+};
 
 export default function ClientLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user, logout, isAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
 
-  // Hook per gestire chiamate in arrivo
   const { chiamataCorrente, clearChiamata, connected, pusherService } = useIncomingCall();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // INIZIALIZZAZIONE ESPLICITA PUSHER
+  // ✅ INIZIALIZZAZIONE PUSHER
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
 
-    console.log('[CLIENT LAYOUT] Mounted, verifico Pusher...');
-
-    // Delay per evitare race condition
     const timer = setTimeout(() => {
       if (pusherService) {
         const status = pusherService.getStatus();
-        console.log('[CLIENT LAYOUT] Pusher status:', status);
-
-        // Se non connesso, forza inizializzazione
         if (!status.connected && !status.initialized) {
-          console.log('[CLIENT LAYOUT] Pusher non inizializzato, forzo init...');
           pusherService.initialize().catch(err => {
             console.error('[CLIENT LAYOUT] Errore init Pusher:', err);
           });
         }
-      } else {
-        console.warn('[CLIENT LAYOUT] pusherService non disponibile');
       }
     }, 500);
 
     return () => clearTimeout(timer);
   }, [mounted, pusherService]);
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
+  // ✅ Menu filtrato per ruolo utente
+  const menuItems = useMemo(() => {
+    if (!user) return [];
+    return allMenuItems.filter(item => item.roles.includes(user.role));
+  }, [user]);
+
+  const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
   const handleNavigation = (path) => {
     router.push(path);
     setMobileOpen(false);
+  };
+
+  const handleLogout = () => {
+    logout();
+    // Non serve redirect - AuthGate mostrerà automaticamente Login
   };
 
   const isSelected = (path) => {
@@ -118,14 +135,9 @@ export default function ClientLayout({ children }) {
       const token = localStorage.getItem('token');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
-      // Trova chiamata per callId
       const responseHistory = await fetch(
         `${API_URL}/chiamate/history?limit=100`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
       if (responseHistory.ok) {
@@ -133,7 +145,6 @@ export default function ClientLayout({ children }) {
         const chiamata = data.chiamate?.find(c => c.callId === callId);
 
         if (chiamata) {
-          // Aggiorna nota
           await fetch(
             `${API_URL}/chiamate/${chiamata._id}`,
             {
@@ -145,25 +156,44 @@ export default function ClientLayout({ children }) {
               body: JSON.stringify({ note })
             }
           );
-
-          console.log('[CLIENT LAYOUT] Nota salvata per chiamata:', callId);
         }
       }
-
       clearChiamata();
-
     } catch (error) {
       console.error('[CLIENT LAYOUT] Errore salvataggio nota:', error);
     }
   };
 
+  const roleInfo = roleColors[user?.role] || roleColors.operatore;
+
   const drawer = (
     <Box>
+      {/* ✅ Header sidebar con nome utente e ruolo */}
       <Box sx={{ p: 2, backgroundColor: 'primary.main', color: 'white' }}>
-        <Typography variant="h6" noWrap>
+        <Typography variant="h6" noWrap sx={{ fontSize: '16px', fontWeight: 'bold' }}>
           Pastificio Nonna Claudia
         </Typography>
+        {user && (
+          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PersonOutline sx={{ fontSize: 18 }} />
+            <Typography variant="body2" sx={{ fontSize: '13px' }}>
+              {user.nome}
+            </Typography>
+            <Chip
+              label={roleInfo.label}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '10px',
+                fontWeight: 'bold',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white'
+              }}
+            />
+          </Box>
+        )}
       </Box>
+
       <List>
         {menuItems.map((item) => (
           <ListItemButton
@@ -177,6 +207,17 @@ export default function ClientLayout({ children }) {
             <ListItemText primary={item.title} />
           </ListItemButton>
         ))}
+      </List>
+
+      {/* ✅ Logout in fondo alla sidebar */}
+      <Divider />
+      <List>
+        <ListItemButton onClick={handleLogout} sx={{ color: '#dc2626' }}>
+          <ListItemIcon sx={{ color: '#dc2626' }}>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText primary="Esci" />
+        </ListItemButton>
       </List>
     </Box>
   );
@@ -204,11 +245,11 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* Indicatore Pusher WebSocket */}
+          {/* ✅ Indicatore Pusher */}
           {mounted && (
             <Box
               sx={{
-                mr: 2,
+                mr: 1,
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
@@ -216,7 +257,7 @@ export default function ClientLayout({ children }) {
                 color: 'white',
                 fontSize: 11,
                 fontWeight: 'bold',
-                display: 'flex',
+                display: { xs: 'none', md: 'flex' },
                 alignItems: 'center',
                 gap: 0.5
               }}
@@ -226,11 +267,37 @@ export default function ClientLayout({ children }) {
             </Box>
           )}
 
-          <IconButton color="inherit">
+          {/* ✅ NOME UTENTE + RUOLO nell'header */}
+          {user && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 1 }}>
+              <Chip
+                icon={<PersonOutline sx={{ fontSize: 16, color: 'white !important' }} />}
+                label={`${user.nome}`}
+                size="small"
+                sx={{
+                  backgroundColor: roleInfo.bg,
+                  color: roleInfo.text,
+                  fontWeight: 'bold',
+                  fontSize: '12px',
+                  height: 28,
+                  display: { xs: 'none', sm: 'flex' }
+                }}
+              />
+            </Box>
+          )}
+
+          <IconButton color="inherit" sx={{ mr: 0.5 }}>
             <Badge badgeContent={notificationCount} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
+
+          {/* ✅ Bottone Logout nell'header */}
+          <Tooltip title="Esci">
+            <IconButton color="inherit" onClick={handleLogout}>
+              <LogoutIcon />
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
       
@@ -238,7 +305,6 @@ export default function ClientLayout({ children }) {
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
-        {/* Mobile drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -252,7 +318,6 @@ export default function ClientLayout({ children }) {
           {drawer}
         </Drawer>
         
-        {/* Desktop drawer */}
         <Drawer
           variant="permanent"
           sx={{
@@ -277,7 +342,7 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* Popup Chiamata in Arrivo - Solo se abilitato per questo dispositivo */}
+      {/* Popup Chiamata */}
       {mounted && chiamataCorrente && dispositivoService.isNotificaAbilitata('chiamate3cx') && (
         <CallPopup
           chiamata={chiamataCorrente}
@@ -286,7 +351,7 @@ export default function ClientLayout({ children }) {
         />
       )}
 
-      {/* Notifica Giornaliera Fatture - Controllata internamente dal componente */}
+      {/* Notifica Fatture */}
       {mounted && <NotificaFatture />}
     </Box>
   );
