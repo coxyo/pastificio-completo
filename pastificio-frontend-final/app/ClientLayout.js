@@ -1,4 +1,4 @@
-// app/ClientLayout.js - ✅ AGGIORNATO: Header con utente + Logout + Menu per ruolo
+// app/ClientLayout.js - ✅ AGGIORNATO: Sessioni attive + sessionService ping
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -40,16 +40,18 @@ import {
   Label as LabelIcon,
   Logout as LogoutIcon,
   PersonOutline,
-  AdminPanelSettings
+  AdminPanelSettings,
+  Security as SecurityIcon  // ✅ NUOVO: Icona per sessioni
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
 import NotificaFatture from '@/components/NotificaFatture';
 import dispositivoService from '@/services/dispositivoService';
+import sessionService from '@/services/sessionService';  // ✅ NUOVO
 
 const drawerWidth = 240;
 
-// ✅ Menu items con permessi per ruolo
+// ✅ Menu items con permessi per ruolo - AGGIUNTA VOCE SESSIONI
 const allMenuItems = [
   { id: 'dashboard', title: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['admin', 'operatore', 'visualizzatore'] },
   { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/', roles: ['admin', 'operatore', 'visualizzatore'] },
@@ -64,6 +66,7 @@ const allMenuItems = [
   { id: 'haccp', title: 'HACCP', icon: <HealthAndSafety />, path: '/haccp', roles: ['admin', 'operatore'] },
   { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi', roles: ['admin'] },
   { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici', roles: ['admin'] },
+  { id: 'sessioni', title: 'Sessioni Attive', icon: <SecurityIcon />, path: '/sessioni', roles: ['admin', 'operatore'] },  // ✅ NUOVO
   { id: 'utenti', title: 'Gestione Utenti', icon: <AdminPanelSettings />, path: '/utenti', roles: ['admin'] },
   { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni', roles: ['admin'] }
 ];
@@ -88,6 +91,20 @@ export default function ClientLayout({ children }) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ✅ NUOVO: Inizializza session service (ping + intercettore logout remoto)
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+    
+    const token = localStorage.getItem('token');
+    if (token) {
+      sessionService.inizializza();
+    }
+
+    return () => {
+      sessionService.ferma();
+    };
+  }, [mounted, user]);
 
   // ✅ INIZIALIZZAZIONE PUSHER
   useEffect(() => {
@@ -121,8 +138,8 @@ export default function ClientLayout({ children }) {
   };
 
   const handleLogout = () => {
+    sessionService.ferma();  // ✅ NUOVO: Ferma ping prima del logout
     logout();
-    // Non serve redirect - AuthGate mostrerà automaticamente Login
   };
 
   const isSelected = (path) => {
@@ -168,7 +185,7 @@ export default function ClientLayout({ children }) {
 
   const drawer = (
     <Box>
-      {/* ✅ Header sidebar con nome utente e ruolo */}
+      {/* Header sidebar con nome utente e ruolo */}
       <Box sx={{ p: 2, backgroundColor: 'primary.main', color: 'white' }}>
         <Typography variant="h6" noWrap sx={{ fontSize: '16px', fontWeight: 'bold' }}>
           Pastificio Nonna Claudia
@@ -209,7 +226,7 @@ export default function ClientLayout({ children }) {
         ))}
       </List>
 
-      {/* ✅ Logout in fondo alla sidebar */}
+      {/* Logout in fondo alla sidebar */}
       <Divider />
       <List>
         <ListItemButton onClick={handleLogout} sx={{ color: '#dc2626' }}>
@@ -245,7 +262,7 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* ✅ Indicatore Pusher */}
+          {/* Indicatore Pusher */}
           {mounted && (
             <Box
               sx={{
@@ -267,7 +284,7 @@ export default function ClientLayout({ children }) {
             </Box>
           )}
 
-          {/* ✅ NOME UTENTE + RUOLO nell'header */}
+          {/* NOME UTENTE + RUOLO nell'header */}
           {user && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 1 }}>
               <Chip
@@ -292,7 +309,7 @@ export default function ClientLayout({ children }) {
             </Badge>
           </IconButton>
 
-          {/* ✅ Bottone Logout nell'header */}
+          {/* Bottone Logout nell'header */}
           <Tooltip title="Esci">
             <IconButton color="inherit" onClick={handleLogout}>
               <LogoutIcon />

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>02046570426</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>xihxgkfdpr</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>0000000</CodiceDestinatario>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02675650028</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>02654890025</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>FABRICK SPA</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>PIAZZA GAUDENZIO SELLA</Indirizzo>
+                <NumeroCivico>1</NumeroCivico>
+                <CAP>13900</CAP>
+                <Comune>BIELLA</Comune>
+                <Provincia>BI</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+            <Contatti/>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <Anagrafica>
+                    <Denominazione>PASTIFICIO NONNA CLAUDIA D MAMELI MAURIZIO</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA CARMINE 20B</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>ASSEMINI</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+        <TerzoIntermediarioOSoggettoEmittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02046570426</IdCodice>
+                </IdFiscaleIVA>
+                <Anagrafica>
+                    <Denominazione>Namirial S.p.A</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+        </TerzoIntermediarioOSoggettoEmittente>
+        <SoggettoEmittente>TZ</SoggettoEmittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-01-27</Data>
+                <Numero>48000000000058873/V3</Numero>
+                <ImportoTotaleDocumento>36.60</ImportoTotaleDocumento>
+                <Causale>FATTURA DI VENDITA EN AGGR TIPO 2</Causale>
+            </DatiGeneraliDocumento>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>10</NumeroLinea>
+                <Descrizione>NOLEGGIO ESERCENTE - Cod. Eser.: 742838 - Cod. Terminale: 02452774</Descrizione>
+                <Quantita>1.00000000</Quantita>
+                <DataInizioPeriodo>2025-10-01</DataInizioPeriodo>
+                <DataFinePeriodo>2025-10-31</DataFinePeriodo>
+                <PrezzoUnitario>10.00000000</PrezzoUnitario>
+                <PrezzoTotale>10.00000000</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>20</NumeroLinea>
+                <Descrizione>NOLEGGIO ESERCENTE - Cod. Eser.: 742838 - Cod. Terminale: 02452774</Descrizione>
+                <Quantita>1.00000000</Quantita>
+                <DataInizioPeriodo>2025-11-01</DataInizioPeriodo>
+                <DataFinePeriodo>2025-11-30</DataFinePeriodo>
+                <PrezzoUnitario>10.00000000</PrezzoUnitario>
+                <PrezzoTotale>10.00000000</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>30</NumeroLinea>
+                <Descrizione>NOLEGGIO ESERCENTE - Cod. Eser.: 742838 - Cod. Terminale: 02452774</Descrizione>
+                <Quantita>1.00000000</Quantita>
+                <DataInizioPeriodo>2025-12-01</DataInizioPeriodo>
+                <DataFinePeriodo>2025-12-31</DataFinePeriodo>
+                <PrezzoUnitario>10.00000000</PrezzoUnitario>
+                <PrezzoTotale>10.00000000</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>30.00</ImponibileImporto>
+                <Imposta>6.60</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+        <DatiPagamento>
+            <CondizioniPagamento>TP02</CondizioniPagamento>
+            <DettaglioPagamento>
+                <ModalitaPagamento>MP09</ModalitaPagamento>
+                <DataScadenzaPagamento>2026-02-11</DataScadenzaPagamento>
+                <ImportoPagamento>36.60</ImportoPagamento>
+                <IBAN>IT80M0326822300052868036330</IBAN>
+                <ABI>03268</ABI>
+                <CAB>22300</CAB>
+            </DettaglioPagamento>
+        </DatiPagamento>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

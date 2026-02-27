@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>01879020517</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>9026820391</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>0000000</CodiceDestinatario>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>01573850516</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>04552920482</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>ARUBA SPA</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA SAN CLEMENTE</Indirizzo>
+                <NumeroCivico>53</NumeroCivico>
+                <CAP>24036</CAP>
+                <Comune>PONTE SAN PIETRO</Comune>
+                <Provincia>BG</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+            <IscrizioneREA>
+                <Ufficio>BG</Ufficio>
+                <NumeroREA>434483</NumeroREA>
+                <CapitaleSociale>4000000.00</CapitaleSociale>
+                <StatoLiquidazione>LN</StatoLiquidazione>
+            </IscrizioneREA>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>Pastificio Nonna Claudia di Mameli Mauri zio</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>Via Carmine</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>Assemini</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD04</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-02-03</Data>
+                <Numero>1000263001235217</Numero>
+                <ImportoTotaleDocumento>47.82</ImportoTotaleDocumento>
+            </DatiGeneraliDocumento>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>10</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>FORN</CodiceTipo>
+                    <CodiceValore>FIB_FIB_MAT_PXL_001</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>Ordine nr: 181943815 - Fibra Aruba PRO XL -   -</Descrizione>
+                <Quantita>1.000</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <DataInizioPeriodo>2026-01-03</DataInizioPeriodo>
+                <DataFinePeriodo>2026-02-03</DataFinePeriodo>
+                <PrezzoUnitario>39.20000000</PrezzoUnitario>
+                <PrezzoTotale>39.20</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>39.20</ImponibileImporto>
+                <Imposta>8.62</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+                <RiferimentoNormativo>Iva vendite 22%</RiferimentoNormativo>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

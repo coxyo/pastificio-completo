@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>05006900962</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>qdkuo23813</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>M5UXCR1</CodiceDestinatario>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>03494470929</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>03494470929</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>LACONI IMBALLAGGI SRL</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA GALVANI 20</Indirizzo>
+                <NumeroCivico>20</NumeroCivico>
+                <CAP>09047</CAP>
+                <Comune>SELARGIUS</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Nome>MAURIZIO</Nome>
+                    <Cognome>MAMELI</Cognome>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA CARMINE 20/B</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>ASSEMINI</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-01-12</Data>
+                <Numero>68</Numero>
+                <ImportoTotaleDocumento>95.16</ImportoTotaleDocumento>
+                <Causale>FATTURA ACCOMPAGNATORIA</Causale>
+            </DatiGeneraliDocumento>
+            <DatiTrasporto>
+                <MezzoTrasporto>MEZZO NOSTRO</MezzoTrasporto>
+                <NumeroColli>1</NumeroColli>
+                <Descrizione>SCATOLA CARTONE</Descrizione>
+            </DatiTrasporto>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>10</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>AswArtFor</CodiceTipo>
+                    <CodiceValore>410019/2</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>PELLICOLA MT 300 C/BOX X6 PZ VITAFILM 45</Descrizione>
+                <Quantita>6.0000000</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <PrezzoUnitario>13.0000000</PrezzoUnitario>
+                <PrezzoTotale>78.0000000</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>78.00</ImponibileImporto>
+                <Imposta>17.16</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+        <DatiPagamento>
+            <CondizioniPagamento>TP02</CondizioniPagamento>
+            <DettaglioPagamento>
+                <ModalitaPagamento>MP02</ModalitaPagamento>
+                <DataScadenzaPagamento>2026-01-12</DataScadenzaPagamento>
+                <ImportoPagamento>95.16</ImportoPagamento>
+                <ScontoPagamentoAnticipato>0.00</ScontoPagamentoAnticipato>
+                <PenalitaPagamentiRitardati>0.00</PenalitaPagamentiRitardati>
+            </DettaglioPagamento>
+        </DatiPagamento>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>
