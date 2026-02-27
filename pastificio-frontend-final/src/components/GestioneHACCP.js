@@ -337,7 +337,33 @@ export default function GestioneHACCP() {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/haccp/dashboard`, getAuthHeaders());
-      setDashboard(response.data.data || response.data.dashboard || null);
+      const rawData = response.data.data || response.data.dashboard || null;
+      
+      console.log('📊 [HACCP] Dashboard raw data:', rawData);
+      
+      // ✅ Mappa i dati del backend nella struttura attesa dal frontend
+      if (rawData) {
+        const mappedDashboard = {
+          riepilogo: {
+            totaleRegistrazioni: rawData.registrazioni?.totale || 0,
+            conformi: rawData.registrazioni?.conformi || 0,
+            nonConformi: rawData.registrazioni?.nonConformi || 0,
+            richiedonoAttenzione: rawData.registrazioni?.daVerificare || 0
+          },
+          statisticheMensili: {
+            totale: rawData.registrazioni?.totale || 0,
+            conformi: rawData.registrazioni?.conformi || 0,
+            nonConformi: rawData.registrazioni?.nonConformi || 0
+          },
+          temperatureAttuali: rawData.temperatureAttuali || {},
+          nonConformita: rawData.nonConformita || [],
+          // Mantieni anche i dati raw per retrocompatibilità
+          ...rawData
+        };
+        setDashboard(mappedDashboard);
+      } else {
+        setDashboard(null);
+      }
       
       // Carica anche registrazioni recenti
       try {
