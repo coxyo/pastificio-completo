@@ -1,4 +1,4 @@
-// models/User.js
+// models/User.js - ✅ AGGIORNATO: Sicurezza + Multi-utente + Ruoli
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -16,6 +16,7 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     sparse: true,
     trim: true,
+    lowercase: true,
     minlength: [3, 'Username deve essere almeno 3 caratteri']
   },
   email: {
@@ -28,23 +29,61 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password richiesta'],
-    minlength: [6, 'Password deve essere almeno 6 caratteri'],
+    minlength: [8, 'La password deve avere almeno 8 caratteri'],
+    validate: {
+      validator: function(v) {
+        // Almeno 8 caratteri e almeno 1 numero
+        return /^(?=.*\d).{8,}$/.test(v);
+      },
+      message: 'La password deve avere almeno 8 caratteri e contenere almeno un numero'
+    },
     select: false
   },
+
+  // ✅ RUOLO SEMPLICE (stringa)
   role: {
     type: String,
-    enum: ['admin', 'superadmin', 'operatore', 'viewer', 'user'],
+    enum: ['admin', 'operatore', 'visualizzatore'],
     default: 'operatore'
   },
+
   isActive: {
     type: Boolean,
     default: true
   },
+
   telefono: {
     type: String,
-    sparse: true,
-    match: [/^(\+39)?\s?3\d{2}\s?\d{6,7}$/, 'Numero di telefono non valido']
+    sparse: true
   },
+
+  // ✅ BLOCCO TENTATIVI FALLITI
+  loginAttempts: {
+    type: Number,
+    default: 0
+  },
+  lockUntil: {
+    type: Date,
+    default: null
+  },
+
+  // ✅ TRACCIABILITÀ
+  lastLogin: Date,
+  ultimoAccesso: Date,
+
+  // ✅ TOKEN VERSION (per invalidare sessioni)
+  tokenVersion: {
+    type: Number,
+    default: 0
+  },
+
+  // ✅ PASSWORD TEMPORANEA (reset da admin)
+  passwordTemporanea: {
+    type: Boolean,
+    default: false
+  },
+
+  // Notifiche (mantenute per compatibilità)
   notificationPreferences: {
     email: {
       enabled: { type: Boolean, default: true },
@@ -64,6 +103,7 @@ const UserSchema = new mongoose.Schema({
       enabled: { type: Boolean, default: true }
     }
   },
+
   lastNotificationSent: Date,
   notificationHistory: [{
     type: String,
@@ -71,22 +111,23 @@ const UserSchema = new mongoose.Schema({
     sentAt: { type: Date, default: Date.now },
     success: Boolean
   }],
-  lastLogin: Date,
-  ultimoAccesso: Date,
-  tentativi: { type: Number, default: 0 },
-  bloccato: { type: Boolean, default: false },
+
   resetPasswordToken: String,
-  resetPasswordExpire: Date,
-  tokenVersion: { type: Number, default: 0 }
+  resetPasswordExpire: Date
 }, {
   timestamps: true
 });
 
-// Indici - RIMOSSI DUPLICATI (unique: true crea già l'indice)
+// Indici
 UserSchema.index({ role: 1 });
 UserSchema.index({ isActive: 1 });
 
-// Hash password prima del salvataggio
+// ✅ VIRTUAL: Account è bloccato?
+UserSchema.virtual('isLocked').get(function() {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
+});
+
+// ✅ Hash password prima del salvataggio
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
     return next();
@@ -97,24 +138,64 @@ UserSchema.pre('save', async function(next) {
   next();
 });
 
-// Confronta password
+// ✅ Confronta password
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Genera JWT token
+// ✅ Genera JWT token - SCADENZA 12 ORE
 UserSchema.methods.getSignedJwtToken = function() {
   return jwt.sign(
     { 
       id: this._id,
+      role: this.role,
       tokenVersion: this.tokenVersion 
     }, 
     process.env.JWT_SECRET || 'pastificio-secret-key-2024',
-    { expiresIn: process.env.JWT_EXPIRE || '30d' }
+    { expiresIn: '12h' }  // ✅ SCADENZA 12 ORE (era 30d)
   );
 };
 
-// Genera reset password token
+// ✅ Incrementa tentativi falliti
+UserSchema.methods.incrementLoginAttempts = async function() {
+  // Se il blocco è scaduto, resetta
+  if (this.lockUntil && this.lockUntil < Date.now()) {
+    return this.updateOne({
+      $set: { loginAttempts: 1 },
+      $unset: { lockUntil: 1 }
+    });
+  }
+
+  const updates = { $inc: { loginAttempts: 1 } };
+
+  // Blocca dopo 5 tentativi per 15 minuti
+  if (this.loginAttempts + 1 >= 5) {
+    updates.$set = { lockUntil: Date.now() + 15 * 60 * 1000 }; // 15 minuti
+  }
+
+  return this.updateOne(updates);
+};
+
+// ✅ Reset tentativi dopo login riuscito
+UserSchema.methods.resetLoginAttempts = async function() {
+  return this.updateOne({
+    $set: { loginAttempts: 0 },
+    $unset: { lockUntil: 1 }
+  });
+};
+
+// ✅ Incrementa token version (invalida tutte le sessioni)
+UserSchema.methods.incrementTokenVersion = async function() {
+  this.tokenVersion = (this.tokenVersion || 0) + 1;
+  return this.save({ validateBeforeSave: false });
+};
+
+// ✅ Helper: è admin?
+UserSchema.methods.isAdmin = function() {
+  return this.role === 'admin';
+};
+
+// ✅ Genera reset password token
 UserSchema.methods.getResetPasswordToken = function() {
   const resetToken = crypto.randomBytes(20).toString('hex');
   
@@ -123,51 +204,30 @@ UserSchema.methods.getResetPasswordToken = function() {
     .update(resetToken)
     .digest('hex');
     
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minuti
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
   
   return resetToken;
 };
 
-// Metodo per registrare una notifica
+// Metodo per registrare una notifica (mantenuto per compatibilità)
 UserSchema.methods.logNotification = async function(type, channel, success = true) {
-  this.notificationHistory.push({
-    type,
-    channel,
-    success
-  });
-  
+  this.notificationHistory.push({ type, channel, success });
   this.lastNotificationSent = new Date();
-  
-  // Mantieni solo le ultime 100 notifiche
   if (this.notificationHistory.length > 100) {
     this.notificationHistory = this.notificationHistory.slice(-100);
   }
-  
-  await this.save();
+  await this.save({ validateBeforeSave: false });
 };
 
-// Metodo per verificare se può ricevere notifiche
 UserSchema.methods.canReceiveNotification = function(type, channel) {
-  if (!this.notificationPreferences[channel]?.enabled) {
-    return false;
-  }
-  
-  // Verifica preferenze specifiche per tipo
+  if (!this.notificationPreferences[channel]?.enabled) return false;
   if (channel === 'email' && this.notificationPreferences.email[type] !== undefined) {
     return this.notificationPreferences.email[type];
   }
-  
-  // Per SMS, solo notifiche critiche se specificato
   if (channel === 'sms' && this.notificationPreferences.sms.onlyCritical) {
     return ['lowStock', 'expiring'].includes(type);
   }
-  
   return true;
-};
-
-// Metodo helper per verificare se è admin
-UserSchema.methods.isAdmin = function() {
-  return this.role === 'admin' || this.role === 'superadmin';
 };
 
 const User = mongoose.model('User', UserSchema);

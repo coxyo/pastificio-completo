@@ -12,6 +12,7 @@ import { dirname } from 'path';
 import path from 'path';
 import fs from 'fs';
 import cron from 'node-cron';
+import usersRoutes from './routes/users.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -337,7 +338,7 @@ app.use('/api/haccp', haccpRoutes);
 app.use('/api/fix', fixPrezziRoutes);
 app.use('/api/import-fatture', importFattureRoutes);
 app.use('/api/rintracciabilita', rintracciabilitaRoutes); // ✅ NUOVO - Rintracciabilità ingredienti
-
+app.use('/api/users', usersRoutes);
 
 // Route Danea
 

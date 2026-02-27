@@ -1,72 +1,104 @@
-// routes/auth.js - ES6 MODULE VERSION
+// routes/auth.js - ✅ AGGIORNATO: Sicurezza completa + blocco tentativi
 import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { protect, generateToken, adminOnly } from '../middleware/auth.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// @desc    Login utente
-// @route   POST /api/auth/login
-// @access  Public
-const login = async (req, res) => {
+// ═══════════════════════════════════════════════
+// POST /api/auth/login - Login con blocco tentativi
+// ═══════════════════════════════════════════════
+router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, username } = req.body;
+    const loginField = email || username;
 
     // Validazione input
-    if (!email || !password) {
+    if (!loginField || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email e password sono richiesti'
+        message: 'Username/email e password sono richiesti'
       });
     }
 
     // Cerca utente - accetta email o username
     const user = await User.findOne({
       $or: [
-        { email: email.toLowerCase() },
-        { username: email } // Permetti login anche con username
+        { email: loginField.toLowerCase() },
+        { username: loginField.toLowerCase() }
       ]
     }).select('+password');
     
     if (!user) {
-      logger.warn(`[AUTH] Tentativo di login fallito per: ${email}`);
+      logger.warn(`[AUTH] Tentativo login - utente non trovato: ${loginField}`);
       return res.status(401).json({
         success: false,
         message: 'Credenziali non valide'
       });
     }
 
-    // Verifica password
-    const isMatch = await user.matchPassword(password);
-    
-    if (!isMatch) {
-      logger.warn(`[AUTH] Password errata per: ${email}`);
-      return res.status(401).json({
+    // ✅ CONTROLLO BLOCCO ACCOUNT
+    if (user.isLocked) {
+      const minutiRimanenti = Math.ceil((user.lockUntil - Date.now()) / 60000);
+      logger.warn(`[AUTH] Account bloccato per: ${loginField} (${minutiRimanenti} min rimanenti)`);
+      return res.status(423).json({
         success: false,
-        message: 'Credenziali non valide'
+        message: `Troppi tentativi falliti. Riprova tra ${minutiRimanenti} minut${minutiRimanenti === 1 ? 'o' : 'i'}`,
+        locked: true,
+        lockUntil: user.lockUntil,
+        minutiRimanenti
       });
     }
 
-    // Verifica se l'utente è attivo
+    // ✅ Verifica se l'utente è attivo
     if (user.isActive === false) {
       return res.status(401).json({
         success: false,
-        message: 'Account disattivato'
+        message: 'Account disattivato. Contatta l\'amministratore.'
       });
     }
 
-    // Aggiorna ultimo login
+    // ✅ Verifica password
+    const isMatch = await user.matchPassword(password);
+    
+    if (!isMatch) {
+      // ✅ INCREMENTA TENTATIVI FALLITI
+      await user.incrementLoginAttempts();
+      
+      const tentativiRimanenti = Math.max(0, 5 - (user.loginAttempts + 1));
+      
+      logger.warn(`[AUTH] Password errata per: ${loginField} (tentativi: ${user.loginAttempts + 1}/5)`);
+      
+      // Se appena bloccato (5° tentativo)
+      if (user.loginAttempts + 1 >= 5) {
+        return res.status(423).json({
+          success: false,
+          message: 'Troppi tentativi falliti. Account bloccato per 15 minuti.',
+          locked: true,
+          minutiRimanenti: 15
+        });
+      }
+      
+      return res.status(401).json({
+        success: false,
+        message: tentativiRimanenti <= 2 
+          ? `Credenziali non valide. ${tentativiRimanenti} tentativ${tentativiRimanenti === 1 ? 'o' : 'i'} rimanent${tentativiRimanenti === 1 ? 'e' : 'i'} prima del blocco.`
+          : 'Credenziali non valide'
+      });
+    }
+
+    // ✅ LOGIN RIUSCITO - Reset tentativi
+    await user.resetLoginAttempts();
+
+    // Aggiorna ultimo accesso
     user.lastLogin = Date.now();
     user.ultimoAccesso = Date.now();
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
-    // Genera token
-    const token = generateToken(user._id);
+    // ✅ Genera token (scadenza 12h)
+    const token = generateToken(user);
 
-    // Rimuovi password dalla risposta
     const userResponse = {
       id: user._id,
       nome: user.nome,
@@ -74,10 +106,11 @@ const login = async (req, res) => {
       username: user.username,
       role: user.role,
       isActive: user.isActive,
-      telefono: user.telefono
+      telefono: user.telefono,
+      passwordTemporanea: user.passwordTemporanea || false
     };
 
-    logger.info(`[AUTH] Login riuscito per: ${email}`);
+    logger.info(`[AUTH] ✅ Login riuscito: ${loginField} (ruolo: ${user.role})`);
 
     res.json({
       success: true,
@@ -92,12 +125,12 @@ const login = async (req, res) => {
       message: 'Errore del server durante il login'
     });
   }
-};
+});
 
-// @desc    Registra nuovo utente
-// @route   POST /api/auth/register
-// @access  Private/Admin
-const register = async (req, res) => {
+// ═══════════════════════════════════════════════
+// POST /api/auth/register - Solo Admin può creare utenti
+// ═══════════════════════════════════════════════
+router.post('/register', protect, adminOnly, async (req, res) => {
   try {
     const { nome, email, password, username, role = 'operatore', telefono } = req.body;
 
@@ -109,57 +142,64 @@ const register = async (req, res) => {
       });
     }
 
-    // Verifica se l'email esiste già
-    const existingEmail = await User.findOne({ email: email.toLowerCase() });
-    
-    if (existingEmail) {
+    // Validazione password
+    if (password.length < 8 || !/\d/.test(password)) {
       return res.status(400).json({
         success: false,
-        message: 'Email già registrata'
+        message: 'La password deve avere almeno 8 caratteri e contenere almeno un numero'
       });
     }
 
-    // Verifica se username esiste (se fornito)
-    if (username) {
-      const existingUsername = await User.findOne({ username });
-      if (existingUsername) {
-        return res.status(400).json({
-          success: false,
-          message: 'Username già in uso'
-        });
-      }
+    // Validazione ruolo
+    if (!['admin', 'operatore', 'visualizzatore'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ruolo non valido. Scegli tra: admin, operatore, visualizzatore'
+      });
     }
 
-    // Crea nuovo utente
+    // Verifica duplicati
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email.toLowerCase() },
+        ...(username ? [{ username: username.toLowerCase() }] : [])
+      ]
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: existingUser.email === email.toLowerCase() 
+          ? 'Email già registrata' 
+          : 'Username già in uso'
+      });
+    }
+
+    // Crea utente
     const user = await User.create({
       nome,
       email: email.toLowerCase(),
-      password, // Verrà hashata dal pre-save hook
-      username,
+      password,
+      username: username ? username.toLowerCase() : undefined,
       role,
       telefono,
-      isActive: true
+      isActive: true,
+      passwordTemporanea: true  // ✅ Password da cambiare al primo accesso
     });
 
-    // Genera token
-    const token = generateToken(user._id);
-
-    // Rimuovi password dalla risposta
     const userResponse = {
       id: user._id,
       nome: user.nome,
       email: user.email,
       username: user.username,
       role: user.role,
-      isActive: user.isActive,
-      telefono: user.telefono
+      isActive: user.isActive
     };
 
-    logger.info(`[AUTH] Nuovo utente registrato: ${email}`);
+    logger.info(`[AUTH] ✅ Nuovo utente creato da ${req.user.nome}: ${email} (ruolo: ${role})`);
 
     res.status(201).json({
       success: true,
-      token,
       user: userResponse
     });
 
@@ -170,39 +210,43 @@ const register = async (req, res) => {
       message: error.message || 'Errore del server durante la registrazione'
     });
   }
-};
+});
 
-// @desc    Ottieni utente corrente
-// @route   GET /api/auth/me
-// @access  Private
-const getMe = async (req, res) => {
+// ═══════════════════════════════════════════════
+// GET /api/auth/me - Utente corrente
+// ═══════════════════════════════════════════════
+router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password -notificationHistory');
     
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Utente non trovato'
-      });
+      return res.status(404).json({ success: false, message: 'Utente non trovato' });
     }
 
     res.json({
       success: true,
-      user
+      user: {
+        id: user._id,
+        nome: user.nome,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        isActive: user.isActive,
+        telefono: user.telefono,
+        lastLogin: user.lastLogin,
+        passwordTemporanea: user.passwordTemporanea || false
+      }
     });
   } catch (error) {
     logger.error('[AUTH] Errore getMe:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nel recupero dati utente'
-    });
+    res.status(500).json({ success: false, message: 'Errore nel recupero dati utente' });
   }
-};
+});
 
-// @desc    Cambia password
-// @route   POST /api/auth/changepassword
-// @access  Private
-const changePassword = async (req, res) => {
+// ═══════════════════════════════════════════════
+// POST /api/auth/changepassword - Cambio password
+// ═══════════════════════════════════════════════
+router.post('/changepassword', protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -213,18 +257,15 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Validazione lunghezza password
-    if (newPassword.length < 6) {
+    // ✅ Validazione nuova password
+    if (newPassword.length < 8 || !/\d/.test(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: 'La nuova password deve essere almeno 6 caratteri'
+        message: 'La password deve avere almeno 8 caratteri e contenere almeno un numero'
       });
     }
 
-    // Trova utente con password
     const user = await User.findById(req.user.id).select('+password');
-
-    // Verifica password attuale
     const isMatch = await user.matchPassword(currentPassword);
     
     if (!isMatch) {
@@ -234,64 +275,53 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Aggiorna password (verrà hashata dal pre-save hook)
+    // Aggiorna password
     user.password = newPassword;
+    user.passwordTemporanea = false;  // ✅ Non più temporanea
     await user.save();
 
     // Genera nuovo token
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
-    logger.info(`[AUTH] Password cambiata per: ${user.email}`);
+    logger.info(`[AUTH] ✅ Password cambiata per: ${user.email}`);
 
     res.json({
       success: true,
       message: 'Password cambiata con successo',
-      token // Nuovo token dopo cambio password
+      token
     });
 
   } catch (error) {
     logger.error('[AUTH] Errore cambio password:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore nel cambio password'
-    });
+    res.status(500).json({ success: false, message: 'Errore nel cambio password' });
   }
-};
+});
 
-// @desc    Logout utente
-// @route   POST /api/auth/logout
-// @access  Private
-const logout = async (req, res) => {
+// ═══════════════════════════════════════════════
+// POST /api/auth/logout
+// ═══════════════════════════════════════════════
+router.post('/logout', protect, async (req, res) => {
   try {
-    // In un'app con sessioni, qui puoi invalidare il token
-    // Per JWT stateless, il logout è gestito lato client rimuovendo il token
-    
-    // Opzionale: incrementa tokenVersion per invalidare tutti i token esistenti
+    // Incrementa tokenVersion per invalidare tutti i token
     const user = await User.findById(req.user.id);
     if (user) {
       user.tokenVersion = (user.tokenVersion || 0) + 1;
-      await user.save();
+      await user.save({ validateBeforeSave: false });
     }
     
-    logger.info(`[AUTH] Logout per: ${req.user.email}`);
+    logger.info(`[AUTH] Logout: ${req.user.nome || req.user.email}`);
     
-    res.json({
-      success: true,
-      message: 'Logout effettuato con successo'
-    });
+    res.json({ success: true, message: 'Logout effettuato con successo' });
   } catch (error) {
     logger.error('[AUTH] Errore logout:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Errore durante il logout'
-    });
+    res.status(500).json({ success: false, message: 'Errore durante il logout' });
   }
-};
+});
 
-// @desc    Verifica validità token
-// @route   GET /api/auth/verify
-// @access  Public
-const verifyToken = async (req, res) => {
+// ═══════════════════════════════════════════════
+// GET /api/auth/verify - Verifica validità token
+// ═══════════════════════════════════════════════
+router.get('/verify', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     
@@ -302,7 +332,6 @@ const verifyToken = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
     const user = await User.findById(decoded.id);
     
-    // Verifica anche tokenVersion se implementato
     const isValid = user && 
                    user.isActive !== false && 
                    (user.tokenVersion === undefined || user.tokenVersion === decoded.tokenVersion);
@@ -318,16 +347,11 @@ const verifyToken = async (req, res) => {
       } : null
     });
   } catch (error) {
-    res.json({ valid: false });
+    res.json({ valid: false, expired: error.name === 'TokenExpiredError' });
   }
-};
+});
 
-// Configurazione routes
-router.post('/login', login);
-router.post('/register', protect, register); // Rimosso adminOnly per ora
-router.get('/me', protect, getMe);
-router.post('/changepassword', protect, changePassword);
-router.post('/logout', protect, logout);
-router.get('/verify', verifyToken);
+// Importa jwt per verify endpoint
+import jwt from 'jsonwebtoken';
 
 export default router;

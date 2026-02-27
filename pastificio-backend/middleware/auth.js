@@ -1,24 +1,20 @@
-// middleware/auth.js - ES6 MODULES VERSION
+// middleware/auth.js - ✅ AGGIORNATO: Sicurezza + Controllo Ruoli
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-// Middleware di protezione principale
+// ✅ Middleware di protezione principale
 export const protect = async (req, res, next) => {
   let token;
 
   try {
-    // Controlla se c'è l'header Authorization
+    // Controlla header Authorization
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      // Estrai il token
       token = req.headers.authorization.split(' ')[1];
     } else if (req.headers.authorization) {
-      // Se manca "Bearer", usa direttamente il token
       token = req.headers.authorization;
     }
 
-    // Se non c'è token
     if (!token) {
-      console.log('[AUTH] Nessun token fornito');
       return res.status(401).json({ 
         success: false, 
         message: 'Non autorizzato - Token mancante' 
@@ -32,20 +28,28 @@ export const protect = async (req, res, next) => {
     const user = await User.findById(decoded.id).select('-password');
     
     if (!user) {
-      console.log('[AUTH] Utente non trovato per token:', decoded.id);
       return res.status(401).json({ 
         success: false, 
         message: 'Utente non trovato' 
       });
     }
 
-    // Verifica se l'utente è attivo
+    // ✅ Verifica se l'utente è attivo
     if (user.isActive === false) {
-      console.log('[AUTH] Utente disattivato:', user.email);
       return res.status(401).json({ 
         success: false, 
-        message: 'Account disattivato' 
+        message: 'Account disattivato. Contatta l\'amministratore.' 
       });
+    }
+
+    // ✅ Verifica tokenVersion (per invalidazione sessioni)
+    if (decoded.tokenVersion !== undefined && user.tokenVersion !== undefined) {
+      if (decoded.tokenVersion !== user.tokenVersion) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Sessione scaduta, effettua nuovamente l\'accesso' 
+        });
+      }
     }
 
     // Aggiungi l'utente alla request
@@ -53,15 +57,13 @@ export const protect = async (req, res, next) => {
     next();
 
   } catch (error) {
-    // Log solo se è un vero errore, non per token scaduti normali
     if (error.name === 'TokenExpiredError') {
-      console.log('[AUTH] Token scaduto');
       return res.status(401).json({ 
         success: false, 
-        message: 'Token scaduto - Effettua nuovamente il login' 
+        message: 'Sessione scaduta, effettua nuovamente l\'accesso',
+        expired: true  // ✅ Flag per il frontend
       });
     } else if (error.name === 'JsonWebTokenError') {
-      console.log('[AUTH] Token non valido');
       return res.status(401).json({ 
         success: false, 
         message: 'Token non valido' 
@@ -76,7 +78,7 @@ export const protect = async (req, res, next) => {
   }
 };
 
-// Middleware opzionale - non blocca se non c'è token
+// ✅ Middleware opzionale - non blocca se non c'è token
 export const optionalAuth = async (req, res, next) => {
   let token;
 
@@ -96,14 +98,13 @@ export const optionalAuth = async (req, res, next) => {
     }
   } catch (error) {
     // Ignora errori, è opzionale
-    console.log('[AUTH] Token opzionale non valido, continuo senza auth');
   }
   
   next();
 };
 
-// Middleware per verificare ruoli admin
-export const adminOnly = async (req, res, next) => {
+// ✅ NUOVO: Middleware per verificare ruolo admin
+export const adminOnly = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ 
       success: false, 
@@ -111,7 +112,7 @@ export const adminOnly = async (req, res, next) => {
     });
   }
 
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+  if (req.user.role !== 'admin') {
     return res.status(403).json({ 
       success: false, 
       message: 'Accesso negato - Solo amministratori' 
@@ -121,7 +122,8 @@ export const adminOnly = async (req, res, next) => {
   next();
 };
 
-// Middleware per verificare ruoli specifici
+// ✅ NUOVO: Middleware per verificare ruoli specifici
+// Uso: authorize('admin', 'operatore')
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -134,7 +136,7 @@ export const authorize = (...roles) => {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ 
         success: false, 
-        message: `Ruolo ${req.user.role} non autorizzato per questa operazione` 
+        message: `Il ruolo "${req.user.role}" non è autorizzato per questa operazione` 
       });
     }
 
@@ -142,16 +144,36 @@ export const authorize = (...roles) => {
   };
 };
 
-// Genera nuovo token
-export const generateToken = (id) => {
+// ✅ NUOVO: Middleware per bloccare i visualizzatori dalle operazioni di scrittura
+export const noViewer = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Non autorizzato' });
+  }
+
+  if (req.user.role === 'visualizzatore') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Non hai i permessi per questa operazione (solo lettura)' 
+    });
+  }
+
+  next();
+};
+
+// ✅ Genera token (helper per routes)
+export const generateToken = (user) => {
   return jwt.sign(
-    { id, tokenVersion: 0 },
+    { 
+      id: user._id,
+      role: user.role,
+      tokenVersion: user.tokenVersion || 0 
+    },
     process.env.JWT_SECRET || 'pastificio-secret-key-2024',
-    { expiresIn: '30d' }
+    { expiresIn: '12h' }  // ✅ 12 ORE
   );
 };
 
-// Verifica token senza middleware
+// ✅ Verifica token senza middleware
 export const verifyToken = async (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
@@ -162,12 +184,12 @@ export const verifyToken = async (token) => {
   }
 };
 
-// Export di default per compatibilità
 export default { 
   protect, 
   optionalAuth, 
   adminOnly, 
   authorize, 
+  noViewer,
   generateToken, 
   verifyToken 
 };

@@ -1,99 +1,83 @@
-// scripts/seedUsers.js
+// scripts/seedUsers.js - ✅ Crea i 3 utenti iniziali
+// Eseguire UNA VOLTA con: node scripts/seedUsers.js
+
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import User from '../models/User.js';
 
-// Configura __dirname per ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+dotenv.config();
 
-// Carica variabili d'ambiente
-dotenv.config({ path: join(__dirname, '..', '.env') });
+const MONGODB_URI = process.env.MONGODB_URI;
 
-// Schema User inline (per evitare import problematici)
-const userSchema = new mongoose.Schema({
-  nome: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  ruolo: { type: String, enum: ['admin', 'operatore', 'viewer'], default: 'operatore' },
-  attivo: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
+const utentiIniziali = [
+  {
+    nome: 'Maurizio',
+    username: 'maurizio',
+    email: 'maurizio@pastificiononnacaudia.it',
+    password: 'Maurizio1', // ✅ 8+ char, 1 numero
+    role: 'admin',
+    isActive: true,
+    passwordTemporanea: true // Dovrà cambiare al primo accesso
+  },
+  {
+    nome: 'Francesca',
+    username: 'francesca',
+    email: 'francesca@pastificiononnacaudia.it',
+    password: 'Francesca1',
+    role: 'operatore',
+    isActive: true,
+    passwordTemporanea: true
+  },
+  {
+    nome: 'Valentina',
+    username: 'valentina',
+    email: 'valentina@pastificiononnacaudia.it',
+    password: 'Valentina1',
+    role: 'operatore',
+    isActive: true,
+    passwordTemporanea: true
+  }
+];
 
-const User = mongoose.model('User', userSchema);
-
-const seedUsers = async () => {
+async function seed() {
   try {
-    console.log('🔄 Connessione a MongoDB...');
-    console.log('📍 URI:', process.env.MONGODB_URI ? 'Presente' : 'MANCANTE!');
-    
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(MONGODB_URI);
     console.log('✅ Connesso a MongoDB');
 
-    // Verifica se esistono già utenti
-    const existingUsers = await User.countDocuments();
-    if (existingUsers > 0) {
-      console.log(`⚠️ Ci sono già ${existingUsers} utenti nel database`);
-      console.log('💡 Elimina gli utenti esistenti o usa credenziali diverse');
-      
-      // Mostra gli utenti esistenti
-      const users = await User.find({}, 'email nome ruolo');
-      console.log('📋 Utenti esistenti:');
-      users.forEach(u => console.log(`   - ${u.email} (${u.nome}) - ${u.ruolo}`));
-      
-      await mongoose.disconnect();
-      process.exit(0);
+    for (const userData of utentiIniziali) {
+      // Controlla se esiste già
+      const existing = await User.findOne({
+        $or: [
+          { email: userData.email },
+          { username: userData.username }
+        ]
+      });
+
+      if (existing) {
+        console.log(`⚠️  ${userData.nome} esiste già (${existing.email}), aggiorno ruolo...`);
+        existing.role = userData.role;
+        existing.isActive = true;
+        await existing.save({ validateBeforeSave: false });
+        continue;
+      }
+
+      const user = await User.create(userData);
+      console.log(`✅ Creato: ${user.nome} (${user.username}) - Ruolo: ${user.role}`);
     }
 
-    console.log('🔐 Creazione password hashate...');
-    
-    // Crea password hashata per admin
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash('admin123', salt);
+    console.log('\n🎉 Seed completato!');
+    console.log('\n📋 Credenziali iniziali:');
+    console.log('   Maurizio  → username: maurizio  | password: Maurizio1  (ADMIN)');
+    console.log('   Francesca → username: francesca | password: Francesca1 (OPERATORE)');
+    console.log('   Valentina → username: valentina | password: Valentina1 (OPERATORE)');
+    console.log('\n⚠️  Tutti dovranno cambiare password al primo accesso');
 
-    // Crea utente admin
-    const adminUser = await User.create({
-      nome: 'Admin',
-      email: 'admin@pastificio.com',
-      password: hashedPassword,
-      ruolo: 'admin',
-      attivo: true
-    });
-
-    console.log('✅ Utente admin creato:', adminUser.email);
-    
-    // Crea password hashata per test
-    const hashedPasswordTest = await bcrypt.hash('test123', salt);
-    
-    // Crea utente test
-    const testUser = await User.create({
-      nome: 'Test User',
-      email: 'test@pastificio.com',
-      password: hashedPasswordTest,
-      ruolo: 'operatore',
-      attivo: true
-    });
-
-    console.log('✅ Utente test creato:', testUser.email);
-    
-    console.log('');
-    console.log('🎉 Seed completato con successo!');
-    console.log('📋 Credenziali create:');
-    console.log('   1. admin@pastificio.com / admin123 (admin)');
-    console.log('   2. test@pastificio.com / test123 (operatore)');
-    console.log('');
-    
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error('❌ Errore durante il seed:', error.message);
-    console.error('Stack trace:', error.stack);
-    await mongoose.disconnect();
+    console.error('❌ Errore seed:', error);
     process.exit(1);
   }
-};
+}
 
-seedUsers();
+seed();
