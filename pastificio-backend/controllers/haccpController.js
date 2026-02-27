@@ -87,7 +87,7 @@ const haccpController = {
         tipo: { $in: ['temperatura_frigo', 'temperatura_congelatore', 'abbattimento'] }
       });
 
-      const registrato = registrazioni >= 6; // Almeno 1 per ogni dispositivo
+      const registrato = registrazioni >= 3; // Almeno 3 dispositivi (3 frigo + 1 freezer = 4 totali)
 
       console.log(`✅ [HACCP Controller] Registrazioni trovate: ${registrazioni}, Completato: ${registrato}`);
 
