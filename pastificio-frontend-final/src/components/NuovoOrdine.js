@@ -56,7 +56,9 @@ import {
   Warning as WarningIcon,
   Error as ErrorIcon,
   CheckCircle as CheckIcon,
-  CalendarToday as CalendarIcon
+  CalendarToday as CalendarIcon,
+  Replay as ReplayIcon,
+  History as HistoryIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
 import { PRODOTTI_CONFIG } from '../config/prodottiConfig';
@@ -205,6 +207,13 @@ const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(nul
   // ✅ FIX 19/02/2026: Dialog conferma data ritiro = oggi
   const [showConfermaDataOggi, setShowConfermaDataOggi] = useState(false);
 
+  // ✅ NUOVO 27/02/2026: Ripeti ultimo ordine
+  const [ultimoOrdine, setUltimoOrdine] = useState(null);
+  const [altriOrdini, setAltriOrdini] = useState([]);
+  const [loadingUltimoOrdine, setLoadingUltimoOrdine] = useState(false);
+  const [mostraAltriOrdini, setMostraAltriOrdini] = useState(false);
+  const [ordineRipetuto, setOrdineRipetuto] = useState(false); // Per nascondere box dopo click
+
   // ✅ FIX 17/01/2026: Sposto caricaProdotti PRIMA degli useEffect per evitare hoisting error
   const caricaProdotti = async () => {
     const cacheTime = localStorage.getItem('prodotti_cache_time');
@@ -263,6 +272,165 @@ const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(nul
       caricaProdotti();
     }
   }, [isConnected]);
+
+  // ✅ NUOVO 27/02/2026: Carica ultimo ordine per un cliente
+  const caricaUltimoOrdine = async (clienteId) => {
+    if (!clienteId) {
+      setUltimoOrdine(null);
+      setAltriOrdini([]);
+      setMostraAltriOrdini(false);
+      setOrdineRipetuto(false);
+      return;
+    }
+
+    try {
+      setLoadingUltimoOrdine(true);
+      setOrdineRipetuto(false);
+      console.log('🔍 Caricamento ultimo ordine per cliente:', clienteId);
+
+      const token = localStorage.getItem('token') || 'dev-token-123';
+      const response = await fetch(`${API_URL}/ordini/ultimo/${clienteId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.found && result.data) {
+          setUltimoOrdine(result.data);
+          console.log('✅ Ultimo ordine trovato:', result.data.prodotti?.length, 'prodotti');
+        } else {
+          setUltimoOrdine(null);
+          console.log('ℹ️ Nessun ordine precedente per questo cliente');
+        }
+      } else {
+        setUltimoOrdine(null);
+      }
+    } catch (error) {
+      console.error('❌ Errore caricamento ultimo ordine:', error);
+      setUltimoOrdine(null);
+    } finally {
+      setLoadingUltimoOrdine(false);
+    }
+  };
+
+  // ✅ NUOVO 27/02/2026: Carica altri ordini (per "Vedi altri")
+  const caricaAltriOrdini = async (clienteId) => {
+    if (!clienteId) return;
+    try {
+      const token = localStorage.getItem('token') || 'dev-token-123';
+      const response = await fetch(`${API_URL}/ordini/ultimo/${clienteId}?limit=5`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.found && Array.isArray(result.data)) {
+          setAltriOrdini(result.data);
+          setMostraAltriOrdini(true);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Errore caricamento altri ordini:', error);
+    }
+  };
+
+  // ✅ NUOVO 27/02/2026: Ripeti ordine - copia prodotti nel carrello con prezzi attuali
+  const ripetiOrdine = (ordine) => {
+    if (!ordine || !ordine.prodotti || ordine.prodotti.length === 0) return;
+
+    const prodottiCopiati = [];
+    const prodottiNonDisponibili = [];
+
+    ordine.prodotti.forEach(p => {
+      // Cerca il prodotto nel DB per verificare disponibilità e prezzi attuali
+      const nomeProdottoBase = p.nome?.split(' (')[0]?.trim() || p.nome;
+      
+      // Cerca per nome base o nome completo
+      const prodottoDB = prodottiDB.find(db => 
+        db.nome === p.nome || 
+        db.nome === nomeProdottoBase ||
+        p.nome?.toLowerCase().includes(db.nome?.toLowerCase())
+      );
+
+      // Per vassoi, copia direttamente
+      if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti' || p.dettagliCalcolo?.composizione) {
+        prodottiCopiati.push({
+          ...p,
+          // Mantieni prezzo vassoio originale (composizione unica)
+        });
+        return;
+      }
+
+      // Ricalcola prezzo con prezzi attuali
+      let prezzoRicalcolato = p.prezzo || 0;
+      let prezzoUnitario = p.prezzoUnitario || 0;
+      
+      if (prodottoDB) {
+        const quantita = parseFloat(p.quantita) || 0;
+        const unita = p.unita || 'Kg';
+        
+        if (unita === 'Kg' || unita === 'g') {
+          const qKg = unita === 'g' ? quantita / 1000 : quantita;
+          if (prodottoDB.prezzoKg) {
+            prezzoRicalcolato = qKg * prodottoDB.prezzoKg;
+            prezzoUnitario = prodottoDB.prezzoKg;
+          }
+        } else if (unita === 'Pezzi' || unita === 'pz') {
+          if (prodottoDB.prezzoPezzo) {
+            prezzoRicalcolato = quantita * prodottoDB.prezzoPezzo;
+            prezzoUnitario = prodottoDB.prezzoPezzo;
+          } else if (prodottoDB.prezzoKg && prodottoDB.pezziPerKg) {
+            const kg = quantita / prodottoDB.pezziPerKg;
+            prezzoRicalcolato = kg * prodottoDB.prezzoKg;
+            prezzoUnitario = prodottoDB.prezzoKg / prodottoDB.pezziPerKg;
+          }
+        } else if (unita === '€' || unita === 'euro') {
+          prezzoRicalcolato = quantita;
+        }
+      } else if (!p.dettagliCalcolo?.composizione) {
+        // Prodotto non trovato nel DB (potrebbe non essere più disponibile)
+        prodottiNonDisponibili.push(p.nome);
+      }
+
+      prodottiCopiati.push({
+        nome: p.nome,
+        quantita: p.quantita,
+        unita: p.unita || p.unitaMisura || 'Kg',
+        unitaMisura: p.unita || p.unitaMisura || 'Kg',
+        prezzo: Math.round(prezzoRicalcolato * 100) / 100,
+        prezzoUnitario: Math.round(prezzoUnitario * 100) / 100,
+        categoria: p.categoria || 'Altro',
+        variante: p.variante || '',
+        varianti: p.varianti || [],
+        noteProdotto: p.noteProdotto || '',
+        note: p.note || '',
+        dettagliCalcolo: p.dettagliCalcolo || {}
+      });
+    });
+
+    // Imposta prodotti nel carrello
+    setFormData(prev => ({
+      ...prev,
+      prodotti: prodottiCopiati
+    }));
+
+    setOrdineRipetuto(true);
+    setMostraAltriOrdini(false);
+
+    // Avvisa se ci sono prodotti non disponibili
+    if (prodottiNonDisponibili.length > 0) {
+      setTimeout(() => {
+        alert(`⚠️ Attenzione: i seguenti prodotti potrebbero non essere più disponibili:\n\n${prodottiNonDisponibili.join('\n')}\n\nI prezzi sono stati mantenuti dall'ordine originale.`);
+      }, 300);
+    }
+
+    console.log(`✅ Ordine ripetuto: ${prodottiCopiati.length} prodotti copiati nel carrello`);
+  };
 
   // ✅ FIX 17/01/2026: Precompila dati da chiamata telefonica
   useEffect(() => {
@@ -732,6 +900,10 @@ useEffect(() => {
         nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
         telefono: cliente.telefono || ''
       });
+      // ✅ NUOVO 27/02/2026: Carica ultimo ordine
+      if (cliente._id) {
+        caricaUltimoOrdine(cliente._id);
+      }
     } else {
       setFormData({
         ...formData,
@@ -741,6 +913,11 @@ useEffect(() => {
         nomeCliente: '',
         telefono: ''
       });
+      // ✅ Reset ultimo ordine
+      setUltimoOrdine(null);
+      setAltriOrdini([]);
+      setMostraAltriOrdini(false);
+      setOrdineRipetuto(false);
     }
   };
 
@@ -2388,6 +2565,8 @@ useEffect(() => {
                               nomeCliente: `${match.nome} ${match.cognome || ''}`.trim(),
                               telefono: prev.telefono || match.telefono || ''
                             }));
+                            // ✅ NUOVO 27/02/2026: Carica ultimo ordine
+                            if (match._id) caricaUltimoOrdine(match._id);
                             setTimeout(() => {
                               const cognomeField = document.getElementById('campo-cognome');
                               if (cognomeField) cognomeField.focus();
@@ -2464,6 +2643,8 @@ useEffect(() => {
                                 nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
                                 telefono: prev.telefono || cliente.telefono || ''
                               }));
+                              // ✅ NUOVO 27/02/2026: Carica ultimo ordine
+                              if (cliente._id) caricaUltimoOrdine(cliente._id);
                               setTimeout(() => {
                                 const cognomeField = document.getElementById('campo-cognome');
                                 if (cognomeField) cognomeField.focus();
@@ -2498,6 +2679,11 @@ useEffect(() => {
                           telefono: '',
                           nomeCliente: ''
                         }));
+                        // ✅ NUOVO 27/02/2026: Reset ultimo ordine
+                        setUltimoOrdine(null);
+                        setAltriOrdini([]);
+                        setMostraAltriOrdini(false);
+                        setOrdineRipetuto(false);
                       }}
                       size="small"
                       sx={{
@@ -2546,6 +2732,8 @@ useEffect(() => {
                               nomeCliente: `${match.nome} ${match.cognome || ''}`.trim(),
                               telefono: prev.telefono || match.telefono || ''
                             }));
+                            // ✅ NUOVO 27/02/2026: Carica ultimo ordine
+                            if (match._id) caricaUltimoOrdine(match._id);
                           }
                         }
                       }}
@@ -2614,6 +2802,8 @@ useEffect(() => {
                                 nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
                                 telefono: prev.telefono || cliente.telefono || ''
                               }));
+                              // ✅ NUOVO 27/02/2026: Carica ultimo ordine
+                              if (cliente._id) caricaUltimoOrdine(cliente._id);
                             }}
                             sx={{
                               cursor: 'pointer',
@@ -2641,6 +2831,147 @@ useEffect(() => {
                   />
                 </Box>
               </Paper>
+
+              {/* ========== ULTIMO ORDINE (RIPETI) ========== */}
+              {/* ✅ NUOVO 27/02/2026: Mostra box ultimo ordine quando cliente selezionato */}
+              {formData.cliente && !ordineIniziale && !ordineRipetuto && (ultimoOrdine || loadingUltimoOrdine) && (
+                <Paper sx={{ 
+                  p: 2, 
+                  bgcolor: '#fff8e1', 
+                  border: '1px solid #ffca28',
+                  borderRadius: 2
+                }}>
+                  {loadingUltimoOrdine ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CircularProgress size={20} />
+                      <Typography variant="body2" color="text.secondary">
+                        Caricamento ultimo ordine...
+                      </Typography>
+                    </Box>
+                  ) : ultimoOrdine ? (
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                        <HistoryIcon fontSize="small" sx={{ color: '#f57f17' }} />
+                        Ultimo ordine di {formData.nome} {formData.cognome} 
+                        <Typography component="span" variant="caption" color="text.secondary">
+                          ({ultimoOrdine.dataRitiro ? new Date(ultimoOrdine.dataRitiro).toLocaleDateString('it-IT') : 'N/D'})
+                        </Typography>
+                      </Typography>
+                      
+                      {/* Lista prodotti ultimo ordine */}
+                      <Box sx={{ mb: 1.5 }}>
+                        {(ultimoOrdine.prodotti || []).map((p, idx) => (
+                          <Box key={idx} sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            py: 0.3,
+                            borderBottom: idx < ultimoOrdine.prodotti.length - 1 ? '1px solid #fff3e0' : 'none'
+                          }}>
+                            <Typography variant="body2">
+                              • {p.nome}
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">
+                              {p.quantita} {p.unita || p.unitaMisura || ''}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                      
+                      {/* Totale */}
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                        Totale: €{(ultimoOrdine.totale || 0).toFixed(2)} — i prezzi verranno ricalcolati
+                      </Typography>
+                      
+                      {/* Bottone Ripeti */}
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        startIcon={<ReplayIcon />}
+                        onClick={() => ripetiOrdine(ultimoOrdine)}
+                        sx={{
+                          bgcolor: '#2e7d32',
+                          '&:hover': { bgcolor: '#1b5e20' },
+                          py: 1.2,
+                          fontSize: '0.95rem',
+                          fontWeight: 'bold',
+                          borderRadius: 2,
+                          textTransform: 'none'
+                        }}
+                      >
+                        🔄 Ripeti questo ordine
+                      </Button>
+                      
+                      {/* Link "Vedi altri ordini" */}
+                      {!mostraAltriOrdini && (
+                        <Button
+                          size="small"
+                          onClick={() => caricaAltriOrdini(formData.cliente._id)}
+                          sx={{ 
+                            mt: 0.5, 
+                            textTransform: 'none', 
+                            fontSize: '0.75rem',
+                            color: 'text.secondary'
+                          }}
+                        >
+                          📋 Vedi altri ordini recenti
+                        </Button>
+                      )}
+                      
+                      {/* Lista altri ordini */}
+                      {mostraAltriOrdini && altriOrdini.length > 1 && (
+                        <Box sx={{ mt: 1, pt: 1, borderTop: '1px dashed #ffca28' }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                            Ordini precedenti:
+                          </Typography>
+                          {altriOrdini.slice(1).map((ordine, idx) => (
+                            <Box key={idx} sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              py: 0.5,
+                              borderBottom: '1px solid #fff3e0'
+                            }}>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  {ordine.dataRitiro ? new Date(ordine.dataRitiro).toLocaleDateString('it-IT') : 'N/D'}
+                                </Typography>
+                                <Typography variant="caption" display="block">
+                                  {(ordine.prodotti || []).map(p => p.nome).join(', ')}
+                                </Typography>
+                              </Box>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => ripetiOrdine(ordine)}
+                                sx={{ 
+                                  minWidth: 'auto', 
+                                  px: 1, 
+                                  py: 0.3,
+                                  fontSize: '0.7rem',
+                                  textTransform: 'none'
+                                }}
+                              >
+                                Ripeti
+                              </Button>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  ) : null}
+                </Paper>
+              )}
+
+              {/* ✅ NUOVO 27/02/2026: Conferma ordine ripetuto */}
+              {ordineRipetuto && formData.prodotti.length > 0 && (
+                <Alert 
+                  severity="success" 
+                  sx={{ borderRadius: 2 }}
+                  onClose={() => setOrdineRipetuto(false)}
+                >
+                  ✅ Ordine precedente caricato! Puoi modificare i prodotti prima di salvare.
+                </Alert>
+              )}
 
               {/* ========== CARRELLO ========== */}
               <Paper sx={{ p: 2, bgcolor: formData.prodotti.length > 0 ? '#e8f5e9' : '#fff3e0' }}>
