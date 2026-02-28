@@ -778,6 +778,15 @@ useEffect(() => {
         const data = await response.json();
         const clientiData = data.data || data.clienti || data || [];
         
+        // ⭐ Ordina: preferiti prima, poi per cognome
+        clientiData.sort((a, b) => {
+          if (a.preferito && !b.preferito) return -1;
+          if (!a.preferito && b.preferito) return 1;
+          const cognA = (a.cognome || a.nome || '').toLowerCase();
+          const cognB = (b.cognome || b.nome || '').toLowerCase();
+          return cognA.localeCompare(cognB);
+        });
+        
         clientiCache = clientiData;
         clientiCacheTime = Date.now();
         localStorage.setItem('clienti_cache', JSON.stringify(clientiData));
@@ -2580,6 +2589,47 @@ useEffect(() => {
                     />
                   </Box>
 
+                  {/* ⭐ PREFERITI QUICK-ACCESS - Mostra quando campo nome vuoto */}
+                  {formData.nome.length < 2 && !formData.cliente && (() => {
+                    const preferiti = clienti.filter(c => c.preferito);
+                    if (preferiti.length === 0) return null;
+                    return (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: -0.5, mb: 0.5 }}>
+                        <Typography variant="caption" color="textSecondary" sx={{ width: '100%', mb: 0.25 }}>
+                          ⭐ Preferiti:
+                        </Typography>
+                        {preferiti.slice(0, 8).map((cliente) => (
+                          <Chip
+                            key={cliente._id}
+                            label={`⭐ ${cliente.nome} ${cliente.cognome || ''} ${cliente.statistiche?.numeroOrdini ? '(' + cliente.statistiche.numeroOrdini + ')' : ''}`}
+                            size="small"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                cliente: cliente,
+                                nome: cliente.nome || '',
+                                cognome: cliente.cognome || '',
+                                nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
+                                telefono: prev.telefono || cliente.telefono || ''
+                              }));
+                              if (cliente._id) caricaUltimoOrdine(cliente._id);
+                            }}
+                            sx={{
+                              cursor: 'pointer',
+                              bgcolor: '#FFF8E1',
+                              border: '1px solid #FFB74D',
+                              fontWeight: 600,
+                              fontSize: '0.8rem',
+                              height: 36,
+                              '&:hover': { bgcolor: '#FFE0B2' },
+                              '&:active': { transform: 'scale(0.95)' }
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    );
+                  })()}
+
                   {/* Chip suggerimenti clienti - appaiono sotto il campo nome */}
                   {formData.nome.length >= 2 && !formData.cliente && (() => {
                     const input = formData.nome.toLowerCase().trim();
@@ -2590,7 +2640,14 @@ useEffect(() => {
                       const telefono = (c.telefono || '').toLowerCase();
                       return nome.includes(input) || cognome.includes(input) || 
                              nomeCompleto.includes(input) || telefono.includes(input);
-                    }).slice(0, 4);
+                    })
+                    // ⭐ Preferiti prima
+                    .sort((a, b) => {
+                      if (a.preferito && !b.preferito) return -1;
+                      if (!a.preferito && b.preferito) return 1;
+                      return 0;
+                    })
+                    .slice(0, 6);
                     
                     if (matches.length === 0) return null;
                     
@@ -2605,7 +2662,7 @@ useEffect(() => {
                         {matches.map((cliente) => (
                           <Chip
                             key={cliente._id}
-                            label={`${cliente.nome} ${cliente.cognome || ''} ${cliente.telefono ? '📞' + cliente.telefono.slice(-4) : ''}`}
+                            label={`${cliente.preferito ? '⭐ ' : ''}${cliente.nome} ${cliente.cognome || ''} ${cliente.telefono ? '📞' + cliente.telefono.slice(-4) : ''}${cliente.statistiche?.numeroOrdini ? ' (' + cliente.statistiche.numeroOrdini + ')' : ''}`}
                             size="small"
                             onClick={() => {
                               setFormData(prev => ({
@@ -2625,12 +2682,12 @@ useEffect(() => {
                             }}
                             sx={{
                               cursor: 'pointer',
-                              bgcolor: '#e3f2fd',
-                              border: '1px solid #90caf9',
-                              fontWeight: 500,
+                              bgcolor: cliente.preferito ? '#FFF8E1' : '#e3f2fd',
+                              border: cliente.preferito ? '1px solid #FFB74D' : '1px solid #90caf9',
+                              fontWeight: cliente.preferito ? 600 : 500,
                               fontSize: '0.8rem',
                               height: 36,
-                              '&:hover': { bgcolor: '#bbdefb' },
+                              '&:hover': { bgcolor: cliente.preferito ? '#FFE0B2' : '#bbdefb' },
                               '&:active': { bgcolor: '#90caf9', transform: 'scale(0.95)' }
                             }}
                           />

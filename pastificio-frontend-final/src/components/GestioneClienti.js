@@ -22,6 +22,9 @@ import {
   Menu,
   MenuItem,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Tooltip,
   FormControl,
   Select,
@@ -30,7 +33,10 @@ import {
   Fab,
   Snackbar,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Divider,
+  Checkbox,
+  LinearProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -44,13 +50,19 @@ import {
   Business as BusinessIcon,
   Person as PersonIcon,
   Star as StarIcon,
+  StarBorder as StarBorderIcon,
   Download as DownloadIcon,
   FilterList as FilterIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  TrendingUp as TrendingUpIcon,
+  CalendarToday as CalendarIcon,
+  ShoppingCart as CartIcon,
+  AttachMoney as MoneyIcon,
+  Calculate as CalculateIcon
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import FormCliente from './FormCliente';
-import ClickToCallButton from './ClickToCallButton'; // ✅ ATTIVATO
+import ClickToCallButton from './ClickToCallButton';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
@@ -59,7 +71,7 @@ function GestioneClienti() {
   const [clienti, setClienti] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const [totalClienti, setTotalClienti] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
@@ -68,6 +80,23 @@ function GestioneClienti() {
   const [clienteSelezionato, setClienteSelezionato] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuCliente, setMenuCliente] = useState(null);
+  
+  // ⭐ Preferiti
+  const [togglingPreferito, setTogglingPreferito] = useState(null);
+  
+  // ⭐ Suggerimento top clienti
+  const [showSuggerimento, setShowSuggerimento] = useState(false);
+  const [topClienti, setTopClienti] = useState([]);
+  const [selectedTopClienti, setSelectedTopClienti] = useState([]);
+  
+  // ⭐ Statistiche dettagliate dialog
+  const [statsDialog, setStatsDialog] = useState(false);
+  const [statsCliente, setStatsCliente] = useState(null);
+  const [statsData, setStatsData] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  
+  // ⭐ Ricalcolo contatori
+  const [ricalcolando, setRicalcolando] = useState(false);
   
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -88,7 +117,6 @@ function GestioneClienti() {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  // Funzione per fare login automatico se necessario
   const ensureAuthenticated = async () => {
     let token = localStorage.getItem('token');
     
@@ -97,13 +125,8 @@ function GestioneClienti() {
       try {
         const loginResponse = await fetch(`${API_URL.replace('/api', '')}/api/auth/login`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            username: 'admin',
-            password: 'admin123'
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: 'admin', password: 'admin123' })
         });
 
         const loginData = await loginResponse.json();
@@ -131,7 +154,7 @@ function GestioneClienti() {
     return token;
   };
 
-  // Funzione per caricare i clienti dal backend
+  // ⭐ Carica clienti con ordinamento preferiti
   const caricaClienti = async () => {
     setLoading(true);
     try {
@@ -141,7 +164,7 @@ function GestioneClienti() {
       const params = new URLSearchParams({
         limit: rowsPerPage.toString(),
         skip: (page * rowsPerPage).toString(),
-        sort: '-createdAt'
+        orderBy: 'preferito' // ⭐ Forza ordinamento preferiti in cima
       });
 
       if (searchTerm) {
@@ -153,8 +176,6 @@ function GestioneClienti() {
       if (filtroAttivo !== '') {
         params.append('attivo', filtroAttivo);
       }
-
-      console.log('Caricamento clienti con parametri:', params.toString());
 
       const response = await fetch(`${API_URL}/clienti?${params.toString()}`, {
         method: 'GET',
@@ -176,30 +197,175 @@ function GestioneClienti() {
       }
 
       const data = await response.json();
-console.log('Risposta clienti:', data);
+      const isSuccess = data.success || data.successs;
 
-// ⭐ SUPPORTA ENTRAMBE LE STRUTTURE: vecchia e nuova API
-// Backend con typo: 'successs' (3 s) invece di 'success' (2 s)
-const isSuccess = data.success || data.successs;
-
-if (isSuccess) {
-  // Supporta sia 'clienti' che 'data' come array
-  const clientiData = data.clienti || data.data || [];
-  // Supporta sia 'total' che 'pagination.total'
-  const totalData = data.total || data.pagination?.total || 0;
-  
-  console.log('📊 Clienti caricati:', clientiData.length, 'su', totalData);
-  
-  setClienti(clientiData);
-  setTotalClienti(totalData);
-} else {
-  throw new Error(data.message || 'Errore nel caricamento clienti');
-}
+      if (isSuccess) {
+        const clientiData = data.clienti || data.data || [];
+        const totalData = data.total || data.pagination?.total || 0;
+        
+        setClienti(clientiData);
+        setTotalClienti(totalData);
+        
+        // ⭐ Se nessun preferito, mostra suggerimento (solo prima volta)
+        const haPreferiti = clientiData.some(c => c.preferito);
+        if (!haPreferiti && clientiData.length > 5 && page === 0 && !searchTerm) {
+          caricaTopClientiSuggerimento();
+        }
+      } else {
+        throw new Error(data.message || 'Errore nel caricamento clienti');
+      }
     } catch (error) {
       console.error('Errore nel caricamento clienti:', error);
       showToast('Errore nel caricamento clienti: ' + error.message, 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ⭐ Carica top clienti per suggerimento
+  const caricaTopClientiSuggerimento = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/clienti/top?limit=5&orderBy=ordini`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.data?.length > 0) {
+        // Solo se ci sono clienti con almeno qualche ordine
+        const conOrdini = data.data.filter(c => (c.statistiche?.numeroOrdini || 0) > 0);
+        if (conOrdini.length > 0) {
+          setTopClienti(conOrdini);
+          setShowSuggerimento(true);
+        }
+      }
+    } catch (error) {
+      console.error('Errore caricamento top clienti:', error);
+    }
+  };
+
+  // ⭐ Toggle preferito
+  const handleTogglePreferito = async (cliente, e) => {
+    if (e) e.stopPropagation();
+    setTogglingPreferito(cliente._id);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/clienti/${cliente._id}/preferito`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ utente: 'admin' })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Aggiorna localmente
+        setClienti(prev => prev.map(c => 
+          c._id === cliente._id ? { ...c, preferito: data.preferito } : c
+        ));
+        showToast(
+          data.preferito 
+            ? `⭐ ${getNomeCompleto(cliente)} aggiunto ai preferiti` 
+            : `${getNomeCompleto(cliente)} rimosso dai preferiti`,
+          'success'
+        );
+      }
+    } catch (error) {
+      console.error('Errore toggle preferito:', error);
+      showToast('Errore nel toggle preferito', 'error');
+    } finally {
+      setTogglingPreferito(null);
+    }
+  };
+
+  // ⭐ Imposta preferiti bulk (dal suggerimento)
+  const handleBulkPreferiti = async () => {
+    if (selectedTopClienti.length === 0) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/clienti/preferiti/bulk`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ clienteIds: selectedTopClienti, utente: 'admin' })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showToast(`⭐ ${data.aggiornati} clienti aggiunti ai preferiti!`, 'success');
+        setShowSuggerimento(false);
+        setSelectedTopClienti([]);
+        caricaClienti(); // Ricarica per vedere ordinamento
+      }
+    } catch (error) {
+      console.error('Errore bulk preferiti:', error);
+      showToast('Errore', 'error');
+    }
+  };
+
+  // ⭐ Apri statistiche dettagliate
+  const handleApriStatistiche = async (cliente) => {
+    setStatsCliente(cliente);
+    setStatsDialog(true);
+    setLoadingStats(true);
+    setStatsData(null);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/clienti/${cliente._id}/statistiche-dettagliate`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setStatsData(data.data);
+      }
+    } catch (error) {
+      console.error('Errore caricamento statistiche:', error);
+      showToast('Errore caricamento statistiche', 'error');
+    } finally {
+      setLoadingStats(false);
+    }
+    handleMenuClose();
+  };
+
+  // ⭐ Ricalcola contatori
+  const handleRicalcolaContatori = async () => {
+    if (!window.confirm('Ricalcola le statistiche ordini per TUTTI i clienti?\nPotrebbe richiedere qualche secondo.')) return;
+    
+    setRicalcolando(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/clienti/ricalcola-contatori`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast(`✅ ${data.aggiornati} clienti aggiornati (${data.errori} errori)`, 'success');
+        caricaClienti();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      showToast('Errore ricalcolo: ' + error.message, 'error');
+    } finally {
+      setRicalcolando(false);
     }
   };
 
@@ -219,70 +385,52 @@ if (isSuccess) {
         setPage(0);
       }
     }, 500);
-
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
+  const handleChangePage = (event, newPage) => { setPage(newPage); };
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
-
   const handleRefresh = () => {
     caricaClienti();
     showToast('Lista clienti aggiornata', 'success');
   };
-
   const handleNuovoCliente = () => {
     setClienteSelezionato(null);
     setOpenDialog(true);
   };
-
   const handleMenuOpen = (event, cliente) => {
     setAnchorEl(event.currentTarget);
     setMenuCliente(cliente);
   };
-
   const handleMenuClose = () => {
     setAnchorEl(null);
     setMenuCliente(null);
   };
 
   const handleVisualizzaCliente = (cliente) => {
-    console.log('Visualizza cliente:', cliente);
     setClienteSelezionato(cliente);
     handleMenuClose();
   };
 
   const handleModificaCliente = (cliente) => {
-    console.log('Modifica cliente:', cliente);
     setClienteSelezionato(cliente);
     setOpenDialog(true);
     handleMenuClose();
   };
 
   const handleEliminaCliente = async (cliente) => {
-    if (!window.confirm(`Sei sicuro di voler eliminare il cliente ${getNomeCompleto(cliente)}?`)) {
-      return;
-    }
-
+    if (!window.confirm(`Sei sicuro di voler eliminare il cliente ${getNomeCompleto(cliente)}?`)) return;
     try {
       const token = await ensureAuthenticated();
       if (!token) return;
-
       const response = await fetch(`${API_URL}/clienti/${cliente._id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
       const data = await response.json();
-
       if (data.success) {
         showToast('Cliente eliminato con successo', 'success');
         caricaClienti();
@@ -300,13 +448,8 @@ if (isSuccess) {
     try {
       const token = await ensureAuthenticated();
       if (!token) return;
-
-      const url = clienteSelezionato 
-        ? `${API_URL}/clienti/${clienteSelezionato._id}`
-        : `${API_URL}/clienti`;
-      
+      const url = clienteSelezionato ? `${API_URL}/clienti/${clienteSelezionato._id}` : `${API_URL}/clienti`;
       const method = clienteSelezionato ? 'PUT' : 'POST';
-
       const response = await fetch(url, {
         method,
         headers: {
@@ -315,14 +458,9 @@ if (isSuccess) {
         },
         body: JSON.stringify(datiCliente)
       });
-
       const data = await response.json();
-
       if (data.success) {
-        showToast(
-          clienteSelezionato ? 'Cliente modificato con successo' : 'Cliente creato con successo',
-          'success'
-        );
+        showToast(clienteSelezionato ? 'Cliente modificato con successo' : 'Cliente creato con successo', 'success');
         setOpenDialog(false);
         setClienteSelezionato(null);
         caricaClienti();
@@ -339,20 +477,12 @@ if (isSuccess) {
     try {
       const token = await ensureAuthenticated();
       if (!token) return;
-
       showToast('Esportazione in corso...', 'info');
-
       const response = await fetch(`${API_URL}/clienti/export/excel`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
-      if (!response.ok) {
-        throw new Error('Errore nell\'esportazione');
-      }
-
+      if (!response.ok) throw new Error('Errore nell\'esportazione');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -362,7 +492,6 @@ if (isSuccess) {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
       showToast('Export completato con successo', 'success');
     } catch (error) {
       console.error('Errore export:', error);
@@ -377,7 +506,6 @@ if (isSuccess) {
       oro: '#FFD700',
       platino: '#E5E4E2'
     };
-
     return (
       <Chip
         label={livello || 'bronzo'}
@@ -392,23 +520,140 @@ if (isSuccess) {
   };
 
   const getNomeCompleto = (cliente) => {
-    if (cliente.tipo === 'azienda') {
-      return cliente.ragioneSociale || '';
-    }
+    if (cliente.tipo === 'azienda') return cliente.ragioneSociale || '';
     return `${cliente.nome || ''} ${cliente.cognome || ''}`.trim();
   };
 
+  // ⭐ Helper: formatta data italiana
+  const formatData = (data) => {
+    if (!data) return '-';
+    return new Date(data).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  // Separa preferiti e non preferiti per rendering
+  const clientiPreferiti = clienti.filter(c => c.preferito);
+  const clientiNonPreferiti = clienti.filter(c => !c.preferito);
+
+  // ⭐ Riga tabella per un cliente
+  const renderClienteRow = (cliente) => (
+    <TableRow key={cliente._id} hover sx={cliente.preferito ? { bgcolor: '#FFFDE7' } : {}}>
+      {/* ⭐ Stella preferito */}
+      <TableCell sx={{ width: 48, p: 0.5 }}>
+        <IconButton
+          size="small"
+          onClick={(e) => handleTogglePreferito(cliente, e)}
+          disabled={togglingPreferito === cliente._id}
+          sx={{ 
+            color: cliente.preferito ? '#FFB300' : '#ccc',
+            '&:hover': { color: '#FFB300' }
+          }}
+        >
+          {cliente.preferito ? <StarIcon /> : <StarBorderIcon />}
+        </IconButton>
+      </TableCell>
+      <TableCell>
+        <Typography variant="caption" color="primary" fontWeight="medium">
+          {cliente.codiceCliente || '-'}
+        </Typography>
+      </TableCell>
+      <TableCell>
+        <Tooltip title={cliente.tipo}>
+          {cliente.tipo === 'azienda' ? 
+            <BusinessIcon color="action" /> : 
+            <PersonIcon color="action" />
+          }
+        </Tooltip>
+      </TableCell>
+      <TableCell>
+        <Typography variant="body2" fontWeight="medium">
+          {getNomeCompleto(cliente)}
+        </Typography>
+        {/* ⭐ Badge ordini inline */}
+        {(cliente.statistiche?.numeroOrdini > 0) && (
+          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+            {cliente.statistiche.numeroOrdini} ordini
+            {cliente.statistiche.ultimoOrdine && (
+              <> &bull; ultimo: {formatData(cliente.statistiche.ultimoOrdine)}</>
+            )}
+          </Typography>
+        )}
+        {cliente.tipo === 'azienda' && cliente.partitaIva && (
+          <Typography variant="caption" color="textSecondary">
+            P.IVA: {cliente.partitaIva}
+          </Typography>
+        )}
+      </TableCell>
+      
+      {/* Contatti con Click-to-Call */}
+      <TableCell>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {cliente.telefono && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ClickToCallButton
+                numero={cliente.telefono}
+                clienteId={cliente._id}
+                clienteNome={getNomeCompleto(cliente)}
+                size="small"
+                variant="ghost"
+              />
+              <Typography variant="caption">{cliente.telefono}</Typography>
+            </Box>
+          )}
+          {cliente.email && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <EmailIcon fontSize="small" color="action" />
+              <Typography variant="caption">{cliente.email}</Typography>
+            </Box>
+          )}
+        </Box>
+      </TableCell>
+      
+      <TableCell>{getLivelloChip(cliente.livelloFedelta)}</TableCell>
+      <TableCell>{cliente.punti || 0}</TableCell>
+      <TableCell>
+        €{(cliente.statistiche?.totaleSpeso || 0).toFixed(2)}
+      </TableCell>
+      <TableCell>
+        <Chip
+          label={cliente.attivo !== false ? 'Attivo' : 'Disattivato'}
+          size="small"
+          color={cliente.attivo !== false ? 'success' : 'default'}
+        />
+      </TableCell>
+      <TableCell align="center">
+        <IconButton
+          size="small"
+          onClick={(e) => handleMenuOpen(e, cliente)}
+        >
+          <MoreIcon />
+        </IconButton>
+      </TableCell>
+    </TableRow>
+  );
+
   return (
     <Container maxWidth="xl">
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h4" component="h1">
           Gestione Clienti
         </Typography>
-        <Box>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {/* ⭐ Ricalcola contatori */}
+          <Tooltip title="Ricalcola contatori ordini per tutti i clienti">
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<CalculateIcon />}
+              onClick={handleRicalcolaContatori}
+              disabled={ricalcolando}
+              size="small"
+            >
+              {ricalcolando ? 'Ricalcolo...' : 'Ricalcola'}
+            </Button>
+          </Tooltip>
           <IconButton
             onClick={handleRefresh}
             color="primary"
-            sx={{ mr: 1 }}
             disabled={loading}
             title="Ricarica lista"
           >
@@ -418,7 +663,6 @@ if (isSuccess) {
             variant="outlined"
             startIcon={<DownloadIcon />}
             onClick={handleExportExcel}
-            sx={{ mr: 2 }}
           >
             Export Excel
           </Button>
@@ -432,6 +676,56 @@ if (isSuccess) {
           </Button>
         </Box>
       </Box>
+
+      {/* ⭐ SUGGERIMENTO TOP CLIENTI */}
+      {showSuggerimento && topClienti.length > 0 && (
+        <Paper sx={{ mb: 2, p: 2, bgcolor: '#FFF3E0', border: '1px solid #FFB74D' }}>
+          <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+            💡 Vuoi segnare i tuoi migliori clienti come preferiti?
+          </Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+            Ecco i top {topClienti.length} per numero ordini:
+          </Typography>
+          {topClienti.map(cliente => (
+            <Box key={cliente._id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Checkbox
+                size="small"
+                checked={selectedTopClienti.includes(cliente._id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedTopClienti(prev => [...prev, cliente._id]);
+                  } else {
+                    setSelectedTopClienti(prev => prev.filter(id => id !== cliente._id));
+                  }
+                }}
+              />
+              <Typography variant="body2">
+                {getNomeCompleto(cliente)} ({cliente.statistiche?.numeroOrdini || 0} ordini)
+              </Typography>
+            </Box>
+          ))}
+          <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              size="small"
+              color="warning"
+              onClick={handleBulkPreferiti}
+              disabled={selectedTopClienti.length === 0}
+            >
+              ⭐ Aggiungi selezionati ai preferiti
+            </Button>
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => setShowSuggerimento(false)}
+            >
+              Ignora
+            </Button>
+          </Box>
+        </Paper>
+      )}
+
+      {ricalcolando && <LinearProgress sx={{ mb: 1 }} />}
 
       <Paper sx={{ mb: 2, p: 2 }}>
         <Grid container spacing={2} alignItems="center">
@@ -482,22 +776,25 @@ if (isSuccess) {
           <Grid item xs={12} md={2}>
             <Typography variant="body2" color="textSecondary">
               Totale: {totalClienti} clienti
+              {clientiPreferiti.length > 0 && (
+                <> ({clientiPreferiti.length} ⭐)</>
+              )}
             </Typography>
           </Grid>
         </Grid>
       </Paper>
 
       <TableContainer component={Paper}>
-        <Table>
+        <Table size="small">
           <TableHead>
             <TableRow>
+              <TableCell sx={{ width: 48 }}>⭐</TableCell>
               <TableCell>Codice</TableCell>
               <TableCell>Tipo</TableCell>
               <TableCell>Nome/Ragione Sociale</TableCell>
               <TableCell>Contatti</TableCell>
               <TableCell>Livello</TableCell>
               <TableCell>Punti</TableCell>
-              <TableCell>Ultimo Ordine</TableCell>
               <TableCell>Totale Speso</TableCell>
               <TableCell>Stato</TableCell>
               <TableCell align="center">Azioni</TableCell>
@@ -521,90 +818,39 @@ if (isSuccess) {
                 </TableCell>
               </TableRow>
             ) : (
-              clienti.map((cliente) => (
-                <TableRow key={cliente._id} hover>
-                  <TableCell>
-                    <Typography variant="caption" color="primary" fontWeight="medium">
-                      {cliente.codiceCliente || '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip title={cliente.tipo}>
-                      {cliente.tipo === 'azienda' ? 
-                        <BusinessIcon color="action" /> : 
-                        <PersonIcon color="action" />
-                      }
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      {getNomeCompleto(cliente)}
-                    </Typography>
-                    {cliente.tipo === 'azienda' && cliente.partitaIva && (
-                      <Typography variant="caption" color="textSecondary">
-                        P.IVA: {cliente.partitaIva}
+              <>
+                {/* ⭐ SEZIONE PREFERITI */}
+                {clientiPreferiti.length > 0 && !searchTerm && (
+                  <TableRow>
+                    <TableCell colSpan={10} sx={{ bgcolor: '#FFF8E1', py: 0.5, px: 2 }}>
+                      <Typography variant="caption" fontWeight="bold" color="#F57F17">
+                        ⭐ PREFERITI ({clientiPreferiti.length})
                       </Typography>
-                    )}
-                  </TableCell>
-                  
-                  {/* ✅ SEZIONE CONTATTI CON CLICK-TO-CALL */}
-<TableCell>
-  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-    {cliente.telefono && (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        {/* 📞 PULSANTE CLICK-TO-CALL */}
-        <ClickToCallButton
-          numero={cliente.telefono}
-          clienteId={cliente._id}
-          clienteNome={getNomeCompleto(cliente)}
-          size="small"
-          variant="ghost"
-        />
-        <Typography variant="caption">{cliente.telefono}</Typography>
-      </Box>
-    )}
-    {cliente.email && (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <EmailIcon fontSize="small" color="action" />
-        <Typography variant="caption">{cliente.email}</Typography>
-      </Box>
-    )}
-  </Box>
-</TableCell>
-                  
-                  <TableCell>{getLivelloChip(cliente.livelloFedelta)}</TableCell>
-                  <TableCell>{cliente.punti || 0}</TableCell>
-                  <TableCell>
-                    {cliente.statistiche?.ultimoOrdine ? 
-                      new Date(cliente.statistiche.ultimoOrdine).toLocaleDateString() : 
-                      '-'
-                    }
-                  </TableCell>
-                  <TableCell>
-                    €{(cliente.statistiche?.totaleSpeso || 0).toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={cliente.attivo !== false ? 'Attivo' : 'Disattivato'}
-                      size="small"
-                      color={cliente.attivo !== false ? 'success' : 'default'}
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleMenuOpen(e, cliente)}
-                    >
-                      <MoreIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!searchTerm && clientiPreferiti.map(renderClienteRow)}
+                
+                {/* Separatore se ci sono preferiti e non preferiti */}
+                {clientiPreferiti.length > 0 && clientiNonPreferiti.length > 0 && !searchTerm && (
+                  <TableRow>
+                    <TableCell colSpan={10} sx={{ bgcolor: '#F5F5F5', py: 0.5, px: 2 }}>
+                      <Typography variant="caption" fontWeight="bold" color="textSecondary">
+                        TUTTI I CLIENTI ({clientiNonPreferiti.length})
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!searchTerm && clientiNonPreferiti.map(renderClienteRow)}
+                
+                {/* Se c'è ricerca, mostra tutti mescolati (DB già ordinati) */}
+                {searchTerm && clienti.map(renderClienteRow)}
+              </>
             )}
           </TableBody>
         </Table>
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
+          rowsPerPageOptions={[10, 25, 50, 100]}
           component="div"
           count={totalClienti}
           rowsPerPage={rowsPerPage}
@@ -615,11 +861,16 @@ if (isSuccess) {
         />
       </TableContainer>
 
+      {/* Menu azioni */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
+        <MenuItem onClick={() => handleApriStatistiche(menuCliente)}>
+          <TrendingUpIcon fontSize="small" sx={{ mr: 1 }} />
+          Statistiche
+        </MenuItem>
         <MenuItem onClick={() => handleVisualizzaCliente(menuCliente)}>
           <ViewIcon fontSize="small" sx={{ mr: 1 }} />
           Visualizza
@@ -628,6 +879,7 @@ if (isSuccess) {
           <EditIcon fontSize="small" sx={{ mr: 1 }} />
           Modifica
         </MenuItem>
+        <Divider />
         <MenuItem 
           onClick={() => handleEliminaCliente(menuCliente)}
           sx={{ color: 'error.main' }}
@@ -637,6 +889,108 @@ if (isSuccess) {
         </MenuItem>
       </Menu>
 
+      {/* ⭐ DIALOG STATISTICHE DETTAGLIATE */}
+      <Dialog
+        open={statsDialog}
+        onClose={() => setStatsDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {statsCliente?.preferito && <StarIcon sx={{ color: '#FFB300' }} />}
+            <Typography variant="h6">
+              {statsCliente ? getNomeCompleto(statsCliente) : ''}
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {loadingStats ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : statsData ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Griglia KPI */}
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#E3F2FD' }}>
+                    <CartIcon color="primary" />
+                    <Typography variant="h5" fontWeight="bold">{statsData.numeroOrdini}</Typography>
+                    <Typography variant="caption" color="textSecondary">Totale ordini</Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#E8F5E9' }}>
+                    <MoneyIcon color="success" />
+                    <Typography variant="h5" fontWeight="bold">€{statsData.totaleSpeso?.toFixed(2)}</Typography>
+                    <Typography variant="caption" color="textSecondary">Spesa totale</Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#FFF3E0' }}>
+                    <Typography variant="h6" fontWeight="bold">€{statsData.mediaOrdine?.toFixed(2)}</Typography>
+                    <Typography variant="caption" color="textSecondary">Media ordine</Typography>
+                  </Paper>
+                </Grid>
+                <Grid item xs={6}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#F3E5F5' }}>
+                    <Typography variant="h6" fontWeight="bold">
+                      {statsData.frequenzaGiorni > 0 ? `ogni ~${statsData.frequenzaGiorni}gg` : '-'}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">Frequenza</Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+              
+              {/* Date */}
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>📅 Date</Typography>
+                <Typography variant="body2">Primo ordine: {formatData(statsData.primoOrdine)}</Typography>
+                <Typography variant="body2">Ultimo ordine: {formatData(statsData.ultimoOrdine)}</Typography>
+                <Typography variant="body2">Ordini ultimi 30gg: {statsData.ordiniUltimi30gg}</Typography>
+                <Typography variant="body2">Giorno preferito: {statsData.giornoPreferito}</Typography>
+              </Box>
+              
+              {/* Prodotti preferiti */}
+              {statsData.prodottiPreferiti?.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>🛒 Prodotti preferiti</Typography>
+                  {statsData.prodottiPreferiti.map((p, i) => (
+                    <Chip
+                      key={i}
+                      label={`${p.nome} (${p.count}x)`}
+                      size="small"
+                      sx={{ mr: 0.5, mb: 0.5 }}
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              )}
+              
+              {/* Spesa per mese */}
+              {statsData.spesaPerMese && Object.keys(statsData.spesaPerMese).length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>📊 Spesa ultimi mesi</Typography>
+                  {Object.entries(statsData.spesaPerMese).sort().map(([mese, spesa]) => (
+                    <Box key={mese} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2">{mese}</Typography>
+                      <Typography variant="body2" fontWeight="bold">€{spesa.toFixed(2)}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Typography color="textSecondary">Nessun dato disponibile</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatsDialog(false)}>Chiudi</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Form Cliente */}
       <Dialog
         open={openDialog}
         onClose={() => {
