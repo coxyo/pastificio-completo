@@ -78,6 +78,8 @@ import pdfCorrispettiviService from './services/pdfCorrispettivi.js'; // ✅ NUO
 import importFattureRoutes from './routes/importFatture.js';
 import rintracciabilitaRoutes from './routes/rintracciabilita.js'; 
 import sessionsRoutes from './routes/sessions.js';
+import alertsRoutes from './routes/alerts.js';           // ✅ NUOVO - Alert automatici
+import alertsChecker from './jobs/alertsChecker.js';     // ✅ NUOVO - Cron jobs alert
 // ✅ NUOVO - Rintracciabilità ingredienti
 
 
@@ -436,6 +438,7 @@ app.use('/api/import-fatture', importFattureRoutes);
 app.use('/api/rintracciabilita', rintracciabilitaRoutes); // ✅ NUOVO - Rintracciabilità ingredienti
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/alerts', alertsRoutes);                    // ✅ NUOVO - Alert automatici
 
 // Route Danea
 
@@ -1099,6 +1102,14 @@ const startServer = async () => {
     } catch (cronEmailError) {
       logger.warn('⚠️ Cron jobs email non disponibile:', cronEmailError.message);
     }
+
+    // ✅ NUOVO: Inizializza alerts checker (cron jobs anomalie business)
+    try {
+      await alertsChecker.inizializza();
+      logger.info('✅ AlertsChecker attivato (4 cron jobs)');
+    } catch (alertsError) {
+      logger.warn('⚠️ AlertsChecker non disponibile:', alertsError.message);
+    }
     } catch (schedulerError) {
       logger.warn('Scheduler generale non disponibile:', schedulerError.message);
     }
@@ -1167,6 +1178,11 @@ const gracefulShutdown = () => {
     if (schedulerHACCP && schedulerHACCP.stop) {
       schedulerHACCP.stop();
       logger.info('✅ Scheduler HACCP fermato');
+    }
+    // ✅ NUOVO: Ferma alerts checker
+    if (alertsChecker && alertsChecker.ferma) {
+      alertsChecker.ferma();
+      logger.info('✅ AlertsChecker fermato');
     }
   } catch (error) {
     logger.error('Errore fermando scheduler generale:', error);
