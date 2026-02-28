@@ -1,4 +1,4 @@
-// routes/clienti.js - CON CACHE OTTIMIZZATA
+// routes/clienti.js - CON CACHE OTTIMIZZATA + ⭐ PREFERITI + STATISTICHE DETTAGLIATE
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import Cliente from '../models/Cliente.js';
@@ -24,7 +24,8 @@ function invalidateCache() {
 // router.use(protect);
 
 // GET /api/clienti - Lista clienti con filtri (CON CACHE)
-router.get('/', async (req, res) => {  // ✅ Rimosso protect
+// ⭐ AGGIORNATO: ordinamento preferito DESC, cognome ASC, nome ASC
+router.get('/', async (req, res) => {
   try {
     const { 
       search, 
@@ -33,8 +34,9 @@ router.get('/', async (req, res) => {  // ✅ Rimosso protect
       attivo,
       limit = 100,
       skip = 0,
-      sort = '-createdAt',
-      noCache = false // Parametro per forzare bypass cache
+      sort: sortParam,
+      noCache = false,
+      orderBy // ⭐ Nuovo parametro: se 'preferito', forza ordinamento preferiti
     } = req.query;
     
     // 🔥 CHECK CACHE - solo per query semplici senza filtri
@@ -92,11 +94,16 @@ router.get('/', async (req, res) => {  // ✅ Rimosso protect
     
     logger.debug('Query clienti:', query);
     
+    // ⭐ Ordinamento: preferiti in cima, poi cognome/nome
+    const sortOrder = (orderBy === 'preferito' || !sortParam)
+      ? { preferito: -1, cognome: 1, nome: 1 }
+      : sortParam;
+    
     const clienti = await Cliente.find(query)
       .limit(parseInt(limit))
       .skip(parseInt(skip))
-      .sort(sort)
-      .lean(); // ✅ Performance: usa lean() per oggetti JS plain
+      .sort(sortOrder)
+      .lean();
     
     const total = await Cliente.countDocuments(query);
     
@@ -139,6 +146,7 @@ router.get('/export/excel', async (req, res) => {
     
     worksheet.columns = [
       { header: 'Codice Cliente', key: 'codiceCliente', width: 15 },
+      { header: '⭐', key: 'preferito', width: 5 },
       { header: 'Tipo', key: 'tipo', width: 10 },
       { header: 'Nome', key: 'nome', width: 20 },
       { header: 'Cognome', key: 'cognome', width: 20 },
@@ -153,6 +161,7 @@ router.get('/export/excel', async (req, res) => {
       { header: 'Codice Fiscale', key: 'codiceFiscale', width: 20 },
       { header: 'Livello Fedeltà', key: 'livelloFedelta', width: 15 },
       { header: 'Punti', key: 'punti', width: 10 },
+      { header: 'N° Ordini', key: 'numeroOrdini', width: 12 },
       { header: 'Totale Speso', key: 'totaleSpeso', width: 15 },
       { header: 'Note', key: 'note', width: 30 },
       { header: 'Data Creazione', key: 'createdAt', width: 15 }
@@ -168,6 +177,7 @@ router.get('/export/excel', async (req, res) => {
     clienti.forEach(cliente => {
       worksheet.addRow({
         codiceCliente: cliente.codiceCliente,
+        preferito: cliente.preferito ? '⭐' : '',
         tipo: cliente.tipo,
         nome: cliente.nome,
         cognome: cliente.cognome,
@@ -182,6 +192,7 @@ router.get('/export/excel', async (req, res) => {
         codiceFiscale: cliente.codiceFiscale,
         livelloFedelta: cliente.livelloFedelta,
         punti: cliente.punti,
+        numeroOrdini: cliente.statistiche?.numeroOrdini || 0,
         totaleSpeso: cliente.statistiche?.totaleSpeso || 0,
         note: cliente.note,
         createdAt: cliente.createdAt ? new Date(cliente.createdAt).toLocaleDateString('it-IT') : ''
@@ -190,7 +201,7 @@ router.get('/export/excel', async (req, res) => {
     
     worksheet.autoFilter = {
       from: 'A1',
-      to: `R${clienti.length + 1}`
+      to: `T${clienti.length + 1}`
     };
     
     const buffer = await workbook.xlsx.writeBuffer();
@@ -235,14 +246,20 @@ router.get('/search/:query', async (req, res) => {
   }
 });
 
-// GET /api/clienti/top - Top clienti per fatturato
+// GET /api/clienti/top - Top clienti per numero ordini
+// ⭐ AGGIORNATO: usato anche per suggerimento preferiti
 router.get('/top', async (req, res) => {
   try {
-    const { limit = 10 } = req.query;
+    const { limit = 10, orderBy = 'ordini' } = req.query;
+    
+    const sortField = orderBy === 'speso' 
+      ? '-statistiche.totaleSpeso' 
+      : '-statistiche.numeroOrdini';
     
     const clienti = await Cliente.find({ attivo: true })
-      .sort('-statistiche.totaleSpeso')
-      .limit(parseInt(limit));
+      .sort(sortField)
+      .limit(parseInt(limit))
+      .lean();
     
     res.json({ success: true, data: clienti });
     
@@ -251,6 +268,181 @@ router.get('/top', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Errore nel recupero dei top clienti' 
+    });
+  }
+});
+
+// ⭐ PUT /api/clienti/:id/preferito - Toggle preferito
+router.put('/:id/preferito', async (req, res) => {
+  try {
+    const cliente = await Cliente.findById(req.params.id);
+    
+    if (!cliente) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Cliente non trovato' 
+      });
+    }
+    
+    // Toggle
+    cliente.preferito = !cliente.preferito;
+    
+    if (cliente.preferito) {
+      cliente.preferitoDA = req.body.utente || req.user?.nome || 'admin';
+      cliente.preferitoIl = new Date();
+    } else {
+      cliente.preferitoDA = null;
+      cliente.preferitoIl = null;
+    }
+    
+    await cliente.save();
+    
+    // 🔥 INVALIDA CACHE
+    invalidateCache();
+    
+    logger.info(`⭐ Cliente ${cliente.nomeCompleto} ${cliente.preferito ? 'aggiunto ai' : 'rimosso dai'} preferiti`);
+    
+    res.json({ 
+      success: true, 
+      data: cliente,
+      preferito: cliente.preferito
+    });
+    
+  } catch (error) {
+    logger.error('Errore toggle preferito:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Errore nel toggle preferito' 
+    });
+  }
+});
+
+// ⭐ PUT /api/clienti/preferiti/bulk - Imposta più clienti come preferiti
+router.put('/preferiti/bulk', async (req, res) => {
+  try {
+    const { clienteIds, utente } = req.body;
+    
+    if (!clienteIds || !Array.isArray(clienteIds) || clienteIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'clienteIds è obbligatorio (array di ID)' 
+      });
+    }
+    
+    const result = await Cliente.updateMany(
+      { _id: { $in: clienteIds } },
+      { 
+        $set: { 
+          preferito: true, 
+          preferitoDA: utente || 'admin',
+          preferitoIl: new Date()
+        }
+      }
+    );
+    
+    // 🔥 INVALIDA CACHE
+    invalidateCache();
+    
+    logger.info(`⭐ ${result.modifiedCount} clienti impostati come preferiti`);
+    
+    res.json({ 
+      success: true, 
+      aggiornati: result.modifiedCount
+    });
+    
+  } catch (error) {
+    logger.error('Errore preferiti bulk:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Errore nell\'impostazione preferiti' 
+    });
+  }
+});
+
+// ⭐ POST /api/clienti/ricalcola-contatori - Ricalcola statistiche per tutti i clienti
+router.post('/ricalcola-contatori', async (req, res) => {
+  try {
+    logger.info('🔄 Inizio ricalcolo contatori clienti...');
+    
+    const clienti = await Cliente.find({ attivo: true });
+    let aggiornati = 0;
+    let errori = 0;
+    
+    for (const cliente of clienti) {
+      try {
+        // Cerca tutti gli ordini del cliente (per _id o telefono)
+        const ordini = await Ordine.find({
+          $or: [
+            { cliente: cliente._id },
+            { telefono: cliente.telefono }
+          ],
+          stato: { $ne: 'annullato' }
+        }).sort('dataRitiro').lean();
+        
+        const totaleSpeso = ordini.reduce((sum, o) => sum + (o.totale || 0), 0);
+        const numeroOrdini = ordini.length;
+        
+        let primoOrdine = null;
+        let ultimoOrdine = null;
+        let frequenzaGiorni = 0;
+        
+        if (ordini.length > 0) {
+          // Trova il primo e ultimo ordine per data
+          const dateOrdini = ordini
+            .map(o => new Date(o.dataRitiro || o.createdAt))
+            .filter(d => !isNaN(d.getTime()))
+            .sort((a, b) => a - b);
+          
+          if (dateOrdini.length > 0) {
+            primoOrdine = dateOrdini[0];
+            ultimoOrdine = dateOrdini[dateOrdini.length - 1];
+            
+            if (dateOrdini.length > 1) {
+              const giorniTotali = Math.max(1, Math.floor(
+                (ultimoOrdine - primoOrdine) / (1000 * 60 * 60 * 24)
+              ));
+              frequenzaGiorni = Math.round(giorniTotali / (dateOrdini.length - 1));
+            }
+          }
+        }
+        
+        await Cliente.findByIdAndUpdate(cliente._id, {
+          $set: {
+            'statistiche.numeroOrdini': numeroOrdini,
+            'statistiche.totaleSpeso': parseFloat(totaleSpeso.toFixed(2)),
+            'statistiche.ultimoOrdine': ultimoOrdine,
+            'statistiche.primoOrdine': primoOrdine,
+            'statistiche.mediaOrdine': numeroOrdini > 0 ? parseFloat((totaleSpeso / numeroOrdini).toFixed(2)) : 0,
+            'statistiche.frequenzaGiorni': frequenzaGiorni
+          }
+        });
+        
+        aggiornati++;
+        
+      } catch (err) {
+        errori++;
+        logger.error(`Errore ricalcolo cliente ${cliente._id}:`, err.message);
+      }
+    }
+    
+    // 🔥 INVALIDA CACHE
+    invalidateCache();
+    
+    logger.info(`✅ Ricalcolo completato: ${aggiornati} aggiornati, ${errori} errori su ${clienti.length} totali`);
+    
+    res.json({ 
+      success: true, 
+      totale: clienti.length,
+      aggiornati,
+      errori,
+      message: `Ricalcolo completato: ${aggiornati} clienti aggiornati`
+    });
+    
+  } catch (error) {
+    logger.error('Errore ricalcolo contatori:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Errore nel ricalcolo contatori' 
     });
   }
 });
@@ -396,7 +588,132 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// GET /api/clienti/:id/statistiche - Statistiche cliente
+// ⭐ GET /api/clienti/:id/statistiche-dettagliate - Statistiche DETTAGLIATE cliente
+router.get('/:id/statistiche-dettagliate', async (req, res) => {
+  try {
+    const cliente = await Cliente.findById(req.params.id);
+    
+    if (!cliente) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Cliente non trovato' 
+      });
+    }
+    
+    const ordini = await Ordine.find({ 
+      $or: [
+        { cliente: cliente._id },
+        { telefono: cliente.telefono }
+      ],
+      stato: { $ne: 'annullato' }
+    }).sort('dataRitiro').lean();
+    
+    // Calcola statistiche dettagliate
+    const totaleSpeso = ordini.reduce((sum, o) => sum + (o.totale || 0), 0);
+    const numeroOrdini = ordini.length;
+    
+    // Primo e ultimo ordine
+    let primoOrdine = null;
+    let ultimoOrdine = null;
+    let frequenzaGiorni = 0;
+    
+    const dateOrdini = ordini
+      .map(o => new Date(o.dataRitiro || o.createdAt))
+      .filter(d => !isNaN(d.getTime()))
+      .sort((a, b) => a - b);
+    
+    if (dateOrdini.length > 0) {
+      primoOrdine = dateOrdini[0];
+      ultimoOrdine = dateOrdini[dateOrdini.length - 1];
+      
+      if (dateOrdini.length > 1) {
+        const giorniTotali = Math.max(1, Math.floor(
+          (ultimoOrdine - primoOrdine) / (1000 * 60 * 60 * 24)
+        ));
+        frequenzaGiorni = Math.round(giorniTotali / (dateOrdini.length - 1));
+      }
+    }
+    
+    // Prodotti preferiti (top 5)
+    const prodottiCount = {};
+    ordini.forEach(ordine => {
+      if (ordine.prodotti) {
+        ordine.prodotti.forEach(prod => {
+          const nome = prod.nome || prod.prodotto;
+          if (nome) {
+            prodottiCount[nome] = (prodottiCount[nome] || 0) + 1;
+          }
+        });
+      }
+    });
+    
+    const prodottiPreferiti = Object.entries(prodottiCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([nome, count]) => ({ nome, count }));
+    
+    // Ordini ultimi 30 giorni
+    const giorni30Fa = new Date();
+    giorni30Fa.setDate(giorni30Fa.getDate() - 30);
+    const ordiniUltimi30gg = ordini.filter(o => {
+      const data = new Date(o.dataRitiro || o.createdAt);
+      return data > giorni30Fa;
+    }).length;
+    
+    // Spesa per mese (ultimi 6 mesi)
+    const mesi6Fa = new Date();
+    mesi6Fa.setMonth(mesi6Fa.getMonth() - 6);
+    const spesaPerMese = {};
+    
+    ordini.forEach(o => {
+      const data = new Date(o.dataRitiro || o.createdAt);
+      if (data > mesi6Fa) {
+        const chiave = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+        spesaPerMese[chiave] = (spesaPerMese[chiave] || 0) + (o.totale || 0);
+      }
+    });
+    
+    // Giorno della settimana preferito
+    const giorniSettimana = [0, 0, 0, 0, 0, 0, 0]; // Dom, Lun, Mar, ...
+    const nomiGiorni = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    
+    ordini.forEach(o => {
+      const data = new Date(o.dataRitiro || o.createdAt);
+      if (!isNaN(data.getTime())) {
+        giorniSettimana[data.getDay()]++;
+      }
+    });
+    
+    const giornoPreferito = giorniSettimana.indexOf(Math.max(...giorniSettimana));
+    
+    const statistiche = {
+      numeroOrdini,
+      totaleSpeso: parseFloat(totaleSpeso.toFixed(2)),
+      mediaOrdine: numeroOrdini > 0 ? parseFloat((totaleSpeso / numeroOrdini).toFixed(2)) : 0,
+      primoOrdine: primoOrdine ? primoOrdine.toISOString() : null,
+      ultimoOrdine: ultimoOrdine ? ultimoOrdine.toISOString() : null,
+      frequenzaGiorni,
+      ordiniUltimi30gg,
+      prodottiPreferiti,
+      spesaPerMese,
+      giornoPreferito: nomiGiorni[giornoPreferito] || '-',
+      livelloFedelta: cliente.livelloFedelta,
+      punti: cliente.punti,
+      puntiMancanti: calcolaPuntiMancanti(cliente.livelloFedelta, cliente.punti)
+    };
+    
+    res.json({ success: true, data: statistiche });
+    
+  } catch (error) {
+    logger.error('Errore recupero statistiche dettagliate:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Errore nel recupero delle statistiche' 
+    });
+  }
+});
+
+// GET /api/clienti/:id/statistiche - Statistiche cliente (legacy)
 router.get('/:id/statistiche', async (req, res) => {
   try {
     const cliente = await Cliente.findById(req.params.id);
@@ -584,6 +901,7 @@ router.get('/:id/export', async (req, res) => {
     
     clienteSheet.addRows([
       { campo: 'Codice Cliente', valore: cliente.codiceCliente },
+      { campo: 'Preferito', valore: cliente.preferito ? '⭐ Sì' : 'No' },
       { campo: 'Nome', valore: cliente.tipo === 'azienda' ? cliente.ragioneSociale : `${cliente.nome} ${cliente.cognome}` },
       { campo: 'Telefono', valore: cliente.telefono },
       { campo: 'Email', valore: cliente.email || '-' },

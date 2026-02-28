@@ -210,6 +210,16 @@ export const ordiniController = {
         prodotti: ordine.prodotti.length
       });
       
+      // ⭐ AGGIORNA STATISTICHE CLIENTE (contatore denormalizzato)
+      if (clienteObj) {
+        try {
+          await clienteObj.aggiornaStatistiche(ordine);
+          logger.info(`📊 Statistiche cliente aggiornate: ${clienteObj.nomeCompleto} (${clienteObj.statistiche.numeroOrdini} ordini)`);
+        } catch (statErr) {
+          logger.error('⚠️ Errore aggiornamento statistiche cliente (non bloccante):', statErr.message);
+        }
+      }
+      
       // Popola i dati del cliente se presente
       if (ordine.cliente) {
         await ordine.populate('cliente');
@@ -475,7 +485,7 @@ Grazie! 🙏
 
   async deleteOrdine(req, res) {
     try {
-      const ordine = await Ordine.findByIdAndDelete(req.params.id);
+      const ordine = await Ordine.findById(req.params.id);
       
       if (!ordine) {
         return res.status(404).json({
@@ -483,6 +493,21 @@ Grazie! 🙏
           error: 'Ordine non trovato'
         });
       }
+
+      // ⭐ DECREMENTA STATISTICHE CLIENTE prima di eliminare
+      if (ordine.cliente) {
+        try {
+          const clienteObj = await Cliente.findById(ordine.cliente);
+          if (clienteObj) {
+            await clienteObj.decrementaStatistiche(ordine);
+            logger.info(`📊 Statistiche cliente decrementate: ${clienteObj.nomeCompleto}`);
+          }
+        } catch (statErr) {
+          logger.error('⚠️ Errore decremento statistiche cliente (non bloccante):', statErr.message);
+        }
+      }
+      
+      await Ordine.findByIdAndDelete(req.params.id);
 
       if (global.io) {
         global.io.emit('ordine-eliminato', { id: req.params.id });

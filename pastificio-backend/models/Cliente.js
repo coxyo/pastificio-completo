@@ -66,6 +66,21 @@ const clienteSchema = new mongoose.Schema({
   note: String,
   tags: [String],
   
+  // ⭐ PREFERITO
+  preferito: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  preferitoDA: {
+    type: String,
+    default: null
+  },
+  preferitoIl: {
+    type: Date,
+    default: null
+  },
+  
   // Fedeltà
   punti: {
     type: Number,
@@ -77,7 +92,7 @@ const clienteSchema = new mongoose.Schema({
     default: 'bronzo'
   },
   
-  // Statistiche
+  // Statistiche (denormalizzate per performance)
   statistiche: {
     numeroOrdini: {
       type: Number,
@@ -88,7 +103,12 @@ const clienteSchema = new mongoose.Schema({
       default: 0
     },
     ultimoOrdine: Date,
+    primoOrdine: Date,
     mediaOrdine: {
+      type: Number,
+      default: 0
+    },
+    frequenzaGiorni: {
       type: Number,
       default: 0
     }
@@ -171,10 +191,12 @@ clienteSchema.pre('save', async function(next) {
   next();
 });
 
-// Indici - RIMOSSI DUPLICATI
+// Indici
 clienteSchema.index({ nome: 'text', cognome: 'text', ragioneSociale: 'text' });
 clienteSchema.index({ telefono: 1 });
 clienteSchema.index({ email: 1 });
+// ⭐ Indice composto per ordinamento preferiti + nome
+clienteSchema.index({ preferito: -1, cognome: 1, nome: 1 });
 
 // Metodi
 clienteSchema.methods.aggiungiPunti = async function(punti, motivo) {
@@ -200,8 +222,39 @@ clienteSchema.methods.aggiornaStatistiche = async function(ordine) {
   this.statistiche.ultimoOrdine = new Date();
   this.statistiche.mediaOrdine = this.statistiche.totaleSpeso / this.statistiche.numeroOrdini;
   
+  // Primo ordine
+  if (!this.statistiche.primoOrdine) {
+    this.statistiche.primoOrdine = new Date();
+  }
+  
+  // Calcola frequenza media
+  if (this.statistiche.primoOrdine && this.statistiche.numeroOrdini > 1) {
+    const giorniDaInizio = Math.max(1, Math.floor(
+      (new Date() - new Date(this.statistiche.primoOrdine)) / (1000 * 60 * 60 * 24)
+    ));
+    this.statistiche.frequenzaGiorni = Math.round(giorniDaInizio / this.statistiche.numeroOrdini);
+  }
+  
   const puntiDaAggiungere = Math.floor(ordine.totale);
   await this.aggiungiPunti(puntiDaAggiungere, `Ordine #${ordine.numeroOrdine}`);
+  
+  await this.save();
+  return this;
+};
+
+// Metodo per decrementare statistiche quando si elimina un ordine
+clienteSchema.methods.decrementaStatistiche = async function(ordine) {
+  if (this.statistiche.numeroOrdini > 0) {
+    this.statistiche.numeroOrdini -= 1;
+  }
+  if (ordine.totale) {
+    this.statistiche.totaleSpeso = Math.max(0, this.statistiche.totaleSpeso - ordine.totale);
+  }
+  if (this.statistiche.numeroOrdini > 0) {
+    this.statistiche.mediaOrdine = this.statistiche.totaleSpeso / this.statistiche.numeroOrdini;
+  } else {
+    this.statistiche.mediaOrdine = 0;
+  }
   
   await this.save();
   return this;
@@ -215,7 +268,7 @@ clienteSchema.virtual('nomeCompleto').get(function() {
   return `${this.nome} ${this.cognome || ''}`.trim();
 });
 
-// Metodo statico per cercare clienti
+// Metodo statico per cercare clienti (con preferiti in cima)
 clienteSchema.statics.cerca = async function(query) {
   const regex = new RegExp(query, 'i');
   
@@ -231,7 +284,7 @@ clienteSchema.statics.cerca = async function(query) {
     attivo: true
   })
   .limit(20)
-  .sort('-statistiche.ultimoOrdine');
+  .sort({ preferito: -1, cognome: 1, nome: 1 });
 };
 
 const Cliente = mongoose.model('Cliente', clienteSchema);
