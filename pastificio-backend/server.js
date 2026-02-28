@@ -201,6 +201,34 @@ app.use(fileUpload({
 app.set('io', io);
 app.locals.io = io;
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 📊 MONITORING: Tracciamento tempi risposta API
+// ═══════════════════════════════════════════════════════════════════════════
+const apiMetrics = {
+  totalRequests: 0,
+  totalTime: 0,
+  slowRequests: 0,    // > 1s
+  errorRequests: 0,   // > 3s
+  startTime: Date.now(),
+  last24h: [],        // Array circolare ultimi tempi
+  getAvgResponseTime() {
+    if (this.last24h.length === 0) return 0;
+    const sum = this.last24h.reduce((a, b) => a + b, 0);
+    return Math.round(sum / this.last24h.length);
+  },
+  addTiming(ms) {
+    this.totalRequests++;
+    this.totalTime += ms;
+    this.last24h.push(ms);
+    // Mantieni solo ultimi 10.000 record (~24h di attività)
+    if (this.last24h.length > 10000) {
+      this.last24h.shift();
+    }
+    if (ms > 1000) this.slowRequests++;
+    if (ms > 3000) this.errorRequests++;
+  }
+};
+
 // Inizializza servizio notifiche con socket.io
 notificationService.setSocketIO(io);
 
@@ -233,27 +261,70 @@ dirs.forEach(dir => {
   }
 });
 
-// Logging middleware
+// ═══════════════════════════════════════════════════════════════════════════
+// ⏱️ MIDDLEWARE TIMING: Logga tempo risposta + warning se lento
+// ═══════════════════════════════════════════════════════════════════════════
 app.use((req, res, next) => {
-  // Log solo in development o per errori
-  if (process.env.NODE_ENV === 'development' || res.statusCode >= 400) {
-    logger.info(`${req.method} ${req.path}`, {
-      ip: req.ip,
-      userAgent: req.get('user-agent')?.substring(0, 50)
-    });
-  }
+  const start = Date.now();
+  
+  // Intercetta la fine della risposta
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    
+    // Traccia metriche solo per API (escludi health/static)
+    if (req.path.startsWith('/api/') && !req.path.includes('/health')) {
+      apiMetrics.addTiming(duration);
+    }
+    
+    // Log in base alla durata
+    if (duration > 3000) {
+      logger.error(`🐌 API LENTA (${duration}ms): ${req.method} ${req.path}`, {
+        duration,
+        statusCode: res.statusCode,
+        ip: req.ip,
+        query: Object.keys(req.query).length > 0 ? req.query : undefined
+      });
+    } else if (duration > 1000) {
+      logger.warn(`⚠️ API lenta (${duration}ms): ${req.method} ${req.path}`, {
+        duration,
+        statusCode: res.statusCode
+      });
+    } else if (process.env.NODE_ENV === 'development' || res.statusCode >= 400) {
+      logger.info(`${req.method} ${req.path} (${duration}ms)`, {
+        duration,
+        statusCode: res.statusCode,
+        ip: req.ip,
+        userAgent: req.get('user-agent')?.substring(0, 50)
+      });
+    }
+  });
+  
   next();
 });
 
 // Health check endpoint - DEVE ESSERE PUBBLICO E VELOCE
 app.get('/health', (req, res) => {
+  const uptimeSeconds = process.uptime();
+  const giorni = Math.floor(uptimeSeconds / 86400);
+  const ore = Math.floor((uptimeSeconds % 86400) / 3600);
+  const minuti = Math.floor((uptimeSeconds % 3600) / 60);
+  
   res.status(200).json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
+    uptime: `${giorni}g ${ore}h ${minuti}m`,
+    uptimeSeconds: Math.floor(uptimeSeconds),
     server: 'Pastificio Backend',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development'
+    version: '3.1.0',
+    environment: process.env.NODE_ENV || 'development',
+    database: mongoose.connection.readyState === 1 ? 'connesso' : 'disconnesso',
+    metriche: {
+      richiesteAPI: apiMetrics.totalRequests,
+      tempoMedioMs: apiMetrics.getAvgResponseTime(),
+      richiesteLente: apiMetrics.slowRequests,
+      richiesteErrore: apiMetrics.errorRequests,
+      campioni: apiMetrics.last24h.length
+    }
   });
 });
 
@@ -290,13 +361,36 @@ app.get('/', (req, res) => {
 });
 
 // Routes API esistenti
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  // Ultimo ordine inserito
+  let ultimoOrdine = null;
+  let ordiniOggi = 0;
+  try {
+    const ultimo = await Ordine.findOne().sort({ createdAt: -1 }).select('createdAt').lean();
+    if (ultimo) {
+      const diffMs = Date.now() - new Date(ultimo.createdAt).getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      ultimoOrdine = diffMin < 60 ? `${diffMin} minuti fa` : `${Math.floor(diffMin / 60)} ore fa`;
+    }
+    
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+    ordiniOggi = await Ordine.countDocuments({ createdAt: { $gte: oggi } });
+  } catch (e) {
+    // Non bloccare health check per errori DB
+  }
+  
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
+    uptime: `${Math.floor(process.uptime() / 86400)}g ${Math.floor((process.uptime() % 86400) / 3600)}h`,
+    database: mongoose.connection.readyState === 1 ? 'connesso' : 'disconnesso',
     whatsapp: whatsappService.isReady() ? 'connected' : 'disconnected',
-    schedulerWhatsApp: schedulerWhatsApp && schedulerWhatsApp.jobs ? schedulerWhatsApp.jobs.size : 0
+    schedulerWhatsApp: schedulerWhatsApp && schedulerWhatsApp.jobs ? schedulerWhatsApp.jobs.size : 0,
+    ultimoOrdine,
+    ordiniOggi,
+    tempoMedioAPI: `${apiMetrics.getAvgResponseTime()}ms`,
+    erroriUltime24h: apiMetrics.errorRequests
   });
 });
 
