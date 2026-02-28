@@ -134,7 +134,7 @@ function CallPopup({
     caricaOrdiniAttivi();
   }, [chiamata?.cliente?._id, chiamata?.cliente?.id, mounted]);
 
-  // ✅ FIX 27/02/2026: Query ordini con filtro data >= oggi
+  // ✅ FIX 28/02/2026: Query ordini e filtro per QUESTO cliente specifico
   const caricaOrdiniAttivi = async () => {
     if (typeof window === 'undefined') return;
     
@@ -149,17 +149,19 @@ function CallPopup({
       }
 
       const clienteId = chiamata?.cliente?._id || chiamata?.cliente?.id;
-      if (!clienteId) {
-        console.warn('[CallPopup] ClienteId non trovato');
+      const clienteNome = (chiamata?.cliente?.nome || '').toLowerCase().trim();
+      const clienteCognome = (chiamata?.cliente?.cognome || '').toLowerCase().trim();
+      const clienteTelefono = (chiamata?.cliente?.telefono || chiamata?.cliente?.cellulare || chiamata?.numero || '').replace(/\D/g, '').slice(-10);
+      
+      if (!clienteId && !clienteTelefono) {
+        console.warn('[CallPopup] Nessun identificativo cliente');
         return;
       }
 
-      console.log('📦 [CallPopup] Carico ordini per cliente:', clienteId);
+      console.log('📦 [CallPopup] Carico ordini per cliente:', { clienteId, clienteNome, clienteCognome, clienteTelefono });
 
-      // ✅ FIX: Aggiungi filtro data nella query
-      const oggi = new Date().toISOString().split('T')[0];
       const response = await fetch(
-        `${API_URL}/ordini?clienteId=${clienteId}&limit=20`,
+        `${API_URL}/ordini?limit=100`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -171,23 +173,46 @@ function CallPopup({
         const data = await response.json();
         const oggiDate = new Date();
         oggiDate.setHours(0, 0, 0, 0);
+        const tuttiOrdini = data.ordini || data.data || data || [];
         
-        // ✅ FIX 27/02/2026: Filtra CORRETTAMENTE ordini attivi
-        const attivi = (data.ordini || data.data || data || []).filter(o => {
-          // Escludi annullati e completati
+        // ✅ FIX 28/02/2026: Filtra per QUESTO CLIENTE + data >= oggi + non completato
+        const attivi = tuttiOrdini.filter(o => {
+          // 1) Escludi annullati/completati/consegnati
           if (o.stato === 'completato' || o.stato === 'annullato' || o.stato === 'consegnato') {
             return false;
           }
           
-          // ✅ FIX: Solo ordini con data ritiro >= oggi
+          // 2) Solo ordini con data ritiro >= oggi
           if (o.dataRitiro) {
             const dataRitiro = new Date(o.dataRitiro);
             dataRitiro.setHours(0, 0, 0, 0);
-            return dataRitiro >= oggiDate;
+            if (dataRitiro < oggiDate) return false;
           }
           
-          // Se non ha data ritiro, includi (ordine attivo senza data)
-          return true;
+          // 3) ✅ CRITICO: Verifica che l'ordine sia DI QUESTO CLIENTE
+          // Match per clienteId (ObjectId)
+          const ordineClienteId = o.cliente?._id || o.cliente?.id || o.cliente;
+          if (clienteId && ordineClienteId && String(ordineClienteId) === String(clienteId)) {
+            return true;
+          }
+          
+          // Match per telefono (ultime 10 cifre)
+          if (clienteTelefono) {
+            const ordineTelefono = (o.telefono || o.cliente?.telefono || '').replace(/\D/g, '').slice(-10);
+            if (ordineTelefono && ordineTelefono === clienteTelefono) {
+              return true;
+            }
+          }
+          
+          // Match per nome+cognome
+          if (clienteNome && clienteCognome) {
+            const ordineNome = (o.nomeCliente || `${o.cliente?.nome || ''} ${o.cliente?.cognome || ''}`).toLowerCase().trim();
+            if (ordineNome.includes(clienteNome) && ordineNome.includes(clienteCognome)) {
+              return true;
+            }
+          }
+          
+          return false; // Non è di questo cliente
         });
 
         // Ordina per data più vicina prima
@@ -197,7 +222,7 @@ function CallPopup({
           return dateA - dateB;
         });
 
-        console.log('📦 [CallPopup] Ordini attivi trovati:', attivi.length, 'su', (data.ordini || data.data || data || []).length, 'totali');
+        console.log('📦 [CallPopup] Ordini attivi trovati:', attivi.length, 'su', tuttiOrdini.length, 'totali');
         setOrdiniAttivi(attivi.slice(0, 5)); // Max 5 ordini
       } else {
         console.warn('[CallPopup] Errore response ordini:', response.status);
@@ -209,8 +234,8 @@ function CallPopup({
     }
   };
 
-  // ✅ FIX 27/02/2026: AZIONE NUOVO ORDINE - USA PROP onNuovoOrdine
-  const handleNuovoOrdine = useCallback(() => {
+  // ✅ FIX 28/02/2026: AZIONE NUOVO ORDINE - senza useCallback per evitare stale refs
+  const handleNuovoOrdine = () => {
     const cliente = chiamata?.cliente || null;
     const numero = chiamata?.numero || null;
     
@@ -262,7 +287,7 @@ function CallPopup({
         }
       }
     }
-  }, [chiamata, onNuovoOrdine, onClose]);
+  };
 
   // ✅ FIX 28/02/2026: VEDI ORDINI ATTIVI - cerca per telefono (più preciso)
   const handleVediOrdiniAttivi = () => {
