@@ -48,6 +48,7 @@ import CallPopup from '@/components/CallPopup';
 import NotificaFatture from '@/components/NotificaFatture';
 import dispositivoService from '@/services/dispositivoService';
 import sessionService from '@/services/sessionService';  // ✅ NUOVO
+import CacheService from '@/services/cacheService';  // ✅ NUOVO: Pulizia cache automatica
 
 const drawerWidth = 240;
 
@@ -91,6 +92,12 @@ export default function ClientLayout({ children }) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ✅ NUOVO: Pulizia automatica cache localStorage all'avvio
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+    CacheService.inizializza();
+  }, [mounted]);
 
   // ✅ NUOVO: Inizializza session service (ping + intercettore logout remoto)
   useEffect(() => {
