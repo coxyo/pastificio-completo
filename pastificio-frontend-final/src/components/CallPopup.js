@@ -47,7 +47,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-
 function CallPopup({ 
   chiamata, 
   onClose, 
-  onNuovoOrdine,       // ✅ FIX: Ora ricevuta e usata!
+  onNuovoOrdine,       // ✅ FIX 27/02: Callback per nuovo ordine
+  onVediOrdini,        // ✅ FIX 27/02: Callback per vedere ordini attivi
   onSaveNote, 
   isOpen = true 
 }) {
@@ -263,22 +264,29 @@ function CallPopup({
     }
   }, [chiamata, onNuovoOrdine, onClose]);
 
-  // ✅ AZIONE 2: VEDI ORDINI ATTIVI (1-CLICK)
+  // ✅ FIX 27/02/2026: VEDI ORDINI ATTIVI - imposta ricerca nel GestoreOrdini
   const handleVediOrdiniAttivi = () => {
-    console.log('📦 Vedi ordini attivi:', ordiniAttivi);
+    const cognome = chiamata?.cliente?.cognome || chiamata?.cliente?.nome || '';
+    console.log('📦 [CallPopup] Vedi ordini attivi per:', cognome);
     
-    if (typeof window === 'undefined') return;
-    
-    if (chiamata?.cliente) {
-      localStorage.setItem('ordini_filtroCliente', JSON.stringify({
-        _id: chiamata.cliente._id || chiamata.cliente.id,
-        nome: chiamata.cliente.nome,
-        cognome: chiamata.cliente.cognome
-      }));
+    if (onVediOrdini) {
+      // ✅ Usa prop callback (imposta ricerca in GestoreOrdini)
+      onVediOrdini(cognome);
+    } else {
+      // Fallback: redirect
+      if (typeof window !== 'undefined') {
+        if (chiamata?.cliente) {
+          localStorage.setItem('ordini_filtroCliente', JSON.stringify({
+            _id: chiamata.cliente._id || chiamata.cliente.id,
+            nome: chiamata.cliente.nome,
+            cognome: chiamata.cliente.cognome
+          }));
+        }
+        window.location.href = '/ordini?tab=lista';
+      }
     }
     
     onClose();
-    window.location.href = '/ordini?tab=lista';
   };
 
   // ✅ AZIONE 3: SALVA CLIENTE - MOSTRA FORM

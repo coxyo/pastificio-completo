@@ -3512,6 +3512,13 @@ return (
           chiamata={chiamataCorrente}
           isOpen={isPopupOpen && !dialogoNuovoOrdineAperto}
           onClose={handleClosePopup}
+          onVediOrdini={(cognome) => {
+            console.log('📦 [GestoreOrdini] Vedi ordini per:', cognome);
+            handleClosePopup();
+            if (cognome) {
+              setRicercaCliente(cognome);
+            }
+          }}
           onNuovoOrdine={(cliente, numero) => {
             console.log('📞 [GestoreOrdini] onNuovoOrdine da CallPopup:', {
               cliente: cliente ? `${cliente.nome} ${cliente.cognome}` : 'sconosciuto',
