@@ -66,6 +66,9 @@ import GestioneZeppole from './GestioneZeppole';
 import StatisticheChiamate from './StatisticheChiamate';
 import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } from '@mui/icons-material';
 
+// ✅ NUOVO 28/02/2026: Alert automatici anomalie
+import AlertBanner from './alerts/AlertBanner';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
@@ -2942,6 +2945,9 @@ return (
       `}</style>
       
       <Container maxWidth="xl">
+        {/* ✅ NUOVO 28/02/2026: Banner alert anomalie */}
+        <AlertBanner />
+        
         <StatisticheWidget ordini={ordini} dataSelezionata={dataSelezionata} />
         
         <Box sx={{ mb: 3 }}>

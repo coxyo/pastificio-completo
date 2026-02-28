@@ -49,6 +49,7 @@ import NotificaFatture from '@/components/NotificaFatture';
 import dispositivoService from '@/services/dispositivoService';
 import sessionService from '@/services/sessionService';  // ✅ NUOVO
 import CacheService from '@/services/cacheService';  // ✅ NUOVO: Pulizia cache automatica
+import NotificationCenter from '@/components/alerts/NotificationCenter';  // ✅ NUOVO: Alert automatici
 
 const drawerWidth = 240;
 
@@ -84,7 +85,6 @@ export default function ClientLayout({ children }) {
   const pathname = usePathname();
   const { user, logout, isAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [notificationCount] = useState(3);
   const [mounted, setMounted] = useState(false);
 
   const { chiamataCorrente, clearChiamata, connected, pusherService } = useIncomingCall();
@@ -310,11 +310,8 @@ export default function ClientLayout({ children }) {
             </Box>
           )}
 
-          <IconButton color="inherit" sx={{ mr: 0.5 }}>
-            <Badge badgeContent={notificationCount} color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
+          {/* ✅ NUOVO: Centro Notifiche Alert Automatici */}
+          <NotificationCenter pusherService={pusherService} />
 
           {/* Bottone Logout nell'header */}
           <Tooltip title="Esci">
