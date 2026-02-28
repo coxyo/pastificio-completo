@@ -1805,6 +1805,7 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
   const limitsDebounceRef = useRef(null); // 🆕 22/01
   const reconnectTimeoutRef = useRef(null);
   const syncIntervalRef = useRef(null);
+  const pendingSyncRef = useRef(false); // 🆕 28/02: Flag sync pendente (form aperto)
   
   // ----------------------------------------------------------------
   // FUNZIONE: Scroll alla categoria
@@ -2104,6 +2105,13 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
   const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
+    // 🆕 28/02/2026: NON sincronizzare se il form ordine è aperto (evita reset form)
+    if (dialogoNuovoOrdineAperto) {
+      console.log('⏸️ Sync posticipata - form ordine aperto');
+      pendingSyncRef.current = true;
+      return;
+    }
+    
     try {
       setSyncInProgress(true);
       console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/2)`);
@@ -2193,7 +2201,7 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
     } finally {
       setSyncInProgress(false);
     }
-  }, [syncInProgress]);
+  }, [syncInProgress, dialogoNuovoOrdineAperto]);
 
   // ----------------------------------------------------------------
   // FUNZIONI: Ordini offline
@@ -3298,6 +3306,13 @@ return (
       localStorage.removeItem('chiamataCliente');
       localStorage.removeItem('_openNuovoOrdineOnLoad');
       localStorage.removeItem('ordini_filtroCliente');
+    }
+    
+    // 🆕 28/02/2026: Esegui sync pendente dopo chiusura dialog
+    if (pendingSyncRef.current) {
+      console.log('🔄 Sync pendente in esecuzione dopo chiusura form...');
+      pendingSyncRef.current = false;
+      setTimeout(() => sincronizzaConMongoDB(), 500);
     }
   }}
   onSave={salvaOrdine}
