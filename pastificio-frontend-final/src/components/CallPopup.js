@@ -264,24 +264,20 @@ function CallPopup({
     }
   }, [chiamata, onNuovoOrdine, onClose]);
 
-  // ✅ FIX 27/02/2026: VEDI ORDINI ATTIVI - imposta ricerca nel GestoreOrdini
+  // ✅ FIX 28/02/2026: VEDI ORDINI ATTIVI - cerca per telefono (più preciso)
   const handleVediOrdiniAttivi = () => {
     const cognome = chiamata?.cliente?.cognome || chiamata?.cliente?.nome || '';
-    console.log('📦 [CallPopup] Vedi ordini attivi per:', cognome);
+    const telefono = chiamata?.cliente?.telefono || chiamata?.cliente?.cellulare || chiamata?.numero || '';
+    // Pulisci prefisso +39 per matching
+    const telefonoPulito = telefono.replace(/^\+39/, '');
+    
+    console.log('📦 [CallPopup] Vedi ordini attivi per:', cognome, telefonoPulito);
     
     if (onVediOrdini) {
-      // ✅ Usa prop callback (imposta ricerca in GestoreOrdini)
-      onVediOrdini(cognome);
+      onVediOrdini(cognome, telefonoPulito);
     } else {
       // Fallback: redirect
       if (typeof window !== 'undefined') {
-        if (chiamata?.cliente) {
-          localStorage.setItem('ordini_filtroCliente', JSON.stringify({
-            _id: chiamata.cliente._id || chiamata.cliente.id,
-            nome: chiamata.cliente.nome,
-            cognome: chiamata.cliente.cognome
-          }));
-        }
         window.location.href = '/ordini?tab=lista';
       }
     }

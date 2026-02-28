@@ -3227,8 +3227,11 @@ return (
                   if (!clienteStr && o.nomeCliente) {
                     clienteStr = o.nomeCliente;
                   }
+                  // ✅ FIX 28/02/2026: Cerca anche nel telefono
+                  const telefonoStr = o.telefono || o.cliente?.telefono || o.cliente?.cellulare || '';
                   const search = ricercaCliente.toLowerCase();
-                  return clienteStr.toLowerCase().includes(search);
+                  return clienteStr.toLowerCase().includes(search) || 
+                         telefonoStr.replace(/\s+/g, '').includes(search.replace(/\s+/g, ''));
                 }) : ordini}
                 onDelete={eliminaOrdine}
                 onEdit={(ordine, e) => {
@@ -3512,11 +3515,13 @@ return (
           chiamata={chiamataCorrente}
           isOpen={isPopupOpen && !dialogoNuovoOrdineAperto}
           onClose={handleClosePopup}
-          onVediOrdini={(cognome) => {
-            console.log('📦 [GestoreOrdini] Vedi ordini per:', cognome);
+          onVediOrdini={(cognome, telefono) => {
+            console.log('📦 [GestoreOrdini] Vedi ordini per:', cognome, telefono);
             handleClosePopup();
-            if (cognome) {
-              setRicercaCliente(cognome);
+            // ✅ FIX 28/02/2026: Cerca per telefono (più preciso del cognome)
+            const ricerca = telefono || cognome || '';
+            if (ricerca) {
+              setRicercaCliente(ricerca);
             }
           }}
           onNuovoOrdine={(cliente, numero) => {
