@@ -50,6 +50,8 @@ import dispositivoService from '@/services/dispositivoService';
 import sessionService from '@/services/sessionService';  // ✅ NUOVO
 import CacheService from '@/services/cacheService';  // ✅ NUOVO: Pulizia cache automatica
 import NotificationCenter from '@/components/alerts/NotificationCenter';  // ✅ NUOVO: Alert automatici
+import PushPromptBanner from '@/components/PushPromptBanner';  // ✅ NUOVO: Prompt notifiche push
+import pushNotificationService from '@/services/pushNotificationService';  // ✅ NUOVO: Push service
 
 const drawerWidth = 240;
 
@@ -130,6 +132,41 @@ export default function ClientLayout({ children }) {
 
     return () => clearTimeout(timer);
   }, [mounted, pusherService]);
+
+  // ✅ NUOVO: Inizializza Web Push Notifications (Service Worker + permessi)
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+    pushNotificationService.inizializza().catch(err => {
+      console.warn('[PUSH] Init warning:', err.message);
+    });
+  }, [mounted]);
+
+  // ✅ NUOVO: Ascolta click su notifica push (dal Service Worker)
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+
+    const handlePushClick = (event) => {
+      const data = event.detail;
+      if (!data) return;
+      
+      switch (data.action || data.tipo) {
+        case 'chiamata':
+          // Il popup chiamata viene già gestito da Pusher
+          break;
+        case 'ordine':
+          if (data.ordineId) {
+            router.push('/?ordine=' + data.ordineId);
+          }
+          break;
+        case 'alert':
+          router.push('/?action=alert');
+          break;
+      }
+    };
+
+    window.addEventListener('push-notification-click', handlePushClick);
+    return () => window.removeEventListener('push-notification-click', handlePushClick);
+  }, [mounted, router]);
 
   // ✅ Menu filtrato per ruolo utente
   const menuItems = useMemo(() => {
@@ -374,6 +411,9 @@ export default function ClientLayout({ children }) {
 
       {/* Notifica Fatture */}
       {mounted && <NotificaFatture />}
+
+      {/* ✅ NUOVO: Prompt richiesta notifiche push */}
+      {mounted && <PushPromptBanner />}
     </Box>
   );
 }
