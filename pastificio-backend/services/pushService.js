@@ -1,192 +1,223 @@
+// services/pushService.js - ✅ NUOVO: Servizio invio notifiche Web Push
+import webpush from 'web-push';
+import PushSubscription from '../models/PushSubscription.js';
 import logger from '../config/logger.js';
 
-// Questo servizio utilizzerà Firebase Cloud Messaging (FCM) per le notifiche push
-// In ambiente di sviluppo, simuliamo l'invio delle notifiche
 class PushService {
   constructor() {
-    // In produzione, inizializza Firebase
-    if (process.env.NODE_ENV === 'production') {
+    this.initialized = false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // INIZIALIZZAZIONE
+  // ═══════════════════════════════════════════════════════════════
+  inizializza() {
+    const vapidPublic = process.env.VAPID_PUBLIC_KEY;
+    const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+
+    if (!vapidPublic || !vapidPrivate) {
+      logger.warn('⚠️ [PUSH] VAPID keys non configurate - Push notifications disabilitate');
+      logger.warn('⚠️ [PUSH] Genera con: npx web-push generate-vapid-keys');
+      return;
+    }
+
+    try {
+      webpush.setVapidDetails(
+        'mailto:pastificiononnaclaudia@gmail.com',
+        vapidPublic,
+        vapidPrivate
+      );
+      this.initialized = true;
+      logger.info('✅ [PUSH] Web Push inizializzato con VAPID keys');
+    } catch (error) {
+      logger.error('❌ [PUSH] Errore inizializzazione:', error.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // INVIO NOTIFICA GENERICA
+  // ═══════════════════════════════════════════════════════════════
+  async inviaNotifica(subscriptions, payload) {
+    if (!this.initialized) {
+      logger.warn('[PUSH] Servizio non inizializzato, notifica ignorata');
+      return { inviate: 0, errori: 0 };
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      return { inviate: 0, errori: 0 };
+    }
+
+    const payloadStr = JSON.stringify(payload);
+    let inviate = 0;
+    let errori = 0;
+
+    for (const sub of subscriptions) {
       try {
-        // Utilizziamo dynamic import per evitare di richiedere firebase in sviluppo
-        import('firebase-admin').then(admin => {
-          admin.initializeApp({
-            credential: admin.credential.cert({
-              projectId: process.env.FIREBASE_PROJECT_ID,
-              clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-              privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-            })
-          });
-          
-          this.admin = admin;
-          logger.info('Firebase Cloud Messaging inizializzato correttamente', {
-            service: 'pushService'
-          });
-        }).catch(err => {
-          logger.error(`Errore nell'inizializzazione di Firebase: ${err.message}`, {
-            service: 'pushService',
-            error: err
-          });
-        });
+        await webpush.sendNotification(sub.subscription, payloadStr);
+        await sub.segnaSuccesso();
+        inviate++;
       } catch (error) {
-        logger.error(`Errore nell'importazione di Firebase: ${error.message}`, {
-          service: 'pushService',
-          error
-        });
+        errori++;
+        
+        // 410 Gone o 404: subscription non più valida → rimuovi
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          logger.info(`[PUSH] Subscription scaduta (${error.statusCode}), rimuovo: ${sub.dispositivo} (${sub.username})`);
+          await PushSubscription.findByIdAndDelete(sub._id);
+        } else {
+          logger.warn(`[PUSH] Errore invio a ${sub.dispositivo} (${sub.username}):`, error.statusCode || error.message);
+          await sub.segnaErrore();
+        }
       }
-    } else {
-      // In ambiente di sviluppo, simuliamo il servizio
-      logger.info('Usando servizio push simulato per ambiente di sviluppo', {
-        service: 'pushService'
-      });
-      this.admin = null;
+    }
+
+    logger.info(`[PUSH] Notifiche inviate: ${inviate}/${subscriptions.length} (errori: ${errori})`);
+    return { inviate, errori };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 📞 NOTIFICA CHIAMATA IN ARRIVO
+  // ═══════════════════════════════════════════════════════════════
+  async notificaChiamata(datiChiamata) {
+    try {
+      // Trova tutte le subscription con preferenza "chiamate" attiva
+      const subscriptions = await PushSubscription.trovaPerTipo('chiamate');
+
+      if (subscriptions.length === 0) return;
+
+      const nomeCliente = datiChiamata.cliente
+        ? `${datiChiamata.cliente.nome} ${datiChiamata.cliente.cognome || ''}`.trim()
+        : 'Numero sconosciuto';
+
+      const payload = {
+        tipo: 'chiamata',
+        titolo: '📞 Chiamata in arrivo',
+        corpo: `${nomeCliente} - ${datiChiamata.numero}`,
+        icona: '/icons/phone-192.png',
+        badge: '/icons/badge-72.png',
+        tag: `chiamata-${datiChiamata.callId}`,
+        data: {
+          action: 'chiamata',
+          callId: datiChiamata.callId,
+          numero: datiChiamata.numero,
+          clienteId: datiChiamata.cliente?._id || null
+        },
+        requireInteraction: true  // Rimane visibile finché non interagisci
+      };
+
+      return this.inviaNotifica(subscriptions, payload);
+    } catch (error) {
+      logger.error('[PUSH] Errore notificaChiamata:', error.message);
     }
   }
 
-  // Formatta la notifica per FCM
-  formatPushNotification(notification) {
+  // ═══════════════════════════════════════════════════════════════
+  // 🚨 NOTIFICA ALERT CRITICO
+  // ═══════════════════════════════════════════════════════════════
+  async notificaAlert(alert) {
+    try {
+      const subscriptions = await PushSubscription.trovaPerTipo('alertCritici');
+
+      if (subscriptions.length === 0) return;
+
+      const icona = alert.priorita === 'critico' ? '🚨' : '⚠️';
+
+      const payload = {
+        tipo: 'alert',
+        titolo: `${icona} ${alert.titolo || 'Attenzione'}`,
+        corpo: alert.messaggio || alert.descrizione || 'Controlla il gestionale',
+        icona: '/icons/alert-192.png',
+        badge: '/icons/badge-72.png',
+        tag: `alert-${alert._id}`,
+        data: {
+          action: 'alert',
+          alertId: alert._id?.toString()
+        }
+      };
+
+      return this.inviaNotifica(subscriptions, payload);
+    } catch (error) {
+      logger.error('[PUSH] Errore notificaAlert:', error.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ NOTIFICA NUOVO ORDINE (da altro utente)
+  // ═══════════════════════════════════════════════════════════════
+  async notificaNuovoOrdine(ordine, creatoDaUserId) {
+    try {
+      // Escludi l'utente che ha creato l'ordine
+      const subscriptions = await PushSubscription.trovaPerTipo('nuoviOrdini', creatoDaUserId);
+
+      if (subscriptions.length === 0) return;
+
+      // Formatta data ritiro
+      let dataRitiroStr = '';
+      try {
+        const d = new Date(ordine.dataRitiro);
+        const giorni = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        dataRitiroStr = `${giorni[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      } catch (e) {
+        dataRitiroStr = ordine.dataRitiro || '';
+      }
+
+      const payload = {
+        tipo: 'nuovo_ordine',
+        titolo: '✅ Nuovo ordine',
+        corpo: `${ordine.nomeCliente} - ${dataRitiroStr} ore ${ordine.oraRitiro || ''} - €${(ordine.totale || 0).toFixed(2)}`,
+        icona: '/icons/order-192.png',
+        badge: '/icons/badge-72.png',
+        tag: `ordine-${ordine._id}`,
+        data: {
+          action: 'ordine',
+          ordineId: ordine._id?.toString()
+        }
+      };
+
+      return this.inviaNotifica(subscriptions, payload);
+    } catch (error) {
+      logger.error('[PUSH] Errore notificaNuovoOrdine:', error.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 📝 NOTIFICA ORDINE MODIFICATO (da altro utente)
+  // ═══════════════════════════════════════════════════════════════
+  async notificaOrdineModificato(ordine, modificatoDaUserId, nomeModificatore) {
+    try {
+      const subscriptions = await PushSubscription.trovaPerTipo('ordiniModificati', modificatoDaUserId);
+
+      if (subscriptions.length === 0) return;
+
+      const payload = {
+        tipo: 'ordine_modificato',
+        titolo: '📝 Ordine modificato',
+        corpo: `${ordine.nomeCliente} - modificato da ${nomeModificatore || 'un operatore'}`,
+        icona: '/icons/edit-192.png',
+        badge: '/icons/badge-72.png',
+        tag: `ordine-mod-${ordine._id}`,
+        data: {
+          action: 'ordine',
+          ordineId: ordine._id?.toString()
+        }
+      };
+
+      return this.inviaNotifica(subscriptions, payload);
+    } catch (error) {
+      logger.error('[PUSH] Errore notificaOrdineModificato:', error.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // STATUS
+  // ═══════════════════════════════════════════════════════════════
+  getStatus() {
     return {
-      notification: {
-        title: notification.title,
-        body: notification.message
-      },
-      data: {
-        notificationId: notification._id.toString(),
-        type: notification.type,
-        priority: notification.priority,
-        createdAt: notification.createdAt?.toISOString() || new Date().toISOString(),
-        actionRequired: notification.actionRequired ? 'true' : 'false',
-        actionLink: notification.actionLink || '',
-        relatedDocumentType: notification.relatedDocument?.type || '',
-        relatedDocumentId: notification.relatedDocument?.id?.toString() || ''
-      }
+      initialized: this.initialized,
+      vapidConfigured: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY)
     };
-  }
-
-  // Invia notifica push
-  async sendNotification(token, notification) {
-    try {
-      const message = this.formatPushNotification(notification);
-      
-      if (process.env.NODE_ENV === 'production' && this.admin) {
-        // In produzione, usa Firebase per inviare notifiche push reali
-        message.token = token;
-        const result = await this.admin.messaging().send(message);
-        
-        logger.info(`Notifica push inviata: ${result}`, {
-          service: 'pushService',
-          token: token.substring(0, 10) + '...',
-          notificationId: notification._id
-        });
-        
-        return result;
-      } else {
-        // In sviluppo, simula l'invio
-        logger.info(`[SIMULATO] Notifica push inviata a ${token.substring(0, 10)}...: ${JSON.stringify(message)}`, {
-          service: 'pushService',
-          token: token.substring(0, 10) + '...',
-          notificationId: notification._id
-        });
-        
-        return {
-          messageId: 'SIMULATO_' + Date.now(),
-          success: true
-        };
-      }
-    } catch (error) {
-      logger.error(`Errore nell'invio della notifica push: ${error.message}`, {
-        service: 'pushService',
-        error,
-        token: token.substring(0, 10) + '...',
-        notificationId: notification._id
-      });
-      throw error;
-    }
-  }
-
-  // Invia notifica push a più dispositivi
-  async sendMulticastNotification(tokens, notification) {
-    try {
-      const message = this.formatPushNotification(notification);
-      
-      if (process.env.NODE_ENV === 'production' && this.admin) {
-        // In produzione, usa Firebase per inviare notifiche push reali
-        message.tokens = tokens;
-        const result = await this.admin.messaging().sendMulticast(message);
-        
-        logger.info(`Notifica push multicast inviata: ${result.successCount}/${tokens.length} successi`, {
-          service: 'pushService',
-          tokensCount: tokens.length,
-          notificationId: notification._id
-        });
-        
-        return result;
-      } else {
-        // In sviluppo, simula l'invio
-        logger.info(`[SIMULATO] Notifica push multicast inviata a ${tokens.length} dispositivi: ${JSON.stringify(message)}`, {
-          service: 'pushService',
-          tokensCount: tokens.length,
-          notificationId: notification._id
-        });
-        
-        return {
-          successCount: tokens.length,
-          failureCount: 0,
-          responses: tokens.map(() => ({ success: true }))
-        };
-      }
-    } catch (error) {
-      logger.error(`Errore nell'invio della notifica push multicast: ${error.message}`, {
-        service: 'pushService',
-        error,
-        tokensCount: tokens.length,
-        notificationId: notification._id
-      });
-      throw error;
-    }
-  }
-
-  // Invia notifica push a un argomento (topic)
-  async sendTopicNotification(topic, notification) {
-    try {
-      const message = this.formatPushNotification(notification);
-      
-      if (process.env.NODE_ENV === 'production' && this.admin) {
-        // In produzione, usa Firebase per inviare notifiche push reali
-        message.topic = topic;
-        const result = await this.admin.messaging().send(message);
-        
-        logger.info(`Notifica push inviata al topic ${topic}: ${result}`, {
-          service: 'pushService',
-          topic,
-          notificationId: notification._id
-        });
-        
-        return result;
-      } else {
-        // In sviluppo, simula l'invio
-        logger.info(`[SIMULATO] Notifica push inviata al topic ${topic}: ${JSON.stringify(message)}`, {
-          service: 'pushService',
-          topic,
-          notificationId: notification._id
-        });
-        
-        return {
-          messageId: 'SIMULATO_' + Date.now(),
-          success: true
-        };
-      }
-    } catch (error) {
-      logger.error(`Errore nell'invio della notifica push al topic: ${error.message}`, {
-        service: 'pushService',
-        error,
-        topic,
-        notificationId: notification._id
-      });
-      throw error;
-    }
   }
 }
 
-// Crea e esporta una singola istanza del servizio
+// Singleton
 const pushService = new PushService();
 export default pushService;

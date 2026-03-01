@@ -7,6 +7,7 @@ import { protect } from '../middleware/auth.js';
 import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
 import ordiniController from '../controllers/ordiniController.js'; // ✅ AGGIUNGI QUESTA RIGA
+import pushService from '../services/pushService.js'; // ✅ NUOVO - Web Push Notifications
 
 
 const router = express.Router();
@@ -533,6 +534,14 @@ router.post('/', async (req, res, next) => {
     
     // Passa al middleware per aggiornamento giacenze
     req.ordineCreato = nuovoOrdine;
+
+    // ✅ NUOVO: Push notification nuovo ordine (escludi chi l'ha creato)
+    try {
+      await pushService.notificaNuovoOrdine(nuovoOrdine, req.user?._id);
+    } catch (pushErr) {
+      logger.warn('[PUSH] Errore notifica nuovo ordine:', pushErr.message);
+    }
+
     next();
     
   } catch (error) {
@@ -670,6 +679,17 @@ router.put('/:id', async (req, res) => {
         ordine: ordineAggiornato,
         timestamp: new Date()
       });
+    }
+    
+    // ✅ NUOVO: Push notification ordine modificato (escludi chi l'ha modificato)
+    try {
+      await pushService.notificaOrdineModificato(
+        ordineAggiornato,
+        req.user?._id,
+        req.user?.nome || 'operatore'
+      );
+    } catch (pushErr) {
+      logger.warn('[PUSH] Errore notifica ordine modificato:', pushErr.message);
     }
     
     res.json({

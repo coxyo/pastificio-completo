@@ -80,6 +80,8 @@ import rintracciabilitaRoutes from './routes/rintracciabilita.js';
 import sessionsRoutes from './routes/sessions.js';
 import alertsRoutes from './routes/alerts.js';           // ✅ NUOVO - Alert automatici
 import alertsChecker from './jobs/alertsChecker.js';     // ✅ NUOVO - Cron jobs alert
+import pushRoutes from './routes/push.js';               // ✅ NUOVO - Web Push Notifications
+import pushServiceBackend from './services/pushService.js'; // ✅ NUOVO - Push Service
 // ✅ NUOVO - Rintracciabilità ingredienti
 
 
@@ -439,6 +441,7 @@ app.use('/api/rintracciabilita', rintracciabilitaRoutes); // ✅ NUOVO - Rintrac
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/alerts', alertsRoutes);                    // ✅ NUOVO - Alert automatici
+app.use('/api/push', pushRoutes);                        // ✅ NUOVO - Web Push Notifications
 
 // Route Danea
 
@@ -1109,6 +1112,14 @@ const startServer = async () => {
       logger.info('✅ AlertsChecker attivato (4 cron jobs)');
     } catch (alertsError) {
       logger.warn('⚠️ AlertsChecker non disponibile:', alertsError.message);
+    }
+
+    // ✅ NUOVO: Inizializza Web Push Notifications
+    try {
+      pushServiceBackend.inizializza();
+      logger.info('✅ Web Push Notifications inizializzato');
+    } catch (pushError) {
+      logger.warn('⚠️ Web Push non disponibile:', pushError.message);
     }
     } catch (schedulerError) {
       logger.warn('Scheduler generale non disponibile:', schedulerError.message);

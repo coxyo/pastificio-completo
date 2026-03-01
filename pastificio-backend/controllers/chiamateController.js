@@ -3,6 +3,7 @@ import Chiamata from '../models/Chiamata.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 import pusher from '../services/pusherService.js';
+import pushService from '../services/pushService.js';
 
 // ✅ ANTI-SPAM: Cache chiamate recenti
 const recentCalls = new Map(); // numero -> { timestamp, callId }
@@ -547,6 +548,22 @@ export const webhookChiamata = async (req, res) => {
       });
     } catch (pusherError) {
       logger.error('❌ Pusher: Errore invio evento:', pusherError);
+    }
+
+    // ✅ NUOVO: Invia notifica Web Push (anche a browser chiuso)
+    try {
+      await pushService.notificaChiamata({
+        callId: chiamata.callId,
+        numero: chiamata.numero,
+        cliente: chiamata.cliente ? {
+          _id: chiamata.cliente._id.toString(),
+          nome: chiamata.cliente.nome,
+          cognome: chiamata.cliente.cognome || ''
+        } : null
+      });
+      logger.info('✅ [PUSH] Notifica chiamata inviata');
+    } catch (pushError) {
+      logger.warn('⚠️ [PUSH] Errore notifica chiamata:', pushError.message);
     }
 
     res.status(201).json({
