@@ -51,7 +51,7 @@ import sessionService from '@/services/sessionService';  // ✅ NUOVO
 import CacheService from '@/services/cacheService';  // ✅ NUOVO: Pulizia cache automatica
 import NotificationCenter from '@/components/alerts/NotificationCenter';  // ✅ NUOVO: Alert automatici
 import PushPromptBanner from '@/components/PushPromptBanner';  // ✅ NUOVO: Prompt notifiche push
-import pushNotificationService from '@/services/pushNotificationService';  // ✅ NUOVO: Push service
+import firebasePushService from '@/services/firebasePushService';  // ✅ Firebase Push
 
 const drawerWidth = 240;
 
@@ -136,7 +136,7 @@ export default function ClientLayout({ children }) {
   // ✅ NUOVO: Inizializza Web Push Notifications (Service Worker + permessi)
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
-    pushNotificationService.inizializza().catch(err => {
+    firebasePushService.inizializza().catch(err => {
       console.warn('[PUSH] Init warning:', err.message);
     });
   }, [mounted]);
