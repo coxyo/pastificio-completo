@@ -66,9 +66,6 @@ import GestioneZeppole from './GestioneZeppole';
 import StatisticheChiamate from './StatisticheChiamate';
 import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } from '@mui/icons-material';
 
-// ✅ NUOVO 28/02/2026: Alert automatici anomalie
-import AlertBanner from './alerts/AlertBanner';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
@@ -1805,7 +1802,6 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
   const limitsDebounceRef = useRef(null); // 🆕 22/01
   const reconnectTimeoutRef = useRef(null);
   const syncIntervalRef = useRef(null);
-  const pendingSyncRef = useRef(false); // 🆕 28/02: Flag sync pendente (form aperto)
   
   // ----------------------------------------------------------------
   // FUNZIONE: Scroll alla categoria
@@ -2105,13 +2101,6 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
   const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
-    // 🆕 28/02/2026: NON sincronizzare se il form ordine è aperto (evita reset form)
-    if (dialogoNuovoOrdineAperto) {
-      console.log('⏸️ Sync posticipata - form ordine aperto');
-      pendingSyncRef.current = true;
-      return;
-    }
-    
     try {
       setSyncInProgress(true);
       console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/2)`);
@@ -2201,7 +2190,7 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
     } finally {
       setSyncInProgress(false);
     }
-  }, [syncInProgress, dialogoNuovoOrdineAperto]);
+  }, [syncInProgress]);
 
   // ----------------------------------------------------------------
   // FUNZIONI: Ordini offline
@@ -2953,9 +2942,6 @@ return (
       `}</style>
       
       <Container maxWidth="xl">
-        {/* ✅ NUOVO 28/02/2026: Banner alert anomalie */}
-        <AlertBanner />
-        
         <StatisticheWidget ordini={ordini} dataSelezionata={dataSelezionata} />
         
         <Box sx={{ mb: 3 }}>
@@ -3300,19 +3286,15 @@ return (
     setClienteDaChiamata(null);
     setOrdineSelezionato(null);
     
+    // ✅ FIX 28/02/2026: Chiudi anche il popup chiamata definitivamente
+    handleClosePopup();
+    
     // ✅ FIX 27/02/2026: Pulizia TOTALE localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('nuovoOrdine_clientePreselezionato');
       localStorage.removeItem('chiamataCliente');
       localStorage.removeItem('_openNuovoOrdineOnLoad');
       localStorage.removeItem('ordini_filtroCliente');
-    }
-    
-    // 🆕 28/02/2026: Esegui sync pendente dopo chiusura dialog
-    if (pendingSyncRef.current) {
-      console.log('🔄 Sync pendente in esecuzione dopo chiusura form...');
-      pendingSyncRef.current = false;
-      setTimeout(() => sincronizzaConMongoDB(), 500);
     }
   }}
   onSave={salvaOrdine}
