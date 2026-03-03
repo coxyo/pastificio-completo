@@ -1,128 +1,251 @@
-// public/firebase-messaging-sw.js
-// ✅ Firebase Cloud Messaging Service Worker
-// Pastificio Nonna Claudia - Notifiche Push via FCM
+// src/services/firebasePushService.js
+// Firebase Cloud Messaging - Servizio notifiche push
+// Pastificio Nonna Claudia
+// NOTA: Import dinamici per evitare crash SSR con Next.js
 
-// Import Firebase scripts (compat version per Service Worker)
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
-
-// Configurazione Firebase
-firebase.initializeApp({
+const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCyL4LWgD1dKiGRHmLrj2gJ9OFHdHDDZ-E",
   authDomain: "pastificio-nonna-claudia.firebaseapp.com",
   projectId: "pastificio-nonna-claudia",
   storageBucket: "pastificio-nonna-claudia.firebasestorage.app",
   messagingSenderId: "434978137418",
   appId: "1:434978137418:web:70936b4313e10a79ed0db3"
-});
+};
 
-const messaging = firebase.messaging();
-const FRONTEND_URL = self.location.origin;
+const VAPID_KEY = 'BMMU8H1MpvQLh3Zo9IkFRIrnciZpRatFABxOgb76k2tNRmg72_n8yHB-cVtgmtenKbbRu1pUYp5iM7iHMaw4l2s';
 
-// ═══════════════════════════════════════════════════════════════
-// BACKGROUND MESSAGE HANDLER
-// Gestisce le notifiche quando l'app NON è in primo piano
-// ═══════════════════════════════════════════════════════════════
-messaging.onBackgroundMessage((payload) => {
-  console.log('[FCM-SW] Messaggio in background:', payload);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
-  const data = payload.data || {};
-  const notification = payload.notification || {};
+class FirebasePushService {
+  constructor() {
+    this.app = null;
+    this.messaging = null;
+    this.token = null;
+    this.inizializzato = false;
+    this.onMessageCallback = null;
+  }
 
-  // Tipo di notifica dal payload data
-  const tipo = data.tipo || 'generico';
+  async inizializza() {
+    if (this.inizializzato) return;
+    if (typeof window === 'undefined') return;
 
-  const options = {
-    body: data.corpo || notification.body || 'Nuova notifica',
-    icon: data.icona || notification.icon || '/icons/icon-192.png',
-    badge: '/icons/badge-72.png',
-    tag: data.tag || `notifica-${Date.now()}`,
-    renotify: true,
-    requireInteraction: tipo === 'chiamata' || tipo === 'alert',
-    vibrate: [200, 100, 200],
-    data: {
-      tipo: tipo,
-      url: getUrlPerTipo(tipo, data),
-      ...data
-    },
-    actions: getAzioniPerTipo(tipo)
-  };
-
-  const titolo = data.titolo || notification.title || '🍝 Pastificio Nonna Claudia';
-
-  return self.registration.showNotification(titolo, options);
-});
-
-// ═══════════════════════════════════════════════════════════════
-// NOTIFICATION CLICK - Click sulla notifica
-// ═══════════════════════════════════════════════════════════════
-self.addEventListener('notificationclick', (event) => {
-  console.log('[FCM-SW] Click su notifica:', event.notification.tag);
-  event.notification.close();
-
-  const data = event.notification.data || {};
-  const actionClicked = event.action;
-
-  if (actionClicked === 'ignora') return;
-
-  const targetUrl = data.url || FRONTEND_URL;
-
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Se il gestionale è già aperto, focus e naviga
-      for (const client of clients) {
-        if (client.url.includes(FRONTEND_URL) && 'focus' in client) {
-          client.postMessage({
-            type: 'PUSH_NOTIFICATION_CLICK',
-            data: data
-          });
-          return client.focus();
-        }
+    try {
+      if (!('serviceWorker' in navigator)) {
+        console.warn('[FCM] Service Worker non supportato');
+        return;
       }
-      // Altrimenti apri nuova tab
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
+      if (!('Notification' in window)) {
+        console.warn('[FCM] Notifications API non supportata');
+        return;
       }
-    })
-  );
-});
 
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-function getUrlPerTipo(tipo, data) {
-  switch (tipo) {
-    case 'chiamata':
-      return FRONTEND_URL + '/?action=chiamata';
-    case 'alert':
-      return FRONTEND_URL + '/?action=alert&id=' + (data.alertId || '');
-    case 'nuovo_ordine':
-    case 'ordine_modificato':
-      return FRONTEND_URL + '/?action=ordine&id=' + (data.ordineId || '');
-    default:
-      return FRONTEND_URL;
+      // Import dinamici - evita crash SSR
+      const { initializeApp } = await import('firebase/app');
+      const { getMessaging, onMessage } = await import('firebase/messaging');
+
+      this.app = initializeApp(FIREBASE_CONFIG);
+      this.messaging = getMessaging(this.app);
+
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      console.log('[FCM] Service Worker registrato:', registration.scope);
+
+      onMessage(this.messaging, (payload) => {
+        console.log('[FCM] Messaggio foreground:', payload);
+        this._gestisciForegroundMessage(payload);
+      });
+
+      this.inizializzato = true;
+      console.log('[FCM] Firebase Messaging inizializzato');
+
+      if (Notification.permission === 'granted') {
+        await this._ottieniERegistraToken(registration);
+      }
+    } catch (error) {
+      console.error('[FCM] Errore inizializzazione:', error);
+    }
+  }
+
+  async attivaNotifiche() {
+    try {
+      if (!this.messaging) {
+        await this.inizializza();
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        console.warn('[FCM] Permesso negato');
+        return { success: false, motivo: 'permesso_negato' };
+      }
+      const registration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+      if (!registration) {
+        throw new Error('Service Worker non registrato');
+      }
+      const token = await this._ottieniERegistraToken(registration);
+      return { success: true, token };
+    } catch (error) {
+      console.error('[FCM] Errore attivazione:', error);
+      return { success: false, motivo: error.message };
+    }
+  }
+
+  async disattivaNotifiche() {
+    try {
+      if (this.messaging) {
+        const { deleteToken } = await import('firebase/messaging');
+        await deleteToken(this.messaging);
+      }
+      if (this.token) {
+        const authToken = localStorage.getItem('token');
+        await fetch(API_URL + '/push/unsubscribe', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+          body: JSON.stringify({ fcmToken: this.token })
+        });
+      }
+      this.token = null;
+      localStorage.removeItem('fcm_token');
+      console.log('[FCM] Notifiche disattivate');
+      return { success: true };
+    } catch (error) {
+      console.error('[FCM] Errore disattivazione:', error);
+      return { success: false, motivo: error.message };
+    }
+  }
+
+  async aggiornaPreferenze(preferenze) {
+    try {
+      const authToken = localStorage.getItem('token');
+      const response = await fetch(API_URL + '/push/preferenze', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        body: JSON.stringify({ preferenze })
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('[FCM] Errore aggiornamento preferenze:', error);
+      return { success: false };
+    }
+  }
+
+  async inviaTest() {
+    try {
+      const authToken = localStorage.getItem('token');
+      const response = await fetch(API_URL + '/push/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('[FCM] Errore test:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  getStato() {
+    return {
+      supportato: typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window,
+      permesso: typeof window !== 'undefined' ? Notification.permission : 'default',
+      tokenAttivo: !!this.token,
+      inizializzato: this.inizializzato,
+      isIOS: this._isIOS()
+    };
+  }
+
+  setOnMessage(callback) {
+    this.onMessageCallback = callback;
+  }
+
+  async _ottieniERegistraToken(registration) {
+    try {
+      const { getToken } = await import('firebase/messaging');
+      const token = await getToken(this.messaging, {
+        vapidKey: VAPID_KEY,
+        serviceWorkerRegistration: registration
+      });
+      if (!token) {
+        console.warn('[FCM] Nessun token ottenuto');
+        return null;
+      }
+      console.log('[FCM] Token FCM ottenuto:', token.substring(0, 30) + '...');
+      this.token = token;
+      localStorage.setItem('fcm_token', token);
+      await this._registraTokenBackend(token);
+      return token;
+    } catch (error) {
+      console.error('[FCM] Errore ottenimento token:', error);
+      throw error;
+    }
+  }
+
+  async _registraTokenBackend(fcmToken) {
+    try {
+      const authToken = localStorage.getItem('token');
+      if (!authToken) {
+        console.warn('[FCM] No auth token, skip registrazione backend');
+        return;
+      }
+      const response = await fetch(API_URL + '/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        body: JSON.stringify({
+          fcmToken,
+          dispositivo: this._detectDevice(),
+          preferenze: { chiamate: true, alertCritici: true, nuoviOrdini: true, ordiniModificati: false }
+        })
+      });
+      const data = await response.json();
+      console.log('[FCM] Token registrato sul backend:', data.success);
+      return data;
+    } catch (error) {
+      console.error('[FCM] Errore registrazione backend:', error);
+    }
+  }
+
+  _gestisciForegroundMessage(payload) {
+    const data = payload.data || {};
+    const notification = payload.notification || {};
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const titolo = data.titolo || notification.title || 'Pastificio';
+      const options = {
+        body: data.corpo || notification.body,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/badge-72.png',
+        tag: data.tag || 'fg-' + Date.now(),
+        data: data
+      };
+      try {
+        new Notification(titolo, options);
+      } catch (e) {
+        navigator.serviceWorker.ready.then(function(reg) {
+          reg.showNotification(titolo, options);
+        });
+      }
+    }
+    if (this.onMessageCallback) {
+      this.onMessageCallback(payload);
+    }
+  }
+
+  _detectDevice() {
+    if (typeof navigator === 'undefined') return 'Sconosciuto';
+    var ua = navigator.userAgent;
+    var device = 'Sconosciuto';
+    if (/iPad|Tablet/i.test(ua)) device = 'Tablet';
+    else if (/Mobile|Android/i.test(ua)) device = 'Mobile';
+    else device = 'PC';
+    var browser = 'Browser';
+    if (/Edg/i.test(ua)) browser = 'Edge';
+    else if (/Chrome/i.test(ua)) browser = 'Chrome';
+    else if (/Firefox/i.test(ua)) browser = 'Firefox';
+    else if (/Safari/i.test(ua)) browser = 'Safari';
+    return device + ' - ' + browser;
+  }
+
+  _isIOS() {
+    if (typeof navigator === 'undefined') return false;
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
 }
 
-function getAzioniPerTipo(tipo) {
-  switch (tipo) {
-    case 'chiamata':
-      return [
-        { action: 'apri', title: '📞 Apri' },
-        { action: 'ignora', title: 'Ignora' }
-      ];
-    case 'alert':
-      return [
-        { action: 'apri', title: '👀 Vedi' },
-        { action: 'ignora', title: 'Ignora' }
-      ];
-    case 'nuovo_ordine':
-    case 'ordine_modificato':
-      return [
-        { action: 'apri', title: '📦 Vedi ordine' },
-        { action: 'ignora', title: 'Ignora' }
-      ];
-    default:
-      return [{ action: 'apri', title: 'Apri' }];
-  }
-}
+var firebasePushService = new FirebasePushService();
+export default firebasePushService;
