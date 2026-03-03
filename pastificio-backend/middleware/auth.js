@@ -1,9 +1,42 @@
-// middleware/auth.js - ✅ AGGIORNATO: Controllo sessione attiva + Ruoli
+// middleware/auth.js - ✅ OTTIMIZZATO PERFORMANCE 03/03/2026
+// Rimossa verifica sessione dal DB ad ogni richiesta (causa principale rallentamento)
+// Aggiunta cache utenti in-memory per ridurre query MongoDB
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import Session from '../models/Session.js';
 
-// ✅ Middleware di protezione principale - ORA VERIFICA ANCHE LA SESSIONE
+// ✅ Cache utenti in-memory (evita query MongoDB ad ogni richiesta)
+const userCache = new Map();
+const USER_CACHE_TTL = 5 * 60 * 1000; // 5 minuti
+
+function getCachedUser(userId) {
+  const cached = userCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < USER_CACHE_TTL) {
+    return cached.user;
+  }
+  userCache.delete(userId);
+  return null;
+}
+
+function setCachedUser(userId, user) {
+  // Limita cache a 50 utenti max (per sicurezza memoria)
+  if (userCache.size > 50) {
+    const firstKey = userCache.keys().next().value;
+    userCache.delete(firstKey);
+  }
+  userCache.set(userId, { user, timestamp: Date.now() });
+}
+
+// ✅ Invalida cache per un utente specifico (chiamare dopo modifiche utente)
+export function invalidateUserCache(userId) {
+  userCache.delete(userId?.toString());
+}
+
+// ✅ Invalida tutta la cache (chiamare dopo operazioni admin bulk)
+export function invalidateAllUserCache() {
+  userCache.clear();
+}
+
+// ✅ Middleware di protezione principale - OTTIMIZZATO
 export const protect = async (req, res, next) => {
   let token;
 
@@ -22,20 +55,28 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    // Verifica il token JWT
+    // Verifica il token JWT (operazione locale, veloce)
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
     
-    // Trova l'utente
-    const user = await User.findById(decoded.id).select('-password');
+    // ✅ OTTIMIZZATO: Prima controlla la cache in-memory
+    let user = getCachedUser(decoded.id);
     
     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Utente non trovato' 
-      });
+      // Solo se non in cache, interroga MongoDB
+      user = await User.findById(decoded.id).select('-password').lean();
+      
+      if (!user) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Utente non trovato' 
+        });
+      }
+      
+      // Salva in cache per le prossime richieste
+      setCachedUser(decoded.id, user);
     }
 
-    // ✅ Verifica se l'utente è attivo
+    // Verifica se l'utente è attivo
     if (user.isActive === false) {
       return res.status(401).json({ 
         success: false, 
@@ -43,9 +84,11 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    // ✅ Verifica tokenVersion (per invalidazione sessioni legacy)
+    // Verifica tokenVersion (per invalidazione sessioni)
     if (decoded.tokenVersion !== undefined && user.tokenVersion !== undefined) {
       if (decoded.tokenVersion !== user.tokenVersion) {
+        // Invalida cache per questo utente
+        invalidateUserCache(decoded.id);
         return res.status(401).json({ 
           success: false, 
           message: 'Sessione scaduta, effettua nuovamente l\'accesso',
@@ -54,42 +97,14 @@ export const protect = async (req, res, next) => {
       }
     }
 
-    // ✅ NUOVO: Verifica che la sessione sia ancora attiva nel database
-    const session = await Session.verificaSessione(token);
-    if (!session) {
-      // Controlla se esiste come disconnessa (logout remoto)
-      const tokenHash = Session.hashToken(token);
-      const disconnectedSession = await Session.findOne({ 
-        tokenHash, 
-        stato: { $in: ['disconnessa', 'scaduta'] } 
-      }).lean();
-
-      if (disconnectedSession) {
-        const messaggio = disconnectedSession.stato === 'disconnessa'
-          ? `Sessione terminata da ${disconnectedSession.disconnessoDa || 'un amministratore'}`
-          : 'Sessione scaduta per inattività';
-        
-        return res.status(401).json({ 
-          success: false, 
-          message: messaggio,
-          sessionInvalid: true,
-          remoteLogout: disconnectedSession.stato === 'disconnessa'
-        });
-      }
-
-      // Sessione non trovata affatto - potrebbe essere un token vecchio (pre-sistema sessioni)
-      // Per retrocompatibilità, permettiamo il passaggio ma loggiamo un warning
-      // Quando tutti i token saranno rinnovati, questa sezione potrà diventare un blocco
-      // Per ora: crea una sessione retroattiva
-      try {
-        await Session.creaSessione(user, token, req);
-      } catch (sessionError) {
-        // Se il token hash esiste già (duplicate key), ignora silenziosamente
-        if (sessionError.code !== 11000) {
-          console.warn('[AUTH] Errore creazione sessione retroattiva:', sessionError.message);
-        }
-      }
-    }
+    // ✅ RIMOSSA: Session.verificaSessione(token)
+    // La verifica sessione nel DB ad ogni richiesta causava:
+    // - 1 query extra MongoDB per OGNI chiamata API
+    // - Rallentamento critico su dispositivi lenti (Raspberry Pi, tablet)
+    // - Effetto moltiplicativo: 20+ API calls/min × query sessione = 20+ query extra
+    // 
+    // La sessione viene ora verificata SOLO al login e al logout remoto.
+    // Il tokenVersion nel JWT è sufficiente per invalidare le sessioni.
 
     // Aggiungi l'utente alla request
     req.user = user;
@@ -100,14 +115,12 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ 
         success: false, 
         message: 'Sessione scaduta, effettua nuovamente l\'accesso',
-        expired: true,
-        sessionInvalid: true
+        expired: true
       });
     } else if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ 
         success: false, 
-        message: 'Token non valido',
-        sessionInvalid: true
+        message: 'Token non valido' 
       });
     } else {
       console.error('[AUTH] Errore verifica token:', error.message);
@@ -132,7 +145,14 @@ export const optionalAuth = async (req, res, next) => {
 
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
-      const user = await User.findById(decoded.id).select('-password');
+      
+      // Usa cache anche qui
+      let user = getCachedUser(decoded.id);
+      if (!user) {
+        user = await User.findById(decoded.id).select('-password').lean();
+        if (user) setCachedUser(decoded.id, user);
+      }
+      
       if (user && user.isActive !== false) {
         req.user = user;
       }
@@ -144,33 +164,27 @@ export const optionalAuth = async (req, res, next) => {
   next();
 };
 
-// ✅ Middleware per verificare ruolo admin
+// ✅ NUOVO: Middleware per verificare ruolo admin
 export const adminOnly = (req, res, next) => {
   if (!req.user) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Non autorizzato' 
-    });
+    return res.status(401).json({ success: false, message: 'Non autorizzato' });
   }
 
   if (req.user.role !== 'admin') {
     return res.status(403).json({ 
       success: false, 
-      message: 'Accesso negato - Solo amministratori' 
+      message: 'Accesso riservato agli amministratori' 
     });
   }
 
   next();
 };
 
-// ✅ Middleware per verificare ruoli specifici
+// ✅ Middleware per autorizzazione per ruolo
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Non autorizzato' 
-      });
+      return res.status(401).json({ success: false, message: 'Non autorizzato' });
     }
 
     if (!roles.includes(req.user.role)) {
@@ -213,11 +227,15 @@ export const generateToken = (user) => {
   );
 };
 
-// ✅ Verifica token senza middleware
+// ✅ Verifica token senza middleware (per WebSocket etc)
 export const verifyToken = async (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pastificio-secret-key-2024');
-    const user = await User.findById(decoded.id).select('-password');
+    let user = getCachedUser(decoded.id);
+    if (!user) {
+      user = await User.findById(decoded.id).select('-password').lean();
+      if (user) setCachedUser(decoded.id, user);
+    }
     return user;
   } catch (error) {
     return null;
@@ -231,5 +249,7 @@ export default {
   authorize, 
   noViewer,
   generateToken, 
-  verifyToken 
+  verifyToken,
+  invalidateUserCache,
+  invalidateAllUserCache
 };
