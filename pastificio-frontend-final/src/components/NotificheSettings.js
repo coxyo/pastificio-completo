@@ -1,369 +1,241 @@
-// src/components/NotificheSettings.js - ✅ NUOVO: Impostazioni notifiche push
+// src/components/NotificheSettings.js
+// ✅ Pannello impostazioni notifiche push (Firebase FCM)
+// Pastificio Nonna Claudia
+
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Box,
-  Typography,
-  Switch,
-  FormControlLabel,
-  Button,
-  Alert,
-  Paper,
-  Divider,
-  Chip,
-  CircularProgress,
-  IconButton,
-  Tooltip,
-  Stack
+  Box, Typography, Switch, Button, Paper, Divider,
+  List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction,
+  Alert, CircularProgress, Chip, Snackbar
 } from '@mui/material';
-import {
-  Notifications as NotificationsIcon,
-  NotificationsOff,
-  NotificationsActive,
-  PhoneInTalk,
-  Warning as WarningIcon,
-  ShoppingCart,
-  Edit as EditIcon,
-  Send as SendIcon,
-  CheckCircle,
-  Error as ErrorIcon,
-  Info as InfoIcon,
-  Apple as AppleIcon
-} from '@mui/icons-material';
-import pushNotificationService from '@/services/pushNotificationService';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import NotificationsOffIcon from '@mui/icons-material/NotificationsOff';
+import PhoneIcon from '@mui/icons-material/Phone';
+import WarningIcon from '@mui/icons-material/Warning';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import EditIcon from '@mui/icons-material/Edit';
+import SendIcon from '@mui/icons-material/Send';
+import DevicesIcon from '@mui/icons-material/Devices';
+import firebasePushService from '@/services/firebasePushService';
 
 export default function NotificheSettings() {
   const [stato, setStato] = useState(null);
   const [preferenze, setPreferenze] = useState({
     chiamate: true,
     alertCritici: true,
-    nuoviOrdini: false,
+    nuoviOrdini: true,
     ordiniModificati: false
   });
-  const [loading, setLoading] = useState(true);
+  const [caricamento, setCar] = useState(true);
   const [attivando, setAttivando] = useState(false);
-  const [testando, setTestando] = useState(false);
-  const [messaggio, setMessaggio] = useState(null);
+  const [testInvio, setTestInvio] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
-  // Carica stato attuale
+  // Carica stato iniziale
   const caricaStato = useCallback(async () => {
-    try {
-      setLoading(true);
-      await pushNotificationService.inizializza();
-      const statoAttuale = await pushNotificationService.getStato();
-      setStato(statoAttuale);
+    setCar(true);
+    const s = firebasePushService.getStato();
+    setStato(s);
 
-      // Carica preferenze dal server se sottoscritto
-      if (statoAttuale.isSubscribed) {
+    // Carica preferenze dal backend se attivo
+    if (s.tokenAttivo) {
+      try {
         const token = localStorage.getItem('token');
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
-        const resp = await fetch(`${API_URL}/api/push/subscriptions`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.subscriptions?.length > 0) {
-            setPreferenze(data.subscriptions[0].preferenze || preferenze);
-          }
+        const resp = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api'}/push/subscriptions`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        const data = await resp.json();
+        if (data.success && data.data.length > 0) {
+          setPreferenze(data.data[0].preferenze);
         }
+      } catch (e) {
+        console.warn('[PUSH] Errore caricamento preferenze:', e);
       }
-    } catch (error) {
-      console.error('[NOTIFICHE] Errore caricamento:', error);
-    } finally {
-      setLoading(false);
     }
+    setCar(false);
   }, []);
 
   useEffect(() => {
     caricaStato();
   }, [caricaStato]);
 
-  // Attiva notifiche
-  const handleAttiva = async () => {
+  // Toggle ON/OFF
+  const handleToggle = async () => {
+    setAttivando(true);
     try {
-      setAttivando(true);
-      setMessaggio(null);
-      
-      await pushNotificationService.attivaNotifiche(preferenze);
-      
-      setMessaggio({ tipo: 'success', testo: '✅ Notifiche attivate!' });
-      await caricaStato();
-    } catch (error) {
-      console.error('[NOTIFICHE] Errore attivazione:', error);
-      setMessaggio({ 
-        tipo: 'error', 
-        testo: error.message || 'Errore attivazione notifiche'
-      });
-    } finally {
-      setAttivando(false);
-    }
-  };
-
-  // Disattiva notifiche
-  const handleDisattiva = async () => {
-    try {
-      setAttivando(true);
-      setMessaggio(null);
-      
-      await pushNotificationService.disattivaNotifiche();
-      
-      setMessaggio({ tipo: 'info', testo: '🔕 Notifiche disattivate' });
-      await caricaStato();
-    } catch (error) {
-      console.error('[NOTIFICHE] Errore disattivazione:', error);
-      setMessaggio({ tipo: 'error', testo: error.message });
-    } finally {
-      setAttivando(false);
-    }
-  };
-
-  // Aggiorna preferenze
-  const handleCambiaPreferenza = async (tipo, valore) => {
-    const nuovePreferenze = { ...preferenze, [tipo]: valore };
-    setPreferenze(nuovePreferenze);
-
-    // Se è sottoscritto, aggiorna anche sul server
-    if (stato?.isSubscribed) {
-      try {
-        await pushNotificationService.aggiornaPreferenze(nuovePreferenze);
-      } catch (error) {
-        console.error('[NOTIFICHE] Errore aggiornamento:', error);
+      if (stato?.tokenAttivo) {
+        await firebasePushService.disattivaNotifiche();
+        setSnackbar({ open: true, message: 'Notifiche disattivate', severity: 'info' });
+      } else {
+        const result = await firebasePushService.attivaNotifiche();
+        if (result.success) {
+          setSnackbar({ open: true, message: '✅ Notifiche attivate!', severity: 'success' });
+        } else {
+          setSnackbar({ open: true, message: `Errore: ${result.motivo}`, severity: 'error' });
+        }
       }
+      await caricaStato();
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Errore: ' + error.message, severity: 'error' });
+    }
+    setAttivando(false);
+  };
+
+  // Aggiorna singola preferenza
+  const handlePreferenza = async (tipo) => {
+    const nuove = { ...preferenze, [tipo]: !preferenze[tipo] };
+    setPreferenze(nuove);
+
+    const result = await firebasePushService.aggiornaPreferenze(nuove);
+    if (result.success) {
+      setSnackbar({ open: true, message: 'Preferenza aggiornata', severity: 'success' });
     }
   };
 
   // Test notifica
   const handleTest = async () => {
-    try {
-      setTestando(true);
-      const result = await pushNotificationService.inviaTest();
-      setMessaggio({ 
-        tipo: result.success ? 'success' : 'error', 
-        testo: result.success ? '🧪 Notifica test inviata!' : 'Errore invio test'
-      });
-    } catch (error) {
-      setMessaggio({ tipo: 'error', testo: 'Errore test notifica' });
-    } finally {
-      setTestando(false);
+    setTestInvio(true);
+    const result = await firebasePushService.inviaTest();
+    if (result.success) {
+      setSnackbar({ open: true, message: `Test inviato a ${result.inviati} dispositivi`, severity: 'success' });
+    } else {
+      setSnackbar({ open: true, message: result.message || 'Errore invio test', severity: 'error' });
     }
+    setTestInvio(false);
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+  if (caricamento) {
+    return <Box sx={{ p: 3, textAlign: 'center' }}><CircularProgress /></Box>;
   }
 
-  // iOS non supportato
-  if (stato?.ios) {
-    return (
-      <Paper sx={{ p: 3, mb: 2 }}>
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-          <AppleIcon sx={{ fontSize: 40, color: '#666' }} />
-          <Box>
-            <Typography variant="h6">Notifiche Push</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Non disponibili su iPhone/iPad
-            </Typography>
-          </Box>
-        </Stack>
-        <Alert severity="info" sx={{ mt: 1 }}>
-          Apple non supporta le notifiche Web Push su iOS. Le notifiche funzionano
-          su PC (Chrome, Edge, Firefox) e tablet Android.
-        </Alert>
-      </Paper>
-    );
-  }
-
-  // Browser non supportato
-  if (!stato?.supported) {
-    return (
-      <Paper sx={{ p: 3, mb: 2 }}>
-        <Alert severity="warning">
-          Il tuo browser non supporta le notifiche push. Usa Chrome, Edge o Firefox.
-        </Alert>
-      </Paper>
-    );
-  }
+  const isAttivo = stato?.tokenAttivo;
+  const isIOS = stato?.isIOS;
 
   return (
-    <Paper sx={{ p: 3, mb: 2 }}>
-      {/* Header */}
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-        {stato?.isSubscribed ? (
-          <NotificationsActive sx={{ fontSize: 40, color: '#4caf50' }} />
-        ) : (
-          <NotificationsOff sx={{ fontSize: 40, color: '#999' }} />
-        )}
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h6">🔔 Notifiche Push</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Ricevi avvisi anche quando il gestionale è chiuso
-          </Typography>
-        </Box>
-        {stato?.isSubscribed && (
-          <Chip 
-            icon={<CheckCircle />} 
-            label="Attive" 
-            color="success" 
-            size="small" 
-          />
-        )}
-      </Stack>
-
-      <Divider sx={{ my: 2 }} />
-
-      {/* Stato permesso negato */}
-      {stato?.permission === 'denied' && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Le notifiche sono state bloccate nel browser. Per riattivarle,
-          clicca sull'icona del lucchetto nella barra degli indirizzi e consenti le notifiche.
-        </Alert>
-      )}
-
-      {/* Messaggi feedback */}
-      {messaggio && (
-        <Alert 
-          severity={messaggio.tipo} 
-          onClose={() => setMessaggio(null)}
-          sx={{ mb: 2 }}
-        >
-          {messaggio.testo}
-        </Alert>
-      )}
-
-      {/* Bottone attiva/disattiva */}
-      {!stato?.isSubscribed ? (
-        <Button
-          variant="contained"
-          color="primary"
-          size="large"
-          startIcon={attivando ? <CircularProgress size={20} color="inherit" /> : <NotificationsIcon />}
-          onClick={handleAttiva}
-          disabled={attivando || stato?.permission === 'denied'}
-          fullWidth
-          sx={{ mb: 3, py: 1.5, fontSize: '16px' }}
-        >
-          {attivando ? 'Attivazione...' : '✅ Attiva notifiche su questo dispositivo'}
-        </Button>
-      ) : (
-        <Box sx={{ mb: 3 }}>
-          <Alert severity="success" sx={{ mb: 2 }}>
-            Notifiche attive su questo dispositivo. Riceverai avvisi anche a gestionale chiuso.
-          </Alert>
-        </Box>
-      )}
-
-      {/* Preferenze */}
-      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-        Ricevi notifiche per:
-      </Typography>
-
-      <Box sx={{ pl: 1 }}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={preferenze.chiamate}
-              onChange={(e) => handleCambiaPreferenza('chiamate', e.target.checked)}
-              color="primary"
-            />
-          }
-          label={
-            <Stack direction="row" spacing={1} alignItems="center">
-              <PhoneInTalk sx={{ fontSize: 20, color: '#1976d2' }} />
-              <span>Chiamate in arrivo</span>
-            </Stack>
-          }
-        />
-
-        <FormControlLabel
-          control={
-            <Switch
-              checked={preferenze.alertCritici}
-              onChange={(e) => handleCambiaPreferenza('alertCritici', e.target.checked)}
-              color="warning"
-            />
-          }
-          label={
-            <Stack direction="row" spacing={1} alignItems="center">
-              <WarningIcon sx={{ fontSize: 20, color: '#ed6c02' }} />
-              <span>Alert critici</span>
-            </Stack>
-          }
-        />
-
-        <FormControlLabel
-          control={
-            <Switch
-              checked={preferenze.nuoviOrdini}
-              onChange={(e) => handleCambiaPreferenza('nuoviOrdini', e.target.checked)}
-              color="success"
-            />
-          }
-          label={
-            <Stack direction="row" spacing={1} alignItems="center">
-              <ShoppingCart sx={{ fontSize: 20, color: '#2e7d32' }} />
-              <span>Nuovi ordini (da altri utenti)</span>
-            </Stack>
-          }
-        />
-
-        <FormControlLabel
-          control={
-            <Switch
-              checked={preferenze.ordiniModificati}
-              onChange={(e) => handleCambiaPreferenza('ordiniModificati', e.target.checked)}
-              color="info"
-            />
-          }
-          label={
-            <Stack direction="row" spacing={1} alignItems="center">
-              <EditIcon sx={{ fontSize: 20, color: '#0288d1' }} />
-              <span>Ordini modificati (da altri utenti)</span>
-            </Stack>
-          }
+    <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        {isAttivo ? <NotificationsIcon color="primary" /> : <NotificationsOffIcon color="disabled" />}
+        <Typography variant="h6">Notifiche Push</Typography>
+        <Chip
+          label={isAttivo ? 'ATTIVE' : 'DISATTIVE'}
+          color={isAttivo ? 'success' : 'default'}
+          size="small"
         />
       </Box>
 
-      {/* Azioni */}
-      {stato?.isSubscribed && (
+      {/* iOS Warning */}
+      {isIOS && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Le notifiche push non sono supportate su iPhone/iPad (limitazione Apple).
+          Funzionano su PC, tablet Android e Mac.
+        </Alert>
+      )}
+
+      {/* Permesso negato */}
+      {stato?.permesso === 'denied' && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Hai bloccato le notifiche per questo sito. Per riattivarle vai nelle impostazioni del browser
+          → Siti → pastificio-frontend-final.vercel.app → Notifiche → Consenti.
+        </Alert>
+      )}
+
+      {/* Toggle principale */}
+      {!isIOS && stato?.permesso !== 'denied' && (
         <>
-          <Divider sx={{ my: 2 }} />
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={testando ? <CircularProgress size={16} /> : <SendIcon />}
-              onClick={handleTest}
-              disabled={testando}
-            >
-              Invia notifica test
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              size="small"
-              startIcon={<NotificationsOff />}
-              onClick={handleDisattiva}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box>
+              <Typography variant="body1" fontWeight="bold">
+                Ricevi notifiche anche a browser chiuso
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Powered by Firebase Cloud Messaging
+              </Typography>
+            </Box>
+            <Switch
+              checked={isAttivo}
+              onChange={handleToggle}
               disabled={attivando}
-            >
-              Disattiva su questo dispositivo
-            </Button>
-          </Stack>
+              color="primary"
+            />
+          </Box>
+
+          {attivando && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <CircularProgress size={16} />
+              <Typography variant="body2" color="text.secondary">
+                {isAttivo ? 'Disattivazione...' : 'Attivazione...'}
+              </Typography>
+            </Box>
+          )}
         </>
       )}
 
-      {/* Info */}
-      <Box sx={{ mt: 2, p: 1.5, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-        <Typography variant="caption" color="text.secondary">
-          <InfoIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />
-          Le notifiche funzionano su Chrome, Edge e Firefox (PC e Android).
-          Non supportate su iPhone/iPad (limitazione Apple).
-        </Typography>
-      </Box>
+      {/* Preferenze per tipo */}
+      {isAttivo && (
+        <>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+            TIPI DI NOTIFICA
+          </Typography>
+
+          <List dense>
+            <ListItem>
+              <ListItemIcon><PhoneIcon color="error" /></ListItemIcon>
+              <ListItemText primary="Chiamate in arrivo" secondary="Notifica quando arriva una chiamata 3CX" />
+              <ListItemSecondaryAction>
+                <Switch edge="end" checked={preferenze.chiamate} onChange={() => handlePreferenza('chiamate')} />
+              </ListItemSecondaryAction>
+            </ListItem>
+
+            <ListItem>
+              <ListItemIcon><WarningIcon color="warning" /></ListItemIcon>
+              <ListItemText primary="Alert critici" secondary="Anomalie ordini, clienti scomparsi, fatturato" />
+              <ListItemSecondaryAction>
+                <Switch edge="end" checked={preferenze.alertCritici} onChange={() => handlePreferenza('alertCritici')} />
+              </ListItemSecondaryAction>
+            </ListItem>
+
+            <ListItem>
+              <ListItemIcon><ShoppingCartIcon color="primary" /></ListItemIcon>
+              <ListItemText primary="Nuovi ordini" secondary="Quando un altro operatore crea un ordine" />
+              <ListItemSecondaryAction>
+                <Switch edge="end" checked={preferenze.nuoviOrdini} onChange={() => handlePreferenza('nuoviOrdini')} />
+              </ListItemSecondaryAction>
+            </ListItem>
+
+            <ListItem>
+              <ListItemIcon><EditIcon color="info" /></ListItemIcon>
+              <ListItemText primary="Ordini modificati" secondary="Quando un altro operatore modifica un ordine" />
+              <ListItemSecondaryAction>
+                <Switch edge="end" checked={preferenze.ordiniModificati} onChange={() => handlePreferenza('ordiniModificati')} />
+              </ListItemSecondaryAction>
+            </ListItem>
+          </List>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Test */}
+          <Button
+            variant="outlined"
+            startIcon={testInvio ? <CircularProgress size={16} /> : <SendIcon />}
+            onClick={handleTest}
+            disabled={testInvio}
+            fullWidth
+          >
+            {testInvio ? 'Invio in corso...' : 'Invia notifica test'}
+          </Button>
+        </>
+      )}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        message={snackbar.message}
+      />
     </Paper>
   );
 }
