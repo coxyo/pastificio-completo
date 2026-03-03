@@ -3,7 +3,7 @@ import Chiamata from '../models/Chiamata.js';
 import Cliente from '../models/Cliente.js';
 import logger from '../config/logger.js';
 import pusher from '../services/pusherService.js';
-import pushService from '../services/pushService.js';
+import firebasePushService from '../services/firebasePushService.js';
 
 // ✅ ANTI-SPAM: Cache chiamate recenti
 const recentCalls = new Map(); // numero -> { timestamp, callId }
@@ -552,7 +552,7 @@ export const webhookChiamata = async (req, res) => {
 
     // ✅ NUOVO: Invia notifica Web Push (anche a browser chiuso)
     try {
-      await pushService.notificaChiamata({
+      await firebasePushService.notificaChiamata({
         callId: chiamata.callId,
         numero: chiamata.numero,
         cliente: chiamata.cliente ? {

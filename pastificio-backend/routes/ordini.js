@@ -7,7 +7,7 @@ import { protect } from '../middleware/auth.js';
 import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
 import ordiniController from '../controllers/ordiniController.js'; // ✅ AGGIUNGI QUESTA RIGA
-import pushService from '../services/pushService.js'; // ✅ NUOVO - Web Push Notifications
+import firebasePushService from '../services/firebasePushService.js'; // ✅ Firebase Push
 
 
 const router = express.Router();
@@ -537,7 +537,7 @@ router.post('/', async (req, res, next) => {
 
     // ✅ NUOVO: Push notification nuovo ordine (escludi chi l'ha creato)
     try {
-      await pushService.notificaNuovoOrdine(nuovoOrdine, req.user?._id);
+      await firebasePushService.notificaNuovoOrdine(nuovoOrdine, req.user?._id);
     } catch (pushErr) {
       logger.warn('[PUSH] Errore notifica nuovo ordine:', pushErr.message);
     }
@@ -683,7 +683,7 @@ router.put('/:id', async (req, res) => {
     
     // ✅ NUOVO: Push notification ordine modificato (escludi chi l'ha modificato)
     try {
-      await pushService.notificaOrdineModificato(
+      await firebasePushService.notificaOrdineModificato(
         ordineAggiornato,
         req.user?._id,
         req.user?.nome || 'operatore'
