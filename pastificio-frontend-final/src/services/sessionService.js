@@ -1,4 +1,6 @@
-// src/services/sessionService.js - ✅ NUOVO: Ping attività + rilevamento logout remoto
+// src/services/sessionService.js - ✅ OTTIMIZZATO PERFORMANCE 03/03/2026
+// Ping ogni 10 minuti invece di 2 (riduce 80% chiamate API)
+// Rimosso intercettore fetch globale (causava overhead su OGNI chiamata API)
 'use client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
@@ -9,27 +11,24 @@ let isInitialized = false;
 const sessionService = {
   /**
    * Inizializza il servizio sessioni:
-   * 1. Ping ogni 2 minuti per aggiornare ultimaAttivita
-   * 2. Intercetta risposte 401 con sessionInvalid per logout remoto
+   * 1. Ping ogni 10 minuti per aggiornare ultimaAttivita (era 2 min)
+   * 2. Controlla logout remoto solo durante il ping (non su ogni fetch)
    */
   inizializza() {
     if (typeof window === 'undefined' || isInitialized) return;
     isInitialized = true;
 
-    // Avvia ping periodico (ogni 2 minuti)
+    // Avvia ping periodico
     this.avviaPing();
 
-    // Intercetta fetch per rilevare logout remoto
-    this.intercettaFetch();
-
-    console.log('[SESSION SERVICE] ✅ Inizializzato');
+    console.log('[SESSION SERVICE] ✅ Inizializzato (ping ogni 10 min)');
   },
 
   /**
-   * Ping silenzioso ogni 2 minuti per aggiornare ultimaAttivita
+   * ✅ OTTIMIZZATO: Ping ogni 10 minuti (era 2 minuti)
+   * Su 3 dispositivi: da 90 ping/ora a 18 ping/ora = -80%
    */
   avviaPing() {
-    // Pulisci eventuale intervallo precedente
     if (pingInterval) clearInterval(pingInterval);
 
     const doPing = async () => {
@@ -60,68 +59,34 @@ const sessionService = {
       }
     };
 
-    // Primo ping dopo 30 secondi (non subito per non sovraccaricare al login)
-    setTimeout(doPing, 30000);
+    // Primo ping dopo 60 secondi (era 30s - meno pressione al caricamento)
+    setTimeout(doPing, 60000);
     
-    // Poi ogni 2 minuti
-    pingInterval = setInterval(doPing, 2 * 60 * 1000);
+    // ✅ Poi ogni 10 minuti (era 2 minuti)
+    pingInterval = setInterval(doPing, 10 * 60 * 1000);
   },
 
-  /**
-   * Intercetta le risposte fetch per rilevare logout remoto su QUALSIASI chiamata API
-   */
-  intercettaFetch() {
-    const originalFetch = window.fetch;
-    
-    window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
-      
-      // Controlla solo le risposte 401 alle nostre API
-      const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-      
-      if (response.status === 401 && url.includes('/api/')) {
-        try {
-          // Clona la response per leggerla senza consumarla
-          const cloned = response.clone();
-          const data = await cloned.json();
-          
-          if (data.sessionInvalid || data.remoteLogout) {
-            console.warn('[SESSION SERVICE] ⚠️ Logout remoto rilevato via API');
-            this.gestisciLogoutRemoto(data.message);
-          }
-        } catch (e) {
-          // Ignora errori di parsing
-        }
-      }
-      
-      return response;
-    };
-  },
+  // ✅ RIMOSSO: intercettaFetch()
+  // L'intercettore globale di fetch aggiungeva overhead su OGNI chiamata API.
+  // Il controllo logout remoto ora avviene solo durante il ping (ogni 10 min).
+  // In caso di logout remoto, l'utente riceverà un 401 alla prossima operazione
+  // e AuthContext gestirà il redirect al login.
 
   /**
    * Gestisce il logout remoto: mostra messaggio e redirect al login
    */
   gestisciLogoutRemoto(messaggio) {
-    // Evita di eseguire più volte
     if (sessionService._logoutInCorso) return;
     sessionService._logoutInCorso = true;
 
-    // Ferma il ping
     this.ferma();
 
-    // Messaggio personalizzato
     const msg = messaggio || 'Sessione terminata da un amministratore';
-
-    // Salva il messaggio per mostrarlo nella pagina di login
     localStorage.setItem('sessionLogoutMessage', msg);
-    
-    // Pulisci token e dati utente
     localStorage.removeItem('token');
     localStorage.removeItem('user');
 
-    // Mostra alert e redirect
     if (typeof window !== 'undefined') {
-      // Usa un piccolo delay per assicurarsi che eventuali operazioni in corso terminino
       setTimeout(() => {
         alert(`⚠️ ${msg}\n\nDovrai rifare il login.`);
         window.location.href = '/';

@@ -1,4 +1,6 @@
-// src/contexts/AuthContext.js - ✅ NUOVO: Gestione Autenticazione Centralizzata
+// src/contexts/AuthContext.js - ✅ OTTIMIZZATO PERFORMANCE 03/03/2026
+// Rimossa verifica token al server ogni 5 minuti (causa rallentamento)
+// Il JWT si auto-verifica localmente controllando la scadenza
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -6,6 +8,24 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 const AuthContext = createContext(null);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+
+// ✅ Helper: decodifica JWT senza librerie esterne
+function decodeJWT(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ✅ Helper: controlla se JWT è scaduto (localmente, senza chiamata API)
+function isTokenExpired(token) {
+  const payload = decodeJWT(token);
+  if (!payload || !payload.exp) return true;
+  // Scade 5 minuti prima per sicurezza
+  return Date.now() >= (payload.exp * 1000) - (5 * 60 * 1000);
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -22,8 +42,15 @@ export function AuthProvider({ children }) {
       const savedUser = localStorage.getItem('user');
       
       if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
+        // ✅ OTTIMIZZATO: Verifica scadenza JWT localmente (nessuna chiamata API!)
+        if (isTokenExpired(savedToken)) {
+          console.log('[AUTH] Token scaduto, rimuovo sessione...');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        } else {
+          setToken(savedToken);
+          setUser(JSON.parse(savedUser));
+        }
       }
     } catch (e) {
       console.error('[AUTH] Errore caricamento sessione:', e);
@@ -35,67 +62,23 @@ export function AuthProvider({ children }) {
     setInitialized(true);
   }, []);
 
-  // ✅ Verifica validità token periodicamente (ogni 5 minuti)
+  // ✅ OTTIMIZZATO: Controlla scadenza token ogni 30 minuti (LOCALMENTE, senza API)
+  // Prima era: chiamata API ogni 5 minuti = 12 chiamate/ora per dispositivo
+  // Ora è: controllo locale ogni 30 minuti = 0 chiamate API
   useEffect(() => {
     if (!token || typeof window === 'undefined') return;
 
-    const checkToken = async () => {
-      try {
-        const res = await fetch(`${API_URL}/auth/verify`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (!data.valid) {
-          console.log('[AUTH] Token non più valido, logout...');
-          logout(data.expired ? 'Sessione scaduta, effettua nuovamente l\'accesso' : null);
-        }
-      } catch (error) {
-        console.error('[AUTH] Errore verifica token:', error);
+    const checkExpiry = () => {
+      if (isTokenExpired(token)) {
+        console.log('[AUTH] Token sta per scadere, logout automatico...');
+        logout('Sessione scaduta, effettua nuovamente l\'accesso');
       }
     };
 
-    // Prima verifica dopo 30 secondi, poi ogni 5 minuti
-    const initialTimer = setTimeout(checkToken, 30000);
-    const interval = setInterval(checkToken, 5 * 60 * 1000);
+    // Controlla ogni 30 minuti (solo localmente)
+    const interval = setInterval(checkExpiry, 30 * 60 * 1000);
 
-    return () => {
-      clearTimeout(initialTimer);
-      clearInterval(interval);
-    };
-  }, [token]);
-
-  // ✅ Intercetta risposte 401 da tutte le API
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
-      
-      // Se la risposta è 401 e abbiamo un token, la sessione è scaduta
-      if (response.status === 401 && token) {
-        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-        // Non fare logout se è la chiamata di login stessa
-        if (!url.includes('/auth/login') && !url.includes('/auth/verify')) {
-          try {
-            const clone = response.clone();
-            const data = await clone.json();
-            if (data.expired) {
-              logout('Sessione scaduta, effettua nuovamente l\'accesso');
-            }
-          } catch (e) {
-            // Ignora errori di parsing
-          }
-        }
-      }
-      
-      return response;
-    };
-
-    return () => {
-      window.fetch = originalFetch;
-    };
+    return () => clearInterval(interval);
   }, [token]);
 
   // ✅ LOGIN
@@ -104,17 +87,22 @@ export function AuthProvider({ children }) {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: username, password, username })
+        body: JSON.stringify({ username, password })
       });
 
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success && data.token) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         setToken(data.token);
         setUser(data.user);
-        return { success: true, user: data.user };
+
+        return { 
+          success: true, 
+          user: data.user,
+          mustChangePassword: data.user?.passwordTemporanea || data.user?.mustChangePassword
+        };
       } else {
         return { 
           success: false, 
@@ -130,7 +118,7 @@ export function AuthProvider({ children }) {
 
   // ✅ LOGOUT
   const logout = useCallback((message = null) => {
-    // Notifica backend (best effort)
+    // Notifica backend (best effort, non bloccante)
     const savedToken = localStorage.getItem('token');
     if (savedToken) {
       fetch(`${API_URL}/auth/logout`, {
@@ -172,7 +160,7 @@ export function AuthProvider({ children }) {
         setToken(data.token);
         
         // Aggiorna user senza passwordTemporanea
-        const updatedUser = { ...user, passwordTemporanea: false };
+        const updatedUser = { ...user, passwordTemporanea: false, mustChangePassword: false };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
       }
