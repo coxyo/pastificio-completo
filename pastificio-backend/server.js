@@ -81,7 +81,7 @@ import sessionsRoutes from './routes/sessions.js';
 import alertsRoutes from './routes/alerts.js';           // ✅ NUOVO - Alert automatici
 import alertsChecker from './jobs/alertsChecker.js';     // ✅ NUOVO - Cron jobs alert
 import pushRoutes from './routes/push.js';               // ✅ NUOVO - Web Push Notifications
-import pushServiceBackend from './services/pushService.js'; // ✅ NUOVO - Push Service
+import firebasePushService from './services/firebasePushService.js'; // ✅ Firebase Push Service
 // ✅ NUOVO - Rintracciabilità ingredienti
 
 
@@ -1116,10 +1116,10 @@ const startServer = async () => {
 
     // ✅ NUOVO: Inizializza Web Push Notifications
     try {
-      pushServiceBackend.inizializza();
-      logger.info('✅ Web Push Notifications inizializzato');
+      firebasePushService.inizializza();
+      logger.info('✅ Firebase Push Notifications inizializzato');
     } catch (pushError) {
-      logger.warn('⚠️ Web Push non disponibile:', pushError.message);
+      logger.warn('⚠️ Firebase Push non disponibile:', pushError.message);
     }
     } catch (schedulerError) {
       logger.warn('Scheduler generale non disponibile:', schedulerError.message);
