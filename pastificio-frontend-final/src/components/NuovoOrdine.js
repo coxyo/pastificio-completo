@@ -70,6 +70,7 @@ import VariantiProdotto, {
 } from './VariantiProdotto';
 import BarraDisponibilita from './BarraDisponibilita';
 import SelectOrarioIntelligente from './SelectOrarioIntelligente';
+import { verificaChiusura } from '../services/chiusureService'; // ✅ NUOVO: Verifica chiusure
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
@@ -206,6 +207,10 @@ const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(nul
 
   // ✅ FIX 19/02/2026: Dialog conferma data ritiro = oggi
   const [showConfermaDataOggi, setShowConfermaDataOggi] = useState(false);
+
+  // ✅ NUOVO: Verifica chiusura data selezionata
+  const [chiusuraInfo, setChiusuraInfo] = useState(null); // { chiuso, motivo, prossimaData }
+  const [verificandoChiusura, setVerificandoChiusura] = useState(false);
 
   // ✅ NUOVO 27/02/2026: Ripeti ultimo ordine
   const [ultimoOrdine, setUltimoOrdine] = useState(null);
@@ -516,6 +521,25 @@ const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(nul
       caricaConteggioOrari(formData.dataRitiro);
     }
   }, [formData.dataRitiro, isConnected]);
+
+  // ✅ NUOVO: Verifica chiusura ogni volta che cambia la data
+  useEffect(() => {
+    if (!formData.dataRitiro) {
+      setChiusuraInfo(null);
+      return;
+    }
+    let cancelled = false;
+    setVerificandoChiusura(true);
+    verificaChiusura(formData.dataRitiro).then((result) => {
+      if (!cancelled) {
+        setChiusuraInfo(result);
+        setVerificandoChiusura(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setVerificandoChiusura(false);
+    });
+    return () => { cancelled = true; };
+  }, [formData.dataRitiro]);
 
 // ✅ FIX 04/03/2026: Aggiorna prodotto critico
 // Controlla prima il prodotto corrente nel form, poi cerca nel carrello
@@ -1570,6 +1594,19 @@ useEffect(() => {
 
     console.log('✅ Validazione prodotti OK - tutti hanno quantità e prezzo validi');
 
+    // ✅ NUOVO: Blocca salvataggio se data è chiusa
+    if (chiusuraInfo?.chiuso) {
+      alert(
+        `⛔ GIORNO CHIUSO\n\n` +
+        `Il ${new Date(formData.dataRitiro + 'T12:00:00').toLocaleDateString('it-IT')} il pastificio è chiuso.\n` +
+        `Motivo: ${chiusuraInfo.motivo}\n\n` +
+        (chiusuraInfo.prossimaData
+          ? `Prossimo giorno disponibile: ${new Date(chiusuraInfo.prossimaData + 'T12:00:00').toLocaleDateString('it-IT')}`
+          : '')
+      );
+      return;
+    }
+
     // ✅ FIX 19/02/2026: Controlla se data ritiro è OGGI → mostra dialog conferma
     const oggi = new Date().toISOString().split('T')[0];
     const dataRitiroSelezionata = formData.dataRitiro?.split('T')[0];
@@ -2498,6 +2535,40 @@ useEffect(() => {
                   dataSelezionata={formData.dataRitiro}
                   loading={loadingConteggioOrari}
                 />
+
+                {/* ✅ NUOVO: Alert giorno chiuso */}
+                {verificandoChiusura && (
+                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={14} />
+                    <Typography variant="caption" color="text.secondary">Verifica disponibilità...</Typography>
+                  </Box>
+                )}
+                {!verificandoChiusura && chiusuraInfo?.chiuso && (
+                  <Alert
+                    severity="error"
+                    sx={{ mt: 1, py: 0.5 }}
+                    action={
+                      chiusuraInfo.prossimaData ? (
+                        <Button
+                          size="small"
+                          color="inherit"
+                          onClick={() => setFormData({ ...formData, dataRitiro: chiusuraInfo.prossimaData })}
+                        >
+                          {new Date(chiusuraInfo.prossimaData + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        </Button>
+                      ) : null
+                    }
+                  >
+                    <Typography variant="caption" fontWeight="bold">
+                      ⛔ {chiusuraInfo.motivo}
+                    </Typography>
+                    {chiusuraInfo.prossimaData && (
+                      <Typography variant="caption" display="block">
+                        Primo giorno disponibile →
+                      </Typography>
+                    )}
+                  </Alert>
+                )}
                 
                 {/* Input data e ora compatti */}
                 <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>

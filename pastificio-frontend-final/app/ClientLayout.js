@@ -41,7 +41,8 @@ import {
   Logout as LogoutIcon,
   PersonOutline,
   AdminPanelSettings,
-  Security as SecurityIcon  // ✅ NUOVO: Icona per sessioni
+  Security as SecurityIcon,  // ✅ NUOVO: Icona per sessioni
+  EventBusy as EventBusyIcon  // ✅ NUOVO: Icona chiusure
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
@@ -71,6 +72,7 @@ const allMenuItems = [
   { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi', roles: ['admin'] },
   { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici', roles: ['admin'] },
   { id: 'sessioni', title: 'Sessioni Attive', icon: <SecurityIcon />, path: '/sessioni', roles: ['admin', 'operatore'] },  // ✅ NUOVO
+  { id: 'chiusure', title: 'Calendario Chiusure', icon: <EventBusyIcon />, path: '/chiusure', roles: ['admin', 'operatore', 'visualizzatore'] },  // ✅ NUOVO
   { id: 'utenti', title: 'Gestione Utenti', icon: <AdminPanelSettings />, path: '/utenti', roles: ['admin'] },
   { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni', roles: ['admin'] }
 ];
