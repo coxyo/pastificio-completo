@@ -39,9 +39,11 @@ import {
   Error as ErrorIcon
 } from '@mui/icons-material';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app';
+
 export default function BackupManager() {
   const [loading, setLoading] = useState(false);
-  const [backups, setBackups] = useState({ local: [], drive: [] });
+  const [backups, setBackups] = useState({ local: [], cloud: [], drive: [], provider: 's3' });
   const [selectedTab, setSelectedTab] = useState(0);
   const [restoreDialog, setRestoreDialog] = useState({ open: false, backup: null });
   const [lastBackup, setLastBackup] = useState(null);
@@ -57,15 +59,18 @@ export default function BackupManager() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api/backup/list', {
+      const response = await fetch(`${API_URL}/api/backup/list`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        setBackups(data.data || { local: [], drive: [] });
+        const backupData = data.data || { local: [], cloud: [], drive: [], provider: 's3' };
+        // Normalizza: usa cloud se disponibile, altrimenti drive per compatibilità
+        if (!backupData.cloud) backupData.cloud = backupData.drive || [];
+        setBackups(backupData);
       } else {
         throw new Error('Errore caricamento backup');
       }
@@ -89,25 +94,29 @@ export default function BackupManager() {
     setBackupStatus('creating');
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api/backup/create', {
+      const response = await fetch(`${API_URL}/api/backup/create`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const now = new Date();
         setLastBackup(now);
         localStorage.setItem('lastBackupTime', now.toISOString());
-        
+
+        const cloudProvider = data.data?.cloudProvider || 's3';
+        const cloudUploaded = data.data?.cloudUploaded;
+        const providerLabel = cloudProvider === 's3' ? '☁️ Caricato su AWS S3' : '☁️ Caricato su Google Drive';
+
         showAlert(
-          `Backup creato con successo! ${data.data?.driveUploaded ? '☁️ Caricato su Google Drive' : '💾 Solo locale'}`,
+          `Backup creato con successo! ${cloudUploaded ? providerLabel : '💾 Solo locale'}`,
           'success'
         );
-        
+
         await loadBackups();
         setBackupStatus('success');
         setTimeout(() => setBackupStatus(null), 3000);
@@ -126,26 +135,29 @@ export default function BackupManager() {
 
   const restoreBackup = async () => {
     if (!restoreDialog.backup) return;
-    
+
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api/backup/restore', {
+      const backup = restoreDialog.backup;
+      const fromCloud = backup.location === 's3' || backup.location === 'drive';
+
+      const response = await fetch(`${API_URL}/api/backup/restore`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          fileName: restoreDialog.backup.name,
-          fromDrive: restoreDialog.backup.location === 'drive'
+          fileName: backup.name,
+          fromDrive: fromCloud
         })
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         showAlert(
-          `Backup ripristinato! Ordini: ${data.data?.stats?.ordini || 0}, Clienti: ${data.data?.stats?.clienti || 0}`,
+          `Backup ripristinato! Ordini: ${data.data?.stats?.ordini || 0}, Utenti: ${data.data?.stats?.users || 0}`,
           'success'
         );
         setRestoreDialog({ open: false, backup: null });
@@ -178,14 +190,19 @@ export default function BackupManager() {
     return date.toLocaleDateString('it-IT') + ' ' + date.toLocaleTimeString('it-IT');
   };
 
-  const currentBackups = selectedTab === 0 ? backups.local : backups.drive;
+  // Tab 0 = locali, Tab 1 = AWS S3
+  const cloudBackups = backups.cloud?.length > 0 ? backups.cloud : (backups.drive || []);
+  const currentBackups = selectedTab === 0 ? (backups.local || []) : cloudBackups;
+  const isS3 = backups.provider === 's3';
+  const cloudLabel = isS3 ? 'AWS S3' : 'Google Drive';
+  const cloudIcon = <CloudIcon />;
 
   return (
     <Box>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h5" component="h2">
-            Gestione Backup
+            🔒 Gestione Backup
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
@@ -198,7 +215,7 @@ export default function BackupManager() {
             </Button>
             <Button
               variant="contained"
-              startIcon={<BackupIcon />}
+              startIcon={loading && backupStatus === 'creating' ? null : <BackupIcon />}
               onClick={createBackup}
               disabled={loading}
               color={backupStatus === 'success' ? 'success' : backupStatus === 'error' ? 'error' : 'primary'}
@@ -209,7 +226,7 @@ export default function BackupManager() {
                   Creazione...
                 </>
               ) : (
-                'Crea Backup'
+                `Backup su ${cloudLabel}`
               )}
             </Button>
           </Box>
@@ -237,14 +254,20 @@ export default function BackupManager() {
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <StorageIcon color="primary" sx={{ mr: 1 }} />
+                  <CloudIcon color={isS3 ? 'warning' : 'primary'} sx={{ mr: 1 }} />
                   <Typography color="textSecondary" gutterBottom>
-                    Backup Locali
+                    Backup su {cloudLabel}
                   </Typography>
                 </Box>
                 <Typography variant="h6">
-                  {backups.local.length} file
+                  {cloudBackups.length} file
                 </Typography>
+                <Chip
+                  label={isS3 ? '✅ Connesso' : 'Google Drive'}
+                  color={isS3 ? 'success' : 'primary'}
+                  size="small"
+                  sx={{ mt: 1 }}
+                />
               </CardContent>
             </Card>
           </Grid>
@@ -253,18 +276,26 @@ export default function BackupManager() {
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <CloudIcon color="primary" sx={{ mr: 1 }} />
+                  <StorageIcon color="primary" sx={{ mr: 1 }} />
                   <Typography color="textSecondary" gutterBottom>
-                    Backup su Drive
+                    Backup Totali
                   </Typography>
                 </Box>
                 <Typography variant="h6">
-                  {backups.drive.length} file
+                  {cloudBackups.length + (backups.local?.length || 0)}
+                </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  {cloudBackups.length} cloud + {backups.local?.length || 0} locali
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
         </Grid>
+
+        {/* Prossimo auto-backup */}
+        <Alert severity="info" sx={{ mb: 2 }} icon={<ScheduleIcon />}>
+          ⏰ Auto-backup attivo ogni notte alle <strong>02:00</strong> su {cloudLabel} · Retention: <strong>30 giorni</strong>
+        </Alert>
 
         {alert.show && (
           <Alert severity={alert.severity} sx={{ mb: 2 }} onClose={() => setAlert({ show: false })}>
@@ -274,8 +305,8 @@ export default function BackupManager() {
 
         {/* Tabs */}
         <Tabs value={selectedTab} onChange={(e, v) => setSelectedTab(v)} sx={{ mb: 2 }}>
-          <Tab label="Backup Locali" icon={<StorageIcon />} iconPosition="start" />
-          <Tab label="Google Drive" icon={<CloudIcon />} iconPosition="start" />
+          <Tab label={`Backup Locali (${backups.local?.length || 0})`} icon={<StorageIcon />} iconPosition="start" />
+          <Tab label={`${cloudLabel} (${cloudBackups.length})`} icon={cloudIcon} iconPosition="start" />
         </Tabs>
 
         {/* Backup List */}
@@ -286,8 +317,13 @@ export default function BackupManager() {
         ) : currentBackups.length === 0 ? (
           <Box sx={{ textAlign: 'center', p: 4 }}>
             <Typography color="textSecondary">
-              Nessun backup {selectedTab === 0 ? 'locale' : 'su Google Drive'}
+              Nessun backup {selectedTab === 0 ? 'locale' : `su ${cloudLabel}`}
             </Typography>
+            {selectedTab === 1 && (
+              <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 1 }}>
+                Clicca "Backup su {cloudLabel}" per creare il primo backup
+              </Typography>
+            )}
           </Box>
         ) : (
           <List>
@@ -295,8 +331,15 @@ export default function BackupManager() {
               <React.Fragment key={backup.name || index}>
                 <ListItem>
                   <ListItemText
-                    primary={backup.name}
-                    secondary={`${formatDate(backup.createdAt || backup.createdTime)} • ${formatFileSize(backup.size)}`}
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body1">{backup.name}</Typography>
+                        {backup.location === 's3' && (
+                          <Chip label="S3" size="small" color="warning" variant="outlined" />
+                        )}
+                      </Box>
+                    }
+                    secondary={`${formatDate(backup.createdAt || backup.createdTime)} · ${formatFileSize(backup.size)}`}
                   />
                   <ListItemSecondaryAction>
                     <Tooltip title="Ripristina">
@@ -328,7 +371,7 @@ export default function BackupManager() {
             {restoreDialog.backup?.name}
           </Typography>
           <Alert severity="warning" sx={{ mt: 2 }}>
-            Questa azione sovrascriverà tutti i dati attuali!
+            ⚠️ Questa azione sovrascriverà tutti i dati attuali!
           </Alert>
         </DialogContent>
         <DialogActions>
