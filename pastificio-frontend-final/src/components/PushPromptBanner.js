@@ -1,5 +1,6 @@
 // src/components/PushPromptBanner.js
 // ✅ Banner prompt per attivare notifiche push (Firebase FCM)
+// ✅ FIX 04/03: Gestisce gracefully push service non disponibile
 // Pastificio Nonna Claudia
 
 'use client';
@@ -13,15 +14,11 @@ import firebasePushService from '@/services/firebasePushService';
 export default function PushPromptBanner() {
   const [mostra, setMostra] = useState(false);
   const [attivando, setAttivando] = useState(false);
+  const [errore, setErrore] = useState(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Non mostrare se:
-    // 1. Già chiuso dall'utente
-    // 2. Permesso già dato e token attivo
-    // 3. Permesso negato (non possiamo chiedere di nuovo)
-    // 4. iOS (non supportato)
     const timer = setTimeout(() => {
       const giaDismesso = localStorage.getItem('push_prompt_dismissed');
       const stato = firebasePushService.getStato();
@@ -30,24 +27,40 @@ export default function PushPromptBanner() {
       if (stato.permesso === 'granted' && localStorage.getItem('fcm_token')) return;
 
       setMostra(true);
-    }, 5000); // Mostra dopo 5 secondi
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, []);
 
   const handleAttiva = async () => {
     setAttivando(true);
+    setErrore(null);
+    
     try {
       const result = await firebasePushService.attivaNotifiche();
+      
       if (result.success) {
         setMostra(false);
       } else if (result.motivo === 'permesso_negato') {
         localStorage.setItem('push_prompt_dismissed', 'denied');
         setMostra(false);
+      } else if (result.motivo === 'push_non_disponibile') {
+        // ✅ Push non disponibile su questo dispositivo - chiudi silenziosamente
+        localStorage.setItem('push_prompt_dismissed', 'push_non_disponibile');
+        setErrore('Le notifiche push non sono disponibili su questo dispositivo. Le notifiche in-app funzionano normalmente.');
+        // Chiudi dopo 4 secondi
+        setTimeout(() => setMostra(false), 4000);
+      } else {
+        // ✅ Altro errore generico - chiudi silenziosamente
+        localStorage.setItem('push_prompt_dismissed', 'errore');
+        setMostra(false);
       }
     } catch (error) {
-      console.error('[PUSH] Errore attivazione:', error);
+      // ✅ Silenzioso - chiudi il banner
+      localStorage.setItem('push_prompt_dismissed', 'errore');
+      setMostra(false);
     }
+    
     setAttivando(false);
   };
 
@@ -85,28 +98,38 @@ export default function PushPromptBanner() {
         </Box>
 
         <Box sx={{ p: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Ricevi avvisi anche quando il browser è chiuso:
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2, pl: 1 }}>
-            <Typography variant="body2">📞 Chiamate in arrivo</Typography>
-            <Typography variant="body2">⚠️ Alert critici del sistema</Typography>
-            <Typography variant="body2">📦 Nuovi ordini dagli operatori</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-            <Button variant="outlined" size="small" onClick={handleChiudi}>
-              Non ora
-            </Button>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleAttiva}
-              disabled={attivando}
-              startIcon={<NotificationsActiveIcon />}
-            >
-              {attivando ? 'Attivazione...' : 'Attiva notifiche'}
-            </Button>
-          </Box>
+          {errore ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {errore}
+            </Typography>
+          ) : (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Ricevi avvisi anche quando il browser è chiuso:
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2, pl: 1 }}>
+                <Typography variant="body2">📞 Chiamate in arrivo</Typography>
+                <Typography variant="body2">⚠️ Alert critici del sistema</Typography>
+                <Typography variant="body2">📦 Nuovi ordini dagli operatori</Typography>
+              </Box>
+            </>
+          )}
+          {!errore && (
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+              <Button variant="outlined" size="small" onClick={handleChiudi}>
+                Non ora
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleAttiva}
+                disabled={attivando}
+                startIcon={<NotificationsActiveIcon />}
+              >
+                {attivando ? 'Attivazione...' : 'Attiva notifiche'}
+              </Button>
+            </Box>
+          )}
         </Box>
       </Paper>
     </Slide>

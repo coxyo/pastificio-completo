@@ -1,9 +1,12 @@
 // src/services/firebasePushService.js
-// Firebase Cloud Messaging - Servizio notifiche push
+// ✅ Firebase Cloud Messaging - Servizio notifiche push
 // Pastificio Nonna Claudia
-// NOTA: Import dinamici per evitare crash SSR con Next.js
+// ✅ FIX 04/03: Silenziato errori push service non disponibile
 
-const FIREBASE_CONFIG = {
+import { initializeApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage, deleteToken } from 'firebase/messaging';
+
+const firebaseConfig = {
   apiKey: "AIzaSyCyL4LWgD1dKiGRHmLrj2gJ9OFHdHDDZ-E",
   authDomain: "pastificio-nonna-claudia.firebaseapp.com",
   projectId: "pastificio-nonna-claudia",
@@ -22,222 +25,277 @@ class FirebasePushService {
     this.messaging = null;
     this.token = null;
     this.inizializzato = false;
+    this.pushDisponibile = false;  // ✅ Track se push è disponibile
     this.onMessageCallback = null;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // INIZIALIZZAZIONE - Silenzioso se push non disponibile
+  // ═══════════════════════════════════════════════════════════════
   async inizializza() {
     if (this.inizializzato) return;
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return; // SSR guard
 
     try {
-      if (!('serviceWorker' in navigator)) {
-        console.warn('[FCM] Service Worker non supportato');
-        return;
-      }
-      if (!('Notification' in window)) {
-        console.warn('[FCM] Notifications API non supportata');
+      // Controlla supporto
+      if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+        this.inizializzato = true;
+        this.pushDisponibile = false;
         return;
       }
 
-      // Import dinamici - evita crash SSR
-      const { initializeApp } = await import('firebase/app');
-      const { getMessaging, onMessage } = await import('firebase/messaging');
-
-      this.app = initializeApp(FIREBASE_CONFIG);
+      // Inizializza Firebase
+      this.app = initializeApp(firebaseConfig);
       this.messaging = getMessaging(this.app);
 
+      // Registra Service Worker Firebase
       const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-      console.log('[FCM] Service Worker registrato:', registration.scope);
 
+      // Ascolta messaggi in foreground
       onMessage(this.messaging, (payload) => {
-        console.log('[FCM] Messaggio foreground:', payload);
         this._gestisciForegroundMessage(payload);
       });
 
       this.inizializzato = true;
-      console.log('[FCM] Firebase Messaging inizializzato');
 
+      // Se il permesso è già granted, prova a ottenere token (silenziosamente)
       if (Notification.permission === 'granted') {
-        await this._ottieniERegistraToken(registration);
+        try {
+          await this._ottieniERegistraToken(registration);
+          this.pushDisponibile = true;
+        } catch (err) {
+          // ✅ Push service non disponibile su questo dispositivo - silenzioso
+          this.pushDisponibile = false;
+        }
       }
+
     } catch (error) {
-      console.error('[FCM] Errore inizializzazione:', error);
+      // ✅ Silenzioso - non mostrare errori in console
+      this.inizializzato = true;
+      this.pushDisponibile = false;
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // ATTIVA NOTIFICHE
+  // ═══════════════════════════════════════════════════════════════
   async attivaNotifiche() {
     try {
       if (!this.messaging) {
         await this.inizializza();
       }
+
+      // Chiedi permesso
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        console.warn('[FCM] Permesso negato');
         return { success: false, motivo: 'permesso_negato' };
       }
+
+      // Ottieni registration
       const registration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
       if (!registration) {
-        throw new Error('Service Worker non registrato');
+        return { success: false, motivo: 'sw_non_registrato' };
       }
+
+      // Ottieni e registra token
       const token = await this._ottieniERegistraToken(registration);
+      this.pushDisponibile = true;
       return { success: true, token };
+
     } catch (error) {
-      console.error('[FCM] Errore attivazione:', error);
+      // ✅ Errore silenzioso con messaggio chiaro
+      const isPushServiceError = error.message?.includes('push service') || 
+                                  error.name === 'AbortError';
+      
+      if (isPushServiceError) {
+        return { 
+          success: false, 
+          motivo: 'push_non_disponibile',
+          messaggio: 'Le notifiche push non sono disponibili su questo dispositivo. Le notifiche in-app continuano a funzionare normalmente.'
+        };
+      }
+      
       return { success: false, motivo: error.message };
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // DISATTIVA NOTIFICHE
+  // ═══════════════════════════════════════════════════════════════
   async disattivaNotifiche() {
     try {
       if (this.messaging) {
-        const { deleteToken } = await import('firebase/messaging');
         await deleteToken(this.messaging);
       }
+
+      // Rimuovi dal backend
       if (this.token) {
         const authToken = localStorage.getItem('token');
-        await fetch(API_URL + '/push/unsubscribe', {
+        await fetch(`${API_URL}/push/unsubscribe`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
           body: JSON.stringify({ fcmToken: this.token })
         });
       }
+
       this.token = null;
+      this.pushDisponibile = false;
       localStorage.removeItem('fcm_token');
-      console.log('[FCM] Notifiche disattivate');
       return { success: true };
+
     } catch (error) {
-      console.error('[FCM] Errore disattivazione:', error);
       return { success: false, motivo: error.message };
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // AGGIORNA PREFERENZE
+  // ═══════════════════════════════════════════════════════════════
   async aggiornaPreferenze(preferenze) {
     try {
       const authToken = localStorage.getItem('token');
-      const response = await fetch(API_URL + '/push/preferenze', {
+      const response = await fetch(`${API_URL}/push/preferenze`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({ preferenze })
       });
-      return await response.json();
+      const data = await response.json();
+      return data;
     } catch (error) {
-      console.error('[FCM] Errore aggiornamento preferenze:', error);
       return { success: false };
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // TEST NOTIFICA
+  // ═══════════════════════════════════════════════════════════════
   async inviaTest() {
     try {
       const authToken = localStorage.getItem('token');
-      const response = await fetch(API_URL + '/push/test', {
+      const response = await fetch(`${API_URL}/push/test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken }
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        }
       });
       return await response.json();
     } catch (error) {
-      console.error('[FCM] Errore test:', error);
       return { success: false, message: error.message };
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // STATO
+  // ═══════════════════════════════════════════════════════════════
   getStato() {
     return {
       supportato: typeof window !== 'undefined' && 'serviceWorker' in navigator && 'Notification' in window,
       permesso: typeof window !== 'undefined' ? Notification.permission : 'default',
       tokenAttivo: !!this.token,
       inizializzato: this.inizializzato,
+      pushDisponibile: this.pushDisponibile,  // ✅ Nuovo
       isIOS: this._isIOS()
     };
   }
 
+  // Callback per messaggi foreground
   setOnMessage(callback) {
     this.onMessageCallback = callback;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // METODI PRIVATI
+  // ═══════════════════════════════════════════════════════════════
   async _ottieniERegistraToken(registration) {
-    try {
-      const { getToken } = await import('firebase/messaging');
-      const token = await getToken(this.messaging, {
-        vapidKey: VAPID_KEY,
-        serviceWorkerRegistration: registration
-      });
-      if (!token) {
-        console.warn('[FCM] Nessun token ottenuto');
-        return null;
-      }
-      console.log('[FCM] Token FCM ottenuto:', token.substring(0, 30) + '...');
-      this.token = token;
-      localStorage.setItem('fcm_token', token);
-      await this._registraTokenBackend(token);
-      return token;
-    } catch (error) {
-      console.error('[FCM] Errore ottenimento token:', error);
-      throw error;
+    const token = await getToken(this.messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration
+    });
+
+    if (!token) {
+      return null;
     }
+
+    this.token = token;
+    localStorage.setItem('fcm_token', token);
+
+    // Registra sul backend
+    await this._registraTokenBackend(token);
+
+    return token;
   }
 
   async _registraTokenBackend(fcmToken) {
     try {
       const authToken = localStorage.getItem('token');
-      if (!authToken) {
-        console.warn('[FCM] No auth token, skip registrazione backend');
-        return;
-      }
-      const response = await fetch(API_URL + '/push/subscribe', {
+      if (!authToken) return;
+
+      await fetch(`${API_URL}/push/subscribe`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({
           fcmToken,
           dispositivo: this._detectDevice(),
-          preferenze: { chiamate: true, alertCritici: true, nuoviOrdini: true, ordiniModificati: false }
+          preferenze: {
+            chiamate: true,
+            alertCritici: true,
+            nuoviOrdini: true,
+            ordiniModificati: false
+          }
         })
       });
-      const data = await response.json();
-      console.log('[FCM] Token registrato sul backend:', data.success);
-      return data;
     } catch (error) {
-      console.error('[FCM] Errore registrazione backend:', error);
+      // Silenzioso
     }
   }
 
   _gestisciForegroundMessage(payload) {
     const data = payload.data || {};
     const notification = payload.notification || {};
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const titolo = data.titolo || notification.title || 'Pastificio';
-      const options = {
-        body: data.corpo || notification.body,
-        icon: '/icons/icon-192.png',
-        badge: '/icons/badge-72.png',
-        tag: data.tag || 'fg-' + Date.now(),
-        data: data
-      };
-      try {
-        new Notification(titolo, options);
-      } catch (e) {
-        navigator.serviceWorker.ready.then(function(reg) {
-          reg.showNotification(titolo, options);
-        });
-      }
+
+    // Mostra notifica anche in foreground tramite SW
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          titolo: data.titolo || notification.title || '🍝 Pastificio',
+          corpo: data.corpo || notification.body,
+          tipo: data.tipo || 'generico',
+          data: data
+        }
+      });
     }
+
+    // Callback custom
     if (this.onMessageCallback) {
       this.onMessageCallback(payload);
     }
   }
 
   _detectDevice() {
-    if (typeof navigator === 'undefined') return 'Sconosciuto';
-    var ua = navigator.userAgent;
-    var device = 'Sconosciuto';
+    const ua = navigator.userAgent;
+    let device = 'Sconosciuto';
     if (/iPad|Tablet/i.test(ua)) device = 'Tablet';
     else if (/Mobile|Android/i.test(ua)) device = 'Mobile';
     else device = 'PC';
-    var browser = 'Browser';
+
+    let browser = 'Browser';
     if (/Edg/i.test(ua)) browser = 'Edge';
     else if (/Chrome/i.test(ua)) browser = 'Chrome';
     else if (/Firefox/i.test(ua)) browser = 'Firefox';
     else if (/Safari/i.test(ua)) browser = 'Safari';
-    return device + ' - ' + browser;
+
+    return `${device} - ${browser}`;
   }
 
   _isIOS() {
@@ -247,5 +305,5 @@ class FirebasePushService {
   }
 }
 
-var firebasePushService = new FirebasePushService();
+const firebasePushService = new FirebasePushService();
 export default firebasePushService;
