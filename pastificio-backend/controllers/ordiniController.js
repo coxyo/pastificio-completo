@@ -834,48 +834,54 @@ Grazie! 🙏
       let orarioPicco = '';
       let ordiniPicco = 0;
 
-      for (const [ora, ordiniOra] of Object.entries(ordiniPerOra)) {
+      // ✅ FIX PRINCIPALE: Itera su TUTTI gli orari possibili (08:00-20:00)
+      // Non solo quelli che hanno ordini - così le fasce di produzione vuote
+      // vengono comunque incluse nella risposta con ordinatoKg=0
+      const tuttiGliOrari = ordiniController.generaOrariPossibili();
+
+      for (const ora of tuttiGliOrari) {
+        const ordiniOra = ordiniPerOra[ora] || [];
         conteggioPerOra[ora] = ordiniOra.length;
         
-        // Analizza prodotti critici
+        // Analizza prodotti critici (anche se lista vuota → totali = 0)
         const analisi = ordiniController.analizzaProdottiCritici(ordiniOra);
         
-        // ✅ DEBUG LOG - Risultato analisi
-        logger.info(`📊 Ora ${ora}: Ravioli totali=${analisi.totali.ravioli} Kg, Zeppole totali=${analisi.totali.zeppole} Kg`);
+        logger.info(`📊 Ora ${ora}: ${ordiniOra.length} ordini | Ravioli=${analisi.totali.ravioli.toFixed(2)} Kg, Zeppole=${analisi.totali.zeppole.toFixed(2)} Kg`);
         
         const infoOra = {
           numeroOrdini: ordiniOra.length
         };
         
-        // Ravioli - Solo nelle fasce di produzione (10:00-12:45)
+        // ✅ Ravioli - Mostra capacità per TUTTI gli slot di produzione (10:00-12:45)
+        // Anche se ordinatoKg=0, così il frontend vede "0/5 Kg" per gli slot liberi
         const capRavioli = ordiniController.calcolaCapacitaOraria(ora, 'ravioli', dataRitiro);
+        logger.info(`🕒 Ora ${ora}: capRavioli=${capRavioli ? 'SI' : 'NO'}`);
         
-        // ✅ DEBUG LOG - Capacità ravioli
-        logger.info(`🕒 Ora ${ora}: capRavioli=${capRavioli ? 'SI' : 'NO'}, analisi.totali.ravioli=${analisi.totali.ravioli}`);
-        
-        if (capRavioli && analisi.totali.ravioli > 0) {
+        if (capRavioli) {
           const ordinatoRavioli = analisi.totali.ravioli;
           infoOra.ravioli = {
             ordinatoKg: parseFloat(ordinatoRavioli.toFixed(2)),
             capacitaKg: capRavioli.capacita,
             percentuale: parseFloat(((ordinatoRavioli / capRavioli.capacita) * 100).toFixed(1)),
             eccesso: ordinatoRavioli > capRavioli.capacita ? parseFloat((ordinatoRavioli - capRavioli.capacita).toFixed(2)) : 0,
-            stato: ordinatoRavioli <= capRavioli.capacita * 0.8 ? 'ok' : 
-                   ordinatoRavioli <= capRavioli.capacita ? 'attenzione' : 'pieno'
+            // ✅ FIX SOGLIE: Verde <70%, Arancione 70-90%, Rosso >90%
+            stato: ordinatoRavioli < capRavioli.capacita * 0.7 ? 'ok' : 
+                   ordinatoRavioli <= capRavioli.capacita * 0.9 ? 'attenzione' : 'pieno'
           };
         }
         
-        // Zeppole - Solo nelle fasce di produzione (17:00-19:00 o 09:00-13:00 domenica)
+        // ✅ Zeppole - Mostra capacità per TUTTI gli slot di produzione
         const capZeppole = ordiniController.calcolaCapacitaOraria(ora, 'zeppole', dataRitiro);
-        if (capZeppole && analisi.totali.zeppole > 0) {
+        if (capZeppole) {
           const ordinatoZeppole = analisi.totali.zeppole;
           infoOra.zeppole = {
             ordinatoKg: parseFloat(ordinatoZeppole.toFixed(2)),
             capacitaKg: capZeppole.capacita,
             percentuale: parseFloat(((ordinatoZeppole / capZeppole.capacita) * 100).toFixed(1)),
             eccesso: ordinatoZeppole > capZeppole.capacita ? parseFloat((ordinatoZeppole - capZeppole.capacita).toFixed(2)) : 0,
-            stato: ordinatoZeppole <= capZeppole.capacita * 0.8 ? 'ok' : 
-                   ordinatoZeppole <= capZeppole.capacita ? 'attenzione' : 'pieno'
+            // ✅ FIX SOGLIE: Verde <70%, Arancione 70-90%, Rosso >90%
+            stato: ordinatoZeppole < capZeppole.capacita * 0.7 ? 'ok' : 
+                   ordinatoZeppole <= capZeppole.capacita * 0.9 ? 'attenzione' : 'pieno'
           };
         }
         
