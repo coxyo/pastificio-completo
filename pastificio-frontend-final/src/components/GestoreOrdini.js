@@ -66,6 +66,9 @@ import GestioneZeppole from './GestioneZeppole';
 import StatisticheChiamate from './StatisticheChiamate';
 import { Cake as CakeIcon, Close as CloseIcon, Thermostat as ThermostatIcon } from '@mui/icons-material';
 
+// ✅ NUOVO 28/02/2026: Alert automatici anomalie
+import AlertBanner from './alerts/AlertBanner';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   API_URL.replace('https://', 'wss://').replace('http://', 'ws://').replace('/api', '');
@@ -405,15 +408,10 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         
         if (peso === 0) return; // Ignora € e prodotti senza peso
         
-        // ✅ NUOVO 04/03/2026: Per vassoi in lavorazione, sottrai i componenti già messi da parte
-        // prodottiInLavorazione è un array di { id, nome, quantita, unita, indiceProdotto, indiceComp }
-        const isInLavorazione = prodotto.statoProduzione === 'in_lavorazione';
-        const prodottiInLavorazione = ordine.prodottiInLavorazione || [];
-        
         // ✅ FIX 15/12/2025: VASSOIO deve essere controllato PRIMA di "dolci misti"
         // perché "Vassoio Dolci Misti" contiene "dolci misti" come sottostringa!
         if (nomeLC.includes('vassoio') && prodotto.dettagliCalcolo?.composizione) {
-          prodotto.dettagliCalcolo.composizione.forEach((comp, indiceComp) => {
+          prodotto.dettagliCalcolo.composizione.forEach(comp => {
             const compNome = comp.nome?.toLowerCase() || '';
             let compPeso = 0;
             if (comp.unita === 'Kg' || comp.unita === 'kg') compPeso = comp.quantita;
@@ -426,16 +424,6 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
                 }
               }
               if (compPeso === 0) compPeso = comp.quantita / 30;
-            }
-            
-            // ✅ NUOVO 04/03/2026: Sottrai componenti già in lavorazione
-            // Cerca se questo componente è tra i prodottiInLavorazione
-            if (isInLavorazione && prodottiInLavorazione.length > 0) {
-              const idComp = `vassoio-${ordine.prodotti.indexOf(prodotto)}-${indiceComp}`;
-              const giaInLavorazione = prodottiInLavorazione.some(p => p.id === idComp);
-              if (giaInLavorazione) {
-                return; // Questo componente è già messo da parte, non contare
-              }
             }
             
             // Classifica il componente
@@ -1817,6 +1805,7 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
   const limitsDebounceRef = useRef(null); // 🆕 22/01
   const reconnectTimeoutRef = useRef(null);
   const syncIntervalRef = useRef(null);
+  const pendingSyncRef = useRef(false); // 🆕 28/02: Flag sync pendente (form aperto)
   
   // ----------------------------------------------------------------
   // FUNZIONE: Scroll alla categoria
@@ -2116,6 +2105,13 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
   const sincronizzaConMongoDB = useCallback(async (retry = 0) => {
     if (syncInProgress) return;
     
+    // 🆕 28/02/2026: NON sincronizzare se il form ordine è aperto (evita reset form)
+    if (dialogoNuovoOrdineAperto) {
+      console.log('⏸️ Sync posticipata - form ordine aperto');
+      pendingSyncRef.current = true;
+      return;
+    }
+    
     try {
       setSyncInProgress(true);
       console.log(`🔄 Sincronizzazione in corso... (tentativo ${retry + 1}/2)`);
@@ -2205,7 +2201,7 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
     } finally {
       setSyncInProgress(false);
     }
-  }, [syncInProgress]);
+  }, [syncInProgress, dialogoNuovoOrdineAperto]);
 
   // ----------------------------------------------------------------
   // FUNZIONI: Ordini offline
@@ -2957,6 +2953,9 @@ return (
       `}</style>
       
       <Container maxWidth="xl">
+        {/* ✅ NUOVO 28/02/2026: Banner alert anomalie */}
+        <AlertBanner />
+        
         <StatisticheWidget ordini={ordini} dataSelezionata={dataSelezionata} />
         
         <Box sx={{ mb: 3 }}>
@@ -3301,16 +3300,19 @@ return (
     setClienteDaChiamata(null);
     setOrdineSelezionato(null);
     
-    // ✅ FIX 28/02/2026: Chiudi popup chiamata DEFINITIVAMENTE
-    // clearChiamata è più aggressivo di handleClosePopup (no dipendenze stale)
-    if (clearChiamata) clearChiamata();
-    
     // ✅ FIX 27/02/2026: Pulizia TOTALE localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('nuovoOrdine_clientePreselezionato');
       localStorage.removeItem('chiamataCliente');
       localStorage.removeItem('_openNuovoOrdineOnLoad');
       localStorage.removeItem('ordini_filtroCliente');
+    }
+    
+    // 🆕 28/02/2026: Esegui sync pendente dopo chiusura dialog
+    if (pendingSyncRef.current) {
+      console.log('🔄 Sync pendente in esecuzione dopo chiusura form...');
+      pendingSyncRef.current = false;
+      setTimeout(() => sincronizzaConMongoDB(), 500);
     }
   }}
   onSave={salvaOrdine}
@@ -3572,8 +3574,8 @@ return (
               setNumeroDaChiamata(numero.replace(/^\+39/, ''));
             }
             
-            // Chiudi popup DEFINITIVAMENTE e apri form
-            if (clearChiamata) clearChiamata();
+            // Chiudi popup e apri form
+            handleClosePopup();
             
             // ✅ Piccolo delay per assicurare che gli state siano aggiornati
             setTimeout(() => {

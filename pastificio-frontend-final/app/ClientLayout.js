@@ -1,4 +1,5 @@
 // app/ClientLayout.js - ✅ AGGIORNATO: Sessioni attive + sessionService ping
+// ✅ FIX 04/03/2026: Rimossa dipendenza 'user' da useEffect sessionService (causava restart inutili)
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -41,22 +42,21 @@ import {
   Logout as LogoutIcon,
   PersonOutline,
   AdminPanelSettings,
-  Security as SecurityIcon,  // ✅ NUOVO: Icona per sessioni
-  EventBusy as EventBusyIcon  // ✅ NUOVO: Icona chiusure
+  Security as SecurityIcon,
+  EventBusy as EventBusyIcon
 } from '@mui/icons-material';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import CallPopup from '@/components/CallPopup';
 import NotificaFatture from '@/components/NotificaFatture';
 import dispositivoService from '@/services/dispositivoService';
-import sessionService from '@/services/sessionService';  // ✅ NUOVO
-import CacheService from '@/services/cacheService';  // ✅ NUOVO: Pulizia cache automatica
-import NotificationCenter from '@/components/alerts/NotificationCenter';  // ✅ NUOVO: Alert automatici
-import PushPromptBanner from '@/components/PushPromptBanner';  // ✅ NUOVO: Prompt notifiche push
-import firebasePushService from '@/services/firebasePushService';  // ✅ Firebase Push
+import sessionService from '@/services/sessionService';
+import CacheService from '@/services/cacheService';
+import NotificationCenter from '@/components/alerts/NotificationCenter';
+import PushPromptBanner from '@/components/PushPromptBanner';
+import firebasePushService from '@/services/firebasePushService';
 
 const drawerWidth = 240;
 
-// ✅ Menu items con permessi per ruolo - AGGIUNTA VOCE SESSIONI
 const allMenuItems = [
   { id: 'dashboard', title: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['admin', 'operatore', 'visualizzatore'] },
   { id: 'ordini', title: 'Ordini', icon: <ShoppingCart />, path: '/', roles: ['admin', 'operatore', 'visualizzatore'] },
@@ -71,13 +71,12 @@ const allMenuItems = [
   { id: 'haccp', title: 'HACCP', icon: <HealthAndSafety />, path: '/haccp', roles: ['admin', 'operatore'] },
   { id: 'corrispettivi', title: 'Corrispettivi', icon: <AccountBalance />, path: '/corrispettivi', roles: ['admin'] },
   { id: 'grafici', title: 'Grafici Corrispettivi', icon: <TrendingUp />, path: '/grafici', roles: ['admin'] },
-  { id: 'sessioni', title: 'Sessioni Attive', icon: <SecurityIcon />, path: '/sessioni', roles: ['admin', 'operatore'] },  // ✅ NUOVO
-  { id: 'chiusure', title: 'Calendario Chiusure', icon: <EventBusyIcon />, path: '/chiusure', roles: ['admin', 'operatore', 'visualizzatore'] },  // ✅ NUOVO
+  { id: 'sessioni', title: 'Sessioni Attive', icon: <SecurityIcon />, path: '/sessioni', roles: ['admin', 'operatore'] },
+  { id: 'chiusure', title: 'Calendario Chiusure', icon: <EventBusyIcon />, path: '/chiusure', roles: ['admin', 'operatore', 'visualizzatore'] },
   { id: 'utenti', title: 'Gestione Utenti', icon: <AdminPanelSettings />, path: '/utenti', roles: ['admin'] },
   { id: 'impostazioni', title: 'Impostazioni', icon: <Settings />, path: '/impostazioni', roles: ['admin'] }
 ];
 
-// ✅ Colori per ruolo
 const roleColors = {
   admin: { bg: '#dc2626', text: 'white', label: 'Admin' },
   operatore: { bg: '#2563eb', text: 'white', label: 'Operatore' },
@@ -97,13 +96,14 @@ export default function ClientLayout({ children }) {
     setMounted(true);
   }, []);
 
-  // ✅ NUOVO: Pulizia automatica cache localStorage all'avvio
+  // Pulizia automatica cache localStorage all'avvio
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
     CacheService.inizializza();
   }, [mounted]);
 
-  // ✅ NUOVO: Inizializza session service (ping + intercettore logout remoto)
+  // ✅ FIX 04/03/2026: Rimossa dipendenza 'user' - causava stop/restart continui del sessionService
+  // Il sessionService usa il token da localStorage, non ha bisogno dell'oggetto user
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
     
@@ -115,9 +115,9 @@ export default function ClientLayout({ children }) {
     return () => {
       sessionService.ferma();
     };
-  }, [mounted, user]);
+  }, [mounted]); // ✅ Era [mounted, user] - 'user' causava re-init ad ogni render
 
-  // ✅ INIZIALIZZAZIONE PUSHER
+  // INIZIALIZZAZIONE PUSHER
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
 
@@ -135,7 +135,7 @@ export default function ClientLayout({ children }) {
     return () => clearTimeout(timer);
   }, [mounted, pusherService]);
 
-  // ✅ NUOVO: Inizializza Web Push Notifications (Service Worker + permessi)
+  // Inizializza Web Push Notifications
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
     firebasePushService.inizializza().catch(err => {
@@ -143,7 +143,7 @@ export default function ClientLayout({ children }) {
     });
   }, [mounted]);
 
-  // ✅ NUOVO: Ascolta click su notifica push (dal Service Worker)
+  // Ascolta click su notifica push
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
 
@@ -153,7 +153,6 @@ export default function ClientLayout({ children }) {
       
       switch (data.action || data.tipo) {
         case 'chiamata':
-          // Il popup chiamata viene già gestito da Pusher
           break;
         case 'ordine':
           if (data.ordineId) {
@@ -170,7 +169,7 @@ export default function ClientLayout({ children }) {
     return () => window.removeEventListener('push-notification-click', handlePushClick);
   }, [mounted, router]);
 
-  // ✅ Menu filtrato per ruolo utente
+  // Menu filtrato per ruolo utente
   const menuItems = useMemo(() => {
     if (!user) return [];
     return allMenuItems.filter(item => item.roles.includes(user.role));
@@ -184,7 +183,7 @@ export default function ClientLayout({ children }) {
   };
 
   const handleLogout = () => {
-    sessionService.ferma();  // ✅ NUOVO: Ferma ping prima del logout
+    sessionService.ferma();
     logout();
   };
 
@@ -231,7 +230,6 @@ export default function ClientLayout({ children }) {
 
   const drawer = (
     <Box>
-      {/* Header sidebar con nome utente e ruolo */}
       <Box sx={{ p: 2, backgroundColor: 'primary.main', color: 'white' }}>
         <Typography variant="h6" noWrap sx={{ fontSize: '16px', fontWeight: 'bold' }}>
           Pastificio Nonna Claudia
@@ -272,7 +270,6 @@ export default function ClientLayout({ children }) {
         ))}
       </List>
 
-      {/* Logout in fondo alla sidebar */}
       <Divider />
       <List>
         <ListItemButton onClick={handleLogout} sx={{ color: '#dc2626' }}>
@@ -308,7 +305,6 @@ export default function ClientLayout({ children }) {
             {menuItems.find(item => isSelected(item.path))?.title || 'Gestione Ordini'}
           </Typography>
 
-          {/* Indicatore Pusher */}
           {mounted && (
             <Box
               sx={{
@@ -330,7 +326,6 @@ export default function ClientLayout({ children }) {
             </Box>
           )}
 
-          {/* NOME UTENTE + RUOLO nell'header */}
           {user && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 1 }}>
               <Chip
@@ -349,10 +344,8 @@ export default function ClientLayout({ children }) {
             </Box>
           )}
 
-          {/* ✅ NUOVO: Centro Notifiche Alert Automatici */}
           <NotificationCenter pusherService={pusherService} />
 
-          {/* Bottone Logout nell'header */}
           <Tooltip title="Esci">
             <IconButton color="inherit" onClick={handleLogout}>
               <LogoutIcon />
@@ -402,7 +395,6 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {/* Popup Chiamata */}
       {mounted && chiamataCorrente && dispositivoService.isNotificaAbilitata('chiamate3cx') && (
         <CallPopup
           chiamata={chiamataCorrente}
@@ -411,10 +403,8 @@ export default function ClientLayout({ children }) {
         />
       )}
 
-      {/* Notifica Fatture */}
       {mounted && <NotificaFatture />}
 
-      {/* ✅ NUOVO: Prompt richiesta notifiche push */}
       {mounted && <PushPromptBanner />}
     </Box>
   );
