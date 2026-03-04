@@ -3286,8 +3286,9 @@ return (
     setClienteDaChiamata(null);
     setOrdineSelezionato(null);
     
-    // ✅ FIX 28/02/2026: Chiudi anche il popup chiamata definitivamente
-    handleClosePopup();
+    // ✅ FIX 28/02/2026: Chiudi popup chiamata DEFINITIVAMENTE
+    // clearChiamata è più aggressivo di handleClosePopup (no dipendenze stale)
+    if (clearChiamata) clearChiamata();
     
     // ✅ FIX 27/02/2026: Pulizia TOTALE localStorage
     if (typeof window !== 'undefined') {
@@ -3556,8 +3557,8 @@ return (
               setNumeroDaChiamata(numero.replace(/^\+39/, ''));
             }
             
-            // Chiudi popup e apri form
-            handleClosePopup();
+            // Chiudi popup DEFINITIVAMENTE e apri form
+            if (clearChiamata) clearChiamata();
             
             // ✅ Piccolo delay per assicurare che gli state siano aggiornati
             setTimeout(() => {
