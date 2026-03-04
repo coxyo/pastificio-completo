@@ -113,14 +113,14 @@ const BackupManager = () => {
       console.log('✅ Backup Drive response:', data); // DEBUG
       
       if (data.success) {
-        // ✅ FIX: Gestisci vari formati di risposta
+        // ✅ FIX S3: Gestisci risposta { local: [], cloud: [], provider: 's3' }
         let backupsArray = [];
         
         if (Array.isArray(data.data)) {
           backupsArray = data.data;
         } else if (data.data && typeof data.data === 'object') {
-          // Se è un oggetto, prova a estrarre un array
-          backupsArray = data.data.files || data.data.backups || [];
+          // Priorità: cloud (S3) → drive (compatibilità) → files → backups
+          backupsArray = data.data.cloud || data.data.drive || data.data.files || data.data.backups || [];
         }
         
         console.log('✅ Backups array:', backupsArray); // DEBUG
@@ -156,7 +156,7 @@ const BackupManager = () => {
         const backupInfo = data.data;
         
         toast.success(
-          `Backup creato con successo!\nFile: ${backupInfo.fileName}\n${backupInfo.driveUploaded ? '✅ Caricato su Google Drive' : '⚠️ Solo backup locale'}`,
+          `Backup creato con successo!\nFile: ${backupInfo.fileName}\n${backupInfo.cloudUploaded ? '✅ Caricato su AWS S3' : '⚠️ Solo backup locale'}`,
           { autoClose: 5000 }
         );
         
@@ -398,7 +398,7 @@ const BackupManager = () => {
       </Typography>
 
       <Typography variant="body2" color="textSecondary" paragraph>
-        Sistema completo di backup con storage locale e cloud (Google Drive)
+        Sistema completo di backup con storage locale e cloud (AWS S3)
       </Typography>
 
       {/* Statistiche Generali */}
@@ -425,7 +425,7 @@ const BackupManager = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <CloudQueue color={driveConnected ? 'success' : 'error'} sx={{ mr: 1 }} />
                 <Typography color="textSecondary" variant="body2">
-                  Google Drive
+                  AWS S3
                 </Typography>
               </Box>
               <Chip 
@@ -490,7 +490,7 @@ const BackupManager = () => {
               size="large"
               color="primary"
             >
-              {backupInProgress ? 'Backup in corso...' : '☁️ Backup su Google Drive'}
+              {backupInProgress ? 'Backup in corso...' : '☁️ Backup su AWS S3'}
             </Button>
             {!driveConnected && (
               <Alert severity="warning" sx={{ mt: 1 }}>
@@ -529,7 +529,7 @@ const BackupManager = () => {
       {/* Tabs */}
       <Paper sx={{ mb: 3 }}>
         <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
-          <Tab label={`☁️ Google Drive (${backupsDrive.length})`} />
+          <Tab label={`☁️ AWS S3 (${backupsDrive.length})`} />
           <Tab label={`💾 Backup Locali (${backupsLocal.length})`} />
           <Tab label="⚙️ Impostazioni" />
         </Tabs>
@@ -540,10 +540,10 @@ const BackupManager = () => {
         <Paper sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">
-              Backup su Google Drive
+              Backup su AWS S3
             </Typography>
             {driveConnected && (
-              <Chip label="✅ Drive Connesso" color="success" size="small" />
+              <Chip label="✅ S3 Connesso" color="success" size="small" />
             )}
           </Box>
 
@@ -569,7 +569,7 @@ const BackupManager = () => {
                           <Typography variant="subtitle1">
                             {backup.name || 'Backup'}
                           </Typography>
-                          <Chip label="Google Drive" size="small" color="primary" sx={{ ml: 1 }} />
+                          <Chip label="AWS S3" size="small" color="warning" sx={{ ml: 1 }} />
                         </Box>
                       }
                       secondary={
@@ -712,7 +712,7 @@ const BackupManager = () => {
           </Typography>
 
           <Alert severity="info" sx={{ mb: 3 }}>
-            I backup automatici su Google Drive vengono eseguiti ogni giorno alle 02:00 AM dal server.
+            I backup automatici su AWS S3 vengono eseguiti ogni giorno alle 02:00 AM dal server.
           </Alert>
 
           <FormControlLabel
@@ -774,7 +774,7 @@ const BackupManager = () => {
             <Grid item xs={12} md={6}>
               <Paper variant="outlined" sx={{ p: 2 }}>
                 <Typography variant="subtitle2" color="textSecondary">
-                  ☁️ Google Drive
+                  ☁️ AWS S3
                 </Typography>
                 <Typography variant="h4">
                   {backupsDrive.length}
@@ -788,7 +788,7 @@ const BackupManager = () => {
 
           <Alert severity="success" sx={{ mt: 3 }}>
             <Typography variant="body2">
-              ✅ Backup automatico su Google Drive attivo<br />
+              ✅ Backup automatico su AWS S3 attivo<br />
               🕐 Prossima esecuzione: Oggi alle 02:00 AM<br />
               📁 Retention: 30 giorni (i backup più vecchi vengono eliminati automaticamente)
             </Typography>
