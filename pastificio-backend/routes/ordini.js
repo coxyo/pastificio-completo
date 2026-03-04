@@ -857,6 +857,56 @@ router.put('/:id/prodotto/:index/stato', async (req, res) => {
   }
 });
 
+// ✅ NUOVO 04/03/2026: PUT /api/ordini/:id/lavorazione - Salva prodotti in lavorazione
+// Endpoint chiamato quando l'utente seleziona i prodotti nel LavorazionePopup
+router.put('/:id/lavorazione', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { prodottiInLavorazione } = req.body;
+
+    if (!Array.isArray(prodottiInLavorazione)) {
+      return res.status(400).json({
+        success: false,
+        message: 'prodottiInLavorazione deve essere un array'
+      });
+    }
+
+    const ordine = await Ordine.findById(id);
+    if (!ordine) {
+      return res.status(404).json({ success: false, message: 'Ordine non trovato' });
+    }
+
+    // Salva l'array dei prodotti in lavorazione con timestamp
+    ordine.prodottiInLavorazione = prodottiInLavorazione.map(p => ({
+      ...p,
+      completatoIl: p.completatoIl || new Date()
+    }));
+
+    await ordine.save();
+
+    logger.info(`✅ Prodotti lavorazione salvati: Ordine ${ordine.numeroOrdine}, ${prodottiInLavorazione.length} prodotti`);
+
+    // Notifica WebSocket
+    if (global.io) {
+      global.io.emit('ordine-aggiornato', { ordine, timestamp: new Date() });
+    }
+
+    res.json({
+      success: true,
+      message: `${prodottiInLavorazione.length} prodotti salvati in lavorazione`,
+      data: { prodottiInLavorazione: ordine.prodottiInLavorazione }
+    });
+
+  } catch (error) {
+    logger.error('❌ Errore salvataggio prodotti lavorazione:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore salvataggio prodotti in lavorazione',
+      error: error.message
+    });
+  }
+});
+
 // ✅ NUOVO 13/12/2025: GET /api/ordini/fix/preview - Anteprima ordini con prezzo €0
 router.get('/fix/preview', async (req, res) => {
   try {

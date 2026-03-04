@@ -475,6 +475,26 @@ const ordineSchema = new mongoose.Schema({
   }],
   // ========== FINE RINTRACCIABILITÀ ==========
   
+  // ✅ NUOVO 04/03/2026: Tracciamento prodotti in lavorazione (per vassoi e multi-prodotto)
+  // Popolato quando si clicca "L" → popup di selezione
+  prodottiInLavorazione: [{
+    // ID univoco del componente: "vassoio-{indiceProdotto}-{indiceComp}" o "prod-{indiceProdotto}"
+    id: { type: String, required: true },
+    // Indice del prodotto nell'array prodotti dell'ordine
+    indiceProdotto: { type: Number, required: true },
+    // Indice del componente nella composizione vassoio (null per prodotti normali)
+    indiceComp: { type: Number, default: null },
+    // Nome del prodotto/componente
+    nome: { type: String, required: true },
+    variante: { type: String, default: null },
+    // Quantità e unità
+    quantita: { type: Number, required: true },
+    unita: { type: String, default: 'Kg' },
+    // Timestamp quando è stato messo da parte
+    completatoIl: { type: Date, default: Date.now },
+    isDaVassoio: { type: Boolean, default: false }
+  }],
+
 }, {
   timestamps: true,
   collection: 'ordini'
