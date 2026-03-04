@@ -79,6 +79,7 @@ import importFattureRoutes from './routes/importFatture.js';
 import rintracciabilitaRoutes from './routes/rintracciabilita.js'; 
 import sessionsRoutes from './routes/sessions.js';
 import alertsRoutes from './routes/alerts.js';           // ✅ NUOVO - Alert automatici
+import chiusureRoutes from './routes/chiusure.js';       // ✅ NUOVO - Calendario chiusure
 import alertsChecker from './jobs/alertsChecker.js';     // ✅ NUOVO - Cron jobs alert
 import pushRoutes from './routes/push.js';               // ✅ NUOVO - Web Push Notifications
 import firebasePushService from './services/firebasePushService.js'; // ✅ Firebase Push Service
@@ -441,6 +442,7 @@ app.use('/api/rintracciabilita', rintracciabilitaRoutes); // ✅ NUOVO - Rintrac
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/alerts', alertsRoutes);                    // ✅ NUOVO - Alert automatici
+app.use('/api/chiusure', chiusureRoutes);                // ✅ NUOVO - Calendario chiusure
 app.use('/api/push', pushRoutes);                        // ✅ NUOVO - Web Push Notifications
 
 // Route Danea
