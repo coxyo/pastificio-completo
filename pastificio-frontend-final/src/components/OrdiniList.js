@@ -1,5 +1,7 @@
 // components/OrdiniList.js - ✅ FIX 25/11/2025: L/F/C NON APRONO PIÙ IL DIALOG
+// ✅ NUOVO 04/03/2026: Integrato LavorazionePopup per tracciamento prodotti in lavorazione
 import React, { useState, useMemo } from 'react';
+import LavorazionePopup, { necessitaPopup, estraiProdottiLavorazione } from './LavorazionePopup';
 import { 
   Paper, Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, IconButton, Button, TextField, Chip, Menu, MenuItem, Divider,
@@ -168,6 +170,10 @@ const OrdiniList = ({
   });
   const [categoriaSchermoIntero, setCategoriaSchermoIntero] = useState(null);
   const [filtroClienteId, setFiltroClienteId] = useState(null); // ✅ NUOVO: Filtro cliente da CallPopup
+
+  // ✅ NUOVO 04/03/2026: Stati per LavorazionePopup
+  const [lavorazionePopupOpen, setLavorazionePopupOpen] = useState(false);
+  const [lavorazionePopupGruppo, setLavorazionePopupGruppo] = useState(null);
 
   // ✅ FIX 28/01/2026: Sincronizza dataFiltro con dataSelezionata (frecce in GestoreOrdini)
   React.useEffect(() => {
@@ -447,18 +453,98 @@ Pastificio Nonna Claudia`;
     }
   };
 
+  // ✅ NUOVO 04/03/2026: handleInLavorazione con LavorazionePopup
   const handleInLavorazione = (gruppo, isChecked) => {
-    const nuovoStato = isChecked ? 'in_lavorazione' : 'nuovo';
-    
-    // ✅ FIX 19/12/2025: Se è un gruppo (count > 1), marca TUTTI gli ordini!
+    // Se si vuole DE-selezionare L → torna a 'nuovo' senza popup
+    if (!isChecked) {
+      const nuovoStato = 'nuovo';
+      if (gruppo.count > 1 && gruppo.ordini) {
+        gruppo.ordini.forEach(({ ordine, indiceProdotto }) => {
+          aggiornaStatoProdotto(ordine._id, indiceProdotto, nuovoStato);
+        });
+      } else {
+        aggiornaStatoProdotto(gruppo.ordine._id, gruppo.indiceProdotto, nuovoStato);
+        // Resetta prodottiInLavorazione sul backend
+        salvaProdottiInLavorazione(gruppo.ordine._id, []);
+      }
+      return;
+    }
+
+    // Identifica l'ordine (per gruppi prendi il primo)
+    const ordineTarget = (gruppo.count > 1 && gruppo.ordini)
+      ? gruppo.ordini[0].ordine
+      : gruppo.ordine;
+
+    // Se l'ordine ha più prodotti o è un vassoio → apri il popup
+    if (necessitaPopup(ordineTarget)) {
+      setLavorazionePopupGruppo({ gruppo, ordine: ordineTarget });
+      setLavorazionePopupOpen(true);
+    } else {
+      // Prodotto singolo senza composizione: comportamento originale
+      const nuovoStato = 'in_lavorazione';
+      if (gruppo.count > 1 && gruppo.ordini) {
+        gruppo.ordini.forEach(({ ordine, indiceProdotto }) => {
+          aggiornaStatoProdotto(ordine._id, indiceProdotto, nuovoStato);
+        });
+      } else {
+        aggiornaStatoProdotto(gruppo.ordine._id, gruppo.indiceProdotto, nuovoStato);
+      }
+    }
+  };
+
+  // ✅ NUOVO 04/03/2026: Salva prodottiInLavorazione sul backend
+  const salvaProdottiInLavorazione = async (ordineId, prodottiInLavorazione) => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_URL}/ordini/${ordineId}/lavorazione`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ prodottiInLavorazione })
+      });
+    } catch (e) {
+      console.error('❌ Errore salvataggio prodotti in lavorazione:', e);
+    }
+  };
+
+  // ✅ NUOVO 04/03/2026: Callback quando l'utente conferma il popup
+  const handleConfermaLavorazione = ({ prodottiInLavorazione, prodottiDaCompletare, tuttiPronti }) => {
+    if (!lavorazionePopupGruppo) return;
+    const { gruppo, ordine } = lavorazionePopupGruppo;
+
+    // 1. Marca il/i prodotto/i come in_lavorazione
+    const nuovoStato = 'in_lavorazione';
     if (gruppo.count > 1 && gruppo.ordini) {
-      gruppo.ordini.forEach(({ ordine, indiceProdotto }) => {
-        aggiornaStatoProdotto(ordine._id, indiceProdotto, nuovoStato);
+      gruppo.ordini.forEach(({ ordine: o, indiceProdotto }) => {
+        aggiornaStatoProdotto(o._id, indiceProdotto, nuovoStato);
       });
     } else {
-      // Ordine singolo
       aggiornaStatoProdotto(gruppo.ordine._id, gruppo.indiceProdotto, nuovoStato);
     }
+
+    // 2. Aggiorna localStorage con prodottiInLavorazione
+    const ordineId = ordine._id;
+    const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
+    const ordiniAggiornati = ordiniLocal.map(o => {
+      if (o._id === ordineId) {
+        return { ...o, prodottiInLavorazione };
+      }
+      return o;
+    });
+    localStorage.setItem('ordini', JSON.stringify(ordiniAggiornati));
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ordini',
+      newValue: JSON.stringify(ordiniAggiornati),
+      url: window.location.href
+    }));
+
+    // 3. Salva prodottiInLavorazione sul backend
+    salvaProdottiInLavorazione(ordineId, prodottiInLavorazione);
+
+    setLavorazionePopupOpen(false);
+    setLavorazionePopupGruppo(null);
   };
 
   const handleFatto = (gruppo, isChecked) => {
@@ -1210,6 +1296,15 @@ Pastificio Nonna Claudia`;
           Completato (invia WhatsApp)
         </MenuItem>
       </Menu>
+
+    {/* ✅ NUOVO 04/03/2026: LavorazionePopup */}
+    <LavorazionePopup
+      open={lavorazionePopupOpen}
+      onClose={() => { setLavorazionePopupOpen(false); setLavorazionePopupGruppo(null); }}
+      onConferma={handleConfermaLavorazione}
+      ordine={lavorazionePopupGruppo?.ordine || null}
+      prodottiGiaInLavorazione={lavorazionePopupGruppo?.ordine?.prodottiInLavorazione || []}
+    />
 
     {/* Dialog zoom con L/F/C funzionanti */}
     <Dialog

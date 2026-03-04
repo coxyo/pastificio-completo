@@ -405,10 +405,15 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         
         if (peso === 0) return; // Ignora € e prodotti senza peso
         
+        // ✅ NUOVO 04/03/2026: Per vassoi in lavorazione, sottrai i componenti già messi da parte
+        // prodottiInLavorazione è un array di { id, nome, quantita, unita, indiceProdotto, indiceComp }
+        const isInLavorazione = prodotto.statoProduzione === 'in_lavorazione';
+        const prodottiInLavorazione = ordine.prodottiInLavorazione || [];
+        
         // ✅ FIX 15/12/2025: VASSOIO deve essere controllato PRIMA di "dolci misti"
         // perché "Vassoio Dolci Misti" contiene "dolci misti" come sottostringa!
         if (nomeLC.includes('vassoio') && prodotto.dettagliCalcolo?.composizione) {
-          prodotto.dettagliCalcolo.composizione.forEach(comp => {
+          prodotto.dettagliCalcolo.composizione.forEach((comp, indiceComp) => {
             const compNome = comp.nome?.toLowerCase() || '';
             let compPeso = 0;
             if (comp.unita === 'Kg' || comp.unita === 'kg') compPeso = comp.quantita;
@@ -421,6 +426,16 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
                 }
               }
               if (compPeso === 0) compPeso = comp.quantita / 30;
+            }
+            
+            // ✅ NUOVO 04/03/2026: Sottrai componenti già in lavorazione
+            // Cerca se questo componente è tra i prodottiInLavorazione
+            if (isInLavorazione && prodottiInLavorazione.length > 0) {
+              const idComp = `vassoio-${ordine.prodotti.indexOf(prodotto)}-${indiceComp}`;
+              const giaInLavorazione = prodottiInLavorazione.some(p => p.id === idComp);
+              if (giaInLavorazione) {
+                return; // Questo componente è già messo da parte, non contare
+              }
             }
             
             // Classifica il componente
