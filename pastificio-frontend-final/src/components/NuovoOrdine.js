@@ -517,12 +517,28 @@ const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(nul
     }
   }, [formData.dataRitiro, isConnected]);
 
-// ✅ NUOVO 29/01/2026: Aggiorna prodotto critico quando cambia selezione
+// ✅ FIX 04/03/2026: Aggiorna prodotto critico
+// Controlla prima il prodotto corrente nel form, poi cerca nel carrello
+// Così il chip capacità rimane visibile anche dopo aver aggiunto ravioli/zeppole al carrello
 useEffect(() => {
-  const tipoProdotto = identificaProdottoCritico(prodottoCorrente.nome);
-  setProdottoCriticoSelezionato(tipoProdotto);
-  console.log(`🔍 Prodotto selezionato: ${prodottoCorrente.nome} → tipo: ${tipoProdotto}`);
-}, [prodottoCorrente.nome]);
+  // 1. Prodotto che si sta configurando nel form
+  const tipoDalForm = identificaProdottoCritico(prodottoCorrente.nome);
+  
+  if (tipoDalForm) {
+    setProdottoCriticoSelezionato(tipoDalForm);
+    console.log(`🔍 Prodotto critico dal form: ${prodottoCorrente.nome} → ${tipoDalForm}`);
+    return;
+  }
+  
+  // 2. Se form vuoto, cerca nel carrello (es. ho già aggiunto ravioli e sto scegliendo l'orario)
+  const tipoDalCarrello = formData.prodotti.reduce((trovato, p) => {
+    if (trovato) return trovato;
+    return identificaProdottoCritico(p.nome);
+  }, null);
+  
+  setProdottoCriticoSelezionato(tipoDalCarrello);
+  console.log(`🔍 Prodotto critico dal carrello: ${tipoDalCarrello || 'nessuno'}`);
+}, [prodottoCorrente.nome, formData.prodotti]);
 
   // ✅ Verifica limiti ogni volta che cambiano prodotti
   useEffect(() => {
