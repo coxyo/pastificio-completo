@@ -83,8 +83,8 @@ export const CATEGORIE = {
   ALTRI: {
     nome: 'ALTRI',
     prodotti: ['Fregula', 'Pizzette', 'Sfoglia'],
-    colore: '#E65100',       // arancione bruciato — leggibile + distinto
-    coloreBg: 'rgba(230,81,0,0.07)'
+    colore: '#5D4037',       // marrone scuro — testo bianco ottimo contrasto
+    coloreBg: 'rgba(93,64,55,0.07)'
   }
 };
 
@@ -848,7 +848,7 @@ Pastificio Nonna Claudia`;
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 backgroundColor: configCategoria.colore,
-                color: 'white',
+                color: configCategoria.textColor || 'white',
                 px: 2,
                 py: 1,
                 borderRadius: '8px 8px 0 0',

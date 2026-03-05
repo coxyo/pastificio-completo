@@ -260,7 +260,7 @@ export default function ClientLayout({ children }) {
               src={LOGO_SIDEBAR}
               alt="Pastificio Nonna Claudia"
               width={72} height={72}
-              style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+              style={{ objectFit: 'contain', width: '90%', height: '90%', padding: '4px' }}
             />
           </Box>
         </Box>
