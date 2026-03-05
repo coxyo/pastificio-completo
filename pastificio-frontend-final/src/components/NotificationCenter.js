@@ -59,13 +59,13 @@ const NotificationCenter = () => {
     const iconProps = { fontSize: 'small' };
     switch (type) {
       case 'warning': 
-        return <WarningIcon sx={{ color: 'warning.main' }} {...iconProps} />;
+        return <WarningIcon sx={{ color: '#C8A830' }} {...iconProps} />;
       case 'error': 
-        return <ErrorIcon sx={{ color: 'error.main' }} {...iconProps} />;
+        return <ErrorIcon sx={{ color: '#CC2200' }} {...iconProps} />;
       case 'success': 
-        return <CheckCircleIcon sx={{ color: 'success.main' }} {...iconProps} />;
+        return <CheckCircleIcon sx={{ color: '#2E7B00' }} {...iconProps} />;
       default: 
-        return <InfoIcon sx={{ color: 'info.main' }} {...iconProps} />;
+        return <InfoIcon sx={{ color: '#1565C0' }} {...iconProps} />;
     }
   };
   
@@ -114,16 +114,18 @@ const NotificationCenter = () => {
           horizontal: 'right',
         }}
         PaperProps={{
-          sx: { width: 400, maxHeight: 600 }
+          sx: { width: 400, maxHeight: 600, borderRadius: 2, boxShadow: '0 8px 32px rgba(46,123,0,0.18)' }
         }}
       >
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Notifiche</Typography>
+        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)', color: 'white' }}>
+          <Typography variant="h6" sx={{ color: "white", fontWeight: 700 }}>🔔 Notifiche</Typography>
           {notifications.length > 0 && (
             <Button
               size="small"
               onClick={() => notificationService.clearAll()}
               startIcon={<DeleteIcon />}
+              sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
+              variant="outlined"
             >
               Cancella tutto
             </Button>
@@ -144,8 +146,9 @@ const NotificationCenter = () => {
               <React.Fragment key={notification.id}>
                 <ListItem
                   sx={{
-                    backgroundColor: !notification.read ? 'action.hover' : 'inherit',
-                    '&:hover': { backgroundColor: 'action.selected' }
+                    backgroundColor: !notification.read ? 'rgba(46,123,0,0.07)' : 'inherit',
+                    borderLeft: !notification.read ? '3px solid #2E7B00' : '3px solid transparent',
+                    '&:hover': { backgroundColor: 'rgba(46,123,0,0.04)' }
                   }}
                 >
                   <ListItemIcon>
@@ -181,6 +184,7 @@ const NotificationCenter = () => {
                                 key={idx}
                                 size="small"
                                 variant="contained"
+                                sx={{ bgcolor: '#2E7B00', '&:hover': { bgcolor: '#1B5200' } }}
                                 onClick={() => {
                                   action.action();
                                   handleClose();
