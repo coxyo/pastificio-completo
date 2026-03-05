@@ -83,8 +83,9 @@ export const CATEGORIE = {
   ALTRI: {
     nome: 'ALTRI',
     prodotti: ['Fregula', 'Pizzette', 'Sfoglia'],
-    colore: '#37474F',       // grigio ardesia — contrasto WCAG AAA con bianco
-    coloreBg: 'rgba(55,71,79,0.07)'
+    colore: '#B0BEC5',       // grigio chiaro
+    coloreBg: 'rgba(176,190,197,0.10)',
+    textColor: '#263238'     // testo scuro su grigio chiaro
   }
 };
 
