@@ -3,23 +3,32 @@
 
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import { checkRole } from '../middleware/roleCheck.js';
 import { classificaIntent, processaMessaggio } from '../services/whatsappBotService.js';
 import { botStats } from '../services/whatsappBotHandler.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
 
-// Tutte le route richiedono autenticazione + ruolo admin
+// Middleware: autenticazione JWT su tutte le route
 router.use(protect);
-router.use(checkRole('admin'));
+
+// Controllo ruolo admin inline (senza dipendenza da roleCheck.js)
+const soloAdmin = (req, res, next) => {
+  if (req.user?.ruolo !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      messaggio: 'Accesso riservato agli amministratori',
+    });
+  }
+  next();
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/whatsapp-bot/test-intent
 // Testa la classificazione dell'intent senza inviare nulla
 // Body: { testo: string }
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/test-intent', async (req, res) => {
+router.post('/test-intent', soloAdmin, async (req, res) => {
   try {
     const { testo } = req.body;
 
@@ -57,7 +66,7 @@ router.post('/test-intent', async (req, res) => {
 // Genera la risposta completa di test (senza inviare su WhatsApp)
 // Body: { testo: string, nomeCliente?: string }
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/test-risposta', async (req, res) => {
+router.post('/test-risposta', soloAdmin, async (req, res) => {
   try {
     const { testo, nomeCliente = null } = req.body;
 
@@ -108,7 +117,7 @@ router.post('/test-risposta', async (req, res) => {
 // GET /api/whatsapp-bot/stats
 // Statistiche messaggi: totali, per tipo, escalation rate, ultimi messaggi
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/stats', (req, res) => {
+router.get('/stats', soloAdmin, (req, res) => {
   try {
     const { limit = 20 } = req.query;
     const limitN = Math.min(parseInt(limit, 10) || 20, 50);
@@ -150,7 +159,7 @@ router.get('/stats', (req, res) => {
 // Attiva/disattiva il bot runtime (senza restart)
 // Body: { abilitato: boolean }
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/toggle', (req, res) => {
+router.post('/toggle', soloAdmin, (req, res) => {
   try {
     const { abilitato } = req.body;
     if (typeof abilitato !== 'boolean') {
