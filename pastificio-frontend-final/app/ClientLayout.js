@@ -314,7 +314,7 @@ export default function ClientLayout({ children }) {
           {/* Hamburger mobile */}
           <IconButton color="inherit" edge="start" onClick={handleDrawerToggle}
             sx={{ mr: 1, display: { sm: 'none' } }}>
-            <Menu size={20} />
+            <MenuIcon />
           </IconButton>
 
           {/* Logo mini solo mobile */}
