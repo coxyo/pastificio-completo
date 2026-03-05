@@ -494,7 +494,7 @@ const Report = ({ ordini = [], isConnected = false }) => {
       {/* Statistiche rapide */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={ borderTop: "4px solid #2E7B00", borderRadius: 2 }>
+          <Card sx={{ borderTop: "4px solid #2E7B00", borderRadius: 2 }}>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
                 Ordini nel Periodo
@@ -509,7 +509,7 @@ const Report = ({ ordini = [], isConnected = false }) => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={ borderTop: "4px solid #C8A830", borderRadius: 2 }>
+          <Card sx={{ borderTop: "4px solid #C8A830", borderRadius: 2 }}>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
                 Valore Totale
@@ -523,7 +523,7 @@ const Report = ({ ordini = [], isConnected = false }) => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={ borderTop: "4px solid #CC2200", borderRadius: 2 }>
+          <Card sx={{ borderTop: "4px solid #CC2200", borderRadius: 2 }}>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
                 Ticket Medio
@@ -537,7 +537,7 @@ const Report = ({ ordini = [], isConnected = false }) => {
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={ borderTop: "4px solid #5D4037", borderRadius: 2 }>
+          <Card sx={{ borderTop: "4px solid #5D4037", borderRadius: 2 }}>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
                 Clienti Unici
