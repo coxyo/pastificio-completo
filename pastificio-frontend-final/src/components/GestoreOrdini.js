@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 
 import { PRODOTTI_CONFIG, getProdottoConfig, LISTA_PRODOTTI } from '../config/prodottiConfig';
+import { BRAND } from '@/theme/theme'; // ✅ RESTYLING 04/03/2026: palette brand
 import { 
   calcolaPrezzoOrdine, 
   formattaPrezzo,
@@ -541,9 +542,16 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
   ) : null;
 
   return (
-    <Paper sx={{ p: 2, mb: 2, backgroundColor: '#f8f9fa' }}>
-      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: '#555' }}>
-        📊 TOTALI PRODUZIONE ({new Date(dataSelezionata).toLocaleDateString('it-IT')})
+    <Paper sx={{
+      p: { xs: 1.5, sm: 2 }, mb: 2,
+      background: `linear-gradient(135deg, rgba(46,123,0,0.04) 0%, rgba(200,168,48,0.06) 100%)`,
+      border: `1px solid rgba(46,123,0,0.15)`,
+      borderTop: `3px solid ${BRAND.green}`,
+      borderRadius: 2,
+      boxShadow: '0 2px 8px rgba(46,123,0,0.08)',
+    }}>
+      <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 800, color: BRAND.greenDark, display: 'flex', alignItems: 'center', gap: 1, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        📊 Totali Produzione — {new Date(dataSelezionata).toLocaleDateString('it-IT')}
       </Typography>
       
       {/* Riga principale con macro-totali */}
@@ -2952,129 +2960,127 @@ return (
         }
       `}</style>
       
-      <Container maxWidth="xl">
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2, md: 3 } }}>
         {/* ✅ NUOVO 28/02/2026: Banner alert anomalie */}
         <AlertBanner />
         
         <StatisticheWidget ordini={ordini} dataSelezionata={dataSelezionata} />
         
         <Box sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-            <Typography variant="h4" component="h1">
-              Gestione Ordini {prodottiCaricati && `✅ (${Object.values(prodottiDisponibili).flat().length} prodotti caricati)`}
-            </Typography>
-            
+          {/* ✅ RESTYLING 04/03/2026: Toolbar brand Nonna Claudia */}
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 2,
+            flexWrap: 'wrap',
+            gap: 1.5,
+            p: { xs: 1.5, sm: 2 },
+            borderRadius: 3,
+            background: `linear-gradient(135deg, ${BRAND.greenDark} 0%, ${BRAND.green} 100%)`,
+            boxShadow: '0 4px 16px rgba(46,123,0,0.25)',
+          }}>
+            {/* Titolo + badge prodotti */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography
+                variant="h6"
+                component="h1"
+                sx={{
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: { xs: '1rem', sm: '1.15rem' },
+                  textShadow: '0 1px 3px rgba(0,0,0,0.20)',
+                }}
+              >
+                Gestione Ordini
+              </Typography>
+              {prodottiCaricati && (
+                <Chip
+                  label={`${Object.values(prodottiDisponibili).flat().length} prodotti`}
+                  size="small"
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.20)',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '0.72rem',
+                    border: '1px solid rgba(255,255,255,0.30)',
+                    height: 22,
+                  }}
+                />
+              )}
+            </Box>
+
+            {/* Azioni toolbar */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-              
-              <Tooltip title={syncInProgress ? "Sincronizzazione in corso..." : "Sincronizza"}>
+              <Tooltip title={syncInProgress ? 'Sincronizzazione...' : 'Sincronizza'}>
                 <span>
-                  <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress}>
-                    <SyncIcon className={syncInProgress ? 'rotating' : ''} />
+                  <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress} size="small"
+                    sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}>
+                    <SyncIcon fontSize="small" className={syncInProgress ? 'rotating' : ''} />
                   </IconButton>
                 </span>
               </Tooltip>
-              
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<SettingsIcon />}
-                onClick={() => setDialogLimitiOpen(true)}
-              >
-                📊 Limiti Produzione
+
+              <Button variant="outlined" size="small" startIcon={<SettingsIcon />} onClick={() => setDialogLimitiOpen(true)}
+                sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.50)', fontSize: '0.78rem', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.12)' } }}>
+                Limiti
               </Button>
-              
-              <Button
-  variant="contained"
-  size="small"
-  color="success"
-  startIcon={<WhatsAppIcon />}
-  onClick={() => {
-    // Verifica se questo PC è autorizzato
-    const whatsappAbilitato = localStorage.getItem('whatsapp_enabled') === 'true';
-    if (!whatsappAbilitato) {
-      alert('⚠️ Dashboard WhatsApp non disponibile su questo dispositivo.\n\nUsa il PC principale con WhatsApp Desktop installata.\n\nPer abilitare su questo PC (solo amministratori), apri Console (F12) e scrivi:\nlocalStorage.setItem("whatsapp_enabled", "true")');
-      return;
-    }
-    setDashboardWhatsAppAperto(true);
-  }}
->
-  📱 Dashboard WhatsApp
-</Button>
-              
-              {/* ✅ NUOVISSIMO: Pulsanti Chiamate (16/11/2025) */}
-              <Button
-                variant="contained"
-                size="small"
-                color="info"
-                startIcon={<Phone />}
-                onClick={() => setStoricoChiamateAperto(true)}
-              >
-                📞 Storico Chiamate
-              </Button>
-              
-              <Button
-                variant="contained"
-                size="small"
-                color="secondary"
-                startIcon={<AnalyticsIcon />}
-                onClick={() => setStatisticheChiamateAperto(true)}
-              >
-                📊 Statistiche Chiamate
-              </Button>
-              
-              <Button
-                variant="contained"
-                size="small"
-                sx={{ 
-                  bgcolor: '#FF6B9D',
-                  color: 'white',
-                  '&:hover': { bgcolor: '#FF4081' }
+
+              <Button variant="contained" size="small" startIcon={<WhatsAppIcon />}
+                onClick={() => {
+                  const whatsappAbilitato = localStorage.getItem('whatsapp_enabled') === 'true';
+                  if (!whatsappAbilitato) { alert('⚠️ Dashboard WhatsApp non disponibile su questo dispositivo.\n\nUsa il PC principale con WhatsApp Desktop installata.\n\nPer abilitare su questo PC (solo amministratori), apri Console (F12) e scrivi:\nlocalStorage.setItem("whatsapp_enabled", "true")'); return; }
+                  setDashboardWhatsAppAperto(true);
                 }}
-                startIcon={<CakeIcon />}
-                onClick={() => setDialogZeppoleOpen(true)}
-              >
-                🎂 ZEPPOLE
+                sx={{ bgcolor: '#25D366', color: 'white', fontSize: '0.78rem', '&:hover': { bgcolor: '#1EB85A' }, boxShadow: '0 2px 8px rgba(37,211,102,0.40)' }}>
+                WhatsApp
               </Button>
-              
-              <Button
-                variant="contained"
-                color="secondary"
-                size="small"
-                startIcon={<PrintIcon />}
-                onClick={() => setRiepilogoStampabileAperto(true)}
-                sx={{ height: 36 }}
-              >
-                STAMPA ORDINI
+
+              <Button variant="contained" size="small" startIcon={<Phone />} onClick={() => setStoricoChiamateAperto(true)}
+                sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: 'white', fontSize: '0.78rem', border: '1px solid rgba(255,255,255,0.30)', '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' } }}>
+                Chiamate
               </Button>
-              
-              <Chip 
-                label={`${statistiche.totaleOrdini} ordini`}
-                variant="outlined"
-                size="small"
-              />
-              
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<CleanIcon />}
-                onClick={rimuoviDuplicati}
-                disabled={caricamento}
-              >
-                Pulisci
+
+              <Button variant="contained" size="small" startIcon={<AnalyticsIcon />} onClick={() => setStatisticheChiamateAperto(true)}
+                sx={{ display: { xs: 'none', md: 'inline-flex' }, bgcolor: 'rgba(255,255,255,0.18)', color: 'white', fontSize: '0.78rem', border: '1px solid rgba(255,255,255,0.30)', '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' } }}>
+                Statistiche
               </Button>
-              
-              <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress}>
-                <RefreshIcon />
-              </IconButton>
+
+              <Button variant="contained" size="small" startIcon={<CakeIcon />} onClick={() => setDialogZeppoleOpen(true)}
+                sx={{ bgcolor: BRAND.red, color: 'white', fontSize: '0.78rem', '&:hover': { bgcolor: BRAND.redDark }, boxShadow: '0 2px 8px rgba(204,34,0,0.35)' }}>
+                Zeppole
+              </Button>
+
+              <Button variant="contained" size="small" startIcon={<PrintIcon />} onClick={() => setRiepilogoStampabileAperto(true)}
+                sx={{ bgcolor: BRAND.gold, color: BRAND.brownDark, fontWeight: 700, fontSize: '0.78rem', '&:hover': { bgcolor: BRAND.goldDark, color: 'white' }, boxShadow: '0 2px 8px rgba(200,168,48,0.40)' }}>
+                Stampa
+              </Button>
+
+              <Chip label={`${statistiche.totaleOrdini} ordini`} size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.20)', color: 'white', fontWeight: 700, fontSize: '0.72rem', border: '1px solid rgba(255,255,255,0.30)' }} />
+
+              <Tooltip title="Ricarica">
+                <IconButton onClick={() => sincronizzaConMongoDB()} disabled={syncInProgress} size="small"
+                  sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}>
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
             </Box>
           </Box>
           
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* ✅ RESTYLING: Status bar compatta */}
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
             <Chip
               icon={isConnected ? <WifiIcon /> : <WifiOffIcon />}
               label={isConnected ? 'Online' : 'Offline'}
-              color={isConnected ? 'success' : 'error'}
               size="small"
+              sx={{
+                bgcolor: isConnected ? 'rgba(46,123,0,0.10)' : 'rgba(204,34,0,0.10)',
+                color: isConnected ? BRAND.greenDark : BRAND.red,
+                border: `1px solid ${isConnected ? BRAND.green : BRAND.red}`,
+                fontWeight: 700,
+                '& .MuiChip-icon': { color: 'inherit' },
+              }}
             />
             
             {ultimaSync && (
@@ -3104,7 +3110,15 @@ return (
         </Box>
         
         {/* ✅ NUOVO 11/12/2025: Barra Ricerca e Totali Periodo */}
-        <Paper sx={{ p: 2, mb: 2, backgroundColor: '#e3f2fd' }}>
+        {/* ✅ RESTYLING 04/03/2026: Search bar brand */}
+        <Paper sx={{
+          p: { xs: 1.5, sm: 2 }, mb: 2,
+          backgroundColor: 'white',
+          border: `1px solid rgba(46,123,0,0.15)`,
+          borderLeft: `4px solid ${BRAND.green}`,
+          borderRadius: 2,
+          boxShadow: '0 2px 8px rgba(46,123,0,0.08)',
+        }}>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
             {/* Ricerca per Cliente */}
             <TextField
@@ -3162,51 +3176,89 @@ return (
         {/* ✅ FIX 27/01/2026: Data grande spostata qui sopra TotaliProduzione */}
         {!caricamento && !ricercaCliente && (
           <Box sx={{ mb: 2 }}>
-            <Box sx={{ 
-              p: 2, 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: 2,
+            {/* ✅ RESTYLING 04/03/2026: Barra data brand */}
+            <Box sx={{
+              p: { xs: 1.5, sm: 2 },
+              background: `linear-gradient(135deg, ${BRAND.brownDark} 0%, #5D4037 50%, ${BRAND.brownMid} 100%)`,
+              borderRadius: 3,
               color: 'white',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between'
+              justifyContent: 'space-between',
+              boxShadow: '0 4px 16px rgba(62,39,35,0.30)',
+              border: `2px solid ${BRAND.gold}`,
             }}>
               {/* Freccia sinistra */}
-              <IconButton 
+              <IconButton
                 onClick={() => {
                   const data = new Date(dataSelezionata);
                   data.setDate(data.getDate() - 1);
                   setDataSelezionata(data.toISOString().split('T')[0]);
                 }}
-                sx={{ color: 'white', fontSize: '2rem' }}
+                sx={{
+                  color: BRAND.goldLight,
+                  fontSize: '1.5rem',
+                  bgcolor: 'rgba(200,168,48,0.15)',
+                  '&:hover': { bgcolor: 'rgba(200,168,48,0.30)', color: BRAND.gold },
+                  transition: 'all 0.15s ease',
+                  width: 44, height: 44,
+                }}
               >
-                ◀️
+                ◀
               </IconButton>
-              
-              {/* Data e Ora */}
-              <Box sx={{ textAlign: 'center', flex: 1 }}>
-                <Typography variant="h5" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
-                  {['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][new Date(dataSelezionata + 'T12:00:00').getDay()]} {new Date(dataSelezionata + 'T12:00:00').toLocaleDateString('it-IT', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
+
+              {/* Data centrale */}
+              <Box sx={{ textAlign: 'center', flex: 1, px: 1 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    fontSize: { xs: '0.95rem', sm: '1.1rem', md: '1.2rem' },
+                    color: 'white',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.30)',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][new Date(dataSelezionata + 'T12:00:00').getDay()]}
+                  {' '}
+                  {new Date(dataSelezionata + 'T12:00:00').toLocaleDateString('it-IT', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
                   }).toUpperCase()}
                 </Typography>
-                <Typography variant="body1" sx={{ mt: 0.5 }}>
-                  {ordini.filter(o => (o.dataRitiro || '').startsWith(dataSelezionata)).reduce((acc, o) => acc + (o.prodotti || []).length, 0)} prodotti
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 0.5 }}>
+                  <Chip
+                    label={`${ordini.filter(o => (o.dataRitiro || '').startsWith(dataSelezionata)).length} ordini`}
+                    size="small"
+                    sx={{ bgcolor: 'rgba(200,168,48,0.25)', color: BRAND.goldLight, fontWeight: 700, fontSize: '0.72rem', height: 20, border: `1px solid ${BRAND.gold}` }}
+                  />
+                  <Chip
+                    label={`${ordini.filter(o => (o.dataRitiro || '').startsWith(dataSelezionata)).reduce((acc, o) => acc + (o.prodotti || []).length, 0)} prodotti`}
+                    size="small"
+                    sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)', fontWeight: 600, fontSize: '0.72rem', height: 20 }}
+                  />
+                </Box>
               </Box>
-              
+
               {/* Freccia destra */}
-              <IconButton 
+              <IconButton
                 onClick={() => {
                   const data = new Date(dataSelezionata);
                   data.setDate(data.getDate() + 1);
                   setDataSelezionata(data.toISOString().split('T')[0]);
                 }}
-                sx={{ color: 'white', fontSize: '2rem' }}
+                sx={{
+                  color: BRAND.goldLight,
+                  bgcolor: 'rgba(200,168,48,0.15)',
+                  '&:hover': { bgcolor: 'rgba(200,168,48,0.30)', color: BRAND.gold },
+                  transition: 'all 0.15s ease',
+                  width: 44, height: 44,
+                }}
               >
-                ▶️
+                ▶
               </IconButton>
             </Box>
           </Box>
@@ -3277,10 +3329,23 @@ return (
           </Grid>
         )}
         
-        <Fab 
-          color="primary" 
+        {/* ✅ RESTYLING: FAB brand, sopra bottom nav su mobile */}
+        <Fab
           aria-label="Nuovo ordine"
-          sx={{ position: 'fixed', bottom: 16, right: 16 }}
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 72, sm: 24 },  // 72 = 60px bottom nav + 12px margin
+            right: { xs: 16, sm: 24 },
+            background: `linear-gradient(135deg, ${BRAND.greenDark}, ${BRAND.green})`,
+            color: 'white',
+            boxShadow: '0 6px 20px rgba(46,123,0,0.40)',
+            '&:hover': {
+              background: `linear-gradient(135deg, ${BRAND.green}, ${BRAND.greenLight})`,
+              boxShadow: '0 8px 28px rgba(46,123,0,0.50)',
+            },
+            width: { xs: 52, sm: 56 },
+            height: { xs: 52, sm: 56 },
+          }}
           onClick={() => {
             setOrdineSelezionato(null);
             setDialogoNuovoOrdineAperto(true);

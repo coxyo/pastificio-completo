@@ -25,62 +25,66 @@ import ZoomInIcon from '@mui/icons-material/ZoomIn';
 
 const API_URL = 'https://pastificio-completo-production.up.railway.app/api';
 
+import { BRAND } from '@/theme/theme'; // ✅ RESTYLING 04/03/2026
+
 // ========== CONFIGURAZIONE CATEGORIE ==========
+// ✅ RESTYLING 04/03/2026: Palette categorie armonizzata con brand Nonna Claudia
+// Ogni categoria ha colore testa distintivo + sfondo tenue
 export const CATEGORIE = {
   RAVIOLI: {
     nome: 'RAVIOLI',
     prodotti: ['Ravioli', 'Culurgiones'],
-    colore: '#FF6B6B',
-    coloreBg: 'rgba(255, 107, 107, 0.1)'
+    colore: '#2E7B00',       // verde brand (pasta fresca)
+    coloreBg: 'rgba(46,123,0,0.07)'
   },
   PARDULAS: {
     nome: 'PARDULAS',
     prodotti: ['Pardulas'],
-    colore: '#4ECDC4',
-    coloreBg: 'rgba(78, 205, 196, 0.1)'
+    colore: '#C8A830',       // oro brand (dolce dorato)
+    coloreBg: 'rgba(200,168,48,0.08)'
   },
   DOLCI: {
     nome: 'DOLCI',
-    prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Gueffus', 'Ciambelle', 
+    prodotti: ['Amaretti', 'Bianchini', 'Papassinas', 'Gueffus', 'Ciambelle',
                'Torta di saba', 'Vassoio', 'Dolci misti', 'Pabassine'],
-    colore: '#FFE66D',
-    coloreBg: 'rgba(255, 230, 109, 0.1)'
+    colore: '#E67E22',       // arancione caldo (dolci)
+    coloreBg: 'rgba(230,126,34,0.07)'
   },
   PANADAS: {
     nome: 'PANADAS',
     prodotti: ['Panada'],
-    colore: '#F38181',
-    coloreBg: 'rgba(243, 129, 129, 0.1)'
+    colore: '#8B4513',       // marrone terracotta (pasta rustical)
+    coloreBg: 'rgba(139,69,19,0.07)'
   },
   SEABADAS: {
     nome: 'SEABADAS',
     prodotti: ['Sebadas'],
-    colore: '#AA96DA',
-    coloreBg: 'rgba(170, 150, 218, 0.1)'
+    colore: '#7B1FA2',       // viola (formaggio/miele)
+    coloreBg: 'rgba(123,31,162,0.07)'
   },
   ZEPPOLE: {
     nome: 'ZEPPOLE',
     prodotti: ['Zeppole'],
-    colore: '#FCCD90',
-    coloreBg: 'rgba(252, 205, 144, 0.1)'
+    colore: '#CC2200',       // rosso brand (fiocco logo)
+    coloreBg: 'rgba(204,34,0,0.07)'
   },
   PANADINE: {
     nome: 'PANADINE',
     prodotti: ['Panadine'],
-    colore: '#FCBAD3',
-    coloreBg: 'rgba(252, 186, 211, 0.1)'
+    colore: '#D81B60',       // rosa scuro
+    coloreBg: 'rgba(216,27,96,0.07)'
   },
   PASTA: {
     nome: 'PASTA',
     prodotti: ['Pasta per panada', 'Pasta'],
-    colore: '#B0BEC5',
-    coloreBg: 'rgba(176, 190, 197, 0.1)'
+    colore: '#546E7A',       // grigio-blu neutro
+    coloreBg: 'rgba(84,110,122,0.07)'
   },
   ALTRI: {
     nome: 'ALTRI',
     prodotti: ['Fregula', 'Pizzette', 'Sfoglia'],
-    colore: '#95E1D3',
-    coloreBg: 'rgba(149, 225, 211, 0.1)'
+    colore: '#00796B',       // verde acqua
+    coloreBg: 'rgba(0,121,107,0.07)'
   }
 };
 
@@ -807,7 +811,7 @@ Pastificio Nonna Claudia`;
   }, [ordiniPerCategoria]);
 
   return (
-    <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent' }}>
+    <Paper elevation={0} sx={{ p: { xs: 1, sm: 2 }, backgroundColor: 'transparent' }}>
       {/* ✅ FIX 27/01/2026: Data grande spostata in GestoreOrdini.js sopra TotaliProduzione */}
       {/* Riga con campo data nascosto e pulsante Nuovo */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -892,7 +896,7 @@ Pastificio Nonna Claudia`;
                     <TableRow sx={{ backgroundColor: configCategoria.coloreBg }}>
                       {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
                       {(ricercaCliente || mostraTutteLeDate) && (
-                        <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '70px', backgroundColor: '#e3f2fd' }}>📅 DATA</TableCell>
+                        <TableCell sx={{ fontWeight: 800, p: 0.5, fontSize: '0.7rem', width: '70px', backgroundColor: 'rgba(46,123,0,0.08)', color: '#1B5200', letterSpacing: '0.05em' }}>📅 DATA</TableCell>
                       )}
                       <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '50px' }}>ORA</TableCell>
                       <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>CLIENTE</TableCell>
@@ -1019,7 +1023,7 @@ Pastificio Nonna Claudia`;
                           sx={{
                             // ✅ EVIDENZIAZIONE ORDINE IMMINENTE (1 ora prima, non completato) - STATICA (no animazioni)
                             ...(isImminente && {
-                              backgroundColor: '#fff3cd !important',
+                              backgroundColor: 'rgba(200,168,48,0.15) !important',
                               borderLeft: '5px solid #ff9800',
                               boxShadow: '0 0 0 2px rgba(255, 152, 0, 0.2)',
                               '& td': {
@@ -1047,7 +1051,7 @@ Pastificio Nonna Claudia`;
                         >
                           {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
                           {(ricercaCliente || mostraTutteLeDate) && (
-                            <TableCell sx={{ p: 0.5, backgroundColor: '#e3f2fd' }}>
+                            <TableCell sx={{ p: 0.5, backgroundColor: 'rgba(46,123,0,0.06)' }}>
                               <Typography variant="body2" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
                                 {ordine.dataRitiro ? new Date(ordine.dataRitiro).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '-'}
                               </Typography>

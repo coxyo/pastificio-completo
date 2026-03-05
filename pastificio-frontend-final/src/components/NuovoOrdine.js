@@ -6,6 +6,7 @@
 // ✅ AGGIORNATO 03/02/2026: Aggiunto prezzoUnitario a tutti i prodotti per visualizzazione corretta
 // ✅ AGGIORNATO 19/11/2025: Opzioni extra (più piccoli, più grandi, etc.) vanno automaticamente in noteProdotto
 import React, { useState, useEffect, useMemo } from 'react';
+import { BRAND } from '@/theme/theme'; // ✅ RESTYLING 04/03/2026
 import {
   Dialog,
   DialogTitle,
@@ -1706,22 +1707,31 @@ useEffect(() => {
         }
       }}
     >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      {/* ✅ RESTYLING 04/03/2026: DialogTitle brand */}
+      <DialogTitle sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        bgcolor: 'primary.main',
+        background: `linear-gradient(135deg, ${BRAND.greenDark} 0%, ${BRAND.green} 100%)`,
         color: 'white',
-        py: 1
+        py: 1.5,
+        px: 2.5,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
       }}>
-        <Typography variant="h6">
-          {ordineIniziale ? '✏️ Modifica Ordine' : '➕ Nuovo Ordine'}
+        <Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: '1rem', sm: '1.1rem' } }}>
+          {ordineIniziale ? '✏️ Modifica Ordine' : '🛒 Nuovo Ordine'}
         </Typography>
-        <Button 
-          variant="contained" 
-          color="inherit"
+        <Button
+          variant="outlined"
           onClick={onClose}
-          sx={{ color: 'primary.main' }}
+          size="small"
+          sx={{
+            color: 'white',
+            borderColor: 'rgba(255,255,255,0.50)',
+            fontWeight: 600,
+            minWidth: 80,
+            '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.15)' },
+          }}
         >
           ✕ Chiudi
         </Button>
@@ -1740,7 +1750,8 @@ useEffect(() => {
             height: { xs: 'auto', md: '100%' }, 
             overflow: { xs: 'visible', md: 'auto' },
             borderRight: { md: '1px solid #e0e0e0' },
-            bgcolor: '#fafafa',
+            bgcolor: '#FAFAF7',
+            borderRight: { md: `1px solid rgba(46,123,0,0.12)` },
             order: { xs: 2, md: 1 },
             pb: '100px'  // ✅ Spazio per bottone SALVA fisso in basso
           }}>
@@ -2472,7 +2483,8 @@ useEffect(() => {
             <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2, pb: 10 }}>  {/* ✅ Padding extra */}
               
               {/* ========== DATA E ORA (IN ALTO!) ========== */}
-              <Paper sx={{ p: 2, bgcolor: '#e3f2fd' }}>
+              {/* ✅ RESTYLING: Paper Data brand */}
+              <Paper sx={{ p: 2, bgcolor: 'rgba(46,123,0,0.05)', border: `1px solid rgba(46,123,0,0.15)`, borderTop: `3px solid ${BRAND.green}` }}>
                 <Typography variant="subtitle1" gutterBottom fontWeight="bold">
                   📅 Data e Ora Ritiro
                 </Typography>
@@ -2480,8 +2492,9 @@ useEffect(() => {
                 {/* Box con frecce per cambiare data */}
                 <Box sx={{ 
                   p: 1.5, 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: `linear-gradient(135deg, ${BRAND.brownDark} 0%, #5D4037 100%)`,
                   borderRadius: 2,
+                  border: `2px solid ${BRAND.gold}`,
                   color: 'white',
                   mb: 2,
                   display: 'flex',
@@ -3091,7 +3104,13 @@ useEffect(() => {
               )}
 
               {/* ========== CARRELLO ========== */}
-              <Paper sx={{ p: 2, bgcolor: formData.prodotti.length > 0 ? '#e8f5e9' : '#fff3e0' }}>
+              {/* ✅ RESTYLING: Carrello brand */}
+              <Paper sx={{
+                p: 2,
+                bgcolor: formData.prodotti.length > 0 ? 'rgba(46,123,0,0.05)' : 'rgba(200,168,48,0.07)',
+                border: `1px solid ${formData.prodotti.length > 0 ? 'rgba(46,123,0,0.20)' : 'rgba(200,168,48,0.30)'}`,
+                borderTop: `3px solid ${formData.prodotti.length > 0 ? BRAND.green : BRAND.gold}`,
+              }}>
                 <Typography variant="subtitle1" gutterBottom fontWeight="bold">
                   🛒 Carrello ({formData.prodotti.length})
                 </Typography>
@@ -3303,29 +3322,41 @@ useEffect(() => {
           </Grid>
         </Grid>
 
-        {/* ========== BOTTONE SALVA FISSO IN BASSO ========== */}
-        <Box sx={{ 
+        {/* ✅ RESTYLING 04/03/2026: Bottone SALVA brand */}
+        <Box sx={{
           position: 'sticky',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          p: 2,
+          bottom: 0, left: 0, right: 0,
+          p: { xs: 1.5, sm: 2 },
           bgcolor: 'white',
-          borderTop: '2px solid #e0e0e0',
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.15)',
-          zIndex: 1000
+          borderTop: `2px solid ${BRAND.gold}`,
+          boxShadow: '0 -6px 20px rgba(62,39,35,0.12)',
+          zIndex: 1000,
+          display: 'flex',
+          gap: 1.5,
+          alignItems: 'center',
         }}>
-          <Button 
-            variant="contained" 
-            onClick={handleSalva} 
+          <Button
+            variant="contained"
+            onClick={handleSalva}
             size="large"
             fullWidth
-            color={alertLimiti.some(a => a.tipo === 'error') ? 'warning' : 'success'}
-            sx={{ 
-              py: 2, 
-              fontSize: '1.2rem',
-              fontWeight: 'bold',
-              minHeight: '60px'  // ✅ Altezza minima per touch facile
+            sx={{
+              py: { xs: 1.5, sm: 2 },
+              fontSize: { xs: '1rem', sm: '1.1rem' },
+              fontWeight: 800,
+              minHeight: 56,
+              letterSpacing: '0.03em',
+              background: alertLimiti.some(a => a.tipo === 'error')
+                ? `linear-gradient(135deg, #E65100, #F57C00)`
+                : `linear-gradient(135deg, ${BRAND.greenDark}, ${BRAND.green})`,
+              boxShadow: alertLimiti.some(a => a.tipo === 'error')
+                ? '0 4px 16px rgba(230,81,0,0.35)'
+                : `0 4px 16px rgba(46,123,0,0.35)`,
+              '&:hover': {
+                background: alertLimiti.some(a => a.tipo === 'error')
+                  ? `linear-gradient(135deg, #F57C00, #FF8F00)`
+                  : `linear-gradient(135deg, ${BRAND.green}, ${BRAND.greenLight})`,
+              },
             }}
           >
             {alertLimiti.some(a => a.tipo === 'error') ? '⚠️ SALVA (Supera Limiti)' : '✅ SALVA ORDINE'}
@@ -3373,13 +3404,15 @@ useEffect(() => {
             setShowConfermaDataOggi(false);
             eseguiSalvataggio();
           }}
-          sx={{ 
-            minWidth: 130, 
+          sx={{
+            minWidth: 130,
             py: 1.2,
             borderRadius: 2,
             fontSize: '1rem',
-            bgcolor: '#f59e0b',
-            '&:hover': { bgcolor: '#d97706' }
+            bgcolor: BRAND.gold,
+            color: BRAND.brownDark,
+            fontWeight: 700,
+            '&:hover': { bgcolor: BRAND.goldDark, color: 'white' },
           }}
         >
           Sì, è oggi
