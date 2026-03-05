@@ -587,7 +587,7 @@ const SistemaStampe = ({ ordini }) => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Sistema di Stampe</h1>
+      <h1 className="text-2xl font-bold mb-6" style={{ color: "#1B5200" }}>🖨️ Sistema di Stampe</h1>
       
       {/* Notifica */}
       {notifica && (
@@ -595,7 +595,7 @@ const SistemaStampe = ({ ordini }) => {
           notifica.tipo === 'success' ? 'bg-green-100 text-green-800' :
           notifica.tipo === 'error' ? 'bg-red-100 text-red-800' :
           notifica.tipo === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-blue-100 text-blue-800'
+          'bg-green-100 text-green-800'
         }`}>
           {notifica.messaggio}
         </div>
@@ -609,7 +609,7 @@ const SistemaStampe = ({ ordini }) => {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Template Disponibili</h2>
                 <button 
-                  className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                  className="px-3 py-1 text-white rounded text-sm" style={{ backgroundColor: "#2E7B00" }} onMouseEnter={e=>e.target.style.backgroundColor="#1B5200"} onMouseLeave={e=>e.target.style.backgroundColor="#2E7B00"}
                   onClick={creaNuovoTemplate}
                 >
                   Nuovo Template
@@ -618,7 +618,7 @@ const SistemaStampe = ({ ordini }) => {
               
               {loading ? (
                 <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: "#2E7B00" }}></div>
                 </div>
               ) : templates.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -631,7 +631,7 @@ const SistemaStampe = ({ ordini }) => {
                       key={template.id}
                       className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${
                         templateSelezionato && templateSelezionato.id === template.id 
-                          ? 'border-blue-500 bg-blue-50' 
+                          ? 'border-green-700 bg-green-50' 
                           : 'border-gray-200'
                       }`}
                       onClick={() => selezionaTemplate(template)}
@@ -761,7 +761,7 @@ const SistemaStampe = ({ ordini }) => {
                 
                 <div className="flex space-x-3">
                   <button 
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    className="px-4 py-2 text-white rounded" style={{ backgroundColor: "#2E7B00" }} onMouseEnter={e=>e.currentTarget.style.backgroundColor="#1B5200"} onMouseLeave={e=>e.currentTarget.style.backgroundColor="#2E7B00"}
                     onClick={salvaTemplate}
                   >
                     {modalitaModifica ? 'Aggiorna Template' : 'Salva Template'}
@@ -795,7 +795,7 @@ const SistemaStampe = ({ ordini }) => {
                 
                 {loading ? (
                   <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: "#2E7B00" }}></div>
                   </div>
                 ) : !anteprimaHtml ? (
                   <div className="bg-gray-50 border rounded-md p-8 text-center text-gray-500">
