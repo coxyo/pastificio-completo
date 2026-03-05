@@ -81,7 +81,8 @@ export default function ReportPage() {
     try {
       setLoading(true);
       // Carica ordini di oggi
-      const ordini = await api.caricaOrdini();
+      const ordiniRaw = await api.caricaOrdini();
+      const ordini = Array.isArray(ordiniRaw) ? ordiniRaw : [];
       const oggi = new Date();
       const ordiniFiltered = ordini.filter(o => {
         const dataOrdine = new Date(o.dataRitiro);
@@ -91,7 +92,7 @@ export default function ReportPage() {
 
       // Carica templates
       const templatesData = await reportService.fetchTemplates();
-      setTemplates(templatesData);
+      setTemplates(Array.isArray(templatesData) ? templatesData : []);
 
       // AGGIUNTO: Carica statistiche report
       loadReportStats();
@@ -332,7 +333,7 @@ export default function ReportPage() {
       title: 'Analisi Rapida',
       description: 'Grafici e statistiche avanzate',
       icon: <BarChartIcon />,
-      color: 'success'
+      color: 'info'
     }
   ];
 
@@ -346,7 +347,7 @@ export default function ReportPage() {
     {
       label: 'Templates Attivi',
       value: templates.length,
-      color: 'warning'
+      color: 'secondary'
     },
     {
       label: 'Export Programmati',
@@ -358,7 +359,7 @@ export default function ReportPage() {
       value: reportStats.lastBackup 
         ? format(new Date(reportStats.lastBackup), 'HH:mm', { locale: it })
         : 'Mai', // MODIFICATO
-      color: 'success'
+      color: 'info'
     }
   ];
 
@@ -366,15 +367,16 @@ export default function ReportPage() {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 800, color: '#1B5200' }}>
-          📊 Centro Report e Stampe
+        <Typography variant="h4" component="h1">
+          Centro Report e Stampe
         </Typography>
         <Box>
           <Button
             variant="outlined"
             startIcon={<BarChartIcon />}
             onClick={() => setActiveTab(5)}
-            sx={{ mr: 1, borderColor: '#2E7B00', color: '#2E7B00', '&:hover': { borderColor: '#1B5200', bgcolor: 'rgba(46,123,0,0.06)' } }}
+            sx={{ mr: 1 }}
+            color="info"
           >
             Analisi Avanzate
           </Button>
@@ -432,7 +434,7 @@ export default function ReportPage() {
                   cursor: 'pointer',
                   transition: 'all 0.3s',
                   background: report.id === 'quick-analysis' 
-                    ? 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)' 
+                    ? 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)' 
                     : 'inherit',
                   '&:hover': { 
                     transform: 'translateY(-2px)',
@@ -508,8 +510,8 @@ export default function ReportPage() {
             icon={<TrendingUp />} 
             iconPosition="start"
             sx={{ 
-              color: activeTab === 5 ? '#2E7B00' : 'inherit',
-              '&.Mui-selected': { color: '#2E7B00' }
+              color: activeTab === 5 ? 'info.main' : 'inherit',
+              '&.Mui-selected': { color: 'info.main' }
             }}
           />
         </Tabs>
