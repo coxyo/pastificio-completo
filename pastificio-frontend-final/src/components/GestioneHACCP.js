@@ -540,9 +540,9 @@ export default function GestioneHACCP() {
   // ============================================
   
   return (
-    <Box sx={{ p: 3, bgcolor: '#f5f5f5', minHeight: '100vh' }}>
+    <Box sx={{ p: 3, bgcolor: '#FDF8F0', minHeight: '100vh' }}>
       {/* HEADER */}
-      <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: 'primary.main', color: 'white', borderRadius: 2 }}>
+      <Paper elevation={0} sx={{ p: 3, mb: 3, background: 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)', color: 'white', borderRadius: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="h4" fontWeight="bold">
@@ -571,7 +571,7 @@ export default function GestioneHACCP() {
       {/* STATISTICHE RAPIDE */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: 'white', borderLeft: '4px solid #2196f3' }}>
+          <Card sx={{ bgcolor: 'white', borderLeft: '4px solid #2E7B00', borderRadius: 2 }}>
             <CardContent>
               <Typography variant="overline" color="text.secondary">
                 Registrazioni (7gg)
@@ -583,7 +583,7 @@ export default function GestioneHACCP() {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: 'white', borderLeft: '4px solid #4caf50' }}>
+          <Card sx={{ bgcolor: 'white', borderLeft: '4px solid #4CAF50', borderRadius: 2 }}>
             <CardContent>
               <Typography variant="overline" color="text.secondary">
                 Conformi
@@ -595,7 +595,7 @@ export default function GestioneHACCP() {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: 'white', borderLeft: '4px solid #f44336' }}>
+          <Card sx={{ bgcolor: 'white', borderLeft: '4px solid #CC2200', borderRadius: 2 }}>
             <CardContent>
               <Typography variant="overline" color="text.secondary">
                 Non Conformi
@@ -607,7 +607,7 @@ export default function GestioneHACCP() {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: 'white', borderLeft: '4px solid #ff9800' }}>
+          <Card sx={{ bgcolor: 'white', borderLeft: '4px solid #C8A830', borderRadius: 2 }}>
             <CardContent>
               <Typography variant="overline" color="text.secondary">
                 Da Verificare
@@ -758,19 +758,19 @@ export default function GestioneHACCP() {
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#e3f2fd' }}>
+                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'rgba(46,123,0,0.08)', borderTop: '3px solid #2E7B00', borderRadius: 2 }}>
                     <Typography variant="h4">{dashboard?.statisticheMensili?.totale || 0}</Typography>
                     <Typography variant="body2">Totale Registrazioni</Typography>
                   </Paper>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#e8f5e9' }}>
+                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'rgba(76,175,80,0.08)', borderTop: '3px solid #4CAF50', borderRadius: 2 }}>
                     <Typography variant="h4">{dashboard?.statisticheMensili?.conformi || 0}</Typography>
                     <Typography variant="body2">Conformi</Typography>
                   </Paper>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#ffebee' }}>
+                  <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'rgba(204,34,0,0.07)', borderTop: '3px solid #CC2200', borderRadius: 2 }}>
                     <Typography variant="h4">{dashboard?.statisticheMensili?.nonConformi || 0}</Typography>
                     <Typography variant="body2">Non Conformi</Typography>
                   </Paper>
@@ -860,7 +860,7 @@ export default function GestioneHACCP() {
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: 'primary.main' }}>
+                    <TableRow sx={{ bgcolor: '#2E7B00' }}>
                       <TableCell sx={{ color: 'white' }}>Data/Ora</TableCell>
                       <TableCell sx={{ color: 'white' }}>Dispositivo</TableCell>
                       <TableCell sx={{ color: 'white' }}>Temperatura</TableCell>
@@ -1026,7 +1026,7 @@ export default function GestioneHACCP() {
               <TableContainer component={Paper} sx={{ mb: 3 }}>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: 'secondary.main' }}>
+                    <TableRow sx={{ bgcolor: '#C8A830' }}>
                       <TableCell sx={{ color: 'white' }}>Area/Attrezzatura</TableCell>
                       <TableCell sx={{ color: 'white' }}>Frequenza</TableCell>
                       <TableCell sx={{ color: 'white' }}>Prodotto</TableCell>
@@ -1112,7 +1112,7 @@ export default function GestioneHACCP() {
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: 'info.main' }}>
+                    <TableRow sx={{ bgcolor: '#1565C0' }}>
                       <TableCell sx={{ color: 'white' }}>Data</TableCell>
                       <TableCell sx={{ color: 'white' }}>Prodotto</TableCell>
                       <TableCell sx={{ color: 'white' }}>Lotto</TableCell>
@@ -1173,7 +1173,7 @@ export default function GestioneHACCP() {
               <TableContainer component={Paper}>
                 <Table size="small">
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#ff9800' }}>
+                    <TableRow sx={{ bgcolor: '#C8A830' }}>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Prodotto</TableCell>
                       <TableCell sx={{ color: 'white' }} align="center">Glutine</TableCell>
                       <TableCell sx={{ color: 'white' }} align="center">Uova</TableCell>
@@ -1185,7 +1185,7 @@ export default function GestioneHACCP() {
                   </TableHead>
                   <TableBody>
                     {PRODOTTI_ALLERGENI.map((prod, idx) => (
-                      <TableRow key={idx} sx={{ '&:nth-of-type(odd)': { bgcolor: '#fff8e1' } }}>
+                      <TableRow key={idx} sx={{ '&:nth-of-type(odd)': { bgcolor: 'rgba(200,168,48,0.06)' } }}>
                         <TableCell sx={{ fontWeight: 'bold' }}>{prod.nome}</TableCell>
                         <TableCell align="center">{prod.glutine ? '✓' : '✗'}</TableCell>
                         <TableCell align="center">{prod.uova ? '✓' : '✗'}</TableCell>
@@ -1205,7 +1205,7 @@ export default function GestioneHACCP() {
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: 'primary.main' }}>
+                    <TableRow sx={{ bgcolor: '#2E7B00' }}>
                       <TableCell sx={{ color: 'white' }}>Prodotto</TableCell>
                       <TableCell sx={{ color: 'white' }}>Temperatura</TableCell>
                       <TableCell sx={{ color: 'white' }}>Tempo</TableCell>
@@ -1238,7 +1238,7 @@ export default function GestioneHACCP() {
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#d32f2f' }}>
+                    <TableRow sx={{ bgcolor: '#CC2200' }}>
                       <TableCell sx={{ color: 'white' }}>CCP</TableCell>
                       <TableCell sx={{ color: 'white' }}>Fase</TableCell>
                       <TableCell sx={{ color: 'white' }}>Pericolo</TableCell>
@@ -1276,7 +1276,7 @@ export default function GestioneHACCP() {
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: 'primary.main' }}>
+                    <TableRow sx={{ bgcolor: '#2E7B00' }}>
                       <TableCell sx={{ color: 'white' }}>Fornitore</TableCell>
                       <TableCell sx={{ color: 'white' }}>Prodotto Fornito</TableCell>
                       <TableCell sx={{ color: 'white' }}>Indirizzo</TableCell>
@@ -1376,7 +1376,7 @@ export default function GestioneHACCP() {
 
       {/* DIALOG TEMPERATURA */}
       <Dialog open={dialogTemperatura} onClose={() => setDialogTemperatura(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
+        <DialogTitle sx={{ background: 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)', color: 'white' }}>
           🌡️ Registra Temperatura
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
@@ -1428,7 +1428,7 @@ export default function GestioneHACCP() {
 
       {/* DIALOG PULIZIA */}
       <Dialog open={dialogPulizia} onClose={() => setDialogPulizia(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ bgcolor: 'secondary.main', color: 'white' }}>
+        <DialogTitle sx={{ bgcolor: '#C8A830', color: 'white' }}>
           🧹 Registra Pulizia e Sanificazione
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
@@ -1488,7 +1488,7 @@ export default function GestioneHACCP() {
 
       {/* DIALOG ABBATTIMENTO */}
       <Dialog open={dialogAbbattimento} onClose={() => setDialogAbbattimento(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ bgcolor: 'info.main', color: 'white' }}>
+        <DialogTitle sx={{ bgcolor: '#1565C0', color: 'white' }}>
           ❄️ Registra Abbattimento Temperatura
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
@@ -1578,7 +1578,7 @@ export default function GestioneHACCP() {
 
       {/* DIALOG MATERIE PRIME */}
       <Dialog open={dialogMateriePrime} onClose={() => setDialogMateriePrime(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ bgcolor: 'success.main', color: 'white' }}>
+        <DialogTitle sx={{ bgcolor: '#2E7B00', color: 'white' }}>
           📦 Controllo Materie Prime in Arrivo
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
@@ -1670,7 +1670,7 @@ export default function GestioneHACCP() {
 
       {/* DIALOG NON CONFORMITÀ */}
       <Dialog open={dialogNonConformita} onClose={() => setDialogNonConformita(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ bgcolor: 'error.main', color: 'white' }}>
+        <DialogTitle sx={{ bgcolor: '#CC2200', color: 'white' }}>
           ⚠️ Registra Non Conformità
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
