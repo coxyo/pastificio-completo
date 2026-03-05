@@ -1,7 +1,7 @@
 // services/api.js
 import config from '../config/config.js';
 
-const API_URL = config.API_URL + '/api';
+const API_URL = config.API_URL; // ✅ FIX: config.API_URL include già '/api'
 const USE_MOCK = false;
 
 // Mock data per test
