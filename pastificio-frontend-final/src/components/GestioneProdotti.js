@@ -351,48 +351,48 @@ export default function GestioneProdotti() {
         {statistiche && (
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Card>
+              <Card sx={{ borderTop: "4px solid #3E2723", borderRadius: 2 }}>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
                     Prodotti Totali
                   </Typography>
-                  <Typography variant="h4">
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: "#3E2723" }}>
                     {statistiche.totale}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card>
+              <Card sx={{ borderTop: "4px solid #2E7B00", borderRadius: 2 }}>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
                     Disponibili
                   </Typography>
-                  <Typography variant="h4" color="success.main">
+                  <Typography variant="h4" sx={{ color: "#2E7B00", fontWeight: 800 }}>
                     {statistiche.disponibili}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card>
+              <Card sx={{ borderTop: "4px solid #C8A830", borderRadius: 2 }}>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
                     Non Disponibili
                   </Typography>
-                  <Typography variant="h4" color="warning.main">
+                  <Typography variant="h4" sx={{ color: "#C8A830", fontWeight: 800 }}>
                     {statistiche.nonDisponibili}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card>
+              <Card sx={{ borderTop: "4px solid #5D4037", borderRadius: 2 }}>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
                     Categorie
                   </Typography>
-                  <Typography variant="h4" color="info.main">
+                  <Typography variant="h4" sx={{ color: "#5D4037", fontWeight: 800 }}>
                     {Object.keys(statistiche.perCategoria || {}).length}
                   </Typography>
                 </CardContent>
@@ -509,13 +509,13 @@ export default function GestioneProdotti() {
                       <Chip 
                         label={prodotto.categoria} 
                         size="small" 
-                        color="primary"
+                        sx={{ borderColor: "#2E7B00", color: "#2E7B00", fontWeight: 600 }}
                         variant="outlined"
                       />
                     </TableCell>
                     <TableCell>
                       {prodotto.prezzoKg > 0 ? (
-                        <Typography variant="body2" color="success.main">
+                        <Typography variant="body2" sx={{ color: "#2E7B00", fontWeight: 600 }}>
                           €{prodotto.prezzoKg.toFixed(2)}/Kg
                         </Typography>
                       ) : (
@@ -524,7 +524,7 @@ export default function GestioneProdotti() {
                     </TableCell>
                     <TableCell>
                       {prodotto.prezzoPezzo > 0 ? (
-                        <Typography variant="body2" color="success.main">
+                        <Typography variant="body2" sx={{ color: "#2E7B00", fontWeight: 600 }}>
                           €{prodotto.prezzoPezzo.toFixed(2)}/pz
                         </Typography>
                       ) : (
@@ -612,8 +612,8 @@ export default function GestioneProdotti() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
-          {prodottoSelezionato ? 'Modifica Prodotto' : 'Nuovo Prodotto'}
+        <DialogTitle sx={{ background: "linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)", color: "white", fontWeight: 700 }}>
+          {prodottoSelezionato ? '✏️ Modifica Prodotto' : '➕ Nuovo Prodotto'}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
