@@ -424,13 +424,13 @@ function DashboardUltimate() {
   
   const maxChartValue = Math.max(...chartData.map(d => d.value), 1);
   const pieTotal = topProducts.reduce((sum, p) => sum + p.revenue, 0) || 1;
-  const colors = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b'];
+  const colors = ['#2E7B00', '#C8A830', '#CC2200', '#5D4037', '#3B82F6'];
   
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#FDF8F0' }}>
       {/* NUOVO HEADER MULTI-UTENTE */}
       <div style={{
-        background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)',
         color: 'white',
         padding: '16px 24px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -509,7 +509,7 @@ function DashboardUltimate() {
               onClick={handleLogout}
               style={{
                 padding: '8px 20px',
-                backgroundColor: '#ef4444',
+                backgroundColor: '#CC2200',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
@@ -526,14 +526,14 @@ function DashboardUltimate() {
 
       {/* BARRA UTENTI ONLINE */}
       <div style={{
-        backgroundColor: '#fbbf24',
+        backgroundColor: '#FDF8F0',
         padding: '10px 24px',
         fontSize: '14px',
-        color: '#92400e',
+        color: '#3E2723',
         display: 'flex',
         alignItems: 'center',
         gap: '15px',
-        borderBottom: '2px solid #f59e0b'
+        borderBottom: '2px solid #C8A830'
       }}>
         <span style={{ fontWeight: 'bold' }}>👥 Utenti online ({onlineUsers.length + 1}):</span>
         {onlineUsers.map((user, i) => (
@@ -648,7 +648,7 @@ function DashboardUltimate() {
               style={{
                 padding: '10px 16px',
                 borderRadius: '8px',
-                backgroundColor: '#8b5cf6',
+                backgroundColor: '#2E7B00',
                 color: 'white',
                 border: 'none',
                 cursor: 'pointer',
@@ -668,7 +668,7 @@ function DashboardUltimate() {
               style={{
                 padding: '10px 16px',
                 borderRadius: '8px',
-                backgroundColor: '#ec4899',
+                backgroundColor: '#C8A830',
                 color: 'white',
                 border: 'none',
                 cursor: 'pointer',
@@ -769,7 +769,7 @@ function DashboardUltimate() {
               style={{
                 padding: '10px 20px',
                 borderRadius: '8px',
-                backgroundColor: loading ? '#9ca3af' : '#3b82f6',
+                backgroundColor: loading ? '#9ca3af' : '#2E7B00',
                 color: 'white',
                 border: 'none',
                 cursor: loading ? 'not-allowed' : 'pointer',
@@ -803,10 +803,10 @@ function DashboardUltimate() {
             }}>
               <div style={{ 
                 padding: '24px', 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)',
                 borderRadius: '16px',
                 color: 'white',
-                boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
+                boxShadow: '0 10px 30px rgba(46, 123, 0, 0.35)',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
@@ -835,10 +835,10 @@ function DashboardUltimate() {
               
               <div style={{ 
                 padding: '24px', 
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                background: 'linear-gradient(135deg, #A08020 0%, #C8A830 100%)',
                 borderRadius: '16px',
                 color: 'white',
-                boxShadow: '0 10px 30px rgba(240, 147, 251, 0.3)',
+                boxShadow: '0 10px 30px rgba(200, 168, 48, 0.35)',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
@@ -867,10 +867,10 @@ function DashboardUltimate() {
               
               <div style={{ 
                 padding: '24px', 
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                background: 'linear-gradient(135deg, #990000 0%, #CC2200 100%)',
                 borderRadius: '16px',
                 color: 'white',
-                boxShadow: '0 10px 30px rgba(79, 172, 254, 0.3)',
+                boxShadow: '0 10px 30px rgba(204, 34, 0, 0.30)',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
@@ -901,10 +901,10 @@ function DashboardUltimate() {
               
               <div style={{ 
                 padding: '24px', 
-                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                background: 'linear-gradient(135deg, #3E2723 0%, #5D4037 100%)',
                 borderRadius: '16px',
                 color: 'white',
-                boxShadow: '0 10px 30px rgba(67, 233, 123, 0.3)',
+                boxShadow: '0 10px 30px rgba(62, 39, 35, 0.30)',
                 position: 'relative',
                 overflow: 'hidden'
               }}>
@@ -939,11 +939,11 @@ function DashboardUltimate() {
         <div style={{ 
           marginTop: '32px', 
           padding: '16px',
-          backgroundColor: '#f0fdf4',
+          backgroundColor: 'rgba(46,123,0,0.06)',
           borderRadius: '8px',
-          border: '1px solid #bbf7d0',
+          border: '1px solid rgba(46,123,0,0.20)',
           fontSize: '13px',
-          color: '#14532d',
+          color: '#1B5200',
           textAlign: 'center'
         }}>
           📄 <strong>Auto-aggiornamento:</strong> Il dashboard si aggiorna automaticamente quando ricevi nuovi ordini. 
