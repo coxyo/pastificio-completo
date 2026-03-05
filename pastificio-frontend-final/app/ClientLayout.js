@@ -225,18 +225,19 @@ export default function ClientLayout({ children }) {
         borderBottom: `2px solid ${BRAND.gold}`,
         textAlign: 'center',
       }}>
-        {/* Logo ovale su sfondo bianco */}
+        {/* Logo — contenitore proporzionato 3:2 come il logo ovale reale */}
         <Box sx={{
-          width: 114, height: 76, borderRadius: '12px', overflow: 'hidden',
+          width: 132, height: 86,
+          borderRadius: '50%',
+          overflow: 'hidden',
           border: `2px solid ${BRAND.gold}`,
           boxShadow: `0 0 0 3px ${alpha(BRAND.gold, 0.20)}, 0 4px 12px rgba(0,0,0,0.40)`,
           bgcolor: 'white', mx: 'auto', mb: 1,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <img
             src={LOGO_SIDEBAR}
             alt="Pastificio Nonna Claudia"
-            style={{ width: '96%', height: '96%', objectFit: 'contain' }}
+            style={{ width: '100%', height: '100%', objectFit: 'fill' }}
           />
         </Box>
         <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '0.76rem', lineHeight: 1.3, letterSpacing: '0.02em' }}>
