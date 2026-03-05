@@ -20,9 +20,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-
 
 // ✅ Colori e label per ruoli
 const roleConfig = {
-  admin: { color: '#dc2626', bg: '#fee2e2', label: '👑 Admin' },
-  operatore: { color: '#2563eb', bg: '#dbeafe', label: '👷 Operatore' },
-  visualizzatore: { color: '#6b7280', bg: '#f3f4f6', label: '👁️ Visualizzatore' }
+  admin: { color: '#CC2200', bg: 'rgba(204,34,0,0.09)', label: '👑 Admin' },
+  operatore: { color: '#2E7B00', bg: 'rgba(46,123,0,0.10)', label: '👷 Operatore' },
+  visualizzatore: { color: '#5D4037', bg: 'rgba(93,64,55,0.08)', label: '👁️ Visualizzatore' }
 };
 
 export default function GestioneUtenti() {
@@ -284,7 +284,7 @@ export default function GestioneUtenti() {
       <TableContainer component={Paper} elevation={2}>
         <Table>
           <TableHead>
-            <TableRow sx={{ backgroundColor: '#f8fafc' }}>
+            <TableRow sx={{ backgroundColor: 'rgba(46,123,0,0.06)' }}>
               <TableCell sx={{ fontWeight: 'bold' }}>Utente</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Ruolo</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Stato</TableCell>
@@ -300,7 +300,7 @@ export default function GestioneUtenti() {
               return (
                 <TableRow key={u.id} sx={{ 
                   opacity: u.isActive ? 1 : 0.5,
-                  backgroundColor: isSelf ? '#fffbeb' : 'inherit'
+                  backgroundColor: isSelf ? 'rgba(200,168,48,0.10)' : 'inherit', borderLeft: isSelf ? '3px solid #C8A830' : '3px solid transparent'
                 }}>
                   {/* Utente */}
                   <TableCell>
@@ -551,7 +551,7 @@ export default function GestioneUtenti() {
           </Typography>
           <Paper sx={{ 
             p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            backgroundColor: '#f0fdf4', border: '2px solid #22c55e'
+            backgroundColor: 'rgba(46,123,0,0.07)', border: '2px solid #2E7B00'
           }}>
             <Typography variant="h6" fontFamily="monospace" fontWeight="bold">
               {tempPassword}
