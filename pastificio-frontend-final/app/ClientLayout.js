@@ -296,7 +296,7 @@ export default function ClientLayout({ children }) {
           '&:hover': { bgcolor: 'rgba(255,50,50,0.12)', color: '#ff6b6b' },
         }}>
           <ListItemIcon sx={{ color: 'inherit', minWidth: 40, '& .MuiSvgIcon-root': { fontSize: '1.25rem' } }}>
-            <LogOut size={20} />
+            🚪
           </ListItemIcon>
           <ListItemText primary="Esci" primaryTypographyProps={{ fontSize: '0.84rem', fontWeight: 500 }} />
         </ListItemButton>
@@ -361,7 +361,7 @@ export default function ClientLayout({ children }) {
 
           <Tooltip title="Esci">
             <IconButton color="inherit" onClick={handleLogout}>
-              <LogOut size={20} />
+              <LogoutIcon />
             </IconButton>
           </Tooltip>
         </Toolbar>
