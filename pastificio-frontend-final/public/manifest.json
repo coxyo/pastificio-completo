@@ -5,12 +5,16 @@
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
-  "theme_color": "#2196f3",
-  "background_color": "#ffffff",
+  "theme_color": "#2E7B00",
+  "background_color": "#FDF8F0",
   "scope": "/",
   "lang": "it-IT",
   "dir": "ltr",
-  "categories": ["business", "productivity", "food"],
+  "categories": [
+    "business",
+    "productivity",
+    "food"
+  ],
   "icons": [
     {
       "src": "/icon-72x72.png",
@@ -73,14 +77,24 @@
       "short_name": "Nuovo",
       "description": "Crea un nuovo ordine",
       "url": "/?nuovo=true",
-      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
       "name": "Riepilogo",
       "short_name": "Riepilogo",
       "description": "Visualizza riepilogo giornaliero",
       "url": "/?riepilogo=true",
-      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     }
   ],
   "prefer_related_applications": false
