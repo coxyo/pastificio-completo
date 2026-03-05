@@ -46,10 +46,10 @@ const deviceIcons = {
 };
 
 const statusConfig = {
-  attivo: { color: '#16a34a', bg: '#dcfce7', label: 'Attivo ora', icon: '🟢' },
-  inattivo: { color: '#ca8a04', bg: '#fef9c3', label: 'Inattivo', icon: '🟡' },
-  scaduto: { color: '#dc2626', bg: '#fee2e2', label: 'Scaduto', icon: '🔴' },
-  disconnesso: { color: '#374151', bg: '#f3f4f6', label: 'Disconnesso', icon: '⚫' }
+  attivo: { color: '#2E7B00', bg: 'rgba(46,123,0,0.10)', label: 'Attivo ora', icon: '🟢' },
+  inattivo: { color: '#A08020', bg: 'rgba(200,168,48,0.12)', label: 'Inattivo', icon: '🟡' },
+  scaduto: { color: '#CC2200', bg: 'rgba(204,34,0,0.09)', label: 'Scaduto', icon: '🔴' },
+  disconnesso: { color: '#5D4037', bg: 'rgba(93,64,55,0.08)', label: 'Disconnesso', icon: '⚫' }
 };
 
 // ═══════════════════════════════════════
@@ -283,7 +283,7 @@ export default function SessioniAttive() {
         {Object.entries(statusConfig).map(([key, cfg]) => (
           <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Typography sx={{ fontSize: '12px' }}>{cfg.icon}</Typography>
-            <Typography sx={{ fontSize: '12px', color: '#666' }}>{cfg.label}</Typography>
+            <Typography sx={{ fontSize: '12px', color: '#5D4037' }}>{cfg.label}</Typography>
           </Box>
         ))}
       </Box>
@@ -305,7 +305,7 @@ export default function SessioniAttive() {
                 elevation={session.isCurrentSession ? 3 : 1}
                 sx={{
                   p: 2,
-                  border: session.isCurrentSession ? '2px solid #2563eb' : '1px solid #e5e7eb',
+                  border: session.isCurrentSession ? '2px solid #2E7B00' : '1px solid #e5e7eb',
                   borderRadius: 2,
                   opacity: isActive ? 1 : 0.6,
                   position: 'relative',
@@ -353,8 +353,8 @@ export default function SessioniAttive() {
                             sx={{
                               height: 22,
                               fontSize: '11px',
-                              backgroundColor: '#dbeafe',
-                              color: '#2563eb',
+                              backgroundColor: 'rgba(46,123,0,0.12)',
+                              color: '#2E7B00',
                               fontWeight: 600
                             }}
                           />
@@ -362,17 +362,17 @@ export default function SessioniAttive() {
                       </Box>
 
                       {/* Dettagli */}
-                      <Typography variant="body2" sx={{ color: '#666', mt: 0.5, fontSize: '13px' }}>
+                      <Typography variant="body2" sx={{ color: '#3E2723', mt: 0.5, fontSize: '13px' }}>
                         {session.dispositivo === 'PC' ? '💻' : session.dispositivo === 'Tablet' ? '📱' : session.dispositivo === 'Mobile' ? '📱' : '❓'}
                         {' '}{session.dispositivo} - {session.browser}
                         {session.ip && (
-                          <span style={{ marginLeft: 8, color: '#999', fontSize: '12px' }}>
+                          <span style={{ marginLeft: 8, color: '#757575', fontSize: '12px' }}>
                             IP: {session.ip}
                           </span>
                         )}
                       </Typography>
                       
-                      <Typography variant="body2" sx={{ color: '#999', fontSize: '12px', mt: 0.3 }}>
+                      <Typography variant="body2" sx={{ color: '#757575', fontSize: '12px', mt: 0.3 }}>
                         Login: {formatDate(session.loginAt)}
                         {' | '}
                         Ultima attività: {tempoRelativo(session.ultimaAttivita)}
@@ -380,7 +380,7 @@ export default function SessioniAttive() {
 
                       {/* Info disconnessione */}
                       {session.stato === 'disconnessa' && session.disconnessoDa && (
-                        <Typography variant="body2" sx={{ color: '#dc2626', fontSize: '12px', mt: 0.3, fontStyle: 'italic' }}>
+                        <Typography variant="body2" sx={{ color: '#CC2200', fontSize: '12px', mt: 0.3, fontStyle: 'italic' }}>
                           Disconnessa da: {session.disconnessoDa} ({formatDate(session.disconnessoAt)})
                         </Typography>
                       )}
@@ -420,8 +420,8 @@ export default function SessioniAttive() {
 
       {/* INFO */}
       <Box sx={{ mt: 2, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-        <InfoIcon sx={{ fontSize: 16, color: '#999', mt: 0.2 }} />
-        <Typography variant="body2" sx={{ color: '#999', fontSize: '12px' }}>
+        <InfoIcon sx={{ fontSize: 16, color: '#2E7B00', mt: 0.2 }} />
+        <Typography variant="body2" sx={{ color: '#5D4037', fontSize: '12px' }}>
           Le sessioni scadono automaticamente dopo 12 ore di inattività. 
           Un utente disconnesso vedrà un messaggio al prossimo utilizzo e dovrà rifare il login.
           L'elenco si aggiorna automaticamente ogni 30 secondi.
