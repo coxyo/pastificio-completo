@@ -417,7 +417,7 @@ export default function ImportFatture() {
 
   const getStatoChip = (stato) => {
     const config = {
-      'analizzato': { color: 'info', label: 'analizzato' },
+      'analizzato': { color: 'warning', label: 'Analizzato' },
       'importato': { color: 'success', label: 'Importato' },
       'importato_parziale': { color: 'warning', label: 'Parziale' },
       'duplicato': { color: 'default', label: 'Duplicato' },
@@ -433,7 +433,7 @@ export default function ImportFatture() {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <FileIcon color="primary" />
+        <FileIcon sx={{ color: '#2E7B00' }} />
         Import Fatture
       </Typography>
 
@@ -617,7 +617,7 @@ export default function ImportFatture() {
                       <TableContainer>
                         <Table size="small">
                           <TableHead>
-                            <TableRow sx={{ bgcolor: 'grey.100' }}>
+                            <TableRow sx={{ bgcolor: 'rgba(46,123,0,0.07)' }}>
                               <TableCell>#</TableCell>
                               <TableCell>Descrizione Fattura</TableCell>
                               <TableCell align="right">Qtà</TableCell>
@@ -634,8 +634,8 @@ export default function ImportFatture() {
                               <TableRow 
                                 key={rigaIndex}
                                 sx={{
-                                  backgroundColor: riga.mapping?.trovato ? 'rgba(76, 175, 80, 0.1)' : 
-                                                   riga.mapping?.suggerito ? 'rgba(255, 152, 0, 0.1)' : 
+                                  backgroundColor: riga.mapping?.trovato ? 'rgba(46,123,0,0.08)' : 
+                                                   riga.mapping?.suggerito ? 'rgba(200,168,48,0.10)' : 
                                                    'inherit'
                                 }}
                               >
@@ -725,7 +725,7 @@ export default function ImportFatture() {
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: 'primary.main' }}>
+                <TableRow sx={{ bgcolor: '#2E7B00' }}>
                   <TableCell sx={{ color: 'white' }}>Data Import</TableCell>
                   <TableCell sx={{ color: 'white' }}>Fornitore</TableCell>
                   <TableCell sx={{ color: 'white' }}>N. Fattura</TableCell>
@@ -786,7 +786,7 @@ export default function ImportFatture() {
                       <TableRow>
                         <TableCell colSpan={8} sx={{ p: 0 }}>
                           <Collapse in={expandedFattura[imp._id]}>
-                            <Box sx={{ p: 2, bgcolor: 'grey.50' }}>
+                            <Box sx={{ p: 2, bgcolor: 'rgba(46,123,0,0.04)', borderTop: '1px solid rgba(46,123,0,0.10)' }}>
                               <Typography variant="subtitle2" gutterBottom>
                                 Dettaglio Righe:
                               </Typography>
@@ -852,7 +852,7 @@ export default function ImportFatture() {
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: 'secondary.main' }}>
+                <TableRow sx={{ bgcolor: '#A08020' }}>
                   <TableCell sx={{ color: 'white' }}>Fornitore</TableCell>
                   <TableCell sx={{ color: 'white' }}>Descrizione Fornitore</TableCell>
                   <TableCell sx={{ color: 'white' }}>→ Ingrediente</TableCell>
