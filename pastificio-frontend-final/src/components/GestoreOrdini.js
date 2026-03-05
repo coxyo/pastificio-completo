@@ -2608,6 +2608,10 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
       setOrdineSelezionato(null);
       setDialogoNuovoOrdineAperto(false);
       
+      // 🆕 05/03/2026: Pulisci bozza dopo salvataggio
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('_ordine_draft');
+      }
     } catch (error) {
       console.error('Errore salvataggio:', error);
       const azione = ordineSelezionato ? 'l\'aggiornamento' : 'il salvataggio';
@@ -3371,6 +3375,9 @@ return (
       localStorage.removeItem('chiamataCliente');
       localStorage.removeItem('_openNuovoOrdineOnLoad');
       localStorage.removeItem('ordini_filtroCliente');
+      
+      // 🆕 05/03/2026: Pulisci bozza ordine (chiusura volontaria)
+      sessionStorage.removeItem('_ordine_draft');
     }
     
     // 🆕 28/02/2026: Esegui sync pendente dopo chiusura dialog

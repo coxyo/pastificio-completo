@@ -983,12 +983,12 @@ export default function MovimentiMagazzino() {
         </Grid>
         
         <Grid item xs={12} md={3}>
-          <Card elevation={2}>
+          <Card elevation={2} sx={{ borderTop: "4px solid #C8A830", borderRadius: 2 }}>
             <CardContent>
               <Typography color="textSecondary" gutterBottom variant="body2">
                 Prodotti Sotto Scorta
               </Typography>
-              <Typography variant="h4" color="warning.main">
+              <Typography variant="h4" sx={{ color: "#C8A830", fontWeight: 800 }}>
                 <Badge badgeContent={stats?.prodottiSottoScorta?.length || 0} color="warning">
                   <InventoryIcon fontSize="large" />
                 </Badge>
@@ -998,12 +998,12 @@ export default function MovimentiMagazzino() {
         </Grid>
         
         <Grid item xs={12} md={3}>
-          <Card elevation={2}>
+          <Card elevation={2} sx={{ borderTop: "4px solid #CC2200", borderRadius: 2 }}>
             <CardContent>
               <Typography color="textSecondary" gutterBottom variant="body2">
                 Prodotti in Scadenza
               </Typography>
-              <Typography variant="h4" color="error.main">
+              <Typography variant="h4" sx={{ color: "#CC2200", fontWeight: 800 }}>
                 {stats?.prodottiInScadenza?.length || 0}
               </Typography>
             </CardContent>
@@ -1011,7 +1011,7 @@ export default function MovimentiMagazzino() {
         </Grid>
         
         <Grid item xs={12} md={3}>
-          <Card elevation={2}>
+          <Card elevation={2} sx={{ borderTop: "4px solid #2E7B00", borderRadius: 2 }}>
             <CardContent>
               <Typography color="textSecondary" gutterBottom variant="body2">
                 Movimenti Oggi
@@ -1035,8 +1035,8 @@ export default function MovimentiMagazzino() {
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Gestione Magazzino
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 800, color: "#1B5200" }}>
+          📦 Gestione Magazzino
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
           {isChrome && (
@@ -1427,7 +1427,7 @@ export default function MovimentiMagazzino() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography color="error">
+                        <Typography sx={{ color: "#CC2200", fontWeight: 700 }}>
                           {prodotto.quantitaAttuale}
                         </Typography>
                       </TableCell>
@@ -1497,8 +1497,8 @@ export default function MovimentiMagazzino() {
         fullWidth
       >
         <form onSubmit={handleSubmit}>
-          <DialogTitle>
-            {editingId ? 'Modifica Movimento' : 'Nuovo Movimento'}
+          <DialogTitle sx={{ background: "linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)", color: "white", fontWeight: 700 }}>
+            {editingId ? '✏️ Modifica Movimento' : '➕ Nuovo Movimento'}
           </DialogTitle>
           <DialogContent>
             <Grid container spacing={2} sx={{ mt: 1 }}>

@@ -220,6 +220,72 @@ const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(nul
   const [mostraAltriOrdini, setMostraAltriOrdini] = useState(false);
   const [ordineRipetuto, setOrdineRipetuto] = useState(false); // Per nascondere box dopo click
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🆕 05/03/2026: SISTEMA PARACADUTE - Auto-save bozza ordine
+  // Se l'app si rimonta (reload, login flash, tab discard), il form viene ripristinato
+  // ═══════════════════════════════════════════════════════════════════════════
+  const DRAFT_KEY = '_ordine_draft';
+  const draftRestoredRef = React.useRef(false);
+
+  // SALVA bozza automaticamente ad ogni modifica di formData o carrello
+  React.useEffect(() => {
+    // Non salvare se il dialog non è aperto
+    if (!open) return;
+    // Non salvare se non c'è nulla di significativo (form vuoto appena aperto)
+    const hasCliente = formData.nome || formData.cognome || formData.telefono || formData.nomeCliente;
+    const hasProdotti = formData.prodotti && formData.prodotti.length > 0;
+    if (!hasCliente && !hasProdotti) return;
+
+    try {
+      const draft = {
+        formData,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch (e) {
+      // sessionStorage pieno o non disponibile - ignora silenziosamente
+    }
+  }, [open, formData]);
+
+  // RIPRISTINA bozza all'apertura (solo se esiste e non è troppo vecchia)
+  React.useEffect(() => {
+    if (!open || draftRestoredRef.current || ordineIniziale) return;
+
+    try {
+      const saved = sessionStorage.getItem(DRAFT_KEY);
+      if (!saved) return;
+
+      const draft = JSON.parse(saved);
+      // Ignora bozze più vecchie di 2 ore
+      if (Date.now() - draft.timestamp > 2 * 60 * 60 * 1000) {
+        sessionStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+
+      // C'è una bozza valida - controlla se ha contenuto significativo
+      const d = draft.formData;
+      const hasContent = (d.nome || d.cognome || d.telefono || d.nomeCliente) ||
+                         (d.prodotti && d.prodotti.length > 0);
+      
+      if (hasContent) {
+        console.log('🔄 [DRAFT] Ripristino bozza ordine salvata');
+        setFormData(draft.formData);
+        draftRestoredRef.current = true;
+      }
+    } catch (e) {
+      sessionStorage.removeItem(DRAFT_KEY);
+    }
+  }, [open, ordineIniziale]);
+
+  // PULISCI bozza: funzione da chiamare dopo salvataggio o chiusura volontaria
+  const pulisciBozza = React.useCallback(() => {
+    try {
+      sessionStorage.removeItem(DRAFT_KEY);
+      draftRestoredRef.current = false;
+    } catch (e) {}
+  }, []);
+  // ═══════════════════════════════════════════════════════════════════════════
+
   // ✅ FIX 17/01/2026: Sposto caricaProdotti PRIMA degli useEffect per evitare hoisting error
   const caricaProdotti = async () => {
     const cacheTime = localStorage.getItem('prodotti_cache_time');
@@ -1689,6 +1755,9 @@ useEffect(() => {
     }, null, 2));
     
     onSave(ordineData);
+    
+    // 🆕 05/03/2026: Pulisci bozza dopo salvataggio riuscito
+    pulisciBozza();
   };
 
   return (

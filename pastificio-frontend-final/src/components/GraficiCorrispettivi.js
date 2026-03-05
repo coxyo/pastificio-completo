@@ -33,20 +33,20 @@ const NOMI_MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set'
 const NOMI_MESI_COMPLETI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
 const COLORI = {
-  primario: '#1976d2',
-  secondario: '#2e7d32',
-  warning: '#ed6c02',
-  error: '#d32f2f',
-  viola: '#7b1fa2',
+  primario: '#2E7B00',
+  secondario: '#C8A830',
+  warning: '#C8A830',
+  error: '#CC2200',
+  viola: '#1A237E',
   teal: '#00897b',
-  anno1: '#1976d2',
-  anno2: '#ff9800',
-  anno3: '#4caf50',
-  anno4: '#9c27b0',
-  iva22: '#0088FE',
-  iva10: '#00C49F',
-  iva4: '#FFBB28',
-  esente: '#FF8042',
+  anno1: '#2E7B00',
+  anno2: '#C8A830',
+  anno3: '#CC2200',
+  anno4: '#1A237E',
+  iva22: '#2E7B00',
+  iva10: '#C8A830',
+  iva4: '#CC2200',
+  esente: '#5D4037',
 };
 
 // ═══════════════════════════════════════
@@ -395,7 +395,7 @@ const GraficiCorrispettivi = () => {
       {/* ═══ KPI CARDS ═══ */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: '#e3f2fd', height: '100%' }}>
+          <Card sx={{ bgcolor: 'rgba(46,123,0,0.08)', height: '100%', borderTop: '4px solid #2E7B00', borderRadius: 2 }}>
             <CardContent sx={{ pb: '12px !important' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 <Euro sx={{ color: COLORI.primario, fontSize: 20 }} />
@@ -411,7 +411,7 @@ const GraficiCorrispettivi = () => {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: '#e8f5e9', height: '100%' }}>
+          <Card sx={{ bgcolor: 'rgba(200,168,48,0.08)', height: '100%', borderTop: '4px solid #C8A830', borderRadius: 2 }}>
             <CardContent sx={{ pb: '12px !important' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 <TrendingUp sx={{ color: COLORI.secondario, fontSize: 20 }} />
@@ -427,7 +427,7 @@ const GraficiCorrispettivi = () => {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: '#fff3e0', height: '100%' }}>
+          <Card sx={{ bgcolor: 'rgba(204,34,0,0.07)', height: '100%', borderTop: '4px solid #CC2200', borderRadius: 2 }}>
             <CardContent sx={{ pb: '12px !important' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 <Assessment sx={{ color: COLORI.warning, fontSize: 20 }} />
@@ -441,7 +441,7 @@ const GraficiCorrispettivi = () => {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: '#fce4ec', height: '100%' }}>
+          <Card sx={{ bgcolor: 'rgba(62,39,35,0.07)', height: '100%', borderTop: '4px solid #5D4037', borderRadius: 2 }}>
             <CardContent sx={{ pb: '12px !important' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                 <CalendarToday sx={{ color: COLORI.error, fontSize: 20 }} />
@@ -595,7 +595,7 @@ const GraficiCorrispettivi = () => {
                                 </TableCell>
                                 <TableCell>
                                   <LinearProgress variant="determinate" value={barWidth}
-                                    sx={{ height: 8, borderRadius: 4, bgcolor: '#e0e0e0',
+                                    sx={{ height: 8, borderRadius: 4, bgcolor: 'rgba(0,0,0,0.10)',
                                       '& .MuiLinearProgress-bar': {
                                         bgcolor: variazione !== null && variazione >= 0 ? COLORI.secondario : COLORI.primario,
                                         borderRadius: 4 }}} />
@@ -649,9 +649,9 @@ const GraficiCorrispettivi = () => {
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatEuro(mese.totale)}</Typography>
                         </Box>
                         <LinearProgress variant="determinate" value={maxVal > 0 ? (mese.totale / maxVal * 100) : 0}
-                          sx={{ height: 10, borderRadius: 5, bgcolor: '#e8eaf6',
+                          sx={{ height: 10, borderRadius: 5, bgcolor: 'rgba(0,0,0,0.10)',
                             '& .MuiLinearProgress-bar': { borderRadius: 5,
-                              bgcolor: i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : COLORI.primario }}} />
+                              bgcolor: i === 0 ? '#C8A830' : i === 1 ? '#9E9E9E' : i === 2 ? '#8D6E63' : COLORI.primario }}} />
                       </Box>
                     );
                   })}
@@ -727,7 +727,7 @@ const GraficiCorrispettivi = () => {
                             </TableRow>
                           );
                         })}
-                        <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                        <TableRow sx={{ bgcolor: 'rgba(200,168,48,0.10)', fontWeight: 700 }}>
                           <TableCell><strong>TOTALE</strong></TableCell>
                           <TableCell align="right"><strong>{formatEuro(metriche.totaleAnno)}</strong></TableCell>
                           <TableCell align="right"><strong>100%</strong></TableCell>
@@ -778,7 +778,7 @@ const GraficiCorrispettivi = () => {
                       <TableCell align="right">{formatEuro(mese.mediaGiornaliera)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                  <TableRow sx={{ bgcolor: 'rgba(46,123,0,0.09)', borderTop: '2px solid #2E7B00' }}>
                     <TableCell><strong>TOTALE ANNO</strong></TableCell>
                     <TableCell align="right"><strong>{formatEuro(metriche.totaleAnno)}</strong></TableCell>
                     <TableCell align="right"><strong>{formatEuro(metriche.imponibileTotale)}</strong></TableCell>
@@ -809,7 +809,7 @@ const GraficiCorrispettivi = () => {
             {loadingAI && <LinearProgress sx={{ mb: 2 }} />}
             {!commentoAI && !loadingAI && (
               <Box sx={{ textAlign: 'center', py: 4 }}>
-                <SmartToy sx={{ fontSize: 60, color: '#ccc', mb: 2 }} />
+                <SmartToy sx={{ fontSize: 60, color: 'rgba(46,123,0,0.25)', mb: 2 }} />
                 <Typography variant="h6" color="textSecondary" gutterBottom>
                   Analisi AI dei corrispettivi
                 </Typography>
@@ -817,12 +817,12 @@ const GraficiCorrispettivi = () => {
                   Clicca per generare un'analisi dettagliata dei dati {annoPrimario}
                   {confrontoAttivo ? ` con confronto ${anniConfronto[0]}` : ''}.
                 </Typography>
-                <Chip label="🔍 Genera Analisi" onClick={generaCommentoAI} color="primary"
+                <Chip label="🔍 Genera Analisi" onClick={generaCommentoAI} sx={{ bgcolor: "#2E7B00", color: "white", fontSize: 16, py: 2.5, px: 3, cursor: "pointer", "&:hover": { bgcolor: "#1B5200" } }}
                   sx={{ fontSize: 16, py: 2.5, px: 3, cursor: 'pointer' }} />
               </Box>
             )}
             {commentoAI && (
-              <Paper sx={{ p: 3, bgcolor: '#f8f9fa', borderLeft: `4px solid ${COLORI.primario}`,
+              <Paper sx={{ p: 3, bgcolor: 'rgba(46,123,0,0.04)', borderLeft: `4px solid ${COLORI.primario}`,
                 whiteSpace: 'pre-wrap', lineHeight: 1.8, fontSize: 14 }}>
                 {commentoAI.split('\n').map((riga, i) => {
                   if (riga.match(/^\S+ \*\*/)) {
