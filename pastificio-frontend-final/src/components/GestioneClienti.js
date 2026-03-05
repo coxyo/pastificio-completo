@@ -503,7 +503,7 @@ function GestioneClienti() {
     const colori = {
       bronzo: '#CD7F32',
       argento: '#C0C0C0',
-      oro: '#FFD700',
+      oro: '#C8A830',
       platino: '#E5E4E2'
     };
     return (
@@ -536,7 +536,7 @@ function GestioneClienti() {
 
   // ⭐ Riga tabella per un cliente
   const renderClienteRow = (cliente) => (
-    <TableRow key={cliente._id} hover sx={cliente.preferito ? { bgcolor: '#FFFDE7' } : {}}>
+    <TableRow key={cliente._id} hover sx={cliente.preferito ? { bgcolor: 'rgba(200,168,48,0.08)', borderLeft: '3px solid #C8A830' } : {}}>
       {/* ⭐ Stella preferito */}
       <TableCell sx={{ width: 48, p: 0.5 }}>
         <IconButton
@@ -544,8 +544,8 @@ function GestioneClienti() {
           onClick={(e) => handleTogglePreferito(cliente, e)}
           disabled={togglingPreferito === cliente._id}
           sx={{ 
-            color: cliente.preferito ? '#FFB300' : '#ccc',
-            '&:hover': { color: '#FFB300' }
+            color: cliente.preferito ? '#C8A830' : '#ccc',
+            '&:hover': { color: '#C8A830' }
           }}
         >
           {cliente.preferito ? <StarIcon /> : <StarBorderIcon />}
@@ -679,7 +679,7 @@ function GestioneClienti() {
 
       {/* ⭐ SUGGERIMENTO TOP CLIENTI */}
       {showSuggerimento && topClienti.length > 0 && (
-        <Paper sx={{ mb: 2, p: 2, bgcolor: '#FFF3E0', border: '1px solid #FFB74D' }}>
+        <Paper sx={{ mb: 2, p: 2, bgcolor: 'rgba(200,168,48,0.08)', border: '1px solid rgba(200,168,48,0.40)' }}>
           <Typography variant="subtitle1" gutterBottom fontWeight="bold">
             💡 Vuoi segnare i tuoi migliori clienti come preferiti?
           </Typography>
@@ -822,7 +822,7 @@ function GestioneClienti() {
                 {/* ⭐ SEZIONE PREFERITI */}
                 {clientiPreferiti.length > 0 && !searchTerm && (
                   <TableRow>
-                    <TableCell colSpan={10} sx={{ bgcolor: '#FFF8E1', py: 0.5, px: 2 }}>
+                    <TableCell colSpan={10} sx={{ bgcolor: 'rgba(46,123,0,0.05)', py: 0.5, px: 2 }}>
                       <Typography variant="caption" fontWeight="bold" color="#F57F17">
                         ⭐ PREFERITI ({clientiPreferiti.length})
                       </Typography>
@@ -834,7 +834,7 @@ function GestioneClienti() {
                 {/* Separatore se ci sono preferiti e non preferiti */}
                 {clientiPreferiti.length > 0 && clientiNonPreferiti.length > 0 && !searchTerm && (
                   <TableRow>
-                    <TableCell colSpan={10} sx={{ bgcolor: '#F5F5F5', py: 0.5, px: 2 }}>
+                    <TableCell colSpan={10} sx={{ bgcolor: 'rgba(0,0,0,0.03)', py: 0.5, px: 2 }}>
                       <Typography variant="caption" fontWeight="bold" color="textSecondary">
                         TUTTI I CLIENTI ({clientiNonPreferiti.length})
                       </Typography>
@@ -898,7 +898,7 @@ function GestioneClienti() {
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {statsCliente?.preferito && <StarIcon sx={{ color: '#FFB300' }} />}
+            {statsCliente?.preferito && <StarIcon sx={{ color: '#C8A830' }} />}
             <Typography variant="h6">
               {statsCliente ? getNomeCompleto(statsCliente) : ''}
             </Typography>
@@ -914,27 +914,27 @@ function GestioneClienti() {
               {/* Griglia KPI */}
               <Grid container spacing={2}>
                 <Grid item xs={6}>
-                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#E3F2FD' }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: 'rgba(46,123,0,0.08)', borderTop: '3px solid #2E7B00', borderRadius: 2 }}>
                     <CartIcon color="primary" />
                     <Typography variant="h5" fontWeight="bold">{statsData.numeroOrdini}</Typography>
                     <Typography variant="caption" color="textSecondary">Totale ordini</Typography>
                   </Paper>
                 </Grid>
                 <Grid item xs={6}>
-                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#E8F5E9' }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: 'rgba(200,168,48,0.10)', borderTop: '3px solid #C8A830', borderRadius: 2 }}>
                     <MoneyIcon color="success" />
                     <Typography variant="h5" fontWeight="bold">€{statsData.totaleSpeso?.toFixed(2)}</Typography>
                     <Typography variant="caption" color="textSecondary">Spesa totale</Typography>
                   </Paper>
                 </Grid>
                 <Grid item xs={6}>
-                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#FFF3E0' }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: 'rgba(204,34,0,0.07)', borderTop: '3px solid #CC2200', borderRadius: 2 }}>
                     <Typography variant="h6" fontWeight="bold">€{statsData.mediaOrdine?.toFixed(2)}</Typography>
                     <Typography variant="caption" color="textSecondary">Media ordine</Typography>
                   </Paper>
                 </Grid>
                 <Grid item xs={6}>
-                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#F3E5F5' }}>
+                  <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: 'rgba(62,39,35,0.07)', borderTop: '3px solid #5D4037', borderRadius: 2 }}>
                     <Typography variant="h6" fontWeight="bold">
                       {statsData.frequenzaGiorni > 0 ? `ogni ~${statsData.frequenzaGiorni}gg` : '-'}
                     </Typography>
