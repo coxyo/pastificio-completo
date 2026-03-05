@@ -48,7 +48,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import itLocale from 'date-fns/locale/it';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || '${process.env.NEXT_PUBLIC_API_URL || "https://pastificio-completo-production.up.railway.app"}/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 const ReportManager = () => {
   const [templates, setTemplates] = useState([]);
@@ -83,10 +83,11 @@ const ReportManager = () => {
       const response = await axios.get(`${API_URL}/report/templates`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setTemplates(response.data.templates);
+      const tmpl = response.data?.templates || response.data?.data || response.data;
+      setTemplates(Array.isArray(tmpl) ? tmpl : []);
     } catch (err) {
-      setError('Errore caricamento template');
-      console.error(err);
+      setTemplates([]); // Fallback sicuro
+      console.error('Errore caricamento template:', err);
     }
   };
 
