@@ -378,7 +378,7 @@ function CallPopup({
     const colors = {
       bronzo: '#CD7F32',
       argento: '#C0C0C0',
-      oro: '#FFD700',
+      oro: '#C8A830',
       platino: '#E5E4E2'
     };
     return colors[livello?.toLowerCase()] || '#999';
@@ -430,7 +430,7 @@ function CallPopup({
       {/* Header */}
       <DialogTitle
         sx={{
-          bgcolor: 'primary.main',
+          background: 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)',
           color: 'white',
           display: 'flex',
           alignItems: 'center',
@@ -478,8 +478,9 @@ function CallPopup({
                 sx={{
                   width: 64,
                   height: 64,
-                  bgcolor: 'primary.main',
-                  fontSize: '1.5rem'
+                  background: 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)',
+                  fontSize: '1.5rem',
+                  fontWeight: 'bold'
                 }}
               >
                 {(cliente.nome?.[0] || '?')}{(cliente.cognome?.[0] || '')}
@@ -556,7 +557,7 @@ function CallPopup({
                   </Alert>
                   
                   {/* ✅ FIX 27/02/2026: Dettaglio ordini inline */}
-                  <List dense sx={{ bgcolor: 'grey.50', borderRadius: 1, py: 0 }}>
+                  <List dense sx={{ bgcolor: 'rgba(46,123,0,0.05)', borderRadius: 1, py: 0, border: '1px solid rgba(46,123,0,0.12)' }}>
                     {ordiniAttivi.map((ordine, idx) => {
                       const preview = formatOrdinePreview(ordine);
                       return (
@@ -609,7 +610,7 @@ function CallPopup({
                 sx={{
                   width: 64,
                   height: 64,
-                  bgcolor: 'grey.400',
+                  bgcolor: '#5D4037',
                   margin: '0 auto',
                   mb: 2
                 }}
@@ -621,14 +622,14 @@ function CallPopup({
                 Numero Sconosciuto
               </Typography>
 
-              <Typography variant="h5" color="primary" fontWeight="bold" mb={2}>
+              <Typography variant="h5" sx={{ color: '#2E7B00', fontWeight: 'bold', mb: 2 }}>
                 {numero || 'Numero non disponibile'}
               </Typography>
             </Box>
 
             {/* Form Salva Cliente (se attivato) */}
             {showSalvaCliente ? (
-              <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
+              <Box sx={{ bgcolor: 'rgba(200,168,48,0.06)', p: 2, borderRadius: 1, border: '1px solid rgba(200,168,48,0.20)' }}>
                 <Typography variant="subtitle2" fontWeight="bold" mb={2}>
                   👤 Salva Nuovo Cliente
                 </Typography>
