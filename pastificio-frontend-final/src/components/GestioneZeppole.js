@@ -97,8 +97,8 @@ const PannelloFascia = ({
 
   const isMattina = fascia === 'mattina';
   const coloreHeader = isMattina 
-    ? 'linear-gradient(135deg, #FF9800 0%, #FFB74D 100%)' 
-    : 'linear-gradient(135deg, #5C6BC0 0%, #7986CB 100%)';
+    ? 'linear-gradient(135deg, #A08020 0%, #C8A830 100%)' 
+    : 'linear-gradient(135deg, #0D1B2A 0%, #1A237E 100%)';
   const icona = isMattina ? '☀️' : '🌙';
   const label = isMattina ? 'MATTINA (fino alle 14:00)' : 'SERA (dalle 14:00)';
 
@@ -109,7 +109,7 @@ const PannelloFascia = ({
         borderRadius: 2, 
         overflow: 'hidden',
         opacity: isAttiva ? 1 : 0.7,
-        border: isAttiva ? '2px solid #1976d2' : '1px solid #e0e0e0',
+        border: isAttiva ? '2px solid #2E7B00' : '1px solid #e0e0e0',
         transition: 'all 0.3s ease'
       }}
     >
@@ -164,7 +164,7 @@ const PannelloFascia = ({
                 <Typography variant="caption">Ordinato: {ordinatoKg.toFixed(1)} Kg</Typography>
                 <Typography variant="caption">Limite: {limiteKg} Kg</Typography>
               </Box>
-              <Box sx={{ height: 12, bgcolor: '#e0e0e0', borderRadius: 1, overflow: 'hidden' }}>
+              <Box sx={{ height: 12, bgcolor: 'rgba(0,0,0,0.10)', borderRadius: 1, overflow: 'hidden' }}>
                 <Box sx={{
                   height: '100%',
                   width: `${Math.min(percentualeUtilizzo, 100)}%`,
@@ -176,7 +176,7 @@ const PannelloFascia = ({
                 {percentualeUtilizzo.toFixed(1)}% utilizzato
               </Typography>
             </Box>
-            <Box sx={{ textAlign: 'center', py: 1, bgcolor: disponibileKg > 0 ? '#e8f5e9' : '#ffebee', borderRadius: 1 }}>
+            <Box sx={{ textAlign: 'center', py: 1, bgcolor: disponibileKg > 0 ? 'rgba(46,123,0,0.08)' : 'rgba(204,34,0,0.07)', borderRadius: 1 }}>
               <Typography variant="h4" fontWeight={700}>
                 {disponibileKg.toFixed(1)}
               </Typography>
@@ -275,7 +275,7 @@ const PannelloFascia = ({
           {/* STORICO VENDITE */}
           <Paper elevation={1} sx={{ p: 2, borderRadius: 2, maxHeight: 250, overflow: 'auto' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <HistoryIcon sx={{ fontSize: 20, mr: 0.5, color: '#1976d2' }} />
+              <HistoryIcon sx={{ fontSize: 20, mr: 0.5, color: '#2E7B00' }} />
               <Typography variant="subtitle2" fontWeight={600}>
                 Ultime Vendite ({storicoVendite.length})
               </Typography>
@@ -291,7 +291,7 @@ const PannelloFascia = ({
                     key={vendita.id}
                     sx={{
                       py: 0.5, px: 1,
-                      bgcolor: idx === 0 ? '#e3f2fd' : 'transparent',
+                      bgcolor: idx === 0 ? 'rgba(46,123,0,0.07)' : 'transparent',
                       borderRadius: 1, mb: 0.5
                     }}
                     secondaryAction={
@@ -328,7 +328,7 @@ const PannelloFascia = ({
 
         {/* TABELLA ORDINI */}
         <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          <Box sx={{ p: 1.5, bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ p: 1.5, bgcolor: 'rgba(200,168,48,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(200,168,48,0.20)' }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Box sx={{ fontSize: 20, mr: 1 }}>📋</Box>
               <Typography variant="subtitle1" fontWeight={600}>
@@ -351,10 +351,10 @@ const PannelloFascia = ({
               <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa', py: 1 }}>Ora</TableCell>
-                    <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa', py: 1 }}>Cliente</TableCell>
-                    <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa', py: 1 }} align="right">Quantità</TableCell>
-                    <TableCell sx={{ fontWeight: 600, bgcolor: '#fafafa', py: 1 }}>Stato</TableCell>
+                    <TableCell sx={{ fontWeight: 700, bgcolor: 'rgba(46,123,0,0.06)', py: 1, color: '#1B5200' }}>Ora</TableCell>
+                    <TableCell sx={{ fontWeight: 700, bgcolor: 'rgba(46,123,0,0.06)', py: 1, color: '#1B5200' }}>Cliente</TableCell>
+                    <TableCell sx={{ fontWeight: 700, bgcolor: 'rgba(46,123,0,0.06)', py: 1, color: '#1B5200' }} align="right">Quantità</TableCell>
+                    <TableCell sx={{ fontWeight: 700, bgcolor: 'rgba(46,123,0,0.06)', py: 1, color: '#1B5200' }}>Stato</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -668,10 +668,10 @@ const GestioneZeppole = ({ open, onClose }) => {
   const totaleDisponibile = disponibileMattina + disponibileSera;
 
   return (
-    <Dialog open={open} onClose={onClose} fullScreen PaperProps={{ sx: { bgcolor: '#f5f5f5' } }}>
+    <Dialog open={open} onClose={onClose} fullScreen PaperProps={{ sx: { bgcolor: '#FDF8F0' } }}>
       {/* HEADER */}
       <Box sx={{
-        background: 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)',
+        background: 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)',
         color: 'white',
         p: 1.5,
         display: 'flex',
@@ -745,21 +745,21 @@ const GestioneZeppole = ({ open, onClose }) => {
 
             {/* RIEPILOGO RAPIDO */}
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, mb: 2 }}>
-              <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#fff3e0', borderRadius: 2 }}>
+              <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: 'rgba(200,168,48,0.10)', borderRadius: 2, borderTop: '3px solid #C8A830' }}>
                 <Typography variant="caption" color="text.secondary">☀️ Mattina</Typography>
-                <Typography variant="h6" fontWeight={700} color="#e65100">
+                <Typography variant="h6" fontWeight={700} sx={{ color: '#A08020' }}>
                   {disponibileMattina.toFixed(1)} Kg
                 </Typography>
               </Paper>
-              <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#e8eaf6', borderRadius: 2 }}>
+              <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: 'rgba(13,27,42,0.07)', borderRadius: 2, borderTop: '3px solid #1A237E' }}>
                 <Typography variant="caption" color="text.secondary">🌙 Sera</Typography>
-                <Typography variant="h6" fontWeight={700} color="#283593">
+                <Typography variant="h6" fontWeight={700} sx={{ color: '#1A237E' }}>
                   {disponibileSera.toFixed(1)} Kg
                 </Typography>
               </Paper>
-              <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#e8f5e9', borderRadius: 2 }}>
+              <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: 'rgba(46,123,0,0.08)', borderRadius: 2, borderTop: '3px solid #2E7B00' }}>
                 <Typography variant="caption" color="text.secondary">📊 Totale Giorno</Typography>
-                <Typography variant="h6" fontWeight={700} color="#2e7d32">
+                <Typography variant="h6" fontWeight={700} sx={{ color: '#2E7B00' }}>
                   {totaleDisponibile.toFixed(1)} Kg
                 </Typography>
               </Paper>
@@ -781,13 +781,13 @@ const GestioneZeppole = ({ open, onClose }) => {
                 icon={<MorningIcon />}
                 iconPosition="start"
                 label={`MATTINA (${disponibileMattina.toFixed(1)} Kg)`}
-                sx={{ color: fasciaCorrente === 'mattina' ? '#e65100' : undefined }}
+                sx={{ color: fasciaCorrente === 'mattina' ? '#C8A830' : undefined }}
               />
               <Tab
                 icon={<EveningIcon />}
                 iconPosition="start"
                 label={`SERA (${disponibileSera.toFixed(1)} Kg)`}
-                sx={{ color: fasciaCorrente === 'sera' ? '#283593' : undefined }}
+                sx={{ color: fasciaCorrente === 'sera' ? '#1A237E' : undefined }}
               />
             </Tabs>
 
