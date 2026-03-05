@@ -3179,13 +3179,13 @@ return (
             {/* ✅ RESTYLING 04/03/2026: Barra data brand */}
             <Box sx={{
               p: { xs: 1.5, sm: 2 },
-              background: `linear-gradient(135deg, ${BRAND.brownDark} 0%, #5D4037 50%, ${BRAND.brownMid} 100%)`,
+              background: 'linear-gradient(135deg, #0D1B2A 0%, #1B2A4A 50%, #1A237E 100%)',
               borderRadius: 3,
               color: 'white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              boxShadow: '0 4px 16px rgba(62,39,35,0.30)',
+              boxShadow: '0 4px 16px rgba(13,27,42,0.40)',
               border: `2px solid ${BRAND.gold}`,
             }}>
               {/* Freccia sinistra */}

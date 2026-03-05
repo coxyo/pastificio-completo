@@ -48,7 +48,6 @@ import {
   Security as SecurityIcon,
   EventBusy as EventBusyIcon
 } from '@mui/icons-material';
-import Image from 'next/image';
 import { alpha } from '@mui/material/styles';
 import { BRAND } from '@/theme/theme';
 import { Circle } from '@mui/icons-material';
@@ -249,13 +248,17 @@ export default function ClientLayout({ children }) {
             border: `3px solid ${BRAND.gold}`,
             boxShadow: `0 0 0 3px ${alpha(BRAND.gold, 0.25)}`,
             bgcolor: 'white', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Image
+            <img
               src="/logo_pastificio_nonna_claudia.jpg"
               alt="Pastificio Nonna Claudia"
               width={72} height={72}
               style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-              priority
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.parentElement.innerHTML = '<span style="font-size:2.5rem">🍝</span>';
+              }}
             />
           </Box>
         </Box>
@@ -330,9 +333,11 @@ export default function ClientLayout({ children }) {
 
           {/* Logo mini mobile */}
           <Box sx={{ display: { xs: 'flex', sm: 'none' }, alignItems: 'center', mr: 1 }}>
-            <Box sx={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', border: `2px solid ${BRAND.gold}`, bgcolor: 'white' }}>
-              <Image src="/logo_pastificio_nonna_claudia.jpg" alt="Logo" width={30} height={30}
-                style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
+            <Box sx={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', border: `2px solid ${BRAND.gold}`, bgcolor: 'white',
+              display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="/logo_pastificio_nonna_claudia.jpg" alt="Logo" width={30} height={30}
+                style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                onError={(e) => { e.target.style.display='none'; e.target.parentElement.innerHTML='<span style="font-size:1.1rem">🍝</span>'; }} />
             </Box>
           </Box>
 

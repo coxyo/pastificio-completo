@@ -83,8 +83,8 @@ export const CATEGORIE = {
   ALTRI: {
     nome: 'ALTRI',
     prodotti: ['Fregula', 'Pizzette', 'Sfoglia'],
-    colore: '#00796B',       // verde acqua
-    coloreBg: 'rgba(0,121,107,0.07)'
+    colore: '#E65100',       // arancione bruciato — leggibile + distinto
+    coloreBg: 'rgba(230,81,0,0.07)'
   }
 };
 
