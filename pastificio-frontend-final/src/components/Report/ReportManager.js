@@ -80,7 +80,7 @@ const ReportManager = () => {
   const loadTemplates = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/report/templates`, {
+      const response = await axios.get(`${API_URL}/templates`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const tmpl = response.data?.templates || response.data?.data || response.data;
