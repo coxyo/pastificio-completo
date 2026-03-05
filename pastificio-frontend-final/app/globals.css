@@ -48,7 +48,9 @@ html {
 }
 
 body {
-  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Twemoji Mozilla',
+               sans-serif;
   background-color: #FDF8F0;  /* crema brand */
   color: #3E2723;              /* marrone scuro brand */
   min-height: 100vh;
@@ -164,6 +166,24 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* ─── EMOJI FONT (Raspberry Pi / Linux) ──────────────────────────────────── */
+/* Forza rendering emoji su tutti i sistemi incluso Linux ARM (Raspberry Pi)  */
+@font-face {
+  font-family: 'NotoEmoji';
+  src: url('https://fonts.gstatic.com/s/notocoloremoji/v28/Yq6P-KqIXTD0t4D9z1ESnKM3-HpFab5s79iz64w.woff2') format('woff2');
+  unicode-range: U+1F300-1F9FF, U+2600-26FF, U+2700-27BF, U+FE00-FE0F;
+  font-display: swap;
+}
+
+/* Applica emoji font a tutti gli elementi che potrebbero contenere emoji */
+body, .MuiTypography-root, .MuiButton-root, .MuiListItemText-root,
+h1, h2, h3, h4, h5, h6, p, span, div, button {
+  font-family: 'Open Sans', 'NotoEmoji', -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, 'Noto Color Emoji', 'Apple Color Emoji',
+               'Segoe UI Emoji', sans-serif;
 }
 
 /* ─── PRINT ──────────────────────────────────────────────────────────────── */
