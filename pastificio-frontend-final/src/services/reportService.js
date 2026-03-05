@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { UtilityService } from './utilityService';
 
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const USE_MOCK = true; // Cambia a false quando il backend è attivo
 
 // Mock templates
@@ -55,10 +55,11 @@ const reportService = {
 
     try {
       const response = await axios.get(`${API_URL}/report/templates`);
-      return response.data.data;
+      // Garantisce sempre un array (difesa da risposte malformate)
+      const data = response.data?.data || response.data;
+      return Array.isArray(data) ? data : mockTemplates;
     } catch (error) {
       console.error('Errore nel recupero dei template', error);
-      // Fallback ai mock in caso di errore
       return mockTemplates;
     }
   },
