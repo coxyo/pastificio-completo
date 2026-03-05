@@ -332,7 +332,7 @@ export default function ReportPage() {
       title: 'Analisi Rapida',
       description: 'Grafici e statistiche avanzate',
       icon: <BarChartIcon />,
-      color: 'info'
+      color: 'success'
     }
   ];
 
@@ -346,7 +346,7 @@ export default function ReportPage() {
     {
       label: 'Templates Attivi',
       value: templates.length,
-      color: 'secondary'
+      color: 'warning'
     },
     {
       label: 'Export Programmati',
@@ -358,7 +358,7 @@ export default function ReportPage() {
       value: reportStats.lastBackup 
         ? format(new Date(reportStats.lastBackup), 'HH:mm', { locale: it })
         : 'Mai', // MODIFICATO
-      color: 'info'
+      color: 'success'
     }
   ];
 
@@ -366,16 +366,15 @@ export default function ReportPage() {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Centro Report e Stampe
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 800, color: '#1B5200' }}>
+          📊 Centro Report e Stampe
         </Typography>
         <Box>
           <Button
             variant="outlined"
             startIcon={<BarChartIcon />}
             onClick={() => setActiveTab(5)}
-            sx={{ mr: 1 }}
-            color="info"
+            sx={{ mr: 1, borderColor: '#2E7B00', color: '#2E7B00', '&:hover': { borderColor: '#1B5200', bgcolor: 'rgba(46,123,0,0.06)' } }}
           >
             Analisi Avanzate
           </Button>
@@ -433,7 +432,7 @@ export default function ReportPage() {
                   cursor: 'pointer',
                   transition: 'all 0.3s',
                   background: report.id === 'quick-analysis' 
-                    ? 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)' 
+                    ? 'linear-gradient(135deg, #1B5200 0%, #2E7B00 100%)' 
                     : 'inherit',
                   '&:hover': { 
                     transform: 'translateY(-2px)',
@@ -509,8 +508,8 @@ export default function ReportPage() {
             icon={<TrendingUp />} 
             iconPosition="start"
             sx={{ 
-              color: activeTab === 5 ? 'info.main' : 'inherit',
-              '&.Mui-selected': { color: 'info.main' }
+              color: activeTab === 5 ? '#2E7B00' : 'inherit',
+              '&.Mui-selected': { color: '#2E7B00' }
             }}
           />
         </Tabs>
@@ -658,4 +657,3 @@ export default function ReportPage() {
     </Box>
   );
 }
-
