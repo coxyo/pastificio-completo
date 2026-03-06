@@ -138,7 +138,7 @@ Pastificio Nonna Claudia`;
     }
   }
 
-  // Check ordini pronti (da chiamare manualmente quando un ordine è pronto)
+  // Check ordini pronti ogni ora
   async checkOrdiniPronti() {
     try {
       const oggi = new Date();
@@ -154,6 +154,8 @@ Pastificio Nonna Claudia`;
         stato: 'completato',
         notificaPronto: { $ne: true }
       });
+
+      logger.info(`📦 [checkOrdiniPronti] Trovati ${ordiniOggi.length} ordini pronti da notificare`);
       
       for (const ordine of ordiniOggi) {
         if (ordine.telefono) {
@@ -167,20 +169,22 @@ Pastificio Nonna Claudia`;
               }
             );
             
-            // Marca come notificato
-            ordine.notificaPronto = true;
-            await ordine.save();
+            // ✅ FIX 06/03/2026: updateOne diretto per evitare che Mongoose strict ignori il campo
+            await Ordine.updateOne(
+              { _id: ordine._id },
+              { $set: { notificaPronto: true, notificaPronto_at: new Date() } }
+            );
             
-            logger.info(`✅ Notifica ordine pronto inviata a ${ordine.nomeCliente}`);
+            logger.info(`✅ Notifica ordine pronto inviata a ${ordine.nomeCliente} (${ordine.telefono}) - ordine ${ordine._id} marcato`);
             
             await new Promise(resolve => setTimeout(resolve, 3000));
           } catch (error) {
-            logger.error(`Errore notifica ordine pronto:`, error);
+            logger.error(`❌ Errore notifica ordine pronto a ${ordine.nomeCliente}:`, error.message);
           }
         }
       }
     } catch (error) {
-      logger.error('Errore check ordini pronti:', error);
+      logger.error('❌ Errore check ordini pronti:', error);
     }
   }
 

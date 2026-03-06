@@ -450,7 +450,7 @@ export default function ClientLayout({ children }) {
 
       {mounted && <PushPromptBanner />}
 
-      {mounted && isWhatsAppPopupOpen && messaggioCorrente && dispositivoService.isNotificaAbilitata('whatsapp') && (
+      {mounted && isWhatsAppPopupOpen && messaggioCorrente && (
         <WhatsAppPopup
           messaggio={messaggioCorrente}
           onClose={closeWhatsAppPopup}
