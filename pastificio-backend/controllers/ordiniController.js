@@ -225,8 +225,10 @@ export const ordiniController = {
         await ordine.populate('cliente');
       }
 
-      // Invia WhatsApp automatico
-      if (telefono && whatsappService.isReady()) {
+      // ✅ FIX 06/03/2026: Invio WhatsApp conferma ordine automatico
+      // Usa ordine.telefono (che include telefono cliente) e tenta sempre l'invio
+      const telefonoInvio = ordine.telefono || telefono;
+      if (telefonoInvio) {
         try {
           const messaggioOrdine = `
 🎉 *Ordine Confermato!*
@@ -250,11 +252,17 @@ Ti invieremo un promemoria il giorno prima del ritiro.
 Grazie! 🙏
           `.trim();
           
-          await whatsappService.inviaMessaggio(telefono, messaggioOrdine);
-          logger.info(`📱 WhatsApp inviato per ordine ${ordine.numeroOrdine}`);
+          const risultato = await whatsappService.inviaMessaggio(telefonoInvio, messaggioOrdine);
+          if (risultato.success) {
+            logger.info(`📱 WhatsApp conferma inviato per ordine ${ordine.numeroOrdine} a ${telefonoInvio}`);
+          } else {
+            logger.warn(`⚠️ WhatsApp conferma non inviato per ordine ${ordine.numeroOrdine}: ${risultato.error}`);
+          }
         } catch (whatsappError) {
-          logger.error('❌ Errore invio WhatsApp:', whatsappError.message);
+          logger.error('❌ Errore invio WhatsApp conferma (non bloccante):', whatsappError.message);
         }
+      } else {
+        logger.info(`📱 Ordine ${ordine.numeroOrdine} senza telefono - WhatsApp non inviato`);
       }
 
       // Notifica WebSocket
