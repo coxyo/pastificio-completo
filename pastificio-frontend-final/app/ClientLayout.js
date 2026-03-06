@@ -1,5 +1,6 @@
-// app/ClientLayout.js - ✅ AGGIORNATO: Sessioni attive + sessionService ping
+// app/ClientLayout.js - ✅ AGGIORNATO: WhatsAppPopup + Sessioni attive + sessionService ping
 // ✅ FIX 04/03/2026: Rimossa dipendenza 'user' da useEffect sessionService (causava restart inutili)
+// ✅ ADD 06/03/2026: Integrazione WhatsAppPopup (messaggio in arrivo da bot VPS via Pusher)
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -48,7 +49,9 @@ import {
 import { alpha } from '@mui/material/styles';
 import { BRAND } from '@/theme/theme';
 import useIncomingCall from '@/hooks/useIncomingCall';
+import useWhatsAppMessage from '@/hooks/useWhatsAppMessage';
 import CallPopup from '@/components/CallPopup';
+import WhatsAppPopup from '@/components/WhatsAppPopup';
 import NotificaFatture from '@/components/NotificaFatture';
 import dispositivoService from '@/services/dispositivoService';
 import sessionService from '@/services/sessionService';
@@ -97,6 +100,7 @@ export default function ClientLayout({ children }) {
   const [mounted, setMounted] = useState(false);
 
   const { chiamataCorrente, clearChiamata, connected, pusherService } = useIncomingCall();
+  const { messaggioCorrente, isPopupOpen: isWhatsAppPopupOpen, handleClosePopup: closeWhatsAppPopup } = useWhatsAppMessage();
 
   useEffect(() => {
     setMounted(true);
@@ -445,6 +449,13 @@ export default function ClientLayout({ children }) {
       {mounted && <NotificaFatture />}
 
       {mounted && <PushPromptBanner />}
+
+      {mounted && isWhatsAppPopupOpen && messaggioCorrente && dispositivoService.isNotificaAbilitata('whatsapp') && (
+        <WhatsAppPopup
+          messaggio={messaggioCorrente}
+          onClose={closeWhatsAppPopup}
+        />
+      )}
     </Box>
   );
 }

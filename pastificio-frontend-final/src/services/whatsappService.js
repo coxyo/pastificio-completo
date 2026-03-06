@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { gestisciMessaggioBot } from './whatsappBotHandler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -105,6 +106,8 @@ class WhatsAppService {
         if (!msg.key.fromMe && msg.message) {
           const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
           logger.info(`📨 Messaggio ricevuto da ${msg.key.remoteJid}: ${text}`);
+          // 🤖 FAQ Bot: elabora automaticamente il messaggio
+          await gestisciMessaggioBot(this.sock, msg);
         }
       });
       
