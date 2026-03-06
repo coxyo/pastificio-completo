@@ -8,6 +8,7 @@ import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
 import ordiniController from '../controllers/ordiniController.js'; // ✅ AGGIUNGI QUESTA RIGA
 import firebasePushService from '../services/firebasePushService.js'; // ✅ Firebase Push
+import whatsappService from '../services/whatsappService.js'; // ✅ WhatsApp conferma ordine
 
 
 const router = express.Router();
@@ -513,6 +514,56 @@ router.post('/', async (req, res, next) => {
     await nuovoOrdine.populate('cliente', 'nome cognome telefono email codiceCliente');
     
     logger.info(`✅ Ordine creato: ${nuovoOrdine.numeroOrdine} - Totale: €${totaleFinale}`);
+    
+    // ✅ FIX 06/03/2026: Invio WhatsApp conferma ordine automatico
+    const telefonoInvio = nuovoOrdine.telefono || ordineData.telefono;
+    if (telefonoInvio) {
+      try {
+        const dataRitiroFormatted = nuovoOrdine.dataRitiro 
+          ? new Date(nuovoOrdine.dataRitiro).toLocaleDateString('it-IT') 
+          : 'da confermare';
+        
+        const prodottiLista = (nuovoOrdine.prodotti || [])
+          .map(p => {
+            const nome = p.nome || p.prodotto || '?';
+            const qty = p.quantita || '';
+            const unita = p.unitaMisura || p.unita || '';
+            const prezzo = p.prezzo ? ` - €${Number(p.prezzo).toFixed(2)}` : '';
+            return `• ${nome}: ${qty} ${unita}${prezzo}`;
+          })
+          .join('\n');
+
+        const messaggioOrdine = `🎉 *Ordine Confermato!*
+
+Ciao ${nuovoOrdine.nomeCliente || 'Cliente'},
+il tuo ordine #${nuovoOrdine.numeroOrdine} è stato ricevuto!
+
+📅 *Ritiro:* ${dataRitiroFormatted} alle ${nuovoOrdine.oraRitiro || ''}
+
+📦 *Prodotti:*
+${prodottiLista}
+
+💰 *Totale:* €${Number(totaleFinale).toFixed(2)}
+${nuovoOrdine.note ? `\n📝 Note: ${nuovoOrdine.note}` : ''}
+
+📍 Via Carmine 20/B, Assemini
+📞 070 944382
+
+Ti invieremo un promemoria il giorno prima del ritiro.
+Grazie! 🙏`;
+
+        const risultato = await whatsappService.inviaMessaggio(telefonoInvio, messaggioOrdine);
+        if (risultato.success) {
+          logger.info(`📱 WhatsApp conferma inviato per ordine ${nuovoOrdine.numeroOrdine} a ${telefonoInvio}`);
+        } else {
+          logger.warn(`⚠️ WhatsApp conferma non inviato: ${risultato.error}`);
+        }
+      } catch (waErr) {
+        logger.error('❌ Errore invio WhatsApp conferma (non bloccante):', waErr.message);
+      }
+    } else {
+      logger.info(`📱 Ordine ${nuovoOrdine.numeroOrdine} senza telefono - WhatsApp non inviato`);
+    }
     
     // Notifica WebSocket
     if (global.io) {
