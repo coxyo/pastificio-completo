@@ -1,152 +1,251 @@
 // services/whatsappService.js
-// ✅ VERSIONE WHATSAPP WEB AUTO-OPEN (Usa browser esistente)
+// ✅ PROXY verso bot WhatsApp sul VPS Hetzner
+// Non usa più Baileys locale - tutto passa dal VPS
 import logger from '../config/logger.js';
 
-class WhatsAppServiceWebOpen {
-  constructor() {
-    this.numeroAziendale = '3898879833';
-    this.connected = true; // Sempre true (usa browser già collegato)
-  }
+const BOT_URL = process.env.WHATSAPP_BOT_URL || 'http://89.167.119.31:3000';
+const BOT_API_KEY = process.env.WHATSAPP_BOT_API_KEY || 'pastificio-bot-2026';
 
-  async initialize() {
-    logger.info('🔌 WhatsApp Web Auto-Open attivato');
-    logger.info('💡 Usa il browser WhatsApp Web già collegato');
-    logger.info('📱 Numero: ' + this.numeroAziendale);
-    return Promise.resolve();
-  }
+let _connected = false;
+let _lastCheck = 0;
 
-  async inviaMessaggio(numero, messaggio) {
-    try {
-      // Normalizza numero
-      let numeroClean = numero.toString().replace(/\D/g, '');
-      
-      // Aggiungi prefisso Italia se manca
-      if (!numeroClean.startsWith('39')) {
-        numeroClean = '39' + numeroClean;
-      }
-
-      // Genera link wa.me (funziona meglio con app desktop)
-      const whatsappWebUrl = `https://wa.me/${numeroClean}?text=${encodeURIComponent(messaggio)}`;
-
-      logger.info(`📤 Link WhatsApp Web generato per ${numeroClean}`);
-      logger.info(`🔗 ${whatsappWebUrl}`);
-
-      return {
-        success: true,
-        messageId: `${Date.now()}`,
-        numero: numeroClean,
-        whatsappWebUrl: whatsappWebUrl,
-        autoOpen: true,
-        timestamp: new Date().toISOString(),
-        method: 'whatsapp-web-auto-open'
-      };
-
-    } catch (error) {
-      logger.error('❌ Errore generazione link WhatsApp Web:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+// Helper per chiamare il bot VPS
+async function callBot(endpoint, method = 'GET', body = null) {
+  try {
+    const options = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': BOT_API_KEY
+      },
+      signal: AbortSignal.timeout(10000) // 10s timeout
+    };
+    if (body) {
+      options.body = JSON.stringify(body);
     }
-  }
-
-  async inviaMessaggioConTemplate(numero, templateName, variabili = {}) {
-    const templates = {
-      'conferma-ordine': `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
-
-✅ ORDINE CONFERMATO
-
-Grazie ${variabili.nomeCliente}!
-Il tuo ordine è stato confermato.
-
-📅 Ritiro: ${variabili.dataRitiro}
-⏰ Orario: ${variabili.oraRitiro}
-
-${variabili.prodotti ? '📦 Prodotti:\n' + variabili.prodotti : ''}
-
-${variabili.note ? '📝 Note: ' + variabili.note : ''}
-
-💰 Totale: €${variabili.totale}
-
-Ti aspettiamo! 😊
-📍 Via Carmine 20/B, Assemini`,
-
-      'ordine-pronto': `✅ *ORDINE PRONTO!*
-
-${variabili.nomeCliente}, il tuo ordine è pronto! 🎉
-
-⏰ Ti aspettiamo entro le ore di chiusura
-📍 Via Carmine 20/B, Assemini
-
-A presto! 😊`,
-
-      'promemoria-giorno-prima': `🔔 *PROMEMORIA RITIRO*
-
-Ciao ${variabili.nomeCliente}!
-
-Ti ricordiamo che domani:
-
-📅 ${variabili.dataRitiro}
-⏰ ${variabili.oraRitiro}
-
-Hai il ritiro del tuo ordine:
-
-${variabili.prodottiBreve}
-
-Ti aspettiamo! 😊
-📍 Via Carmine 20/B, Assemini`
-    };
-
-    const messaggio = templates[templateName] || templates['ordine-pronto'];
-    return await this.inviaMessaggio(numero, messaggio);
-  }
-
-  getQRCode() {
-    return null; // Non serve QR
-  }
-
-  getStatus() {
-    return {
-      connected: true,
-      status: 'connected',
-      numero: this.numeroAziendale,
-      method: 'whatsapp-web-auto-open',
-      initialized: true
-    };
-  }
-
-  getInfo() {
-    return {
-      service: 'WhatsApp Web Auto-Open',
-      version: '1.0.0',
-      connected: true,
-      numero: this.numeroAziendale,
-      description: 'Usa browser WhatsApp Web già collegato'
-    };
-  }
-
-  isReady() {
-    return true; // Sempre pronto
-  }
-
-  async disconnect() {
-    logger.info('✅ WhatsApp Web Auto-Open - nessuna disconnessione necessaria');
-  }
-
-  async restart() {
-    logger.info('🔄 WhatsApp Web Auto-Open - riavvio non necessario');
+    const response = await fetch(`${BOT_URL}${endpoint}`, options);
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    logger.warn(`WhatsApp VPS non raggiungibile: ${err.message}`);
+    return { success: false, error: err.message };
   }
 }
 
-const whatsappService = new WhatsAppServiceWebOpen();
-export default whatsappService;
+// Controlla stato connessione (con cache 30s)
+async function checkConnection() {
+  const now = Date.now();
+  if (now - _lastCheck < 30000) return _connected;
+  
+  try {
+    const data = await callBot('/health');
+    _connected = data.bot === 'connesso';
+    _lastCheck = now;
+    return _connected;
+  } catch (err) {
+    _connected = false;
+    _lastCheck = now;
+    return false;
+  }
+}
 
-export const initialize = () => whatsappService.initialize();
-export const inviaMessaggio = (numero, messaggio) => whatsappService.inviaMessaggio(numero, messaggio);
-export const inviaMessaggioConTemplate = (numero, template, variabili) => whatsappService.inviaMessaggioConTemplate(numero, template, variabili);
-export const getQRCode = () => whatsappService.getQRCode();
-export const getStatus = () => whatsappService.getStatus();
-export const getInfo = () => whatsappService.getInfo();
-export const isReady = () => whatsappService.isReady();
-export const disconnect = () => whatsappService.disconnect();
-export const restart = () => whatsappService.restart();
+// ========== API PUBBLICA (compatibile con codice esistente) ==========
+
+export async function initialize() {
+  logger.info('🔌 WhatsApp Web Auto-Open attivato');
+  logger.info('💡 Usa il browser WhatsApp Web già collegato');
+  logger.info('📱 Numero: 3898879833');
+  
+  await checkConnection();
+  
+  if (_connected) {
+    logger.info('✅ WhatsApp VPS connesso e pronto');
+  } else {
+    logger.warn('⚠️ WhatsApp VPS non raggiungibile - i messaggi verranno accodati');
+  }
+}
+
+export function isReady() {
+  // Controlla in background senza bloccare
+  checkConnection().catch(() => {});
+  return _connected;
+}
+
+export function getStatus() {
+  return {
+    connected: _connected,
+    status: _connected ? 'connected' : 'disconnected',
+    numero: '3898879833',
+    source: 'vps-bot',
+    botUrl: BOT_URL
+  };
+}
+
+export function getQRCode() {
+  return null; // QR gestito dal VPS
+}
+
+export function getInfo() {
+  return {
+    platform: 'VPS Hetzner',
+    botUrl: BOT_URL,
+    connected: _connected
+  };
+}
+
+// Invio messaggio - compatibile con tutti i chiamanti esistenti
+export async function inviaMessaggio(numero, messaggio) {
+  try {
+    if (!numero || !messaggio) {
+      return { success: false, error: 'Numero e messaggio obbligatori' };
+    }
+
+    // Pulisci numero
+    let tel = String(numero).replace(/[\s\+\-\(\)]/g, '');
+    
+    // Aggiungi prefisso Italia se manca
+    if (tel.startsWith('3') && tel.length === 10) {
+      tel = '39' + tel;
+    }
+
+    const data = await callBot('/api/invia-messaggio', 'POST', {
+      telefono: tel,
+      messaggio: messaggio
+    });
+
+    if (data.success) {
+      logger.info(`✅ WhatsApp inviato a ${tel}`);
+    } else {
+      logger.error(`❌ WhatsApp fallito a ${tel}: ${data.error}`);
+    }
+
+    return data;
+  } catch (err) {
+    logger.error(`❌ Errore invio WhatsApp: ${err.message}`);
+    return { success: false, error: err.message };
+  }
+}
+
+// Template messaggi - compatibile con schedulerWhatsApp
+const TEMPLATES = {
+  'promemoria-giorno-prima': (v) => [
+    '🔔 *Promemoria Ritiro - Pastificio Nonna Claudia*',
+    '',
+    `Gentile ${v.nomeCliente || 'Cliente'},`,
+    `le ricordiamo il suo ordine per domani ${v.dataRitiro || ''} alle ${v.oraRitiro || '10:00'}.`,
+    '',
+    v.prodottiBreve ? '*Prodotti:*\n' + v.prodottiBreve + '\n' : '',
+    '📍 Via Carmine 20/B, Assemini',
+    '📞 070 944382',
+    '',
+    'A presto! 🍝'
+  ].filter(Boolean).join('\n'),
+
+  'ordine-pronto': (v) => [
+    '🎉 *Il suo ordine è pronto!*',
+    '',
+    `Gentile ${v.nomeCliente || 'Cliente'},`,
+    'il suo ordine è pronto per il ritiro!',
+    '',
+    '📍 Via Carmine 20/B, Assemini',
+    '📞 070 944382',
+    '',
+    'Vi aspettiamo! 🍝'
+  ].join('\n'),
+
+  'conferma-ordine': (v) => [
+    '✅ *Conferma Ordine - Pastificio Nonna Claudia*',
+    '',
+    `Gentile ${v.nomeCliente || 'Cliente'},`,
+    'il suo ordine è stato confermato!',
+    '',
+    v.prodottiBreve ? '*Prodotti:*\n' + v.prodottiBreve + '\n' : '',
+    v.totale ? `*Totale: €${Number(v.totale).toFixed(2)}*\n` : '',
+    v.dataRitiro ? `📅 Ritiro: ${v.dataRitiro} alle ${v.oraRitiro || '10:00'}\n` : '',
+    '📍 Via Carmine 20/B, Assemini',
+    '📞 070 944382',
+    '',
+    'Grazie per aver scelto il Pastificio Nonna Claudia!'
+  ].filter(Boolean).join('\n'),
+
+  'report-giornaliero': (v) => [
+    '📊 *Report Giornaliero*',
+    '',
+    `📅 ${v.data || new Date().toLocaleDateString('it-IT')}`,
+    `📦 Ordini: ${v.totaleOrdini || 0}`,
+    `💰 Incasso: €${v.totaleIncasso || '0.00'}`,
+    '',
+    v.dettagli || '',
+    '',
+    'Pastificio Nonna Claudia 🍝'
+  ].filter(Boolean).join('\n'),
+
+  'auguri-natale': () => [
+    '🎄 *Buon Natale dal Pastificio Nonna Claudia!* 🎄',
+    '',
+    'Vi auguriamo un sereno Natale!',
+    'Per ordini delle feste, contattateci al 070 944382.',
+    '',
+    '📍 Via Carmine 20/B, Assemini',
+    'Auguri! 🍝🎁'
+  ].join('\n'),
+
+  'auguri-pasqua': () => [
+    '🐣 *Buona Pasqua dal Pastificio Nonna Claudia!* 🐣',
+    '',
+    'Vi auguriamo una felice Pasqua!',
+    'Per ordini, contattateci al 070 944382.',
+    '',
+    '📍 Via Carmine 20/B, Assemini',
+    'Auguri! 🍝'
+  ].join('\n')
+};
+
+export function generaMessaggioDaTemplate(templateName, variabili = {}) {
+  const template = TEMPLATES[templateName];
+  if (!template) {
+    logger.warn(`Template WhatsApp non trovato: ${templateName}`);
+    return `Messaggio dal Pastificio Nonna Claudia - ${templateName}`;
+  }
+  return template(variabili);
+}
+
+export async function inviaMessaggioConTemplate(numero, templateName, variabili = {}) {
+  const messaggio = generaMessaggioDaTemplate(templateName, variabili);
+  return inviaMessaggio(numero, messaggio);
+}
+
+export async function testConnection() {
+  const connected = await checkConnection();
+  return {
+    success: true,
+    connected,
+    source: 'vps-bot',
+    botUrl: BOT_URL
+  };
+}
+
+export async function disconnect() {
+  logger.info('WhatsApp disconnect richiesto - bot gira sul VPS');
+  return { success: true, message: 'Bot gira sul VPS, usa systemctl per gestirlo' };
+}
+
+export async function restart() {
+  logger.info('WhatsApp restart richiesto - bot gira sul VPS');
+  return { success: true, message: 'Bot gira sul VPS: ssh root@89.167.119.31 → systemctl restart whatsapp-bot' };
+}
+
+// Default export per compatibilità
+export default {
+  initialize,
+  isReady,
+  getStatus,
+  getQRCode,
+  getInfo,
+  inviaMessaggio,
+  inviaMessaggioConTemplate,
+  generaMessaggioDaTemplate,
+  testConnection,
+  disconnect,
+  restart
+};
