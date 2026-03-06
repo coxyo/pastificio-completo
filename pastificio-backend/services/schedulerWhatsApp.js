@@ -13,7 +13,7 @@ class SchedulerWhatsApp {
     logger.info('🕐 Inizializzazione scheduler WhatsApp...');
     
     // Promemoria giornaliero alle 18:00
-    this.aggiungiJob('promemoria-giorno-prima', '* * * * *', this.inviaPromemoriaDomani);
+    this.aggiungiJob('promemoria-giorno-prima', '0 18 * * *', this.inviaPromemoriaDomani);
 
     
     // Check ordini pronti ogni ora
