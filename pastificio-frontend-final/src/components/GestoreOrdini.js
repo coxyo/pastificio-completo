@@ -438,6 +438,11 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
           return; // Non classificare ulteriormente il vassoio stesso
         }
         
+        // ✅ FIX 06/03/2026: Prodotti normali in_lavorazione → già messi da parte, non contare
+        if (prodotto.statoProduzione === 'in_lavorazione') {
+          return;
+        }
+        
         // ✅ CASO SPECIALE: DOLCI MIX / DOLCI MISTI generici (senza composizione vassoio)
         if (nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti')) {
           // Esplodi usando composizione standard

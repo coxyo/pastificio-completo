@@ -530,10 +530,14 @@ Pastificio Nonna Claudia`;
     }
 
     // 2. Aggiorna localStorage con prodottiInLavorazione
-    const ordineId = ordine._id;
+    // ✅ FIX 06/03/2026 Bug1: per gruppi (count > 1) propaga a TUTTI gli ordini del gruppo
+    const idsDaAggiornare = (gruppo.count > 1 && gruppo.ordini)
+      ? gruppo.ordini.map(({ ordine: o }) => o._id)
+      : [ordine._id];
+
     const ordiniLocal = JSON.parse(localStorage.getItem('ordini') || '[]');
     const ordiniAggiornati = ordiniLocal.map(o => {
-      if (o._id === ordineId) {
+      if (idsDaAggiornare.includes(o._id)) {
         return { ...o, prodottiInLavorazione };
       }
       return o;
@@ -545,8 +549,8 @@ Pastificio Nonna Claudia`;
       url: window.location.href
     }));
 
-    // 3. Salva prodottiInLavorazione sul backend
-    salvaProdottiInLavorazione(ordineId, prodottiInLavorazione);
+    // 3. Salva prodottiInLavorazione sul backend per TUTTI gli ordini del gruppo
+    idsDaAggiornare.forEach(id => salvaProdottiInLavorazione(id, prodottiInLavorazione));
 
     setLavorazionePopupOpen(false);
     setLavorazionePopupGruppo(null);
