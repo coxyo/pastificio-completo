@@ -410,7 +410,9 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         if (peso === 0) return; // Ignora € e prodotti senza peso
         
         // ✅ FIX 07/03/2026: in_lavorazione va escluso PRIMA di tutto (anche vassoi)
-        if (prodotto.statoProduzione === 'in_lavorazione') {
+        // ECCEZIONE 07/03/2026: "Dolci misti" in_lavorazione gestito sotto con logica granulare
+        const isDolciMistiProdotto = (nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti')) && !nomeLC.includes('vassoio');
+        if (prodotto.statoProduzione === 'in_lavorazione' && !isDolciMistiProdotto) {
           return;
         }
 
@@ -447,12 +449,50 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
           return; // Non classificare ulteriormente il vassoio stesso
         }
         
-        // ✅ CASO SPECIALE: DOLCI MIX / DOLCI MISTI generici (senza composizione vassoio)
-        if (nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti')) {
-          // Esplodi usando composizione standard
-          for (const [componente, percentuale] of Object.entries(COMPOSIZIONE_DOLCI_MISTI)) {
-            totali[componente] = (totali[componente] || 0) + (peso * percentuale);
+        // ✅ CASO SPECIALE: DOLCI MIX / DOLCI MISTI generici (prodotto singolo, senza composizione vassoio)
+        // ✅ 07/03/2026: gestione granulare quando in_lavorazione (popup componenti)
+        if (isDolciMistiProdotto) {
+          if (prodotto.statoProduzione === 'in_lavorazione' && Array.isArray(prodotto.prodottiInLavorazione) && prodotto.prodottiInLavorazione.length > 0) {
+            // Calcola il peso già messo da parte per ogni componente
+            const pesoGiaPronto = {};
+            prodotto.prodottiInLavorazione.forEach(comp => {
+              const compNomeLC = (comp.nome || '').toLowerCase();
+              let compPeso = 0;
+              if (comp.unita === 'Kg' || comp.unita === 'kg') {
+                compPeso = comp.quantita || 0;
+              } else if (comp.unita === 'Pezzi' || comp.unita === 'pezzi' || comp.unita === 'pz') {
+                for (const [nome, pezziKg] of Object.entries(PEZZI_PER_KG_TOTALI)) {
+                  if (compNomeLC.includes(nome.toLowerCase())) {
+                    compPeso = (comp.quantita || 0) / pezziKg;
+                    break;
+                  }
+                }
+                if (compPeso === 0) compPeso = (comp.quantita || 0) / 30;
+              }
+              // Mappa nome componente → chiave totali
+              if (compNomeLC.includes('pardula')) pesoGiaPronto.Pardulas = (pesoGiaPronto.Pardulas || 0) + compPeso;
+              else if (compNomeLC.includes('ciambelle') || compNomeLC.includes('ciambella')) pesoGiaPronto.Ciambelle = (pesoGiaPronto.Ciambelle || 0) + compPeso;
+              else if (compNomeLC.includes('amarett')) pesoGiaPronto.Amaretti = (pesoGiaPronto.Amaretti || 0) + compPeso;
+              else if (compNomeLC.includes('gueff')) pesoGiaPronto.Gueffus = (pesoGiaPronto.Gueffus || 0) + compPeso;
+              else if (compNomeLC.includes('bianchin')) pesoGiaPronto.Bianchini = (pesoGiaPronto.Bianchini || 0) + compPeso;
+              else if (compNomeLC.includes('pabassine') || compNomeLC.includes('papassin')) pesoGiaPronto.Pabassine = (pesoGiaPronto.Pabassine || 0) + compPeso;
+            });
+            // Aggiungi al riepilogo solo i componenti RIMANENTI (totale standard - già pronti)
+            for (const [componente, percentuale] of Object.entries(COMPOSIZIONE_DOLCI_MISTI)) {
+              const pesoTotaleComp = peso * percentuale;
+              const giaPronto = pesoGiaPronto[componente] || 0;
+              const rimanente = Math.max(0, pesoTotaleComp - giaPronto);
+              if (rimanente > 0) {
+                totali[componente] = (totali[componente] || 0) + rimanente;
+              }
+            }
+          } else if (prodotto.statoProduzione !== 'in_lavorazione') {
+            // Stato normale (nuovo): esplodi usando composizione standard
+            for (const [componente, percentuale] of Object.entries(COMPOSIZIONE_DOLCI_MISTI)) {
+              totali[componente] = (totali[componente] || 0) + (peso * percentuale);
+            }
           }
+          // Se in_lavorazione senza prodottiInLavorazione: escludi tutto (già messo da parte interamente)
           return; // Non classificare ulteriormente
         }
         

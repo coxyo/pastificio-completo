@@ -1,21 +1,44 @@
 // components/LavorazionePopup.js
 // ✅ NUOVO 04/03/2026: Popup selezione prodotti in lavorazione
-// Appare al click su "L" per ordini con vassoio o più prodotti
-// Permette di selezionare quali prodotti sono già stati messi da parte
+// ✅ 07/03/2026: Aggiunto supporto "Dolci misti" prodotto singolo (composizione standard)
+// Appare al click su "L" per ordini con vassoio, più prodotti, o dolci misti
+// Permette di selezionare quali componenti sono già stati messi da parte
 // Il riepilogo produzione si aggiorna sottraendo i prodotti "in_lavorazione"
 
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Box, Typography, Checkbox, Button, Chip, Divider,
-  FormControlLabel, Alert, IconButton, List, ListItem,
-  ListItemIcon, ListItemText, Tooltip
+  Box, Typography, Button, Chip, Divider,
+  Alert, IconButton, List, ListItem,
+  ListItemIcon, ListItemText
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import BuildIcon from '@mui/icons-material/Build';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import SelectAllIcon from '@mui/icons-material/SelectAll';
+
+// ===================================================
+// COSTANTE: Composizione standard Dolci Misti
+// Deve essere identica a COMPOSIZIONE_DOLCI_MISTI in GestoreOrdini.js
+// ===================================================
+const COMPOSIZIONE_DOLCI_MISTI = {
+  Pardulas: 0.40,
+  Ciambelle: 0.25,
+  Amaretti: 0.15,
+  Gueffus: 0.05,
+  Pabassine: 0.05,
+  Bianchini: 0.03
+};
+
+const PEZZI_PER_KG_DOLCI = {
+  Pardulas: 25,
+  Ciambelle: 30,
+  Amaretti: 35,
+  Gueffus: 65,
+  Pabassine: 30,
+  Bianchini: 100,
+};
 
 // ===================================================
 // HELPER: Determina se un prodotto è un vassoio misto
@@ -28,9 +51,47 @@ export const isVassioMisto = (prodotto) => {
 };
 
 // ===================================================
+// HELPER: Determina se un prodotto è "Dolci misti" singolo (non vassoio)
+// ===================================================
+export const isDolciMistiSingolo = (prodotto) => {
+  if (!prodotto) return false;
+  const nome = (prodotto.nome || '').toLowerCase();
+  return (nome.includes('dolci mix') || nome.includes('dolci misti')) && !nome.includes('vassoio');
+};
+
+// ===================================================
+// HELPER: Genera i componenti standard da un prodotto "Dolci misti" singolo
+// ===================================================
+const generaComponentiDolciMisti = (prodotto, indiceProdotto) => {
+  const unita = (prodotto.unita || prodotto.unitaMisura || 'kg').toLowerCase();
+  const pesoKg = unita === 'kg' ? (prodotto.quantita || 0) : (prodotto.quantita || 0) * 0.1;
+
+  return Object.entries(COMPOSIZIONE_DOLCI_MISTI).map(([nome, percentuale], indiceComp) => {
+    const pesoComp = pesoKg * percentuale;
+    const pezziKg = PEZZI_PER_KG_DOLCI[nome] || 30;
+    const pezzi = Math.round(pesoComp * pezziKg);
+    const qtaDisplay = pesoComp >= 0.1
+      ? `${(pesoComp * 1000).toFixed(0)}g (~${pezzi} pz)`
+      : `~${pezzi} pz`;
+
+    return {
+      id: `dolcimisti-${indiceProdotto}-${indiceComp}`,
+      indiceProdotto,
+      indiceComp,
+      nome,
+      variante: null,
+      quantita: pesoComp,
+      unita: 'Kg',
+      qtaDisplay,
+      isDaVassoio: false,
+      isDaDolciMisti: true,
+      nomeVassoio: null,
+    };
+  });
+};
+
+// ===================================================
 // HELPER: Estrae la lista prodotti "reali" da un ordine
-// Per vassoi: ritorna i componenti della composizione
-// Per ordini normali: ritorna i prodotti dell'ordine
 // ===================================================
 export const estraiProdottiLavorazione = (ordine) => {
   if (!ordine || !ordine.prodotti) return [];
@@ -54,9 +115,14 @@ export const estraiProdottiLavorazione = (ordine) => {
           unita: comp.unita || 'Kg',
           qtaDisplay: qtaFormatted,
           isDaVassoio: true,
+          isDaDolciMisti: false,
           nomeVassoio: `Vassoio ${prodotto.quantita > 1 ? `(${prodotto.quantita}x)` : ''}`,
         });
       });
+    } else if (isDolciMistiSingolo(prodotto)) {
+      // ✅ 07/03/2026: Dolci misti singolo → genera componenti composizione standard
+      const componenti = generaComponentiDolciMisti(prodotto, indiceProdotto);
+      prodotti.push(...componenti);
     } else {
       // Prodotto normale
       const unita = prodotto.unitaMisura || prodotto.unita || 'Kg';
@@ -78,6 +144,7 @@ export const estraiProdottiLavorazione = (ordine) => {
         unita,
         qtaDisplay,
         isDaVassoio: false,
+        isDaDolciMisti: false,
         nomeVassoio: null,
       });
     }
@@ -87,11 +154,15 @@ export const estraiProdottiLavorazione = (ordine) => {
 };
 
 // ===================================================
-// HELPER: Determina se aprire il popup o procedere
-// direttamente (solo se 1 prodotto senza composizione)
+// HELPER: Determina se aprire il popup
 // ===================================================
 export const necessitaPopup = (ordine) => {
   if (!ordine || !ordine.prodotti) return false;
+
+  // ✅ 07/03/2026: "Dolci misti" singolo richiede sempre il popup
+  const haDolciMisti = ordine.prodotti.some(p => isDolciMistiSingolo(p));
+  if (haDolciMisti) return true;
+
   const prodotti = estraiProdottiLavorazione(ordine);
   return prodotti.length > 1;
 };
@@ -104,7 +175,6 @@ export default function LavorazionePopup({
   onClose,
   onConferma,
   ordine,
-  // Prodotti già in lavorazione (da precedente click "L")
   prodottiGiaInLavorazione = [],
 }) {
   const prodottiDisponibili = useMemo(
@@ -112,10 +182,8 @@ export default function LavorazionePopup({
     [ordine]
   );
 
-  // IDs dei prodotti selezionati (già preparati)
   const [selezionati, setSelezionati] = useState(new Set());
 
-  // Quando il popup si apre, pre-seleziona i prodotti già in lavorazione
   useEffect(() => {
     if (open && prodottiGiaInLavorazione.length > 0) {
       const ids = new Set(prodottiGiaInLavorazione.map((p) => p.id));
@@ -134,13 +202,8 @@ export default function LavorazionePopup({
     });
   };
 
-  const selezionaTutti = () => {
-    setSelezionati(new Set(prodottiDisponibili.map((p) => p.id)));
-  };
-
-  const deselezionaTutti = () => {
-    setSelezionati(new Set());
-  };
+  const selezionaTutti = () => setSelezionati(new Set(prodottiDisponibili.map((p) => p.id)));
+  const deselezionaTutti = () => setSelezionati(new Set());
 
   const tuttiSelezionati = selezionati.size === prodottiDisponibili.length;
   const nessunoSelezionato = selezionati.size === 0;
@@ -155,8 +218,14 @@ export default function LavorazionePopup({
     });
   };
 
-  // Raggruppa per vassoio (se ci sono componenti di vassoio)
   const hasVassoio = prodottiDisponibili.some((p) => p.isDaVassoio);
+  const hasDolciMisti = prodottiDisponibili.some((p) => p.isDaDolciMisti);
+
+  const sottotitolo = hasVassoio
+    ? 'Vassoio Dolci Misti'
+    : hasDolciMisti
+    ? 'Dolci Misti — composizione standard'
+    : null;
 
   if (!ordine) return null;
 
@@ -166,18 +235,17 @@ export default function LavorazionePopup({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      // Stoppa propagazione click per non aprire il dialog ordine
       onClick={(e) => e.stopPropagation()}
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
         <BuildIcon color="warning" />
         <Box sx={{ flex: 1 }}>
           <Typography variant="h6" component="span">
-            🔧 Lavorazione — {ordine.nomeCliente}
+            Lavorazione — {ordine.nomeCliente}
           </Typography>
-          {hasVassoio && (
+          {sottotitolo && (
             <Typography variant="caption" display="block" color="text.secondary">
-              Vassoio Dolci Misti
+              {sottotitolo}
             </Typography>
           )}
         </Box>
@@ -189,11 +257,19 @@ export default function LavorazionePopup({
       <Divider />
 
       <DialogContent sx={{ pt: 2, pb: 1 }}>
-        <Alert severity="info" sx={{ mb: 2, fontSize: '0.85rem' }}>
-          Seleziona i prodotti già <strong>messi da parte</strong>. Il riepilogo produzione si aggiornerà sottraendo le quantità selezionate.
-        </Alert>
+        {hasDolciMisti && !hasVassoio && (
+          <Alert severity="warning" sx={{ mb: 2, fontSize: '0.82rem' }}>
+            Composizione <strong>standard</strong> (Pardulas 40%, Ciambelle 25%, Amaretti 15%...).
+            Seleziona i componenti già messi da parte: gli altri rimangono nel riepilogo.
+          </Alert>
+        )}
+        {!hasDolciMisti && (
+          <Alert severity="info" sx={{ mb: 2, fontSize: '0.85rem' }}>
+            Seleziona i prodotti già <strong>messi da parte</strong>. Il riepilogo produzione si
+            aggiornerà sottraendo le quantità selezionate.
+          </Alert>
+        )}
 
-        {/* Azione rapida: seleziona/deseleziona tutti */}
         <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center' }}>
           <Button
             size="small"
@@ -205,15 +281,13 @@ export default function LavorazionePopup({
             {tuttiSelezionati ? 'Deseleziona tutti' : 'Seleziona tutti'}
           </Button>
           <Typography variant="caption" color="text.secondary">
-            {selezionati.size} / {prodottiDisponibili.length} prodotti selezionati
+            {selezionati.size} / {prodottiDisponibili.length} componenti selezionati
           </Typography>
         </Box>
 
-        {/* Lista prodotti */}
         <List dense disablePadding>
-          {prodottiDisponibili.map((prodotto, idx) => {
+          {prodottiDisponibili.map((prodotto) => {
             const isSelected = selezionati.has(prodotto.id);
-
             return (
               <ListItem
                 key={prodotto.id}
@@ -225,16 +299,10 @@ export default function LavorazionePopup({
                   mb: 0.5,
                   px: 1,
                   py: 0.5,
-                  backgroundColor: isSelected
-                    ? 'rgba(255, 152, 0, 0.08)'
-                    : 'rgba(0,0,0,0.02)',
-                  border: isSelected
-                    ? '1px solid rgba(255, 152, 0, 0.4)'
-                    : '1px solid rgba(0,0,0,0.08)',
+                  backgroundColor: isSelected ? 'rgba(255, 152, 0, 0.08)' : 'rgba(0,0,0,0.02)',
+                  border: isSelected ? '1px solid rgba(255, 152, 0, 0.4)' : '1px solid rgba(0,0,0,0.08)',
                   '&:hover': {
-                    backgroundColor: isSelected
-                      ? 'rgba(255, 152, 0, 0.15)'
-                      : 'rgba(0,0,0,0.05)',
+                    backgroundColor: isSelected ? 'rgba(255, 152, 0, 0.15)' : 'rgba(0,0,0,0.05)',
                   },
                   transition: 'all 0.15s',
                 }}
@@ -246,7 +314,6 @@ export default function LavorazionePopup({
                     <CheckBoxOutlineBlankIcon color="disabled" fontSize="small" />
                   )}
                 </ListItemIcon>
-
                 <ListItemText
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
@@ -255,20 +322,20 @@ export default function LavorazionePopup({
                         {prodotto.variante ? ` (${prodotto.variante})` : ''}
                       </Typography>
                       {prodotto.isDaVassoio && (
-                        <Chip
-                          label="vassoio"
-                          size="small"
+                        <Chip label="vassoio" size="small"
                           sx={{ fontSize: '0.6rem', height: 16, '& .MuiChip-label': { px: 0.5 } }}
-                          color="default"
-                          variant="outlined"
-                        />
+                          color="default" variant="outlined" />
+                      )}
+                      {prodotto.isDaDolciMisti && (
+                        <Chip label="dolci misti" size="small"
+                          sx={{ fontSize: '0.6rem', height: 16, '& .MuiChip-label': { px: 0.5 } }}
+                          color="warning" variant="outlined" />
                       )}
                     </Box>
                   }
                   secondary={
                     <Typography variant="caption" color={isSelected ? 'warning.dark' : 'text.secondary'}>
-                      {prodotto.qtaDisplay}
-                      {isSelected && ' ✅'}
+                      {prodotto.qtaDisplay}{isSelected ? ' ✅' : ''}
                     </Typography>
                   }
                 />
@@ -277,16 +344,15 @@ export default function LavorazionePopup({
           })}
         </List>
 
-        {/* Riepilogo selezione */}
         {selezionati.size > 0 && !tuttiSelezionati && (
           <Alert severity="warning" sx={{ mt: 2, fontSize: '0.8rem' }}>
-            <strong>{selezionati.size} prodotti</strong> verranno scalati dal riepilogo produzione.{' '}
-            <strong>{prodottiDisponibili.length - selezionati.size} prodotti</strong> rimangono da preparare.
+            <strong>{selezionati.size} componenti</strong> scalati dal riepilogo.{' '}
+            <strong>{prodottiDisponibili.length - selezionati.size}</strong> rimangono da preparare.
           </Alert>
         )}
         {tuttiSelezionati && (
           <Alert severity="success" sx={{ mt: 2, fontSize: '0.8rem' }}>
-            Tutti i prodotti selezionati — l'ordine è completamente in lavorazione.
+            Tutti i componenti selezionati — ordine completamente in lavorazione.
           </Alert>
         )}
       </DialogContent>
@@ -294,12 +360,7 @@ export default function LavorazionePopup({
       <Divider />
 
       <DialogActions sx={{ px: 2, py: 1.5, gap: 1 }}>
-        <Button
-          onClick={onClose}
-          color="inherit"
-          variant="outlined"
-          size="small"
-        >
+        <Button onClick={onClose} color="inherit" variant="outlined" size="small">
           Annulla
         </Button>
         <Button
@@ -310,8 +371,7 @@ export default function LavorazionePopup({
           disabled={nessunoSelezionato}
           startIcon={<BuildIcon />}
         >
-          ✅ Conferma Lavorazione
-          {selezionati.size > 0 && ` (${selezionati.size})`}
+          Conferma Lavorazione{selezionati.size > 0 ? ` (${selezionati.size})` : ''}
         </Button>
       </DialogActions>
     </Dialog>
