@@ -409,9 +409,16 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         
         if (peso === 0) return; // Ignora € e prodotti senza peso
         
+        // ✅ FIX 07/03/2026: in_lavorazione va escluso PRIMA di tutto (anche vassoi)
+        if (prodotto.statoProduzione === 'in_lavorazione') {
+          return;
+        }
+
         // ✅ FIX 15/12/2025: VASSOIO deve essere controllato PRIMA di "dolci misti"
         // perché "Vassoio Dolci Misti" contiene "dolci misti" come sottostringa!
         if (nomeLC.includes('vassoio') && prodotto.dettagliCalcolo?.composizione) {
+          // ✅ FIX 07/03/2026: moltiplica per numero vassoi (prodotto.quantita)
+          const numVassoi = prodotto.quantita || 1;
           prodotto.dettagliCalcolo.composizione.forEach(comp => {
             const compNome = comp.nome?.toLowerCase() || '';
             let compPeso = 0;
@@ -426,6 +433,8 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
               }
               if (compPeso === 0) compPeso = comp.quantita / 30;
             }
+            // Moltiplica per numero vassoi
+            compPeso = compPeso * numVassoi;
             
             // Classifica il componente
             if (compNome.includes('pardula')) totali.Pardulas += compPeso;
@@ -436,11 +445,6 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
             else if (compNome.includes('pabassine') || compNome.includes('papassin')) totali.Pabassine += compPeso;
           });
           return; // Non classificare ulteriormente il vassoio stesso
-        }
-        
-        // ✅ FIX 06/03/2026: Prodotti normali in_lavorazione → già messi da parte, non contare
-        if (prodotto.statoProduzione === 'in_lavorazione') {
-          return;
         }
         
         // ✅ CASO SPECIALE: DOLCI MIX / DOLCI MISTI generici (senza composizione vassoio)
