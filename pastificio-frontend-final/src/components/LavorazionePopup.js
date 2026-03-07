@@ -159,10 +159,15 @@ export const estraiProdottiLavorazione = (ordine) => {
 export const necessitaPopup = (ordine) => {
   if (!ordine || !ordine.prodotti) return false;
 
+  // ✅ 07/03/2026: Vassoio richiede sempre il popup (anche con 1 solo componente)
+  const haVassoio = ordine.prodotti.some(p => isVassioMisto(p));
+  if (haVassoio) return true;
+
   // ✅ 07/03/2026: "Dolci misti" singolo richiede sempre il popup
   const haDolciMisti = ordine.prodotti.some(p => isDolciMistiSingolo(p));
   if (haDolciMisti) return true;
 
+  // Tutti gli altri: apri popup solo se ci sono più componenti
   const prodotti = estraiProdottiLavorazione(ordine);
   return prodotti.length > 1;
 };
