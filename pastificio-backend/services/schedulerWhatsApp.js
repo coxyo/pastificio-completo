@@ -15,9 +15,9 @@ class SchedulerWhatsApp {
     // Promemoria giornaliero alle 18:00
     this.aggiungiJob('promemoria-giorno-prima', '0 18 * * *', this.inviaPromemoriaDomani);
 
-    
-    // Check ordini pronti ogni ora
-    this.aggiungiJob('check-ordini-pronti', '0 * * * *', this.checkOrdiniPronti);
+    // ❌ DISABILITATO 07/03/2026 - causa loop notifiche "ordine pronto" ogni ora
+    // L'ordine pronto va inviato SOLO manualmente dal gestionale
+    // this.aggiungiJob('check-ordini-pronti', '0 * * * *', this.checkOrdiniPronti);
     
     // Report giornaliero alle 20:00
     this.aggiungiJob('report-giornaliero', '0 20 * * *', this.inviaReportGiornaliero);
@@ -55,14 +55,13 @@ class SchedulerWhatsApp {
       const dopodomani = new Date(domani);
       dopodomani.setDate(dopodomani.getDate() + 1);
       
-      // ✅ Trova ordini di domani che NON hanno già ricevuto promemoria
       const ordiniDomani = await Ordine.find({
         dataRitiro: {
           $gte: domani,
           $lt: dopodomani
         },
         stato: { $ne: 'annullato' },
-        promemoria_inviato: { $ne: true } // ✅ SOLO ordini senza promemoria
+        promemoria_inviato: { $ne: true }
       });
       
       logger.info(`📋 Trovati ${ordiniDomani.length} ordini per domani (senza promemoria già inviato)`);
@@ -75,7 +74,6 @@ class SchedulerWhatsApp {
         
         if (telefono) {
           try {
-            // ✅ Genera lista prodotti (primi 5)
             const prodottiLista = ordine.prodotti
               .slice(0, 5)
               .map(p => {
@@ -89,28 +87,21 @@ class SchedulerWhatsApp {
               ? `\n• ...e altri ${ordine.prodotti.length - 5} prodotti`
               : '';
             
-            // ✅ Messaggio SENZA totale come richiesto
-            const messaggio = `🍝 *PASTIFICIO NONNA CLAUDIA* 🍝
-
-🔔 *PROMEMORIA RITIRO*
+            const messaggio = `🔔 *Promemoria Ritiro*
 
 Gentile ${ordine.nomeCliente || 'Cliente'},
 le ricordiamo il suo ordine per domani ${domani.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })} alle ore ${ordine.oraRitiro || '10:00'}.
 
-📦 *PRODOTTI:*
 ${prodottiLista}${altriProdotti}
 
-📍 *DOVE:* Via Carmine 20/B, Assemini (CA)
-📞 *Per info:* 389 887 9833
+📍 Via Carmine 20/B, Assemini (CA)
+📞 070 944382
 
-Grazie e a presto!
-Pastificio Nonna Claudia`;
+Pastificio Nonna Claudia 🍝`;
             
-            // ✅ Invia messaggio
             const result = await whatsappService.inviaMessaggio(telefono, messaggio);
             
             if (result.success) {
-              // ✅ SEGNA promemoria_inviato = true
               ordine.promemoria_inviato = true;
               ordine.promemoria_inviato_at = new Date();
               await ordine.save();
@@ -119,7 +110,6 @@ Pastificio Nonna Claudia`;
               logger.info(`✅ Promemoria inviato a ${ordine.nomeCliente} (${telefono})`);
             }
             
-            // ✅ Pausa 3 secondi tra messaggi (evita ban WhatsApp)
             await new Promise(resolve => setTimeout(resolve, 3000));
             
           } catch (error) {
@@ -138,7 +128,7 @@ Pastificio Nonna Claudia`;
     }
   }
 
-  // Check ordini pronti ogni ora
+  // Check ordini pronti - DISABILITATO dallo scheduler, disponibile solo per chiamata manuale
   async checkOrdiniPronti() {
     try {
       const oggi = new Date();
@@ -169,7 +159,6 @@ Pastificio Nonna Claudia`;
               }
             );
             
-            // ✅ FIX 06/03/2026: updateOne diretto per evitare che Mongoose strict ignori il campo
             await Ordine.updateOne(
               { _id: ordine._id },
               { $set: { notificaPronto: true, notificaPronto_at: new Date() } }
@@ -191,14 +180,13 @@ Pastificio Nonna Claudia`;
   // Invia report giornaliero al proprietario
   async inviaReportGiornaliero() {
     try {
-      const NUMERO_PROPRIETARIO = '3898879833'; // Il tuo numero
+      const NUMERO_PROPRIETARIO = '3898879833';
       
       const oggi = new Date();
       oggi.setHours(0, 0, 0, 0);
       const domani = new Date(oggi);
       domani.setDate(domani.getDate() + 1);
       
-      // Statistiche del giorno
       const ordiniOggi = await Ordine.find({
         dataRitiro: {
           $gte: oggi,
@@ -213,7 +201,6 @@ Pastificio Nonna Claudia`;
         .filter(o => o.stato !== 'annullato')
         .reduce((sum, o) => sum + (o.totale || 0), 0);
       
-      // Prodotti più venduti
       const prodottiVenduti = {};
       ordiniOggi.forEach(ordine => {
         ordine.prodotti.forEach(p => {
@@ -230,22 +217,15 @@ Pastificio Nonna Claudia`;
         .map(([nome, qty]) => `• ${nome}: ${qty}`)
         .join('\n');
       
-      const messaggio = `📊 *REPORT GIORNALIERO* 📊
-${oggi.toLocaleDateString('it-IT')}
+      const messaggio = `📊 *Report Giornaliero* - ${oggi.toLocaleDateString('it-IT')}
 
-📦 *ORDINI:*
-- Totali: ${totaleOrdini}
-- Completati: ${ordiniCompletati}
-- Annullati: ${ordiniAnnullati}
+📦 Ordini: ${totaleOrdini} (${ordiniCompletati} completati, ${ordiniAnnullati} annullati)
+💰 Incasso: €${totaleIncasso.toFixed(2)}
 
-💰 *INCASSO:* €${totaleIncasso.toFixed(2)}
-
-🏆 *TOP PRODOTTI:*
+🏆 *Top prodotti:*
 ${topProdotti || 'Nessuno'}
 
-📅 *ORDINI DOMANI:* ${await this.contaOrdiniDomani()}
-
-Buon lavoro! 💪`;
+📅 Ordini domani: ${await this.contaOrdiniDomani()}`;
       
       await whatsappService.inviaMessaggio(NUMERO_PROPRIETARIO, messaggio);
       logger.info('✅ Report giornaliero inviato');
@@ -273,7 +253,6 @@ Buon lavoro! 💪`;
     return count;
   }
 
-  // Invia auguri per festività
   async inviaAuguriFestivita(festivita) {
     try {
       const messaggi = {
@@ -290,7 +269,6 @@ Buon lavoro! 💪`;
       const festivitaData = messaggi[festivita];
       if (!festivitaData) return;
       
-      // Prendi clienti attivi (con ordini negli ultimi 3 mesi)
       const treMesiFa = new Date();
       treMesiFa.setMonth(treMesiFa.getMonth() - 3);
       
@@ -327,7 +305,6 @@ Buon lavoro! 💪`;
     }
   }
 
-  // Ferma tutti i job
   ferma() {
     this.jobs.forEach((job, nome) => {
       job.stop();
