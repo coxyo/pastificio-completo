@@ -35,8 +35,6 @@ import {
 } from '@mui/icons-material';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
-const BOT_VPS_URL = 'http://89.167.119.31:3000';
-const BOT_API_KEY = 'pastificio-bot-2026';
 const AUTO_CLOSE_SECONDS = 30;
 
 /**
@@ -202,11 +200,12 @@ function WhatsAppPopup({ messaggio, onClose }) {
       const tel = (messaggio?.telefono || '').replace(/\D/g, '');
       const telCompleto = tel.startsWith('39') ? tel : `39${tel}`;
 
-      const res = await fetch(`${BOT_VPS_URL}/api/invia-messaggio`, {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+      const res = await fetch(`${API_URL}/whatsapp/invia-messaggio`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': BOT_API_KEY
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           telefono: telCompleto,
