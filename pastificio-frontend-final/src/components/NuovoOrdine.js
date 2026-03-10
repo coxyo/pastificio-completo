@@ -1231,7 +1231,14 @@ useEffect(() => {
       if (modalitaPanadine === 'miste') {
         // Usa il campo quantità principale
         const quantitaInput = parseFloat(normalizzaDecimale(prodottoCorrente.quantita)) || 0;
-        totaleQuantita = Math.round(quantitaInput); // Arrotonda a numero intero
+        // ✅ FIX 10/03/2026: Se unità è Kg, converti in pezzi usando pezziPerKg
+        const pezziPerKg = configProdotto.pezziPerKg || 36;
+        if (prodottoCorrente.unita === 'Kg' || prodottoCorrente.unita === 'g') {
+          const kg = prodottoCorrente.unita === 'g' ? quantitaInput / 1000 : quantitaInput;
+          totaleQuantita = Math.round(kg * pezziPerKg);
+        } else {
+          totaleQuantita = Math.round(quantitaInput); // già in pezzi
+        }
         dettagliGusti.push('Miste a scelta del pastificio');
       } else if (modalitaPanadine === 'rapida') {
         totaleQuantita = panadineRapide.carne + panadineRapide.verdura;
