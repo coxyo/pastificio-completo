@@ -535,8 +535,7 @@ router.post('/', async (req, res, next) => {
 
         const messaggioOrdine = `🎉 *Ordine Confermato!*
 
-Ciao ${nuovoOrdine.nomeCliente || 'Cliente'},
-il tuo ordine #${nuovoOrdine.numeroOrdine} è stato ricevuto!
+Il suo ordine #${nuovoOrdine.numeroOrdine} è stato ricevuto!
 
 📅 *Ritiro:* ${dataRitiroFormatted} alle ${nuovoOrdine.oraRitiro || ''}
 
@@ -549,7 +548,7 @@ ${nuovoOrdine.note ? `\n📝 Note: ${nuovoOrdine.note}` : ''}
 📍 Via Carmine 20/B, Assemini
 📞 070 944382
 
-Ti invieremo un promemoria il giorno prima del ritiro.
+Le invieremo un promemoria il giorno prima del ritiro.
 Grazie! 🙏`;
 
         const risultato = await whatsappService.inviaMessaggio(telefonoInvio, messaggioOrdine);

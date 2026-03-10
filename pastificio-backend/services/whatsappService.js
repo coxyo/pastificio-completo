@@ -131,8 +131,7 @@ const TEMPLATES = {
   'promemoria-giorno-prima': (v) => [
     '🔔 *Promemoria Ritiro - Pastificio Nonna Claudia*',
     '',
-    `Gentile ${v.nomeCliente || 'Cliente'},`,
-    `le ricordiamo il suo ordine per domani ${v.dataRitiro || ''} alle ${v.oraRitiro || '10:00'}.`,
+    `Le ricordiamo il suo ordine per domani ${v.dataRitiro || ''} alle ${v.oraRitiro || '10:00'}.`,
     '',
     v.prodottiBreve ? '*Prodotti:*\n' + v.prodottiBreve + '\n' : '',
     '📍 Via Carmine 20/B, Assemini',
@@ -144,8 +143,7 @@ const TEMPLATES = {
   'ordine-pronto': (v) => [
     '🎉 *Il suo ordine è pronto!*',
     '',
-    `Gentile ${v.nomeCliente || 'Cliente'},`,
-    'il suo ordine è pronto per il ritiro!',
+    'Il suo ordine è pronto per il ritiro!',
     '',
     '📍 Via Carmine 20/B, Assemini',
     '📞 070 944382',
@@ -156,8 +154,7 @@ const TEMPLATES = {
   'conferma-ordine': (v) => [
     '✅ *Conferma Ordine - Pastificio Nonna Claudia*',
     '',
-    `Gentile ${v.nomeCliente || 'Cliente'},`,
-    'il suo ordine è stato confermato!',
+    'Il suo ordine è stato confermato!',
     '',
     v.prodottiBreve ? '*Prodotti:*\n' + v.prodottiBreve + '\n' : '',
     v.totale ? `*Totale: €${Number(v.totale).toFixed(2)}*\n` : '',
