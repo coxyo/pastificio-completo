@@ -342,6 +342,7 @@ function WhatsAppPopup({ messaggio, onClose }) {
                 </Typography>
               ))}
             </Box>
+          )}
 
           <Divider sx={{ mb: 1.2 }} />
 
