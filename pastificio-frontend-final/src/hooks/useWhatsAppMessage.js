@@ -90,6 +90,12 @@ export default function useWhatsAppMessage() {
           console.error('[useWhatsAppMessage] Errore salvataggio locale:', err);
         }
 
+        // Mostra popup SOLO se il bot non risponde automaticamente
+        if (data.botRisponde === true) {
+          console.log('[useWhatsAppMessage] Bot risponde autonomamente - popup soppresso');
+          return;
+        }
+
         setMessaggioCorrente(data);
         setIsPopupOpen(true);
       };
