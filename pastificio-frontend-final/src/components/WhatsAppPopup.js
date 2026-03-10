@@ -341,7 +341,7 @@ function WhatsAppPopup({ messaggio, onClose }) {
                   {(o.prodotti || []).length > 2 ? ` +${o.prodotti.length - 2}` : ''}
                 </Typography>
               ))}
-          </Box>
+            </Box>
 
           <Divider sx={{ mb: 1.2 }} />
 
