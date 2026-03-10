@@ -901,17 +901,17 @@ Pastificio Nonna Claudia`;
                     <TableRow sx={{ backgroundColor: configCategoria.coloreBg }}>
                       {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
                       {(ricercaCliente || mostraTutteLeDate) && (
-                        <TableCell sx={{ fontWeight: 800, p: 0.5, fontSize: '0.7rem', width: '70px', backgroundColor: 'rgba(46,123,0,0.08)', color: '#1B5200', letterSpacing: '0.05em' }}>📅 DATA</TableCell>
+                        <TableCell sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem', width: '70px', backgroundColor: 'rgba(46,123,0,0.08)', color: '#1B5200', letterSpacing: '0.04em' }}>📅 DATA</TableCell>
                       )}
-                      <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '50px' }}>ORA</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>CLIENTE</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>PRODOTTO</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '70px' }}>Q.TÀ</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '60px' }}>€</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '90px' }}>L/F/C</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '30px' }}>+</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem' }}>NOTE</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 'bold', p: 0.5, fontSize: '0.7rem', width: '90px' }}>AZIONI</TableCell>
+                      <TableCell sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem', width: '55px' }}>ORA</TableCell>
+                      <TableCell sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem' }}>CLIENTE</TableCell>
+                      <TableCell sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem' }}>PRODOTTO</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem', width: '75px' }}>Q.TÀ</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem', width: '65px' }}>€</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem', width: '95px' }}>L/F/C</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem', width: '30px' }}>+</TableCell>
+                      <TableCell sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem' }}>NOTE</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 800, p: 0.6, fontSize: '0.82rem', width: '95px' }}>AZIONI</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1057,35 +1057,35 @@ Pastificio Nonna Claudia`;
                           {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
                           {(ricercaCliente || mostraTutteLeDate) && (
                             <TableCell sx={{ p: 0.5, backgroundColor: 'rgba(46,123,0,0.06)' }}>
-                              <Typography variant="body2" sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                              <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 700 }}>
                                 {ordine.dataRitiro ? new Date(ordine.dataRitiro).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '-'}
                               </Typography>
                             </TableCell>
                           )}
                           <TableCell sx={{ p: 0.5 }}>
-                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                            <Typography variant="body2" sx={{ fontSize: '0.88rem', fontWeight: 500 }}>
                               {ordine.oraRitiro || '-'}
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ p: 0.5 }}>
-                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.75rem' }}>
+                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.88rem' }}>
                               {nomeCliente}
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ p: 0.5 }}>
                             {/* ✅ FIX 25/02/2026: Per i vassoi, mostra direttamente la composizione invece di "Vassoio Dolci Misti" */}
                             {(prodotto.nome === 'Vassoio Dolci Misti' || unitaEffettiva === 'vassoio' || (prodotto.unita || '').toLowerCase() === 'vassoio') && composizioneDisplay ? (
-                              <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                              <Typography variant="body2" sx={{ fontSize: '0.88rem', fontWeight: 500 }}>
                                 {composizioneDisplay}
                               </Typography>
                             ) : (
                               <>
-                                <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                                <Typography variant="body2" sx={{ fontSize: '0.88rem', fontWeight: 500 }}>
                                   {prodotto.nome || prodotto.prodotto}
                                   {prodotto.variante && ` (${prodotto.variante})`}
                                 </Typography>
                                 {composizioneDisplay && (
-                                  <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'text.secondary', display: 'block' }}>
+                                  <Typography variant="caption" sx={{ fontSize: '0.72rem', color: 'text.secondary', display: 'block' }}>
                                     ({composizioneDisplay})
                                   </Typography>
                                 )}
@@ -1095,13 +1095,13 @@ Pastificio Nonna Claudia`;
                           <TableCell align="right" sx={{ p: 0.5 }}>
                             <Typography 
                               variant="body2" 
-                              sx={{ fontSize: '0.75rem', fontFamily: 'monospace', whiteSpace: 'nowrap' }}
+                              sx={{ fontSize: '0.88rem', fontWeight: 600, fontFamily: 'monospace', whiteSpace: 'nowrap' }}
                             >
                               {qtaDisplay}
                             </Typography>
                           </TableCell>
                           <TableCell align="right" sx={{ p: 0.5 }}>
-                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
+                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.92rem' }}>
                               €{(prezzoTotale || 0).toFixed(2)}
                             </Typography>
                           </TableCell>
@@ -1130,7 +1130,7 @@ Pastificio Nonna Claudia`;
                                     sx={{ 
                                       cursor: 'pointer', 
                                       minWidth: '24px',
-                                      fontSize: '0.6rem',
+                                      fontSize: '0.72rem',
                                       height: '18px',
                                       '& .MuiChip-label': { px: 0.4 },
                                       pointerEvents: 'auto'
@@ -1159,7 +1159,7 @@ Pastificio Nonna Claudia`;
                                     sx={{ 
                                       cursor: 'pointer', 
                                       minWidth: '24px',
-                                      fontSize: '0.6rem',
+                                      fontSize: '0.72rem',
                                       height: '18px',
                                       '& .MuiChip-label': { px: 0.4 },
                                       pointerEvents: 'auto'
@@ -1188,7 +1188,7 @@ Pastificio Nonna Claudia`;
                                     sx={{ 
                                       cursor: 'pointer', 
                                       minWidth: '24px',
-                                      fontSize: '0.6rem',
+                                      fontSize: '0.72rem',
                                       height: '18px',
                                       '& .MuiChip-label': { px: 0.4 },
                                       pointerEvents: 'auto'
@@ -1202,7 +1202,7 @@ Pastificio Nonna Claudia`;
                           <TableCell align="center" sx={{ p: 0.5 }}>
                             {haAltriProdotti ? (
                               <Tooltip title="Ha altri prodotti in altre categorie">
-                                <Chip label="+" size="small" color="info" sx={{ fontSize: '0.6rem', height: '18px', minWidth: '20px', '& .MuiChip-label': { px: 0.3 } }} />
+                                <Chip label="+" size="small" color="info" sx={{ fontSize: '0.72rem', height: '18px', minWidth: '20px', '& .MuiChip-label': { px: 0.3 } }} />
                               </Tooltip>
                             ) : ''}
                           </TableCell>
@@ -1210,7 +1210,7 @@ Pastificio Nonna Claudia`;
                           <TableCell sx={{ p: 0.5, minWidth: '180px' }}>
                             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
                               {daViaggio && (
-                                <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px', flexShrink: 0 }} />
+                                <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.72rem', height: '18px', flexShrink: 0 }} />
                               )}
                               <Typography 
                                 variant="caption" 
