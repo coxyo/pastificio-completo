@@ -65,6 +65,19 @@ function WhatsAppPopup({ messaggio, onClose }) {
   useEffect(() => {
     if (!messaggio) return;
     setTestoRisposta(messaggio.rispostaSuggerita || '');
+
+    // Avvisa il bot che l'operatore ha visto il messaggio → annulla risposta automatica
+    const telefono = (messaggio.telefono || '').replace(/\D/g, '');
+    if (telefono && typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetch(`${API_URL}/whatsapp/annulla-risposta`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ telefono })
+        }).catch(() => {}); // silenzioso se fallisce
+      }
+    }
   }, [messaggio?.timestamp]);
 
   // Timer auto-close 30s
@@ -180,7 +193,7 @@ function WhatsAppPopup({ messaggio, onClose }) {
     const tel = (messaggio?.telefono || '').replace(/\D/g, '');
     const telCompleto = tel.startsWith('39') ? tel : `39${tel}`;
     const testo = testoRisposta.trim();
-    const url = `https://wa.me/${telCompleto}` + (testo ? `?text=${encodeURIComponent(testo)}` : '');
+    const url = `https://web.whatsapp.com/send?phone=${telCompleto}` + (testo ? `&text=${encodeURIComponent(testo)}` : '');
     window.open(url, '_blank');
     // Chiudi il popup dopo aver aperto WhatsApp
     setTimeout(() => onClose(), 500);
