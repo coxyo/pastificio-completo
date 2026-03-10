@@ -232,6 +232,20 @@ export async function restart() {
   return { success: true, message: 'Bot gira sul VPS: ssh root@89.167.119.31 → systemctl restart whatsapp-bot' };
 }
 
+// Annulla risposta automatica per un numero (operatore ha aperto il popup)
+export async function annullaRisposta(telefono) {
+  try {
+    const data = await callBot('/api/annulla-risposta', 'POST', { telefono });
+    if (data.annullati > 0) {
+      logger.info(`[POPUP] Timer bot annullato per ${telefono} - operatore gestisce`);
+    }
+    return data;
+  } catch (err) {
+    logger.warn(`Errore annullaRisposta: ${err.message}`);
+    return { success: false, error: err.message };
+  }
+}
+
 // Default export per compatibilità
 export default {
   initialize,
@@ -244,5 +258,6 @@ export default {
   generaMessaggioDaTemplate,
   testConnection,
   disconnect,
-  restart
+  restart,
+  annullaRisposta
 };
