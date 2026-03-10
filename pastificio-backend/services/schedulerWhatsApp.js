@@ -89,8 +89,7 @@ class SchedulerWhatsApp {
             
             const messaggio = `🔔 *Promemoria Ritiro*
 
-Gentile ${ordine.nomeCliente || 'Cliente'},
-le ricordiamo il suo ordine per domani ${domani.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })} alle ore ${ordine.oraRitiro || '10:00'}.
+Le ricordiamo il suo ordine per domani ${domani.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })} alle ore ${ordine.oraRitiro || '10:00'}.
 
 ${prodottiLista}${altriProdotti}
 
