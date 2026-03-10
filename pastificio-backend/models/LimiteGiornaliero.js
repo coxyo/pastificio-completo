@@ -1,4 +1,7 @@
-// models/LimiteGiornaliero.js - ✅ AGGIORNAMENTO 12/02/2026: Supporto fascia MATTINA/SERA
+// models/LimiteGiornaliero.js - ✅ AGGIORNAMENTO 10/03/2026: Bridge verso LimitePeriodo
+// STORIA MODIFICHE:
+//   12/02/2026 - Aggiunto supporto fascia MATTINA/SERA
+//   10/03/2026 - verificaOrdine ora verifica anche i limiti periodo (LimitePeriodo)
 import mongoose from 'mongoose';
 
 const limiteGiornalieroSchema = new mongoose.Schema({
@@ -17,7 +20,7 @@ const limiteGiornalieroSchema = new mongoose.Schema({
     index: true,
     sparse: true
   },
-  // ✅ NUOVO 12/02/2026: Fascia oraria
+  // Fascia oraria (giornaliero = tutto il giorno, mattina = 06:00-13:59, sera = 14:00-23:59)
   fascia: {
     type: String,
     enum: ['giornaliero', 'mattina', 'sera'],
@@ -55,7 +58,7 @@ const limiteGiornalieroSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// ✅ AGGIORNATO: Index composto con fascia per evitare duplicati
+// Index composto con fascia per evitare duplicati
 limiteGiornalieroSchema.index({ data: 1, prodotto: 1, fascia: 1 }, { unique: true, sparse: true });
 limiteGiornalieroSchema.index({ data: 1, categoria: 1, fascia: 1 }, { unique: true, sparse: true });
 
@@ -70,9 +73,31 @@ limiteGiornalieroSchema.pre('save', function(next) {
   }
 });
 
-// ✅ METODO STATICO: Verifica se ordine supera limiti
-// FIX 20/01/2026: Calcola totale ordini DINAMICAMENTE invece di usare quantitaOrdinata
-// FIX 12/02/2026: Supporto fascia mattina/sera
+// ────────────────────────────────────────────────────────
+// HELPER INTERNO
+// ────────────────────────────────────────────────────────
+const convertiInKg = (quantita, unita) => {
+  const qty = parseFloat(quantita) || 0;
+  const unit = (unita || 'Kg').toLowerCase();
+  if (unit === 'kg') return qty;
+  if (unit === 'g') return qty / 1000;
+  if (unit === 'pz' || unit === 'pezzi') return qty / 24;
+  if (unit === '€' || unit === 'euro') return qty / 21;
+  return qty;
+};
+
+// ────────────────────────────────────────────────────────
+// METODO STATICO: Verifica se ordine supera limiti
+// ✅ 10/03/2026: ora controlla ANCHE i limiti periodo
+//
+// Ritorna:
+// {
+//   ok: boolean,                    // false se c'è almeno un errore BLOCCANTE
+//   errori: [...],                  // superamenti (sia giornalieri che periodo)
+//   avvisi: [...],                  // avvisi soglia (solo periodo per ora)
+//   limiti: [...]                   // limiti giornalieri trovati (retrocompatibilità)
+// }
+// ────────────────────────────────────────────────────────
 limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prodotti, oraRitiro) {
   try {
     const data = new Date(dataRitiro);
@@ -81,10 +106,12 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
     const dataFine = new Date(data);
     dataFine.setDate(dataFine.getDate() + 1);
     
-    // ✅ Determina fascia dall'ora di ritiro
+    // Determina fascia dall'ora di ritiro
     const fasciaOrdine = (oraRitiro && oraRitiro >= '14:00') ? 'sera' : 'mattina';
     
-    // Trova tutti i limiti attivi per quella data (sia giornalieri che per fascia)
+    // ════════════════════════════════════════════════════
+    // PARTE 1: Verifica limiti GIORNALIERI (comportamento invariato)
+    // ════════════════════════════════════════════════════
     const limiti = await this.find({
       data,
       attivo: true,
@@ -94,40 +121,14 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
       ]
     });
     
-    if (limiti.length === 0) {
-      return {
-        ok: true,
-        errori: [],
-        limiti: []
-      };
-    }
-    
-    // ✅ FIX: Importa il model Ordine per calcolare totali dinamici
     const Ordine = mongoose.model('Ordine');
-    
     const errori = [];
     
-    // Raggruppa prodotti dell'ordine corrente
     const prodottiMap = {};
     const categorieMap = {};
     
-    // Helper per convertire in Kg
-    const convertiInKg = (quantita, unita) => {
-      const qty = parseFloat(quantita) || 0;
-      const unit = (unita || 'Kg').toLowerCase();
-      
-      if (unit === 'kg') return qty;
-      if (unit === 'g') return qty / 1000;
-      if (unit === 'pz' || unit === 'pezzi') return qty / 24;
-      if (unit === '€' || unit === 'euro') return qty / 21;
-      
-      return qty;
-    };
-    
     prodotti.forEach(p => {
-      if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti') {
-        return;
-      }
+      if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti') return;
       
       const nome = p.nome;
       const categoria = p.categoria || 'Altro';
@@ -137,18 +138,15 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
       categorieMap[categoria] = (categorieMap[categoria] || 0) + quantitaKg;
     });
     
-    // Verifica ogni limite
     for (const limite of limiti) {
       if (limite.prodotto) {
         const quantitaOrdineNuovo = prodottiMap[limite.prodotto] || 0;
         
-        // ✅ Calcola totale ordini ESISTENTI dinamicamente, filtrato per fascia
         let queryOrdini = {
           dataRitiro: { $gte: data, $lt: dataFine },
           'prodotti.nome': { $regex: new RegExp(`^${limite.prodotto}$`, 'i') }
         };
         
-        // ✅ NUOVO: Filtra ordini per fascia oraria
         if (limite.fascia === 'mattina') {
           queryOrdini.oraRitiro = { $lt: '14:00' };
         } else if (limite.fascia === 'sera') {
@@ -182,7 +180,8 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
             quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
             unitaMisura: limite.unitaMisura,
-            superato: true
+            superato: true,
+            bloccante: false  // Limiti giornalieri: si può forzare (comportamento invariato)
           });
         } else if (quantitaTotale >= limite.limiteQuantita * (limite.sogliAllerta / 100)) {
           errori.push({
@@ -194,12 +193,12 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
             quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
             unitaMisura: limite.unitaMisura,
-            superato: false
+            superato: false,
+            bloccante: false
           });
         }
       }
       
-      // Limite per categoria
       if (limite.categoria) {
         const quantitaOrdineNuovo = categorieMap[limite.categoria] || 0;
         const venditeDirette = limite.quantitaOrdinata || 0;
@@ -216,7 +215,8 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
             quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
             unitaMisura: limite.unitaMisura,
-            superato: true
+            superato: true,
+            bloccante: false
           });
         } else if (quantitaTotale >= limite.limiteQuantita * (limite.sogliAllerta / 100)) {
           errori.push({
@@ -228,15 +228,42 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
             quantitaDisponibile: Math.max(0, disponibile),
             limite: limite.limiteQuantita,
             unitaMisura: limite.unitaMisura,
-            superato: false
+            superato: false,
+            bloccante: false
           });
         }
       }
     }
+
+    // ════════════════════════════════════════════════════
+    // PARTE 2: Verifica limiti PERIODO (NUOVO 10/03/2026)
+    // Importazione lazy per evitare circular dependency
+    // ════════════════════════════════════════════════════
+    let erroriPeriodo = [];
+    let avvisiPeriodo = [];
+
+    try {
+      const LimitePeriodo = mongoose.model('LimitePeriodo');
+      const risultatoPeriodo = await LimitePeriodo.verificaOrdine(dataRitiro, prodotti, oraRitiro);
+      erroriPeriodo = risultatoPeriodo.errori || [];
+      avvisiPeriodo = risultatoPeriodo.avvisi || [];
+    } catch (periodoError) {
+      // LimitePeriodo non ancora registrato o errore → non bloccare
+      console.warn('[VERIFICA] LimitePeriodo non disponibile (non bloccante):', periodoError.message);
+    }
+
+    const tuttiErrori = [...errori, ...erroriPeriodo];
+    
+    // ok = false solo se c'è almeno un errore BLOCCANTE (periodo_totale)
+    // Errori giornalieri e fascia periodo: avvisano ma non bloccano (si può forzare)
+    const haBloccante = tuttiErrori.some(e => e.superato && e.bloccante);
+    const haSuperato = tuttiErrori.some(e => e.superato && !e.bloccante);
     
     return {
-      ok: errori.filter(e => e.superato).length === 0,
-      errori,
+      ok: !haBloccante && !haSuperato,  // false se c'è qualsiasi superamento
+      bloccante: haBloccante,           // true solo se limite totale periodo → non forzabile
+      errori: tuttiErrori,
+      avvisi: avvisiPeriodo,
       limiti
     };
     
@@ -246,7 +273,9 @@ limiteGiornalieroSchema.statics.verificaOrdine = async function(dataRitiro, prod
   }
 };
 
-// ✅ NUOVO: Aggiorna contatori DOPO salvataggio ordine
+// ────────────────────────────────────────────────────────
+// Aggiorna contatori DOPO salvataggio ordine (invariato)
+// ────────────────────────────────────────────────────────
 limiteGiornalieroSchema.statics.aggiornaDopoOrdine = async function(dataRitiro, prodotti) {
   try {
     const data = new Date(dataRitiro);
@@ -256,9 +285,7 @@ limiteGiornalieroSchema.statics.aggiornaDopoOrdine = async function(dataRitiro, 
     const categorieMap = {};
     
     prodotti.forEach(p => {
-      if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti') {
-        return;
-      }
+      if (p.unita === 'vassoio' || p.nome === 'Vassoio Dolci Misti') return;
       
       const nome = p.nome;
       const categoria = p.categoria || 'Altro';
@@ -266,15 +293,12 @@ limiteGiornalieroSchema.statics.aggiornaDopoOrdine = async function(dataRitiro, 
       const unita = p.unita || p.unitaMisura || 'Kg';
       
       let quantitaKg = quantita;
-      if (unita === 'g') {
-        quantitaKg = quantita / 1000;
-      }
+      if (unita === 'g') quantitaKg = quantita / 1000;
       
       prodottiMap[nome] = (prodottiMap[nome] || 0) + quantitaKg;
       categorieMap[categoria] = (categorieMap[categoria] || 0) + quantitaKg;
     });
     
-    // Aggiorna limiti per prodotto
     for (const [nome, quantita] of Object.entries(prodottiMap)) {
       await this.findOneAndUpdate(
         { data, prodotto: nome, attivo: true },
@@ -282,7 +306,6 @@ limiteGiornalieroSchema.statics.aggiornaDopoOrdine = async function(dataRitiro, 
       );
     }
     
-    // Aggiorna limiti per categoria
     for (const [categoria, quantita] of Object.entries(categorieMap)) {
       await this.findOneAndUpdate(
         { data, categoria, attivo: true },
@@ -299,5 +322,4 @@ limiteGiornalieroSchema.statics.aggiornaDopoOrdine = async function(dataRitiro, 
 };
 
 const LimiteGiornaliero = mongoose.model('LimiteGiornaliero', limiteGiornalieroSchema);
-
 export default LimiteGiornaliero;
