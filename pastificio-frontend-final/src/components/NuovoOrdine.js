@@ -59,7 +59,8 @@ import {
   CheckCircle as CheckIcon,
   CalendarToday as CalendarIcon,
   Replay as ReplayIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
 import { PRODOTTI_CONFIG } from '../config/prodottiConfig';
@@ -159,6 +160,7 @@ clienteIdPreselezionato,
     cognome: '',        // ✅ Campo cognome separato
     nomeCliente: '',    // Per backward compatibility
     telefono: '',
+    _ricercaCliente: '', // ✅ FIX 11/03/2026: Campo ricerca dropdown
     dataRitiro: new Date().toISOString().split('T')[0],
     oraRitiro: '',
     prodotti: [],
@@ -2701,10 +2703,185 @@ useEffect(() => {
                 <Typography variant="subtitle1" gutterBottom fontWeight="bold">
                   👤 Cliente
                 </Typography>
-                
+
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {/* Nome - Inline Autocomplete + Chip */}
-                  <Box sx={{ position: 'relative' }}>
+
+                  {/* ✅ FIX 11/03/2026: Campo ricerca unico con dropdown scrollabile */}
+                  {!formData.cliente ? (
+                    <Box sx={{ position: 'relative' }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Cerca cliente (nome, cognome, telefono)"
+                        placeholder="Es: Mario Rossi, Mameli, 3331234..."
+                        value={formData._ricercaCliente || ''}
+                        onChange={(e) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            _ricercaCliente: e.target.value,
+                            nome: e.target.value,
+                            cognome: '',
+                            nomeCliente: e.target.value,
+                            cliente: null
+                          }));
+                        }}
+                        autoFocus
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon fontSize="small" sx={{ color: '#aaa' }} />
+                            </InputAdornment>
+                          ),
+                          endAdornment: loadingClienti ? (
+                            <InputAdornment position="end">
+                              <CircularProgress size={16} />
+                            </InputAdornment>
+                          ) : null
+                        }}
+                      />
+
+                      {/* Dropdown risultati */}
+                      {(formData._ricercaCliente || '').length >= 2 && (() => {
+                        const input = (formData._ricercaCliente || '').toLowerCase().trim();
+                        const matches = clienti.filter(c => {
+                          const nome = (c.nome || '').toLowerCase();
+                          const cognome = (c.cognome || '').toLowerCase();
+                          const nomeCompleto = `${nome} ${cognome}`.trim();
+                          const nomeCompletoInv = `${cognome} ${nome}`.trim();
+                          const telefono = (c.telefono || '').replace(/\s/g, '');
+                          const inputNoSpazi = input.replace(/\s/g, '');
+                          return nomeCompleto.includes(input) ||
+                                 nomeCompletoInv.includes(input) ||
+                                 nome.includes(input) ||
+                                 cognome.includes(input) ||
+                                 telefono.includes(inputNoSpazi);
+                        }).sort((a, b) => {
+                          if (a.preferito && !b.preferito) return -1;
+                          if (!a.preferito && b.preferito) return 1;
+                          const cA = (a.cognome || a.nome || '').toLowerCase();
+                          const cB = (b.cognome || b.nome || '').toLowerCase();
+                          return cA.localeCompare(cB);
+                        });
+
+                        if (matches.length === 0) {
+                          return (
+                            <Paper elevation={4} sx={{
+                              position: 'absolute', zIndex: 1300, width: '100%', mt: 0.5,
+                              borderRadius: 1, border: '1px solid #e0e0e0'
+                            }}>
+                              <Box sx={{ p: 2, textAlign: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Nessun cliente trovato per "{formData._ricercaCliente}"
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Compila i campi sotto per un nuovo cliente
+                                </Typography>
+                              </Box>
+                            </Paper>
+                          );
+                        }
+
+                        return (
+                          <Paper elevation={4} sx={{
+                            position: 'absolute', zIndex: 1300, width: '100%', mt: 0.5,
+                            borderRadius: 1, border: '1px solid #e0e0e0',
+                            maxHeight: 320, overflowY: 'auto'
+                          }}>
+                            <Box sx={{ px: 1.5, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eee' }}>
+                              <Typography variant="caption" color="text.secondary">
+                                {matches.length} clienti trovati
+                              </Typography>
+                            </Box>
+                            {matches.map((c, idx) => (
+                              <Box
+                                key={c._id}
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    cliente: c,
+                                    nome: c.nome || '',
+                                    cognome: c.cognome || '',
+                                    nomeCliente: `${c.nome} ${c.cognome || ''}`.trim(),
+                                    telefono: prev.telefono || c.telefono || '',
+                                    _ricercaCliente: ''
+                                  }));
+                                  if (c._id) caricaUltimoOrdine(c._id);
+                                }}
+                                sx={{
+                                  px: 2, py: 1,
+                                  cursor: 'pointer',
+                                  borderBottom: idx < matches.length - 1 ? '1px solid #f0f0f0' : 'none',
+                                  '&:hover': { bgcolor: '#f0f7f0' },
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: 1
+                                }}
+                              >
+                                <Box>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {c.preferito ? '⭐ ' : ''}{c.nome} {c.cognome || ''}
+                                  </Typography>
+                                  {c.telefono && (
+                                    <Typography variant="caption" color="text.secondary">
+                                      📞 {c.telefono}
+                                    </Typography>
+                                  )}
+                                </Box>
+                                <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                                  {c.statistiche?.numeroOrdini > 0 && (
+                                    <Typography variant="caption" color="text.secondary">
+                                      {c.statistiche.numeroOrdini} ordini
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
+                            ))}
+                          </Paper>
+                        );
+                      })()}
+                    </Box>
+                  ) : (
+                    /* Cliente già selezionato - mostra chip verde con X per deselezionare */
+                    <Box sx={{
+                      display: 'flex', alignItems: 'center', gap: 1,
+                      p: 1, bgcolor: '#e8f5e9', borderRadius: 1,
+                      border: '1px solid #a5d6a7'
+                    }}>
+                      <PersonIcon sx={{ color: '#2e7d32', fontSize: 20 }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" fontWeight={700} color="#1b5e20">
+                          {formData.cliente.preferito ? '⭐ ' : ''}{formData.nome} {formData.cognome}
+                        </Typography>
+                        {formData.telefono && (
+                          <Typography variant="caption" color="#388e3c">
+                            📞 {formData.telefono}
+                          </Typography>
+                        )}
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          cliente: null,
+                          nome: '',
+                          cognome: '',
+                          nomeCliente: '',
+                          telefono: '',
+                          _ricercaCliente: ''
+                        }))}
+                        sx={{ color: '#c62828' }}
+                        title="Cambia cliente"
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  )}
+
+                  {/* Campi nome/cognome/telefono: visibili solo se cliente NON selezionato */}
+                  {!formData.cliente && (
+                    <>
+                      <Box sx={{ position: 'relative' }}>
                     <TextField
                       fullWidth
                       size="small"
@@ -3063,6 +3240,9 @@ useEffect(() => {
                     value={formData.telefono}
                     onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
                   />
+                </Box>
+              </>
+            )}
                 </Box>
               </Paper>
 
