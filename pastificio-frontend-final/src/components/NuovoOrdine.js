@@ -2728,9 +2728,27 @@ useEffect(() => {
 
                       {(formData._ricercaCliente || '').length >= 2 && (() => {
                         const input = (formData._ricercaCliente || '').toLowerCase().trim();
+                        if (clienti.length === 0) {
+                          return (
+                            <Paper elevation={4} sx={{
+                              position: 'absolute', zIndex: 1300, width: '100%', mt: 0.5,
+                              borderRadius: 1, border: '1px solid #e0e0e0'
+                            }}>
+                              <Box sx={{ p: 2, textAlign: 'center' }}>
+                                <CircularProgress size={16} sx={{ mr: 1 }} />
+                                <Typography variant="caption" color="text.secondary">
+                                  Caricamento clienti...
+                                </Typography>
+                              </Box>
+                            </Paper>
+                          );
+                        }
+
                         const matches = clienti.filter(c => {
                           const nome = (c.nome || '').toLowerCase();
                           const cognome = (c.cognome || '').toLowerCase();
+                          const nomeCliente = (c.nomeCliente || '').toLowerCase();
+                          // Tutte le combinazioni possibili di nome+cognome
                           const nomeCompleto = `${nome} ${cognome}`.trim();
                           const nomeCompletoInv = `${cognome} ${nome}`.trim();
                           const telefono = (c.telefono || '').replace(/\s/g, '');
@@ -2739,6 +2757,7 @@ useEffect(() => {
                                  nomeCompletoInv.includes(input) ||
                                  nome.includes(input) ||
                                  cognome.includes(input) ||
+                                 nomeCliente.includes(input) ||
                                  telefono.includes(inputNoSpazi);
                         }).sort((a, b) => {
                           if (a.preferito && !b.preferito) return -1;
