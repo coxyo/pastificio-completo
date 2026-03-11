@@ -3671,7 +3671,23 @@ return (
             }
             if (clearChiamata) clearChiamata();
           }}
-          onNuovoOrdine={(cliente, numero) => {
+          onApriOrdine={(ordineId) => {
+            console.log('📦 [GestoreOrdini] Apri ordine specifico da popup:', ordineId);
+            // Cerca l'ordine nello state locale
+            const ordine = ordini.find(o => o._id === ordineId);
+            if (ordine) {
+              setOrdineSelezionato(ordine);
+              setDialogoNuovoOrdineAperto(true);
+            } else {
+              // Se non è in lista (es. ordini futuri non caricati), filtra per cliente
+              const cognome = chiamataCorrente?.cliente?.cognome || '';
+              const telefono = chiamataCorrente?.cliente?.telefono || chiamataCorrente?.numero || '';
+              const telefonoPulito = telefono.replace(/^\+39/, '');
+              if (telefonoPulito || cognome) {
+                setRicercaCliente(telefonoPulito || cognome);
+              }
+            }
+          }}
             console.log('📞 [GestoreOrdini] onNuovoOrdine da CallPopup:', {
               cliente: cliente ? `${cliente.nome} ${cliente.cognome}` : 'sconosciuto',
               clienteId: cliente?._id,

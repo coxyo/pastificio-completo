@@ -37,18 +37,20 @@ import { it } from 'date-fns/locale';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
 
 /**
- * POPUP CHIAMATA IN ARRIVO - v3.1 FIX
+ * POPUP CHIAMATA IN ARRIVO - v3.2 FIX
  * 
  * ✅ FIX 27/02/2026: Riceve e usa onNuovoOrdine prop (non più localStorage)
  * ✅ FIX 27/02/2026: Ordini attivi filtrati per data futura
  * ✅ FIX 27/02/2026: Mostra dettaglio ordini nel popup
  * ✅ FIX 27/02/2026: Pulizia dati tra chiamate diverse
+ * ✅ FIX 11/03/2026: Click su ordine attivo → apre ordine specifico via onApriOrdine
  */
 function CallPopup({ 
   chiamata, 
   onClose, 
   onNuovoOrdine,       // ✅ FIX 27/02: Callback per nuovo ordine
   onVediOrdini,        // ✅ FIX 27/02: Callback per vedere ordini attivi
+  onApriOrdine,        // ✅ FIX 11/03: Callback per aprire ordine specifico
   onSaveNote, 
   isOpen = true 
 }) {
@@ -553,15 +555,30 @@ function CallPopup({
                   >
                     <Typography variant="body2" fontWeight="bold">
                       📦 {ordiniAttivi.length} ordine{ordiniAttivi.length !== 1 ? 'i' : ''} attivo{ordiniAttivi.length !== 1 ? 'i' : ''}
+                      {onApriOrdine && <Typography component="span" variant="caption" sx={{ ml: 1, opacity: 0.7 }}>(clicca per aprire)</Typography>}
                     </Typography>
                   </Alert>
                   
-                  {/* ✅ FIX 27/02/2026: Dettaglio ordini inline */}
+                  {/* ✅ FIX 11/03/2026: Dettaglio ordini inline con click per aprire */}
                   <List dense sx={{ bgcolor: 'rgba(46,123,0,0.05)', borderRadius: 1, py: 0, border: '1px solid rgba(46,123,0,0.12)' }}>
                     {ordiniAttivi.map((ordine, idx) => {
                       const preview = formatOrdinePreview(ordine);
                       return (
-                        <ListItem key={ordine._id || idx} sx={{ py: 0.5, px: 1.5 }}>
+                        <ListItem 
+                          key={ordine._id || idx} 
+                          sx={{ 
+                            py: 0.5, px: 1.5,
+                            cursor: onApriOrdine ? 'pointer' : 'default',
+                            '&:hover': onApriOrdine ? { bgcolor: 'rgba(46,123,0,0.12)' } : {}
+                          }}
+                          onClick={() => {
+                            if (onApriOrdine && ordine._id) {
+                              console.log('📦 [CallPopup] Click ordine attivo:', ordine._id);
+                              onApriOrdine(ordine._id);
+                              onClose();
+                            }
+                          }}
+                        >
                           <ListItemText
                             primary={
                               <Typography variant="body2" fontWeight="bold">

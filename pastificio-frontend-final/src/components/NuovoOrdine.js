@@ -848,11 +848,23 @@ useEffect(() => {
     }
   }, [isConnected]);
 
-  const caricaClienti = async () => {
+  // ✅ FIX 11/03/2026: Forza refresh clienti quando si apre il form
+  // Evita che la cache stantia nasconda clienti nuovi o aggiornati
+  useEffect(() => {
+    if (open && isConnected) {
+      // Invalida cache clienti ad ogni apertura del form
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('clienti_cache_time');
+      }
+      caricaClienti();
+    }
+  }, [open]);
+
+  const caricaClienti = async (forceRefresh = false) => {
     const cacheTime = localStorage.getItem('clienti_cache_time');
     const now = Date.now();
     
-    if (cacheTime && (now - parseInt(cacheTime)) < CACHE_DURATION) {
+    if (!forceRefresh && cacheTime && (now - parseInt(cacheTime)) < CACHE_DURATION) {
       const cached = localStorage.getItem('clienti_cache');
       if (cached) {
         try {

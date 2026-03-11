@@ -50,7 +50,7 @@ import { alpha } from '@mui/material/styles';
 import { BRAND } from '@/theme/theme';
 import useIncomingCall from '@/hooks/useIncomingCall';
 import useWhatsAppMessage from '@/hooks/useWhatsAppMessage';
-import CallPopup from '@/components/CallPopup';
+// ✅ FIX 11/03/2026: CallPopup rimosso da ClientLayout (ora solo in GestoreOrdini)
 import WhatsAppPopup from '@/components/WhatsAppPopup';
 import NotificaFatture from '@/components/NotificaFatture';
 import dispositivoService from '@/services/dispositivoService';
@@ -438,13 +438,10 @@ export default function ClientLayout({ children }) {
         {children}
       </Box>
 
-      {mounted && chiamataCorrente && dispositivoService.isNotificaAbilitata('chiamate3cx') && (
-        <CallPopup
-          chiamata={chiamataCorrente}
-          onClose={clearChiamata}
-          onSaveNote={handleSaveNote}
-        />
-      )}
+      {/* ✅ FIX 11/03/2026: CallPopup RIMOSSO da ClientLayout.
+          Il CallPopup completo (con onNuovoOrdine + onVediOrdini) è in GestoreOrdini.js.
+          Avere due popup causava: dati residui in NuovoOrdine, fallback su localStorage,
+          e dati sbagliati tra chiamate consecutive. */}
 
       {mounted && <NotificaFatture />}
 
