@@ -3243,7 +3243,8 @@ useEffect(() => {
                 </Box>
               </>
             )}
-                </Box>
+
+              </Box>
               </Paper>
 
               {/* ========== ULTIMO ORDINE (RIPETI) ========== */}
