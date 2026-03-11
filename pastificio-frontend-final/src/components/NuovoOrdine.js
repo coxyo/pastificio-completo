@@ -851,11 +851,25 @@ useEffect(() => {
     }
   }, [isConnected]);
 
-  const caricaClienti = async () => {
+  // ✅ FIX 11/03/2026: Forza refresh COMPLETO all'apertura del form
+  useEffect(() => {
+    if (open && isConnected) {
+      setClienti([]); // Svuota state → mostra spinner invece di risultati vecchi
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('clienti_cache_time');
+        localStorage.removeItem('clienti_cache');
+      }
+      clientiCache = null;
+      clientiCacheTime = null;
+      caricaClienti(true);
+    }
+  }, [open]);
+
+  const caricaClienti = async (forceRefresh = false) => {
     const cacheTime = localStorage.getItem('clienti_cache_time');
     const now = Date.now();
     
-    if (cacheTime && (now - parseInt(cacheTime)) < CACHE_DURATION) {
+    if (!forceRefresh && cacheTime && (now - parseInt(cacheTime)) < CACHE_DURATION) {
       const cached = localStorage.getItem('clienti_cache');
       if (cached) {
         try {
