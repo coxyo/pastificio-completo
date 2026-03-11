@@ -529,6 +529,14 @@ router.post('/', async (req, res, next) => {
             const qty = p.quantita || '';
             const unita = p.unitaMisura || p.unita || '';
             const prezzo = p.prezzo ? ` - €${Number(p.prezzo).toFixed(2)}` : '';
+            // Se è un vassoio dolci misti con composizione dettagliata, mostrala
+            const dettagli = p.dettagliCalcolo?.dettagli || p.dettagliCalcolo?.composizione;
+            if (dettagli && nome.toLowerCase().includes('vassoio')) {
+              const dettagliStr = typeof dettagli === 'string'
+                ? dettagli
+                : dettagli.map(d => `${d.nome || d.prodotto}: ${d.quantita || ''} ${d.unita || ''}`.trim()).join(', ');
+              return `• ${nome}${prezzo}\n  (${dettagliStr})`;
+            }
             return `• ${nome}: ${qty} ${unita}${prezzo}`;
           })
           .join('\n');
