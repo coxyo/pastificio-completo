@@ -5,7 +5,13 @@ import chiusureController from '../controllers/chiusureController.js';
 
 const router = express.Router();
 
-// Tutte le route richiedono autenticazione
+// ── Route PUBBLICA per il bot WhatsApp (senza autenticazione) ─────────────
+
+// GET /api/chiusure/bot?data=YYYY-MM-DD
+// Ritorna se una data è giorno di chiusura (usato dal bot VPS)
+router.get('/bot', chiusureController.verificaChiusura);
+
+// Tutte le altre route richiedono autenticazione
 router.use(protect);
 
 // ── Lettura (tutti gli utenti autenticati) ──────────────────────────────────
