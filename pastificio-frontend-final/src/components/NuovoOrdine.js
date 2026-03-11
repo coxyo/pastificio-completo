@@ -2725,7 +2725,6 @@ useEffect(() => {
                             cliente: null
                           }));
                         }}
-                        autoFocus
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
