@@ -60,7 +60,8 @@ import {
   CalendarToday as CalendarIcon,
   Replay as ReplayIcon,
   History as HistoryIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { calcolaPrezzoOrdine, formattaPrezzo } from '../utils/calcoliPrezzi';
 import { PRODOTTI_CONFIG } from '../config/prodottiConfig';
@@ -160,7 +161,7 @@ clienteIdPreselezionato,
     cognome: '',        // ✅ Campo cognome separato
     nomeCliente: '',    // Per backward compatibility
     telefono: '',
-    _ricercaCliente: '', // ✅ FIX 11/03/2026: Campo ricerca dropdown
+    _ricercaCliente: '', // ✅ 11/03/2026: Campo ricerca dropdown
     dataRitiro: new Date().toISOString().split('T')[0],
     oraRitiro: '',
     prodotti: [],
@@ -850,26 +851,11 @@ useEffect(() => {
     }
   }, [isConnected]);
 
-  // ✅ FIX 11/03/2026: Forza refresh clienti quando si apre il form
-  // Evita che la cache stantia (module-level o localStorage) nasconda clienti nuovi
-  useEffect(() => {
-    if (open && isConnected) {
-      // Invalida ENTRAMBE le cache (localStorage + module-level)
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('clienti_cache_time');
-        localStorage.removeItem('clienti_cache');
-      }
-      clientiCache = null;
-      clientiCacheTime = null;
-      caricaClienti(true); // forceRefresh = true
-    }
-  }, [open]);
-
-  const caricaClienti = async (forceRefresh = false) => {
+  const caricaClienti = async () => {
     const cacheTime = localStorage.getItem('clienti_cache_time');
     const now = Date.now();
     
-    if (!forceRefresh && cacheTime && (now - parseInt(cacheTime)) < CACHE_DURATION) {
+    if (cacheTime && (now - parseInt(cacheTime)) < CACHE_DURATION) {
       const cached = localStorage.getItem('clienti_cache');
       if (cached) {
         try {
@@ -891,7 +877,7 @@ useEffect(() => {
       
       const token = localStorage.getItem('token') || 'dev-token-123';
 
-      const response = await fetch(`${API_URL}/clienti?attivo=true${forceRefresh ? '&noCache=true' : ''}`, {
+      const response = await fetch(`${API_URL}/clienti?attivo=true`, {
         headers: { 
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
@@ -2706,7 +2692,7 @@ useEffect(() => {
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
 
-                  {/* ✅ FIX 11/03/2026: Campo ricerca unico con dropdown scrollabile */}
+                  {/* ✅ 11/03/2026: Ricerca cliente con dropdown scrollabile */}
                   {!formData.cliente ? (
                     <Box sx={{ position: 'relative' }}>
                       <TextField
@@ -2740,7 +2726,6 @@ useEffect(() => {
                         }}
                       />
 
-                      {/* Dropdown risultati */}
                       {(formData._ricercaCliente || '').length >= 2 && (() => {
                         const input = (formData._ricercaCliente || '').toLowerCase().trim();
                         const matches = clienti.filter(c => {
@@ -2842,7 +2827,6 @@ useEffect(() => {
                       })()}
                     </Box>
                   ) : (
-                    /* Cliente già selezionato - mostra chip verde con X per deselezionare */
                     <Box sx={{
                       display: 'flex', alignItems: 'center', gap: 1,
                       p: 1, bgcolor: '#e8f5e9', borderRadius: 1,
@@ -2878,375 +2862,44 @@ useEffect(() => {
                     </Box>
                   )}
 
-                  {/* Campi nome/cognome/telefono: visibili solo se cliente NON selezionato */}
                   {!formData.cliente && (
-                    <>
-                      <Box sx={{ position: 'relative' }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Nome *"
-                      placeholder="Cerca cliente..."
-                      value={formData.nome}
-                      onChange={(e) => {
-                        const val = capitalizeFirst(e.target.value);
-                        setFormData(prev => ({
-                          ...prev,
-                          nome: val,
-                          nomeCliente: `${val} ${prev.cognome || ''}`.trim(),
-                          cliente: null
-                        }));
-                      }}
-                      onKeyDown={(e) => {
-                        // Tab o Freccia Destra → accetta suggerimento inline
-                        if ((e.key === 'Tab' || e.key === 'ArrowRight') && formData.nome.length >= 2) {
-                          const input = formData.nome.toLowerCase().trim();
-                          const match = clienti.find(c => {
-                            const nome = (c.nome || '').toLowerCase();
-                            return nome.startsWith(input) && nome !== input;
-                          });
-                          if (match) {
-                            e.preventDefault();
-                            setFormData(prev => ({
-                              ...prev,
-                              cliente: match,
-                              nome: match.nome || '',
-                              cognome: match.cognome || '',
-                              nomeCliente: `${match.nome} ${match.cognome || ''}`.trim(),
-                              telefono: prev.telefono || match.telefono || ''
-                            }));
-                            // ✅ NUOVO 27/02/2026: Carica ultimo ordine
-                            if (match._id) caricaUltimoOrdine(match._id);
-                            setTimeout(() => {
-                              const cognomeField = document.getElementById('campo-cognome');
-                              if (cognomeField) cognomeField.focus();
-                            }, 50);
-                          }
-                        }
-                      }}
-                      InputProps={{
-                        endAdornment: (() => {
-                          // Mostra suggerimento inline in grigio
-                          if (formData.nome.length >= 2 && !formData.cliente) {
-                            const input = formData.nome.toLowerCase().trim();
-                            const match = clienti.find(c => {
-                              const nome = (c.nome || '').toLowerCase();
-                              return nome.startsWith(input) && nome !== input;
-                            });
-                            if (match) {
-                              return (
-                                <InputAdornment position="end">
-                                  <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                      color: '#999', 
-                                      fontSize: '0.85rem',
-                                      whiteSpace: 'nowrap',
-                                      pointerEvents: 'none'
-                                    }}
-                                  >
-                                    → {match.nome} {match.cognome || ''}
-                                  </Typography>
-                                </InputAdornment>
-                              );
-                            }
-                          }
-                          return null;
-                        })()
-                      }}
-                    />
-                  </Box>
-
-                  {/* ⭐ PREFERITI QUICK-ACCESS - Mostra quando campo nome vuoto */}
-                  {formData.nome.length < 2 && !formData.cliente && (() => {
-                    const preferiti = clienti.filter(c => c.preferito);
-                    if (preferiti.length === 0) return null;
-                    return (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: -0.5, mb: 0.5 }}>
-                        <Typography variant="caption" color="textSecondary" sx={{ width: '100%', mb: 0.25 }}>
-                          ⭐ Preferiti:
-                        </Typography>
-                        {preferiti.slice(0, 8).map((cliente) => (
-                          <Chip
-                            key={cliente._id}
-                            label={`⭐ ${cliente.nome} ${cliente.cognome || ''} ${cliente.statistiche?.numeroOrdini ? '(' + cliente.statistiche.numeroOrdini + ')' : ''}`}
-                            size="small"
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                cliente: cliente,
-                                nome: cliente.nome || '',
-                                cognome: cliente.cognome || '',
-                                nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
-                                telefono: prev.telefono || cliente.telefono || ''
-                              }));
-                              if (cliente._id) caricaUltimoOrdine(cliente._id);
-                            }}
-                            sx={{
-                              cursor: 'pointer',
-                              bgcolor: '#FFF8E1',
-                              border: '1px solid #FFB74D',
-                              fontWeight: 600,
-                              fontSize: '0.8rem',
-                              height: 36,
-                              '&:hover': { bgcolor: '#FFE0B2' },
-                              '&:active': { transform: 'scale(0.95)' }
-                            }}
-                          />
-                        ))}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Nome *"
+                          value={formData.nome}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            nome: capitalizeFirst(e.target.value),
+                            nomeCliente: `${capitalizeFirst(e.target.value)} ${prev.cognome || ''}`.trim()
+                          }))}
+                        />
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Cognome"
+                          value={formData.cognome}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            cognome: capitalizeFirst(e.target.value),
+                            nomeCliente: `${prev.nome || ''} ${capitalizeFirst(e.target.value)}`.trim()
+                          }))}
+                        />
                       </Box>
-                    );
-                  })()}
-
-                  {/* Chip suggerimenti clienti - appaiono sotto il campo nome */}
-                  {formData.nome.length >= 2 && !formData.cliente && (() => {
-                    const input = formData.nome.toLowerCase().trim();
-                    const matches = clienti.filter(c => {
-                      const nome = (c.nome || '').toLowerCase();
-                      const cognome = (c.cognome || '').toLowerCase();
-                      const nomeCompleto = `${nome} ${cognome}`;
-                      const telefono = (c.telefono || '').toLowerCase();
-                      return nome.includes(input) || cognome.includes(input) || 
-                             nomeCompleto.includes(input) || telefono.includes(input);
-                    })
-                    // ⭐ Preferiti prima
-                    .sort((a, b) => {
-                      if (a.preferito && !b.preferito) return -1;
-                      if (!a.preferito && b.preferito) return 1;
-                      return 0;
-                    })
-                    .slice(0, 6);
-                    
-                    if (matches.length === 0) return null;
-                    
-                    return (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        flexWrap: 'wrap', 
-                        gap: 0.5, 
-                        mt: -0.5,
-                        mb: 0.5
-                      }}>
-                        {matches.map((cliente) => (
-                          <Chip
-                            key={cliente._id}
-                            label={`${cliente.preferito ? '⭐ ' : ''}${cliente.nome} ${cliente.cognome || ''} ${cliente.telefono ? '📞' + cliente.telefono.slice(-4) : ''}${cliente.statistiche?.numeroOrdini ? ' (' + cliente.statistiche.numeroOrdini + ')' : ''}`}
-                            size="small"
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                cliente: cliente,
-                                nome: cliente.nome || '',
-                                cognome: cliente.cognome || '',
-                                nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
-                                telefono: prev.telefono || cliente.telefono || ''
-                              }));
-                              // ✅ NUOVO 27/02/2026: Carica ultimo ordine
-                              if (cliente._id) caricaUltimoOrdine(cliente._id);
-                              setTimeout(() => {
-                                const cognomeField = document.getElementById('campo-cognome');
-                                if (cognomeField) cognomeField.focus();
-                              }, 50);
-                            }}
-                            sx={{
-                              cursor: 'pointer',
-                              bgcolor: cliente.preferito ? '#FFF8E1' : '#e3f2fd',
-                              border: cliente.preferito ? '1px solid #FFB74D' : '1px solid #90caf9',
-                              fontWeight: cliente.preferito ? 600 : 500,
-                              fontSize: '0.8rem',
-                              height: 36,
-                              '&:hover': { bgcolor: cliente.preferito ? '#FFE0B2' : '#bbdefb' },
-                              '&:active': { bgcolor: '#90caf9', transform: 'scale(0.95)' }
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    );
-                  })()}
-
-                  {/* Cliente selezionato - conferma visiva */}
-                  {formData.cliente && (
-                    <Chip
-                      label={`✅ ${formData.cliente.nome} ${formData.cliente.cognome || ''} ${formData.cliente.telefono ? '- 📞' + formData.cliente.telefono : ''}`}
-                      onDelete={() => {
-                        setFormData(prev => ({
-                          ...prev,
-                          cliente: null,
-                          nome: '',
-                          cognome: '',
-                          telefono: '',
-                          nomeCliente: ''
-                        }));
-                        // ✅ NUOVO 27/02/2026: Reset ultimo ordine
-                        setUltimoOrdine(null);
-                        setAltriOrdini([]);
-                        setMostraAltriOrdini(false);
-                        setOrdineRipetuto(false);
-                      }}
-                      size="small"
-                      sx={{
-                        bgcolor: '#c8e6c9',
-                        border: '1px solid #66bb6a',
-                        fontWeight: 'bold',
-                        fontSize: '0.8rem',
-                        height: 32,
-                        mt: -0.5
-                      }}
-                    />
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Telefono"
+                        value={formData.telefono}
+                        onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
+                      />
+                    </Box>
                   )}
-                  
-                  {/* Cognome - con inline suggestion + chip */}
-                  <Box sx={{ position: 'relative' }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      id="campo-cognome"
-                      label="Cognome"
-                      placeholder="Cerca per cognome..."
-                      value={formData.cognome}
-                      onChange={(e) => {
-                        const val = capitalizeFirst(e.target.value);
-                        setFormData(prev => ({
-                          ...prev,
-                          cognome: val,
-                          nomeCliente: `${prev.nome || ''} ${val}`.trim(),
-                          cliente: null
-                        }));
-                      }}
-                      onKeyDown={(e) => {
-                        if ((e.key === 'Tab' || e.key === 'ArrowRight') && formData.cognome.length >= 2) {
-                          const input = formData.cognome.toLowerCase().trim();
-                          const match = clienti.find(c => {
-                            const cognome = (c.cognome || '').toLowerCase();
-                            return cognome.startsWith(input) && cognome !== input;
-                          });
-                          if (match) {
-                            e.preventDefault();
-                            setFormData(prev => ({
-                              ...prev,
-                              cliente: match,
-                              nome: match.nome || '',
-                              cognome: match.cognome || '',
-                              nomeCliente: `${match.nome} ${match.cognome || ''}`.trim(),
-                              telefono: prev.telefono || match.telefono || ''
-                            }));
-                            // ✅ NUOVO 27/02/2026: Carica ultimo ordine
-                            if (match._id) caricaUltimoOrdine(match._id);
-                          }
-                        }
-                      }}
-                      InputProps={{
-                        endAdornment: (() => {
-                          if (formData.cognome.length >= 2 && !formData.cliente) {
-                            const input = formData.cognome.toLowerCase().trim();
-                            const match = clienti.find(c => {
-                              const cognome = (c.cognome || '').toLowerCase();
-                              return cognome.startsWith(input) && cognome !== input;
-                            });
-                            if (match) {
-                              return (
-                                <InputAdornment position="end">
-                                  <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                      color: '#999', 
-                                      fontSize: '0.78rem',
-                                      whiteSpace: 'nowrap',
-                                      pointerEvents: 'none'
-                                    }}
-                                  >
-                                    Tab→ {match.nome} {match.cognome || ''}
-                                  </Typography>
-                                </InputAdornment>
-                              );
-                            }
-                          }
-                          return null;
-                        })()
-                      }}
-                    />
-                  </Box>
 
-                  {/* Chip suggerimenti per cognome */}
-                  {formData.cognome.length >= 2 && !formData.cliente && (() => {
-                    const input = formData.cognome.toLowerCase().trim();
-                    const matches = clienti.filter(c => {
-                      const cognome = (c.cognome || '').toLowerCase();
-                      const nome = (c.nome || '').toLowerCase();
-                      const nomeCompleto = `${nome} ${cognome}`.toLowerCase();
-                      // ✅ FIX 11/03/2026: cerca su cognome, nome, nomeCompleto e telefono
-                      const telefono = (c.telefono || '').toLowerCase();
-                      return cognome.includes(input) || nomeCompleto.includes(input) || 
-                             nome.includes(input) || telefono.includes(input);
-                    })
-                    // ✅ FIX 11/03/2026: preferiti prima, poi alfabetico per cognome
-                    .sort((a, b) => {
-                      if (a.preferito && !b.preferito) return -1;
-                      if (!a.preferito && b.preferito) return 1;
-                      const cA = (a.cognome || a.nome || '').toLowerCase();
-                      const cB = (b.cognome || b.nome || '').toLowerCase();
-                      return cA.localeCompare(cB);
-                    })
-                    .slice(0, 8); // ✅ FIX 11/03/2026: era 4, ora 8
-                    
-                    if (matches.length === 0) return null;
-                    
-                    return (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        flexWrap: 'wrap', 
-                        gap: 0.5, 
-                        mt: -0.5,
-                        mb: 0.5
-                      }}>
-                        {matches.map((cliente) => (
-                          <Chip
-                            key={cliente._id}
-                            label={`${cliente.nome} ${cliente.cognome || ''} ${cliente.telefono ? '📞' + cliente.telefono.slice(-4) : ''}`}
-                            size="small"
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                cliente: cliente,
-                                nome: cliente.nome || '',
-                                cognome: cliente.cognome || '',
-                                nomeCliente: `${cliente.nome} ${cliente.cognome || ''}`.trim(),
-                                telefono: prev.telefono || cliente.telefono || ''
-                              }));
-                              // ✅ NUOVO 27/02/2026: Carica ultimo ordine
-                              if (cliente._id) caricaUltimoOrdine(cliente._id);
-                            }}
-                            sx={{
-                              cursor: 'pointer',
-                              bgcolor: '#e3f2fd',
-                              border: '1px solid #90caf9',
-                              fontWeight: 500,
-                              fontSize: '0.8rem',
-                              height: 36,
-                              '&:hover': { bgcolor: '#bbdefb' },
-                              '&:active': { bgcolor: '#90caf9', transform: 'scale(0.95)' }
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    );
-                  })()}
-                  
-                  {/* Telefono */}
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Telefono"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
-                  />
                 </Box>
-              </>
-            )}
-
-              </Box>
               </Paper>
-
               {/* ========== ULTIMO ORDINE (RIPETI) ========== */}
               {/* ✅ NUOVO 27/02/2026: Mostra box ultimo ordine quando cliente selezionato */}
               {formData.cliente && !ordineIniziale && !ordineRipetuto && (ultimoOrdine || loadingUltimoOrdine) && (
