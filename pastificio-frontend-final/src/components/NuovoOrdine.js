@@ -849,14 +849,17 @@ useEffect(() => {
   }, [isConnected]);
 
   // ✅ FIX 11/03/2026: Forza refresh clienti quando si apre il form
-  // Evita che la cache stantia nasconda clienti nuovi o aggiornati
+  // Evita che la cache stantia (module-level o localStorage) nasconda clienti nuovi
   useEffect(() => {
     if (open && isConnected) {
-      // Invalida cache clienti ad ogni apertura del form
+      // Invalida ENTRAMBE le cache (localStorage + module-level)
       if (typeof window !== 'undefined') {
         localStorage.removeItem('clienti_cache_time');
+        localStorage.removeItem('clienti_cache');
       }
-      caricaClienti();
+      clientiCache = null;
+      clientiCacheTime = null;
+      caricaClienti(true); // forceRefresh = true
     }
   }, [open]);
 
@@ -886,7 +889,7 @@ useEffect(() => {
       
       const token = localStorage.getItem('token') || 'dev-token-123';
 
-      const response = await fetch(`${API_URL}/clienti?attivo=true`, {
+      const response = await fetch(`${API_URL}/clienti?attivo=true${forceRefresh ? '&noCache=true' : ''}`, {
         headers: { 
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
