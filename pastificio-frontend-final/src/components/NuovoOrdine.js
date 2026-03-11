@@ -2970,12 +2970,12 @@ useEffect(() => {
                                     variant="body2" 
                                     sx={{ 
                                       color: '#999', 
-                                      fontSize: '0.85rem',
+                                      fontSize: '0.78rem',
                                       whiteSpace: 'nowrap',
                                       pointerEvents: 'none'
                                     }}
                                   >
-                                    → {match.nome} {match.cognome || ''}
+                                    Tab→ {match.nome} {match.cognome || ''}
                                   </Typography>
                                 </InputAdornment>
                               );
@@ -2992,9 +2992,22 @@ useEffect(() => {
                     const input = formData.cognome.toLowerCase().trim();
                     const matches = clienti.filter(c => {
                       const cognome = (c.cognome || '').toLowerCase();
-                      const nomeCompleto = `${(c.nome || '')} ${cognome}`.toLowerCase();
-                      return cognome.includes(input) || nomeCompleto.includes(input);
-                    }).slice(0, 4);
+                      const nome = (c.nome || '').toLowerCase();
+                      const nomeCompleto = `${nome} ${cognome}`.toLowerCase();
+                      // ✅ FIX 11/03/2026: cerca su cognome, nome, nomeCompleto e telefono
+                      const telefono = (c.telefono || '').toLowerCase();
+                      return cognome.includes(input) || nomeCompleto.includes(input) || 
+                             nome.includes(input) || telefono.includes(input);
+                    })
+                    // ✅ FIX 11/03/2026: preferiti prima, poi alfabetico per cognome
+                    .sort((a, b) => {
+                      if (a.preferito && !b.preferito) return -1;
+                      if (!a.preferito && b.preferito) return 1;
+                      const cA = (a.cognome || a.nome || '').toLowerCase();
+                      const cB = (b.cognome || b.nome || '').toLowerCase();
+                      return cA.localeCompare(cB);
+                    })
+                    .slice(0, 8); // ✅ FIX 11/03/2026: era 4, ora 8
                     
                     if (matches.length === 0) return null;
                     
