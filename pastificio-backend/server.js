@@ -83,7 +83,8 @@ import alertsRoutes from './routes/alerts.js';           // ✅ NUOVO - Alert au
 import chiusureRoutes from './routes/chiusure.js';       // ✅ NUOVO - Calendario chiusure
 import alertsChecker from './jobs/alertsChecker.js';     // ✅ NUOVO - Cron jobs alert
 import pushRoutes from './routes/push.js';               // ✅ NUOVO - Web Push Notifications
-import firebasePushService from './services/firebasePushService.js'; // ✅ Firebase Push Service
+import firebasePushService from './services/firebasePushService.js'; 
+import limitiPeriodoRoutes from './routes/limiti-periodo.js';// ✅ Firebase Push Service
 // ✅ NUOVO - Rintracciabilità ingredienti
 
 
@@ -446,7 +447,7 @@ app.use('/api/alerts', alertsRoutes);                    // ✅ NUOVO - Alert au
 app.use('/api/chiusure', chiusureRoutes);                // ✅ NUOVO - Calendario chiusure
 app.use('/api/push', pushRoutes);                        // ✅ NUOVO - Web Push Notifications
 app.use('/api/whatsapp-bot', whatsappBotRoutes);
-
+app.use('/api/limiti-periodo', limitiPeriodoRoutes);
 
 // Route Danea
 
