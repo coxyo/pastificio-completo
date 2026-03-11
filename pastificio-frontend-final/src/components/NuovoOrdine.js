@@ -877,7 +877,7 @@ useEffect(() => {
       
       const token = localStorage.getItem('token') || 'dev-token-123';
 
-      const response = await fetch(`${API_URL}/clienti?attivo=true`, {
+      const response = await fetch(`${API_URL}/clienti?attivo=true&limit=500${forceRefresh ? '&noCache=true' : ''}`, {
         headers: { 
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
@@ -2793,7 +2793,7 @@ useEffect(() => {
                           }}>
                             <Box sx={{ px: 1.5, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eee' }}>
                               <Typography variant="caption" color="text.secondary">
-                                {matches.length} clienti trovati
+                                {matches.length} trovati su {clienti.length} totali
                               </Typography>
                             </Box>
                             {matches.map((c, idx) => (
