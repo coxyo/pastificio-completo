@@ -495,15 +495,26 @@ router.post('/', async (req, res, next) => {
     // ✅ Prepara dati ordine (RIMUOVI forceOverride prima di salvare)
     const { forceOverride, ...ordineDataPulito } = ordineData;
     
+    // ✅ FIX 12/03/2026: Mappa campi piatti frontend -> opzioniExtra schema Mongoose
+    // Il frontend manda ricordaEtichetta/confezioneRegalo (campi piatti)
+    // Il modello Ordine li salva in opzioniExtra.etichettaIngredienti/confezionGift
+    const { ricordaEtichetta, confezioneRegalo, ...ordineDataSenzaFlat } = ordineDataPulito;
+    const { forceOverride: _fo, ...ordineDataFinale } = ordineDataSenzaFlat;
+
     const nuovoOrdineData = {
-      ...ordineDataPulito,
+      ...ordineDataFinale,
       prodotti: prodottiConPrezzi, // ✅ USA PRODOTTI CON PREZZI CALCOLATI
       cliente: clienteId,
       numeroOrdine: `ORD${Date.now().toString().slice(-8)}`,
       stato: ordineData.stato || 'nuovo',
       totale: totaleFinale, // ✅ USA TOTALE CALCOLATO
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      opzioniExtra: {
+        daViaggio: ordineData.daViaggio || false,
+        etichettaIngredienti: ricordaEtichetta || false,
+        confezionGift: confezioneRegalo || false
+      }
     };
     
     // Crea ordine
@@ -554,12 +565,12 @@ ${prodottiLista}
 ${nuovoOrdine.note ? `\n📝 Note: ${nuovoOrdine.note}` : ''}
 ${(() => {
           const extra = [];
-          if (nuovoOrdine.daViaggio) extra.push('✈️ Da viaggio (sottovuoto)');
-          if (nuovoOrdine.ricordaEtichetta) extra.push('⚠️ Etichetta ingredienti da applicare');
-          if (nuovoOrdine.confezioneRegalo) extra.push('🎁 Confezione regalo');
+          if (nuovoOrdine.daViaggio || nuovoOrdine.opzioniExtra?.daViaggio) extra.push('✈️ Da viaggio (sottovuoto)');
+          if (nuovoOrdine.opzioniExtra?.etichettaIngredienti) extra.push('⚠️ Etichetta ingredienti da applicare');
+          if (nuovoOrdine.opzioniExtra?.confezionGift) extra.push('🎁 Confezione regalo');
           if (nuovoOrdine.pagato) extra.push('💰 Già pagato');
           if (nuovoOrdine.acconto && !nuovoOrdine.pagato) extra.push(nuovoOrdine.importoAcconto ? `💳 Acconto versato: €${Number(nuovoOrdine.importoAcconto).toFixed(2)}` : '💳 Acconto versato');
-          return extra.length > 0 ? `\nℹ️ *Note:* ${extra.join(' | ')}` : '';
+          return extra.length > 0 ? `\nℹ️ *Opzioni:* ${extra.join(' | ')}` : '';
         })()}
 
 📍 Via Carmine 20/B, Assemini
@@ -717,7 +728,8 @@ router.put('/:id', async (req, res) => {
     }
     
     // ✅ Rimuovi forceOverride prima di salvare
-    const { forceOverride, ...ordineDataPulito } = ordineData;
+    // ✅ FIX 12/03/2026: Mappa campi piatti frontend -> opzioniExtra schema Mongoose
+    const { forceOverride, ricordaEtichetta, confezioneRegalo, ...ordineDataPulito } = ordineData;
     
     const ordineAggiornato = await Ordine.findByIdAndUpdate(
       req.params.id,
@@ -726,7 +738,12 @@ router.put('/:id', async (req, res) => {
         prodotti: prodottiFinali,
         totale: totaleFinale,
         cliente: clienteId,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        opzioniExtra: {
+          daViaggio: ordineData.daViaggio || false,
+          etichettaIngredienti: ricordaEtichetta || false,
+          confezionGift: confezioneRegalo || false
+        }
       },
       { new: true, runValidators: true }
     ).populate('cliente', 'nome cognome telefono email codiceCliente');
