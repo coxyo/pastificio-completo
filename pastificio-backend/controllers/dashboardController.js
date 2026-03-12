@@ -80,19 +80,14 @@ const dashboardController = {
       const { data } = req.query;
       if (!data) return res.status(400).json({ error: 'Parametro data richiesto (YYYY-MM-DD)' });
 
-      // Cerca ordini per data - triplice copertura per tutti i formati storici
-      // 1) Stringa "2026-04-04" o "2026-04-04T..."
-      // 2) Date UTC+1 (Europe/Rome)
-      // 3) Date UTC puro
-      const inizioITA = new Date(data + 'T00:00:00+02:00');
-      const fineITA   = new Date(data + 'T23:59:59+02:00');
+      // dataRitiro è campo Date in MongoDB → solo range $gte/$lte, NO $regex
+      // Range copre l'intera giornata italiana (UTC+1 inverno, UTC+2 estate)
+      // Usiamo UTC-2/+2 come margine sicuro per coprire entrambi i fusi
+      const inizioGiorno = new Date(data + 'T00:00:00.000+02:00');
+      const fineGiorno   = new Date(data + 'T23:59:59.999+02:00');
 
       const ordini = await Ordine.find({
-        $or: [
-          { dataRitiro: { $regex: `^${data}` } },
-          { dataRitiro: { $gte: inizioITA, $lte: fineITA } },
-          { dataRitiro: { $gte: new Date(data + 'T00:00:00.000Z'), $lte: new Date(data + 'T23:59:59.999Z') } }
-        ],
+        dataRitiro: { $gte: inizioGiorno, $lte: fineGiorno },
         stato: { $nin: ['annullato', 'cancellato'] }
       }).lean();
 
