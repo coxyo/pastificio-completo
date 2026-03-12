@@ -8,7 +8,6 @@ import whatsappService from '../services/whatsappService.js';
 // ✅ IMPORT SISTEMA CALCOLO PREZZI
 import calcoliPrezzi from '../utils/calcoliPrezzi.js';
 // ✅ IMPORT LIMITI PERIODO
-import LimitePeriodo from '../models/LimitePeriodo.js';
 
 // ========================================
 // ✅ CONFIGURAZIONE CAPACITÀ PRODUTTIVA
@@ -206,13 +205,15 @@ export const ordiniController = {
       // ✅ VERIFICA LIMITI PERIODO (non bloccante - solo avviso)
       const avvisiLimiti = [];
       try {
-        const risultatoLimiti = await LimitePeriodo.verificaOrdine(dataRitiro, prodottiRicalcolati, oraRitiro);
+        const LimitePeriodoModel = mongoose.model("LimitePeriodo");
+        const risultatoLimiti = await LimitePeriodoModel.verificaOrdine(dataRitiro, prodottiRicalcolati, oraRitiro);
         if (risultatoLimiti && risultatoLimiti.avvisi && risultatoLimiti.avvisi.length > 0) {
           avvisiLimiti.push(...risultatoLimiti.avvisi);
           logger.warn(`⚠️ Avvisi limiti periodo per ordine ${numeroOrdine}:`, avvisiLimiti);
         }
+        logger.info(`✅ Verifica limiti periodo completata. Avvisi: ${avvisiLimiti.length}`);
       } catch (limiteErr) {
-        logger.error('⚠️ Errore verifica limiti periodo (non bloccante):', limiteErr.message);
+        logger.warn(`⚠️ Verifica limiti periodo saltata: ${limiteErr.message}`);
       }
 
       await ordine.save();

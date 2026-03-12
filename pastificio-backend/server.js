@@ -60,6 +60,7 @@ import logger from './config/logger.js';
 // Import models per i cron jobs
 import Movimento from './models/Movimento.js';
 import Ordine from './models/Ordine.js';
+import LimitePeriodo from './models/LimitePeriodo.js'; // ✅ Registra modello per verifica limiti ordini
 
 // Import services
 import pdfService from './services/pdfService.js';
