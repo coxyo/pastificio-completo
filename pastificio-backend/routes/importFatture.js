@@ -19,6 +19,22 @@ router.use(protect);
 router.post('/upload', importFattureController.uploadFatture);
 
 /**
+ * @route   POST /api/import-fatture/auto-import
+ * @desc    Import automatico da watcher locale (conferma senza intervento umano)
+ * @access  Privato
+ * @body    { fattura, righe, fileInfo, sorgente }
+ */
+router.post('/auto-import', importFattureController.autoImport);
+
+/**
+ * @route   POST /api/import-fatture/notifica-errore
+ * @desc    Riceve notifica di errore dal watcher locale
+ * @access  Privato
+ * @body    { nomeFile, errore }
+ */
+router.post('/notifica-errore', importFattureController.notificaErroreWatcher);
+
+/**
  * @route   POST /api/import-fatture/conferma
  * @desc    Conferma import fattura con mapping prodotti
  * @access  Privato
