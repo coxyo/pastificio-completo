@@ -2445,7 +2445,13 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
         }
         */
         
-        mostraNotifica('Ordine salvato e giacenze aggiornate', 'success');
+        // ✅ Mostra avvisi limiti periodo se presenti (ordine salvato, ma avvisa l'operatore)
+        if (ordineCreato.avvisiLimiti && ordineCreato.avvisiLimiti.length > 0) {
+          const testoAvvisi = ordineCreato.avvisiLimiti.map(a => a.messaggio).join(' | ');
+          mostraNotifica(`⚠️ Ordine salvato - ATTENZIONE LIMITI: ${testoAvvisi}`, 'warning');
+        } else {
+          mostraNotifica('Ordine salvato e giacenze aggiornate', 'success');
+        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         
