@@ -124,7 +124,7 @@ limitePeriodoSchema.statics.verificaOrdine = async function(dataRitiro, prodotti
     const dataOrdine = new Date(dataRitiro);
     dataOrdine.setHours(0, 0, 0, 0);
 
-    const fasciaOrdine = (oraRitiro && oraRitiro >= '14:00') ? 'sera' : 'mattina';
+    // fasciaOrdine non più usata (verifica per giorno intero)
 
     // 1. Trova periodi attivi che coprono questa data
     const periodi = await this.find({
@@ -213,78 +213,69 @@ limitePeriodoSchema.statics.verificaOrdine = async function(dataRitiro, prodotti
         });
       }
 
-      // 3c. Verifica limite FASCIA specifica (se definita per questa data+fascia)
-      const fasciaConfig = periodo.fasce.find(f => {
+      // 3c. Verifica limite GIORNALIERO (somma tutte le fasce configurate per questo giorno)
+      // Il limite si applica all'intero giorno, indipendentemente dalla fascia dell'ordine
+      const fasceGiorno = periodo.fasce.filter(f => {
         const dataFascia = new Date(f.data);
         dataFascia.setHours(0, 0, 0, 0);
-        return dataFascia.getTime() === dataOrdine.getTime() && f.fascia === fasciaOrdine;
+        return dataFascia.getTime() === dataOrdine.getTime();
       });
 
-      if (fasciaConfig) {
-        // Calcola ordini esistenti per questa fascia specifica
+      if (fasceGiorno.length > 0) {
+        // Limite giornaliero = somma di tutte le fasce configurate per questo giorno
+        const limiteGiornaliero = fasceGiorno.reduce((sum, f) => sum + f.limite, 0);
+
+        // Calcola tutti gli ordini del giorno intero (mattina + sera)
         const dataOrdineInizio = new Date(dataOrdine);
         const dataOrdineFine = new Date(dataOrdine);
         dataOrdineFine.setDate(dataOrdineFine.getDate() + 1);
 
-        let queryFascia = {
+        const ordiniGiorno = await Ordine.find({
           dataRitiro: { $gte: dataOrdineInizio, $lt: dataOrdineFine },
           'prodotti.nome': { $regex: new RegExp(`^${periodo.prodotto}$`, 'i') },
           stato: { $ne: 'annullato' }
-        };
-        if (fasciaOrdine === 'mattina') {
-          queryFascia.$or = [
-            { oraRitiro: { $lt: '14:00' } },
-            { oraRitiro: { $exists: false } },
-            { oraRitiro: null },
-            { oraRitiro: '' }
-          ];
-        } else {
-          queryFascia.oraRitiro = { $gte: '14:00' };
-        }
+        }).lean();
 
-        const ordiniFascia = await Ordine.find(queryFascia).lean();
-        let totaleFascia = 0;
-        ordiniFascia.forEach(ord => {
+        let totaleGiorno = 0;
+        ordiniGiorno.forEach(ord => {
           ord.prodotti.forEach(p => {
             if (p.nome && p.nome.toLowerCase() === periodo.prodotto.toLowerCase()) {
-              totaleFascia += convertiInKg(p.quantita, p.unita);
+              totaleGiorno += convertiInKg(p.quantita, p.unita);
             }
           });
         });
 
-        const disponibileFascia = fasciaConfig.limite - totaleFascia;
-        const percFascia = ((totaleFascia + quantitaNuovaOrdine) / fasciaConfig.limite) * 100;
+        const disponibileGiorno = limiteGiornaliero - totaleGiorno;
+        const percGiorno = ((totaleGiorno + quantitaNuovaOrdine) / limiteGiornaliero) * 100;
 
-        console.log(`[PERIODO FASCIA] ${periodo.prodotto} ${fasciaOrdine}: esistenti=${totaleFascia.toFixed(2)}, nuovo=${quantitaNuovaOrdine.toFixed(2)}, disponibile=${disponibileFascia.toFixed(2)}`);
+        console.log(`[PERIODO GIORNO] ${periodo.prodotto} ${new Date(dataOrdine).toLocaleDateString('it-IT')}: limite=${limiteGiornaliero.toFixed(2)}, esistenti=${totaleGiorno.toFixed(2)}, nuovo=${quantitaNuovaOrdine.toFixed(2)}, disponibile=${disponibileGiorno.toFixed(2)}`);
 
-        if (quantitaNuovaOrdine > disponibileFascia) {
-          errori.push({
-            tipo: 'periodo_fascia',
+        if (quantitaNuovaOrdine > disponibileGiorno) {
+          avvisi.push({
+            tipo: 'periodo_giorno',
             nome: periodo.prodotto,
-            fascia: fasciaOrdine,
             nomePeriodo: periodo.nome,
-            messaggio: `Limite fascia ${fasciaOrdine} "${periodo.nome}" superato per ${periodo.prodotto}`,
+            messaggio: `⚠️ Limite giornaliero "${periodo.nome}" superato: ${periodo.prodotto} del ${new Date(dataOrdine).toLocaleDateString('it-IT')} - disponibili ${Math.max(0, disponibileGiorno).toFixed(1)} ${periodo.unitaMisura} su ${limiteGiornaliero} ${periodo.unitaMisura}`,
             quantitaRichiesta: parseFloat(quantitaNuovaOrdine.toFixed(2)),
-            quantitaDisponibile: parseFloat(Math.max(0, disponibileFascia).toFixed(2)),
-            limite: fasciaConfig.limite,
+            quantitaDisponibile: parseFloat(Math.max(0, disponibileGiorno).toFixed(2)),
+            limite: limiteGiornaliero,
             unitaMisura: periodo.unitaMisura,
             superato: true,
-            bloccante: false   // Fascia → si può forzare (a differenza del totale periodo)
+            bloccante: false
           });
-        } else if (percFascia >= periodo.sogliAllerta) {
+        } else if (percGiorno >= periodo.sogliAllerta) {
           avvisi.push({
-            tipo: 'periodo_fascia_avviso',
+            tipo: 'periodo_giorno_avviso',
             nome: periodo.prodotto,
-            fascia: fasciaOrdine,
             nomePeriodo: periodo.nome,
-            messaggio: `Attenzione: ${periodo.prodotto} (${fasciaOrdine}) vicino al limite fascia "${periodo.nome}" (${percFascia.toFixed(0)}%)`,
+            messaggio: `Attenzione: ${periodo.prodotto} vicino al limite giornaliero "${periodo.nome}" (${percGiorno.toFixed(0)}%) - ${new Date(dataOrdine).toLocaleDateString('it-IT')}`,
             quantitaRichiesta: parseFloat(quantitaNuovaOrdine.toFixed(2)),
-            quantitaDisponibile: parseFloat(Math.max(0, disponibileFascia).toFixed(2)),
-            limite: fasciaConfig.limite,
+            quantitaDisponibile: parseFloat(Math.max(0, disponibileGiorno).toFixed(2)),
+            limite: limiteGiornaliero,
             unitaMisura: periodo.unitaMisura,
             superato: false,
             bloccante: false,
-            percentuale: parseFloat(percFascia.toFixed(1))
+            percentuale: parseFloat(percGiorno.toFixed(1))
           });
         }
       }
