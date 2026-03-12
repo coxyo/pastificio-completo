@@ -3,6 +3,7 @@ import express from 'express';
 import Ordine from '../models/Ordine.js';
 import Cliente from '../models/Cliente.js';
 import LimiteGiornaliero from '../models/LimiteGiornaliero.js';
+import LimitePeriodo from '../models/LimitePeriodo.js';
 import { protect } from '../middleware/auth.js';
 import { aggiornaGiacenzeOrdine } from '../middleware/aggiornaGiacenze.js';
 import logger from '../config/logger.js';
@@ -630,12 +631,40 @@ Grazie! 🙏`;
       error: error.message
     });
   }
-}, aggiornaGiacenzeOrdine, (req, res) => {
+}, aggiornaGiacenzeOrdine, async (req, res) => {
   // Risposta finale dopo middleware
+  // ✅ FIX 12/03/2026: Verifica limiti periodo DOPO salvataggio (avviso non bloccante)
+  let avvisiLimiti = [];
+  try {
+    const ordine = req.ordineCreato;
+    if (ordine && ordine.dataRitiro && ordine.prodotti) {
+      const risultatoLimiti = await LimitePeriodo.verificaOrdine(
+        ordine.dataRitiro,
+        ordine.prodotti,
+        ordine.oraRitiro
+      );
+      if (risultatoLimiti && risultatoLimiti.avvisi && risultatoLimiti.avvisi.length > 0) {
+        avvisiLimiti = risultatoLimiti.avvisi;
+        logger.warn(`⚠️ Avvisi limiti periodo per ordine ${ordine.numeroOrdine}: ${avvisiLimiti.length}`);
+      }
+      // Includi anche errori non bloccanti (periodo_giorno superato)
+      if (risultatoLimiti && risultatoLimiti.errori && risultatoLimiti.errori.length > 0) {
+        const erroriNonBloccanti = risultatoLimiti.errori.filter(e => !e.bloccante);
+        if (erroriNonBloccanti.length > 0) {
+          avvisiLimiti.push(...erroriNonBloccanti);
+          logger.warn(`⚠️ Errori periodo non bloccanti per ordine ${ordine.numeroOrdine}: ${erroriNonBloccanti.length}`);
+        }
+      }
+    }
+  } catch (limiteErr) {
+    logger.warn(`⚠️ Verifica limiti periodo post-salvataggio saltata: ${limiteErr.message}`);
+  }
+
   res.status(201).json({
     success: true,
     message: 'Ordine creato con successo',
-    data: req.ordineCreato
+    data: req.ordineCreato,
+    avvisiLimiti: avvisiLimiti.length > 0 ? avvisiLimiti : undefined
   });
 });
 
@@ -776,10 +805,37 @@ router.put('/:id', async (req, res) => {
       logger.warn('[PUSH] Errore notifica ordine modificato:', pushErr.message);
     }
     
+    // ✅ FIX 12/03/2026: Verifica limiti periodo DOPO aggiornamento (avviso non bloccante)
+    let avvisiLimiti = [];
+    try {
+      if (ordineAggiornato.dataRitiro && ordineAggiornato.prodotti) {
+        const risultatoLimiti = await LimitePeriodo.verificaOrdine(
+          ordineAggiornato.dataRitiro,
+          ordineAggiornato.prodotti,
+          ordineAggiornato.oraRitiro
+        );
+        if (risultatoLimiti && risultatoLimiti.avvisi && risultatoLimiti.avvisi.length > 0) {
+          avvisiLimiti = risultatoLimiti.avvisi;
+        }
+        if (risultatoLimiti && risultatoLimiti.errori && risultatoLimiti.errori.length > 0) {
+          const erroriNonBloccanti = risultatoLimiti.errori.filter(e => !e.bloccante);
+          if (erroriNonBloccanti.length > 0) {
+            avvisiLimiti.push(...erroriNonBloccanti);
+          }
+        }
+        if (avvisiLimiti.length > 0) {
+          logger.warn(`⚠️ Avvisi limiti periodo per ordine aggiornato ${ordineAggiornato.numeroOrdine}: ${avvisiLimiti.length}`);
+        }
+      }
+    } catch (limiteErr) {
+      logger.warn(`⚠️ Verifica limiti periodo post-update saltata: ${limiteErr.message}`);
+    }
+
     res.json({
       success: true,
       message: 'Ordine aggiornato',
-      data: ordineAggiornato
+      data: ordineAggiornato,
+      avvisiLimiti: avvisiLimiti.length > 0 ? avvisiLimiti : undefined
     });
   } catch (error) {
     logger.error('❌ Errore aggiornamento ordine:', error);

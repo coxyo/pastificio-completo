@@ -2555,8 +2555,17 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
       });
       
       if (response.ok) {
+        const rispostaUpdate = await response.json().catch(() => ({}));
         await sincronizzaConMongoDB();
         mostraNotifica('Ordine aggiornato', 'success');
+        
+        // ✅ FIX 12/03/2026: Mostra avvisi limiti periodo anche su aggiornamento
+        if (rispostaUpdate.avvisiLimiti && rispostaUpdate.avvisiLimiti.length > 0) {
+          const testoAvvisi = rispostaUpdate.avvisiLimiti.map(a => a.messaggio).join(' | ');
+          setTimeout(() => {
+            mostraNotifica(`⚠️ ${testoAvvisi}`, 'warning');
+          }, 500);
+        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         
