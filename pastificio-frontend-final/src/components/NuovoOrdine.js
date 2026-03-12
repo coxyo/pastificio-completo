@@ -211,6 +211,8 @@ const [prodottoCriticoSelezionato, setProdottoCriticoSelezionato] = useState(nul
 
   // ✅ FIX 19/02/2026: Dialog conferma data ritiro = oggi
   const [showConfermaDataOggi, setShowConfermaDataOggi] = useState(false);
+  const [showConfermaCliente, setShowConfermaCliente] = useState(false);
+  const [nomeDBCliente, setNomeDBCliente] = useState('');
 
   // ✅ NUOVO: Verifica chiusura data selezionata
   const [chiusuraInfo, setChiusuraInfo] = useState(null); // { chiuso, motivo, prossimaData }
@@ -850,6 +852,20 @@ useEffect(() => {
       caricaClienti();
     }
   }, [isConnected]);
+
+  // ✅ 12/03/2026: Forza refresh COMPLETO all'apertura del form
+  useEffect(() => {
+    if (open && isConnected) {
+      setClienti([]); // Svuota state → mostra spinner invece di risultati vecchi
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('clienti_cache_time');
+        localStorage.removeItem('clienti_cache');
+      }
+      clientiCache = null;
+      clientiCacheTime = null;
+      caricaClienti(true);
+    }
+  }, [open]);
 
   // ✅ FIX 11/03/2026: Forza refresh COMPLETO all'apertura del form
   useEffect(() => {
@@ -1696,6 +1712,18 @@ useEffect(() => {
           : '')
       );
       return;
+    }
+
+    // ✅ 12/03/2026: Controlla se il nome inserito è diverso da quello nel DB
+    if (formData.cliente?._id) {
+      const nomeDB = `${formData.cliente.nome || ''} ${formData.cliente.cognome || ''}`.trim();
+      const nomeForm = (formData.nomeCliente || `${formData.nome || ''} ${formData.cognome || ''}`.trim()).trim();
+      const normalizza = s => s.toLowerCase().replace(/\s+/g, ' ').trim();
+      if (nomeDB && normalizza(nomeDB) !== normalizza(nomeForm)) {
+        setNomeDBCliente(nomeDB);
+        setShowConfermaCliente(true);
+        return;
+      }
     }
 
     // ✅ FIX 19/02/2026: Controlla se data ritiro è OGGI → mostra dialog conferma
@@ -3386,6 +3414,75 @@ useEffect(() => {
           }}
         >
           Sì, è oggi
+        </Button>
+      </DialogActions>
+    </Dialog>
+
+    {/* ✅ 12/03/2026: Dialog conferma nome cliente diverso dal DB */}
+    <Dialog
+      open={showConfermaCliente}
+      onClose={() => setShowConfermaCliente(false)}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+    >
+      <Box sx={{ textAlign: 'center', pt: 3, pb: 1, px: 3 }}>
+        <PersonIcon sx={{ fontSize: 48, color: '#f59e0b', mb: 1 }} />
+        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+          Nome diverso dal database
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Questo numero è registrato come:
+        </Typography>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', color: BRAND.green, mb: 2 }}>
+          {nomeDBCliente}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Vuoi usare il nome del database o mantenere quello inserito?
+        </Typography>
+      </Box>
+      <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 3, px: 3, flexDirection: 'column' }}>
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={() => {
+            const parti = nomeDBCliente.split(' ');
+            setFormData(prev => ({
+              ...prev,
+              nome: parti[0] || '',
+              cognome: parti.slice(1).join(' ') || '',
+              nomeCliente: nomeDBCliente,
+            }));
+            setShowConfermaCliente(false);
+            setTimeout(() => handleSalva(), 100);
+          }}
+          sx={{
+            borderRadius: 2,
+            fontSize: '0.95rem',
+            bgcolor: BRAND.green,
+            color: 'white',
+            fontWeight: 700,
+            '&:hover': { bgcolor: '#1b5e20' },
+          }}
+        >
+          Usa &quot;{nomeDBCliente}&quot;
+        </Button>
+        <Button
+          variant="outlined"
+          fullWidth
+          onClick={() => {
+            setShowConfermaCliente(false);
+            const oggi = new Date().toISOString().split('T')[0];
+            const dataRitiroSelezionata = formData.dataRitiro?.split('T')[0];
+            if (dataRitiroSelezionata === oggi) {
+              setShowConfermaDataOggi(true);
+            } else {
+              eseguiSalvataggio();
+            }
+          }}
+          sx={{ borderRadius: 2, fontSize: '0.95rem' }}
+        >
+          Mantieni nome inserito
         </Button>
       </DialogActions>
     </Dialog>
