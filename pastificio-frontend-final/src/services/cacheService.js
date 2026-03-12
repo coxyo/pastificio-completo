@@ -13,8 +13,8 @@ const CACHE_CONFIG = {
     prodotti:  30 * 24 * 60 * 60 * 1000,  // 30 giorni
     chiamata:  24 * 60 * 60 * 1000,       // 24 ore
   },
-  // Prefissi da NON eliminare mai
-  protetti: ['preferenze_', 'device_', 'tema_', 'notifiche_config'],
+  // Prefissi/chiavi da NON eliminare mai (include autenticazione!)
+  protetti: ['preferenze_', 'device_', 'tema_', 'notifiche_config', 'token', 'user', 'sessionId', 'fcm_token', 'push_'],
   // Soglia pulizia automatica (bytes)
   sogliaAvviso: 3 * 1024 * 1024,    // 3MB → avviso
   sogliaPulizia: 4 * 1024 * 1024,   // 4MB → pulizia automatica
@@ -129,9 +129,13 @@ export const CacheService = {
       
       const prima = CacheService.getDimensioneStorage();
       
-      // Salva dati critici
-      const pendingChanges = localStorage.getItem('pendingChanges');
-      const lastSyncTime = localStorage.getItem('lastSyncTime');
+      // ✅ FIX 12/03/2026: Salva TUTTI i dati critici incluso token auth
+      const critici = {};
+      const chiaviCritiche = ['pendingChanges', 'lastSyncTime', 'token', 'user', 'sessionId', 'fcm_token'];
+      for (const k of chiaviCritiche) {
+        const val = localStorage.getItem(k);
+        if (val) critici[k] = val;
+      }
       
       // Salva preferenze protette
       const protette = {};
@@ -145,8 +149,9 @@ export const CacheService = {
       localStorage.clear();
       
       // Ripristina critici
-      if (pendingChanges) localStorage.setItem('pendingChanges', pendingChanges);
-      if (lastSyncTime) localStorage.setItem('lastSyncTime', lastSyncTime);
+      for (const [k, v] of Object.entries(critici)) {
+        localStorage.setItem(k, v);
+      }
       
       // Ripristina protette
       for (const [k, v] of Object.entries(protette)) {
@@ -154,7 +159,7 @@ export const CacheService = {
       }
       
       const dopo = CacheService.getDimensioneStorage();
-      console.log(`🧹 Pulizia forzata: ${CacheService.formatBytes(prima)} → ${CacheService.formatBytes(dopo)} (liberati ${CacheService.formatBytes(prima - dopo)})`);
+      console.log(`🧹 Pulizia forzata: ${CacheService.formatBytes(prima)} -> ${CacheService.formatBytes(dopo)} (liberati ${CacheService.formatBytes(prima - dopo)})`);
     } catch (e) {
       console.error('❌ Errore pulizia forzata:', e);
     }
@@ -372,6 +377,12 @@ export const CacheService = {
       const pendingChanges = localStorage.getItem('pendingChanges');
       const lastSyncTime = localStorage.getItem('lastSyncTime');
       
+      // ✅ FIX 12/03/2026: Salva token auth
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+      const sessionId = localStorage.getItem('sessionId');
+      const fcmToken = localStorage.getItem('fcm_token');
+      
       // Salva preferenze protette
       const protette = {};
       for (const chiave of Object.keys(localStorage)) {
@@ -386,12 +397,16 @@ export const CacheService = {
       if (ordiniTs) localStorage.setItem('ordini_timestamp', ordiniTs);
       if (pendingChanges) localStorage.setItem('pendingChanges', pendingChanges);
       if (lastSyncTime) localStorage.setItem('lastSyncTime', lastSyncTime);
+      if (token) localStorage.setItem('token', token);
+      if (user) localStorage.setItem('user', user);
+      if (sessionId) localStorage.setItem('sessionId', sessionId);
+      if (fcmToken) localStorage.setItem('fcm_token', fcmToken);
       
       for (const [k, v] of Object.entries(protette)) {
         localStorage.setItem(k, v);
       }
       
-      console.log('🧹 Cache vecchia pulita, mantenuti dati essenziali + preferenze');
+      console.log('🧹 Cache vecchia pulita, mantenuti dati essenziali + auth + preferenze');
     } catch (e) {
       console.error('❌ Errore pulizia cache:', e);
     }
