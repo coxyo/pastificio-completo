@@ -7,6 +7,8 @@ import mongoose from 'mongoose';
 import whatsappService from '../services/whatsappService.js';
 // ✅ IMPORT SISTEMA CALCOLO PREZZI
 import calcoliPrezzi from '../utils/calcoliPrezzi.js';
+// ✅ IMPORT LIMITI PERIODO
+import LimitePeriodo from '../models/LimitePeriodo.js';
 
 // ========================================
 // ✅ CONFIGURAZIONE CAPACITÀ PRODUTTIVA
@@ -201,6 +203,18 @@ export const ordiniController = {
         creatoDa: req.user?.id || null
       });
 
+      // ✅ VERIFICA LIMITI PERIODO (non bloccante - solo avviso)
+      const avvisiLimiti = [];
+      try {
+        const risultatoLimiti = await LimitePeriodo.verificaOrdine(dataRitiro, prodottiRicalcolati, oraRitiro);
+        if (risultatoLimiti && risultatoLimiti.avvisi && risultatoLimiti.avvisi.length > 0) {
+          avvisiLimiti.push(...risultatoLimiti.avvisi);
+          logger.warn(`⚠️ Avvisi limiti periodo per ordine ${numeroOrdine}:`, avvisiLimiti);
+        }
+      } catch (limiteErr) {
+        logger.error('⚠️ Errore verifica limiti periodo (non bloccante):', limiteErr.message);
+      }
+
       await ordine.save();
       
       logger.info(`✅ Ordine creato con successo: ${ordine._id}`, {
@@ -273,7 +287,8 @@ Grazie! 🙏
 
       res.status(201).json({
         success: true,
-        data: ordine
+        data: ordine,
+        avvisiLimiti: avvisiLimiti.length > 0 ? avvisiLimiti : undefined
       });
     } catch (error) {
       logger.error('❌ ERRORE CREAZIONE ORDINE:', {
