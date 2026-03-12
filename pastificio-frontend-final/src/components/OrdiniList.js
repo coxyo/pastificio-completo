@@ -1208,9 +1208,21 @@ Pastificio Nonna Claudia`;
                           </TableCell>
                           
                           <TableCell sx={{ p: 0.5, minWidth: '180px' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.3, flexWrap: 'wrap' }}>
                               {daViaggio && (
                                 <Chip label="V" size="small" color="warning" sx={{ fontSize: '0.72rem', height: '18px', flexShrink: 0 }} />
+                              )}
+                              {ordine.ricordaEtichetta && (
+                                <Chip label="ETI" size="small" color="error" sx={{ fontSize: '0.65rem', height: '18px', flexShrink: 0 }} />
+                              )}
+                              {ordine.confezioneRegalo && (
+                                <Chip label="REG" size="small" color="secondary" sx={{ fontSize: '0.65rem', height: '18px', flexShrink: 0 }} />
+                              )}
+                              {ordine.pagato && (
+                                <Chip label="PAG" size="small" color="success" sx={{ fontSize: '0.65rem', height: '18px', flexShrink: 0 }} />
+                              )}
+                              {ordine.acconto && !ordine.pagato && (
+                                <Chip label={ordine.importoAcconto ? `acc \u20ac${Number(ordine.importoAcconto).toFixed(0)}` : 'ACC'} size="small" color="info" sx={{ fontSize: '0.65rem', height: '18px', flexShrink: 0 }} />
                               )}
                               <Typography 
                                 variant="caption" 
@@ -1540,6 +1552,10 @@ Pastificio Nonna Claudia`;
                     </TableCell>
                     <TableCell sx={{ fontSize: '0.9rem' }}>
                       {daViaggio && <Chip label="VIAGGIO" size="small" color="warning" sx={{ mr: 0.5 }} />}
+                      {ordine.ricordaEtichetta && <Chip label="\u26a0\ufe0f Etichetta" size="small" color="error" sx={{ mr: 0.5 }} />}
+                      {ordine.confezioneRegalo && <Chip label="\U0001f381 Regalo" size="small" color="secondary" sx={{ mr: 0.5 }} />}
+                      {ordine.pagato && <Chip label="\U0001f4b0 Pagato" size="small" color="success" sx={{ mr: 0.5 }} />}
+                      {ordine.acconto && !ordine.pagato && <Chip label={ordine.importoAcconto ? `\U0001f4b3 Acc. \u20ac${Number(ordine.importoAcconto).toFixed(2)}` : "\U0001f4b3 Acconto"} size="small" color="info" sx={{ mr: 0.5 }} />}
                       {filtraNoteManuali(prodotto.note || ordine.note)}
                     </TableCell>
                     <TableCell align="center">
