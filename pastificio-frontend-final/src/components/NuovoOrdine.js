@@ -1715,14 +1715,37 @@ useEffect(() => {
     }
 
     // ✅ 12/03/2026: Controlla se il nome inserito è diverso da quello nel DB
-    if (formData.cliente?._id) {
-      const nomeDB = `${formData.cliente.nome || ''} ${formData.cliente.cognome || ''}`.trim();
-      const nomeForm = (formData.nomeCliente || `${formData.nome || ''} ${formData.cognome || ''}`.trim()).trim();
-      const normalizza = s => s.toLowerCase().replace(/\s+/g, ' ').trim();
-      if (nomeDB && normalizza(nomeDB) !== normalizza(nomeForm)) {
-        setNomeDBCliente(nomeDB);
-        setShowConfermaCliente(true);
-        return;
+    {
+      const normalizza = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const nomeForm = normalizza(formData.nomeCliente || `${formData.nome || ''} ${formData.cognome || ''}`.trim());
+
+      // Caso 1: cliente selezionato dal dropdown (ha _id)
+      if (formData.cliente?._id) {
+        const nomeDB = normalizza(`${formData.cliente.nome || ''} ${formData.cliente.cognome || ''}`);
+        if (nomeDB && nomeDB !== nomeForm) {
+          setNomeDBCliente(`${formData.cliente.nome || ''} ${formData.cliente.cognome || ''}`.trim());
+          setShowConfermaCliente(true);
+          return;
+        }
+      }
+
+      // Caso 2: nessun cliente selezionato ma c'è un telefono → cerca nel DB locale
+      if (!formData.cliente?._id && formData.telefono && clienti.length > 0) {
+        const telPulito = (formData.telefono || '').replace(/\s/g, '');
+        const clienteTrovato = clienti.find(c => {
+          const ct = (c.telefono || '').replace(/\s/g, '');
+          return ct && ct === telPulito;
+        });
+        if (clienteTrovato) {
+          const nomeDB = normalizza(`${clienteTrovato.nome || ''} ${clienteTrovato.cognome || ''}`);
+          if (nomeDB && nomeDB !== nomeForm) {
+            setNomeDBCliente(`${clienteTrovato.nome || ''} ${clienteTrovato.cognome || ''}`.trim());
+            // Aggiorna anche il cliente nel formData
+            setFormData(prev => ({ ...prev, cliente: clienteTrovato }));
+            setShowConfermaCliente(true);
+            return;
+          }
+        }
       }
     }
 
