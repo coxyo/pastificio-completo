@@ -8,5 +8,6 @@ const router = express.Router();
 
 router.get('/stats', dashboardController.getStatisticheGenerali);
 router.get('/kpi', dashboardController.getKPI);
+router.get('/produzione', dashboardController.getProduzioneSommario); // ✅ NUOVO 12/03/2026
 
 export default router;
