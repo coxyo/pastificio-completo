@@ -151,15 +151,20 @@ function calcolaTotaliCarrello(prodottiCarrello) {
           }
           if (!cP) cP = (comp.quantita || 0) / 30 * numV;
         }
-        totali.dolci += cP;
-        if (cN.includes('pardula')) totali.pardulas += cP;
+        // Classifica ogni componente nella sua categoria (allineato a GestoreOrdini)
+        if (cN.includes('pardula'))                                   totali.pardulas += cP;
+        else if (cN.includes('ciambelle') || cN.includes('ciambella')) totali.dolci += cP;
+        else if (cN.includes('amarett'))                               totali.dolci += cP;
+        else if (cN.includes('gueff'))                                 totali.dolci += cP;
+        else if (cN.includes('bianchin'))                              totali.dolci += cP;
+        else if (cN.includes('pabassine') || cN.includes('papassin')) totali.dolci += cP;
       });
       return;
     }
     if ((nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti')) && !nomeLC.includes('vassoio')) {
       for (const [comp, perc] of Object.entries(COMPOSIZIONE_DOLCI_MISTI_RIEPILOGO)) {
-        totali.dolci += peso * perc;
         if (comp === 'pardulas') totali.pardulas += peso * perc;
+        else totali.dolci += peso * perc;
       }
       return;
     }
