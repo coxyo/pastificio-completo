@@ -7,7 +7,6 @@ import mongoose from 'mongoose';
 import whatsappService from '../services/whatsappService.js';
 // ✅ IMPORT SISTEMA CALCOLO PREZZI
 import calcoliPrezzi from '../utils/calcoliPrezzi.js';
-// ✅ IMPORT LIMITI PERIODO
 
 // ========================================
 // ✅ CONFIGURAZIONE CAPACITÀ PRODUTTIVA
@@ -202,20 +201,6 @@ export const ordiniController = {
         creatoDa: req.user?.id || null
       });
 
-      // ✅ VERIFICA LIMITI PERIODO (non bloccante - solo avviso)
-      const avvisiLimiti = [];
-      try {
-        const LimitePeriodoModel = mongoose.model("LimitePeriodo");
-        const risultatoLimiti = await LimitePeriodoModel.verificaOrdine(dataRitiro, prodottiRicalcolati, oraRitiro);
-        if (risultatoLimiti && risultatoLimiti.avvisi && risultatoLimiti.avvisi.length > 0) {
-          avvisiLimiti.push(...risultatoLimiti.avvisi);
-          logger.warn(`⚠️ Avvisi limiti periodo per ordine ${numeroOrdine}:`, avvisiLimiti);
-        }
-        logger.info(`✅ Verifica limiti periodo completata. Avvisi: ${avvisiLimiti.length}`);
-      } catch (limiteErr) {
-        logger.warn(`⚠️ Verifica limiti periodo saltata: ${limiteErr.message}`);
-      }
-
       await ordine.save();
       
       logger.info(`✅ Ordine creato con successo: ${ordine._id}`, {
@@ -284,6 +269,19 @@ Grazie! 🙏
       if (global.io) {
         global.io.emit('nuovo-ordine', ordine);
         global.io.emit('ordine-creato', ordine);
+      }
+
+      // ✅ VERIFICA LIMITI PERIODO (non bloccante - solo avviso dopo salvataggio)
+      const avvisiLimiti = [];
+      try {
+        const LimitePeriodoModel = mongoose.model('LimitePeriodo');
+        const risultatoLimiti = await LimitePeriodoModel.verificaOrdine(dataRitiro, prodotti, oraRitiro);
+        if (risultatoLimiti && risultatoLimiti.avvisi && risultatoLimiti.avvisi.length > 0) {
+          avvisiLimiti.push(...risultatoLimiti.avvisi);
+          logger.warn(`⚠️ Avvisi limiti periodo per ordine ${ordine.numeroOrdine}: ${avvisiLimiti.length}`);
+        }
+      } catch (limiteErr) {
+        logger.warn(`⚠️ Verifica limiti periodo saltata: ${limiteErr.message}`);
       }
 
       res.status(201).json({

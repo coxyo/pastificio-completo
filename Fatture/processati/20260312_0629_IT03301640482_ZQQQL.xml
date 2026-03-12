@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>03301640482</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>0395004</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>M5UXCR1</CodiceDestinatario>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>01923890923</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>01923890923</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>MACRO S.R.L.</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>S.S. 131  KM.10.800                     LOC.MAGANGIOSA</Indirizzo>
+                <CAP>09028</CAP>
+                <Comune>SESTU</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Nome>MAURIZIO</Nome>
+                    <Cognome>MAMELI</Cognome>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA CARMINE N.20/B</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>ASSEMINI</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+        <TerzoIntermediarioOSoggettoEmittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>03301640482</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>03301640482</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>VAR GROUP SPA                                     </Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+        </TerzoIntermediarioOSoggettoEmittente>
+        <SoggettoEmittente>TZ</SoggettoEmittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-03-02</Data>
+                <Numero>F10001241</Numero>
+                <ImportoTotaleDocumento>36.48</ImportoTotaleDocumento>
+            </DatiGeneraliDocumento>
+            <DatiOrdineAcquisto>
+                <IdDocumento>0001241</IdDocumento>
+                <Data>2026-03-02</Data>
+            </DatiOrdineAcquisto>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>1</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>Codifica Cedente Prestatore</CodiceTipo>
+                    <CodiceValore>1914755766</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>ROT.TERMICO 57X30X12 PZ.10      NBA5730T</Descrizione>
+                <Quantita>2.00</Quantita>
+                <UnitaMisura>NR</UnitaMisura>
+                <PrezzoUnitario>5.18033000</PrezzoUnitario>
+                <PrezzoTotale>10.36</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>SCONTRINO</TipoDato>
+                    <RiferimentoTesto>MF:99MEX017292 SCONTRINO:0</RiferimentoTesto>
+                    <RiferimentoData>2026-03-02</RiferimentoData>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>2</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>Codifica Cedente Prestatore</CodiceTipo>
+                    <CodiceValore>1060022691</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>ETICH.STAMP. 70X29  100FG.      X210C557</Descrizione>
+                <Quantita>2.00</Quantita>
+                <UnitaMisura>NR</UnitaMisura>
+                <PrezzoUnitario>9.77049000</PrezzoUnitario>
+                <PrezzoTotale>19.54</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>SCONTRINO</TipoDato>
+                    <RiferimentoTesto>MF:99MEX017292 SCONTRINO:0</RiferimentoTesto>
+                    <RiferimentoData>2026-03-02</RiferimentoData>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>29.90</ImponibileImporto>
+                <Imposta>6.58</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>05006900962</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>44281</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>M5UXCR1</CodiceDestinatario>
+            <ContattiTrasmittente>
+                <Telefono>0705502563</Telefono>
+                <Email>decarroz@pec.it</Email>
+            </ContattiTrasmittente>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>01093860920</IdCodice>
+                </IdFiscaleIVA>
+                <Anagrafica>
+                    <Denominazione>Dè Carroz Srl</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>Via Dei Carroz, 4</Indirizzo>
+                <CAP>09131</CAP>
+                <Comune>CAGLIARI</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+            <IscrizioneREA>
+                <Ufficio>CA</Ufficio>
+                <NumeroREA>101813</NumeroREA>
+                <CapitaleSociale>93995.00</CapitaleSociale>
+                <SocioUnico>SU</SocioUnico>
+                <StatoLiquidazione>LN</StatoLiquidazione>
+            </IscrizioneREA>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>MAMELI MAURIZIO</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>Via ELEONORA D'ARBOREA,17</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>ASSEMINI</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-03-02</Data>
+                <Numero>319 / 1210</Numero>
+                <ImportoTotaleDocumento>228.00</ImportoTotaleDocumento>
+                <Causale>Veicolo - Targa: GE219FD , Telaio: SJNTAAJ12U1011970 , KM: 49223 , Descr Veicolo: NISSAN - QASHQAI PREMIERE ED. MHYB 158CV XTR</Causale>
+            </DatiGeneraliDocumento>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>1</NumeroLinea>
+                <Descrizione>Targa: GE219FD Telaio: SJNTAAJ12U1011970 Mod: Q012PEM3-QASHQAI PREMIERE ED. MHYB 158CV XTR KM: 49223</Descrizione>
+                <PrezzoUnitario>0.00</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Descrittivo #DE#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>2</NumeroLinea>
+                <Descrizione> - spia motore accesa</Descrizione>
+                <PrezzoUnitario>0.00</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <AltriDatiGestionali>
+                    <TipoDato>AswTRiga</TipoDato>
+                    <RiferimentoTesto>Descrittivo #DE#</RiferimentoTesto>
+                </AltriDatiGestionali>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>3</NumeroLinea>
+                <Descrizione>mo - Mano d'opera ordinaria</Descrizione>
+                <Quantita>1.5000000</Quantita>
+                <UnitaMisura>H</UnitaMisura>
+                <PrezzoUnitario>50.00000000</PrezzoUnitario>
+                <PrezzoTotale>75.00000000</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>4</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>N</CodiceTipo>
+                    <CodiceValore>208746583R</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>HOSE ASSY-PRESS</Descrizione>
+                <Quantita>1.0000000</Quantita>
+                <UnitaMisura>Pz</UnitaMisura>
+                <PrezzoUnitario>127.14773000</PrezzoUnitario>
+                <ScontoMaggiorazione>
+                    <Tipo>SC</Tipo>
+                    <Percentuale>12.00</Percentuale>
+                </ScontoMaggiorazione>
+                <PrezzoTotale>111.89000000</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>5</NumeroLinea>
+                <TipoCessionePrestazione>AB</TipoCessionePrestazione>
+                <Descrizione>Abbuoni</Descrizione>
+                <PrezzoUnitario>-0.010</PrezzoUnitario>
+                <PrezzoTotale>-0.010</PrezzoTotale>
+                <AliquotaIVA>0.00</AliquotaIVA>
+                <Natura>N2.2</Natura>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <Arrotondamento>0.00</Arrotondamento>
+                <ImponibileImporto>186.89</ImponibileImporto>
+                <Imposta>41.12</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+            </DatiRiepilogo>
+            <DatiRiepilogo>
+                <AliquotaIVA>0.00</AliquotaIVA>
+                <Natura>N2.2</Natura>
+                <Arrotondamento>0.00</Arrotondamento>
+                <ImponibileImporto>-0.01</ImponibileImporto>
+                <Imposta>0.00</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+                <RiferimentoNormativo>Fuori campo Iva</RiferimentoNormativo>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

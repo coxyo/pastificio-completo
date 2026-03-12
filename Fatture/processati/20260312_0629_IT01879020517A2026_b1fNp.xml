@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>01879020517</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>9027764542</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>0000000</CodiceDestinatario>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>01573850516</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>04552920482</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>ARUBA SPA</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA SAN CLEMENTE</Indirizzo>
+                <NumeroCivico>53</NumeroCivico>
+                <CAP>24036</CAP>
+                <Comune>PONTE SAN PIETRO</Comune>
+                <Provincia>BG</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+            <IscrizioneREA>
+                <Ufficio>BG</Ufficio>
+                <NumeroREA>434483</NumeroREA>
+                <CapitaleSociale>4000000.00</CapitaleSociale>
+                <StatoLiquidazione>LN</StatoLiquidazione>
+            </IscrizioneREA>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>Pastificio Nonna Claudia di Mameli Mauri zio</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>Via Carmine</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>Assemini</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-03-02</Data>
+                <Numero>1000263002062020</Numero>
+                <ImportoTotaleDocumento>12.08</ImportoTotaleDocumento>
+                <Causale>FATTURA GIA' PAGATA</Causale>
+            </DatiGeneraliDocumento>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>10</NumeroLinea>
+                <CodiceArticolo>
+                    <CodiceTipo>FORN</CodiceTipo>
+                    <CodiceValore>TSO_PEC_PAC_STD_001</CodiceValore>
+                </CodiceArticolo>
+                <Descrizione>Ordine nr: 185551450  - Casella Standard  -   -  pastificio.nonna.claudia@pec.it</Descrizione>
+                <Quantita>1.000</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <DataInizioPeriodo>2026-03-05</DataInizioPeriodo>
+                <DataFinePeriodo>2027-03-05</DataFinePeriodo>
+                <PrezzoUnitario>9.90000000</PrezzoUnitario>
+                <PrezzoTotale>9.90</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>9.90</ImponibileImporto>
+                <Imposta>2.18</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+                <RiferimentoNormativo>Iva vendite 22%</RiferimentoNormativo>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

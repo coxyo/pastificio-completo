@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><ns3:FatturaElettronica versione="FPR12" xmlns:ns2="http://www.w3.org/2000/09/xmldsig#" xmlns:ns3="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2">
+    <FatturaElettronicaHeader>
+        <DatiTrasmissione>
+            <IdTrasmittente>
+                <IdPaese>IT</IdPaese>
+                <IdCodice>08245660017</IdCodice>
+            </IdTrasmittente>
+            <ProgressivoInvio>3134</ProgressivoInvio>
+            <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+            <CodiceDestinatario>0000000</CodiceDestinatario>
+        </DatiTrasmissione>
+        <CedentePrestatore>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02425650922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>02425650922</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>Nuove Grafiche Puddu SRL</Denominazione>
+                </Anagrafica>
+                <RegimeFiscale>RF01</RegimeFiscale>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>Via del progresso, 6</Indirizzo>
+                <CAP>09040</CAP>
+                <Comune>ORTACESUS</Comune>
+                <Provincia>SU</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+            <Contatti>
+                <Telefono>070 9819015</Telefono>
+                <Email>info@grafichepuddu.it</Email>
+            </Contatti>
+        </CedentePrestatore>
+        <CessionarioCommittente>
+            <DatiAnagrafici>
+                <IdFiscaleIVA>
+                    <IdPaese>IT</IdPaese>
+                    <IdCodice>02673640922</IdCodice>
+                </IdFiscaleIVA>
+                <CodiceFiscale>MMLMRZ78C30B180T</CodiceFiscale>
+                <Anagrafica>
+                    <Denominazione>PASTIFICIO NONNA CLAUDIA DI MAMELI  MAURIZIO</Denominazione>
+                </Anagrafica>
+            </DatiAnagrafici>
+            <Sede>
+                <Indirizzo>VIA CARMINE, 20b</Indirizzo>
+                <CAP>09032</CAP>
+                <Comune>ASSEMINI</Comune>
+                <Provincia>CA</Provincia>
+                <Nazione>IT</Nazione>
+            </Sede>
+        </CessionarioCommittente>
+    </FatturaElettronicaHeader>
+    <FatturaElettronicaBody>
+        <DatiGenerali>
+            <DatiGeneraliDocumento>
+                <TipoDocumento>TD01</TipoDocumento>
+                <Divisa>EUR</Divisa>
+                <Data>2026-02-18</Data>
+                <Numero>177 T</Numero>
+                <ImportoTotaleDocumento>1204.34</ImportoTotaleDocumento>
+                <Causale>FATTURA</Causale>
+            </DatiGeneraliDocumento>
+            <DatiTrasporto>
+                <UnitaMisuraPeso>KG</UnitaMisuraPeso>
+                <PesoLordo>213.0</PesoLordo>
+                <PesoNetto>213.0</PesoNetto>
+                <IndirizzoResa>
+                    <Indirizzo>VIA CARMINE, 20b</Indirizzo>
+                    <CAP>09032</CAP>
+                    <Comune>ASSEMINI</Comune>
+                    <Provincia>CA</Provincia>
+                    <Nazione>IT</Nazione>
+                </IndirizzoResa>
+            </DatiTrasporto>
+        </DatiGenerali>
+        <DatiBeniServizi>
+            <DettaglioLinee>
+                <NumeroLinea>1</NumeroLinea>
+                <Descrizione>Kg CARTA POLITENATA 35+9 gr</Descrizione>
+                <Quantita>50.00</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <PrezzoUnitario>4.15</PrezzoUnitario>
+                <PrezzoTotale>207.50</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>2</NumeroLinea>
+                <Descrizione>dim. 37x50 cm</Descrizione>
+                <PrezzoUnitario>0.00</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>3</NumeroLinea>
+                <Descrizione>Kg CARTA POLITENATA 35+9 gr</Descrizione>
+                <Quantita>150.00</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <PrezzoUnitario>4.15</PrezzoUnitario>
+                <PrezzoTotale>622.50</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>4</NumeroLinea>
+                <Descrizione>dim. 50x75 cm</Descrizione>
+                <PrezzoUnitario>0.00</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>5</NumeroLinea>
+                <Descrizione>1 colore verde solo fronte</Descrizione>
+                <PrezzoUnitario>0.00</PrezzoUnitario>
+                <PrezzoTotale>0.00</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>6</NumeroLinea>
+                <Descrizione>RIFACIMENTO IMPIANTO</Descrizione>
+                <Quantita>1.00</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <PrezzoUnitario>50.00</PrezzoUnitario>
+                <PrezzoTotale>50.00</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>7</NumeroLinea>
+                <Descrizione>SPESE DI SPEDIZIONE</Descrizione>
+                <Quantita>1.00</Quantita>
+                <UnitaMisura>N.</UnitaMisura>
+                <PrezzoUnitario>50.00</PrezzoUnitario>
+                <PrezzoTotale>50.00</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>8</NumeroLinea>
+                <Descrizione>CONTRIBUTO CONAI etichette tnt 1</Descrizione>
+                <Quantita>213.00</Quantita>
+                <UnitaMisura>KG</UnitaMisura>
+                <PrezzoUnitario>0.07</PrezzoUnitario>
+                <PrezzoTotale>14.91</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DettaglioLinee>
+                <NumeroLinea>9</NumeroLinea>
+                <Descrizione>CARTA POLITENATA 60 BIANCA STESA</Descrizione>
+                <Quantita>13.00</Quantita>
+                <UnitaMisura>PZ</UnitaMisura>
+                <PrezzoUnitario>3.25</PrezzoUnitario>
+                <PrezzoTotale>42.25</PrezzoTotale>
+                <AliquotaIVA>22.00</AliquotaIVA>
+            </DettaglioLinee>
+            <DatiRiepilogo>
+                <AliquotaIVA>22.00</AliquotaIVA>
+                <ImponibileImporto>987.16</ImponibileImporto>
+                <Imposta>217.18</Imposta>
+                <EsigibilitaIVA>I</EsigibilitaIVA>
+                <RiferimentoNormativo>22% - GENERICO</RiferimentoNormativo>
+            </DatiRiepilogo>
+        </DatiBeniServizi>
+        <DatiPagamento>
+            <CondizioniPagamento>TP02</CondizioniPagamento>
+            <DettaglioPagamento>
+                <ModalitaPagamento>MP01</ModalitaPagamento>
+                <DataRiferimentoTerminiPagamento>2026-02-18</DataRiferimentoTerminiPagamento>
+                <DataScadenzaPagamento>2026-02-18</DataScadenzaPagamento>
+                <ImportoPagamento>1204.34</ImportoPagamento>
+            </DettaglioPagamento>
+        </DatiPagamento>
+    </FatturaElettronicaBody>
+</ns3:FatturaElettronica>

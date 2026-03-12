@@ -2424,7 +2424,8 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
       const response = await fetch(`${API_URL}/ordini`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         },
         body: JSON.stringify(nuovoOrdine)
       });
@@ -2432,6 +2433,7 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
       if (response.ok) {
         const ordineCreato = await response.json();
         console.log('✅ Ordine creato con successo:', ordineCreato);
+        console.log('🔍 avvisiLimiti ricevuti:', ordineCreato.avvisiLimiti);
         
         await sincronizzaConMongoDB();
         
