@@ -320,15 +320,35 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
     const quantita = prodotto.quantita || 0;
     const nomeLC = (prodotto.nome || '').toLowerCase();
     
-    // ✅ FIX 15/01/2026: Converti € in Kg per Zeppole (€21/Kg)
-    if (unita === '€' || unita === 'euro') {
-      if (nomeLC.includes('zeppol')) {
-        // Zeppole: €21/Kg → quantità € / 21 = Kg
-        return quantita / 21;
+      // ✅ FIX 12/03/2026: Converti € in Kg per TUTTI i prodotti (da PRODOTTI_CONFIG)
+      if (unita === '€' || unita === 'euro') {
+        const PREZZI_EURO_KG = [
+          { keys: ['culurgion'],                                     prezzoKg: 16 },
+          { keys: ['ravioli'],                                       prezzoKg: 11 },
+          { keys: ['pardula'],                                       prezzoKg: 20 },
+          { keys: ['ciambelle', 'ciambella', 'chiaccher'],           prezzoKg: 17 },
+          { keys: ['amarett'],                                       prezzoKg: 22 },
+          { keys: ['papassin', 'pabassine', 'pabassinas'],           prezzoKg: 22 },
+          { keys: ['gueff'],                                         prezzoKg: 22 },
+          { keys: ['bianchin'],                                      prezzoKg: 15 },
+          { keys: ['zeppol'],                                        prezzoKg: 21 },
+          { keys: ['torta di saba', 'torta'],                        prezzoKg: 26 },
+          { keys: ['dolci misti', 'dolci mix'],                      prezzoKg: 19 },
+          { keys: ['panada anguill'],                                prezzoKg: 30 },
+          { keys: ['panada di agnello', 'panada agnello'],           prezzoKg: 25 },
+          { keys: ['panada di maiale', 'panada maiale'],             prezzoKg: 21 },
+          { keys: ['panada di vitella', 'panada vitella'],           prezzoKg: 23 },
+          { keys: ['panada di verdur', 'panada verdur'],             prezzoKg: 17 },
+          { keys: ['panadine'],                                      prezzoKg: 28 },
+          { keys: ['pasta per panada', 'pasta panada'],              prezzoKg:  5 },
+          { keys: ['pizzette'],                                      prezzoKg: 16 },
+          { keys: ['fregula', 'fregola'],                            prezzoKg: 10 },
+        ];
+        for (const { keys, prezzoKg } of PREZZI_EURO_KG) {
+          if (keys.some(k => nomeLC.includes(k))) return quantita / prezzoKg;
+        }
+        return 0;
       }
-      // Altri prodotti in € non hanno peso
-      return 0;
-    }
     
     if (unita === 'kg' || unita === 'kilogrammi') return quantita;
     if (unita === 'pezzi' || unita === 'pz') {
@@ -988,13 +1008,35 @@ function TotaliPeriodoComponent({ ordini, dataInizio, dataFine }) {
     const quantita = prodotto.quantita || 0;
     const nomeLC = (prodotto.nome || '').toLowerCase();
     
-    // ✅ FIX 15/01/2026: Converti € in Kg per Zeppole (€21/Kg)
-    if (unita === '€' || unita === 'euro') {
-      if (nomeLC.includes('zeppol')) {
-        return quantita / 21;
+      // ✅ FIX 12/03/2026: Converti € in Kg per TUTTI i prodotti (da PRODOTTI_CONFIG)
+      if (unita === '€' || unita === 'euro') {
+        const PREZZI_EURO_KG = [
+          { keys: ['culurgion'],                                     prezzoKg: 16 },
+          { keys: ['ravioli'],                                       prezzoKg: 11 },
+          { keys: ['pardula'],                                       prezzoKg: 20 },
+          { keys: ['ciambelle', 'ciambella', 'chiaccher'],           prezzoKg: 17 },
+          { keys: ['amarett'],                                       prezzoKg: 22 },
+          { keys: ['papassin', 'pabassine', 'pabassinas'],           prezzoKg: 22 },
+          { keys: ['gueff'],                                         prezzoKg: 22 },
+          { keys: ['bianchin'],                                      prezzoKg: 15 },
+          { keys: ['zeppol'],                                        prezzoKg: 21 },
+          { keys: ['torta di saba', 'torta'],                        prezzoKg: 26 },
+          { keys: ['dolci misti', 'dolci mix'],                      prezzoKg: 19 },
+          { keys: ['panada anguill'],                                prezzoKg: 30 },
+          { keys: ['panada di agnello', 'panada agnello'],           prezzoKg: 25 },
+          { keys: ['panada di maiale', 'panada maiale'],             prezzoKg: 21 },
+          { keys: ['panada di vitella', 'panada vitella'],           prezzoKg: 23 },
+          { keys: ['panada di verdur', 'panada verdur'],             prezzoKg: 17 },
+          { keys: ['panadine'],                                      prezzoKg: 28 },
+          { keys: ['pasta per panada', 'pasta panada'],              prezzoKg:  5 },
+          { keys: ['pizzette'],                                      prezzoKg: 16 },
+          { keys: ['fregula', 'fregola'],                            prezzoKg: 10 },
+        ];
+        for (const { keys, prezzoKg } of PREZZI_EURO_KG) {
+          if (keys.some(k => nomeLC.includes(k))) return quantita / prezzoKg;
+        }
+        return 0;
       }
-      return 0;
-    }
     
     if (unita === 'kg' || unita === 'kilogrammi') return quantita;
     if (unita === 'pezzi' || unita === 'pz') {
