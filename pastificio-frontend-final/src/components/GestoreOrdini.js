@@ -416,6 +416,8 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
       Fregula: 0
     };
     
+    // 🔍 DEBUG TEMPORANEO - rimuovere dopo verifica
+    console.group('🔍 DEBUG calcolaTotaliDettagliati - ' + ordiniFiltrati.length + ' ordini');
     ordiniFiltrati.forEach(ordine => {
       (ordine.prodotti || []).forEach(prodotto => {
         // ✅ FIX 19/12/2025: Escludi prodotti "Fatto" (completato) e "Consegnato" dai totali
@@ -426,6 +428,9 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
         
         const nomeLC = prodotto.nome?.toLowerCase() || '';
         let peso = convertiInKg(prodotto);
+        
+        // 🔍 DEBUG
+        console.log(`  ${ordine.cliente?.nome||'?'} | ${prodotto.nome} | ${prodotto.quantita} ${prodotto.unita} | stato:${prodotto.statoProduzione||'nuovo'} | peso:${peso.toFixed(3)} Kg`);
         
         if (peso === 0) return; // Ignora € e prodotti senza peso
         
@@ -595,6 +600,8 @@ function TotaliProduzione({ ordini, dataSelezionata }) {
   const totalePanadine = totali.Panadine;
   const totalePasta = totali.PastaPerPanada; // ✅ NUOVO 30/12/2025: Pasta separata
   const totaleAltri = totali.Pizzette + totali.Fregula; // ✅ RIMOSSO Panadine, Sebadas e Pasta
+  console.log('🔍 TOTALI PARDULAS DEBUG:', totalePardulas.toFixed(3), '| DOLCI:', totaleDolci.toFixed(3), '| TOT:', totaleGenerale.toFixed(3));
+  console.groupEnd();
   const totaleGenerale = totaleRavioli + totalePardulas + totaleDolci + totalePanadas + totaleSebadas + totaleZeppole + totalePanadine + totalePasta + totaleAltri;
 
   if (totaleGenerale === 0) return null;
