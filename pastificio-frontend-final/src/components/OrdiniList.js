@@ -219,6 +219,22 @@ const OrdiniList = ({
     return now >= unOraPrima && now <= tolleranzaDopo;
   };
 
+  // ✅ NUOVO 12/03/2026: Funzione per calcolare se ordine è PASSATO e non consegnato
+  // Un ordine è "passato" se dataRitiro < oggi E non è ancora consegnato (C non spuntata)
+  const isOrdinePassato = (ordine, prodotto) => {
+    // Se è già consegnato, non è "passato da regolarizzare"
+    if (prodotto.statoProduzione === 'consegnato') return false;
+    
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+    
+    const dataRitiro = ordine.dataRitiro ? new Date(ordine.dataRitiro) : null;
+    if (!dataRitiro) return false;
+    dataRitiro.setHours(0, 0, 0, 0);
+    
+    return dataRitiro < oggi;
+  };
+
   // ✅ NUOVO 21/01/2026: Pre-filtra ordini cliente da CallPopup
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1021,12 +1037,14 @@ Pastificio Nonna Claudia`;
 
                       // ✅ NUOVO 16/01/2026: Calcola se ordine è IMMINENTE
                       const isImminente = isOrdineImminente(ordine, prodotto);
+                      // ✅ NUOVO 12/03/2026: Calcola se ordine è PASSATO e non consegnato
+                      const isPassato = !isImminente && isOrdinePassato(ordine, prodotto);
 
                       return (
                         <TableRow 
                           key={`${ordine._id}-${idx}`}
                           sx={{
-                            // ✅ EVIDENZIAZIONE ORDINE IMMINENTE (1 ora prima, non completato) - STATICA (no animazioni)
+                            // 🟡 ORDINE IMMINENTE: 1 ora prima del ritiro (arancione)
                             ...(isImminente && {
                               backgroundColor: 'rgba(200,168,48,0.15) !important',
                               borderLeft: '5px solid #ff9800',
@@ -1045,12 +1063,26 @@ Pastificio Nonna Claudia`;
                                 }
                               }
                             }),
-                            // Stili normali quando NON imminente
-                            ...(!isImminente && {
-                              '&:nth-of-type(odd)': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)' },
-                              '&:hover': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)' },
-                              opacity: isConsegnato ? 0.6 : 1,
-                              textDecoration: isConsegnato ? 'line-through' : 'none'
+                            // ⚫ ORDINE PASSATO NON CONSEGNATO: data < oggi, C non spuntata (grigio spento)
+                            ...(isPassato && {
+                              backgroundColor: '#f5f5f5 !important',
+                              '&:nth-of-type(odd)': { backgroundColor: '#eeeeee !important' },
+                              '&:hover': { backgroundColor: '#e0e0e0 !important' },
+                              opacity: 0.65,
+                              borderLeft: '3px solid #bdbdbd',
+                              '& td': { color: '#9e9e9e !important' },
+                            }),
+                            // ✅ ORDINE CONSEGNATO: C spuntata (grigio con testo barrato)
+                            ...(isConsegnato && !isPassato && {
+                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.05)' },
+                              '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.08)' },
+                              opacity: 0.5,
+                              textDecoration: 'line-through',
+                            }),
+                            // ✅ ORDINE NORMALE: attivo, futuro o oggi
+                            ...(!isImminente && !isPassato && !isConsegnato && {
+                              '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' },
+                              '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
                             })
                           }}
                         >
@@ -1060,6 +1092,23 @@ Pastificio Nonna Claudia`;
                               <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 700 }}>
                                 {ordine.dataRitiro ? new Date(ordine.dataRitiro).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '-'}
                               </Typography>
+                              {/* 🆕 12/03/2026: Badge PASSATO se ordine non consegnato e data < oggi */}
+                              {isPassato && (
+                                <Typography variant="caption" sx={{
+                                  fontSize: '0.65rem',
+                                  fontWeight: 700,
+                                  color: '#9e9e9e',
+                                  backgroundColor: '#e0e0e0',
+                                  borderRadius: '3px',
+                                  px: 0.4,
+                                  py: 0.1,
+                                  display: 'block',
+                                  lineHeight: 1.4,
+                                  letterSpacing: '0.03em'
+                                }}>
+                                  PASSATO
+                                </Typography>
+                              )}
                             </TableCell>
                           )}
                           <TableCell sx={{ p: 0.5 }}>
@@ -1469,10 +1518,25 @@ Pastificio Nonna Claudia`;
                 
                 return (
                   <TableRow key={idx} sx={{ 
-                    '&:nth-of-type(odd)': { backgroundColor: isConsegnato ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.02)' },
+                    // ⚫ ORDINE PASSATO NON CONSEGNATO (grigio spento)
+                    ...(isOrdinePassato(ordine, prodotto) && {
+                      backgroundColor: '#f5f5f5 !important',
+                      '&:nth-of-type(odd)': { backgroundColor: '#eeeeee !important' },
+                      opacity: 0.65,
+                      borderLeft: '3px solid #bdbdbd',
+                      '& td': { color: '#9e9e9e !important' },
+                    }),
+                    // ✅ ORDINE CONSEGNATO (grigio barrato)
+                    ...(isConsegnato && !isOrdinePassato(ordine, prodotto) && {
+                      '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.05)' },
+                      opacity: 0.5,
+                      textDecoration: 'line-through',
+                    }),
+                    // ✅ ORDINE NORMALE
+                    ...(!isOrdinePassato(ordine, prodotto) && !isConsegnato && {
+                      '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' },
+                    }),
                     height: '60px',
-                    opacity: isConsegnato ? 0.6 : 1,
-                    textDecoration: isConsegnato ? 'line-through' : 'none'
                   }}>
                     {/* ✅ FIX 13/12/2025: Mostra DATA quando c'è ricerca */}
                     {(ricercaCliente || mostraTutteLeDate) && (
