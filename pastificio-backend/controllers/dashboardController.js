@@ -80,14 +80,23 @@ const dashboardController = {
       const { data } = req.query;
       if (!data) return res.status(400).json({ error: 'Parametro data richiesto (YYYY-MM-DD)' });
 
-      // Cerca ordini con dataRitiro uguale alla data (formato stringa o Date)
+      // Cerca ordini per data - triplice copertura per tutti i formati storici
+      // 1) Stringa "2026-04-04" o "2026-04-04T..."
+      // 2) Date UTC+1 (Europe/Rome)
+      // 3) Date UTC puro
+      const inizioITA = new Date(data + 'T00:00:00+02:00');
+      const fineITA   = new Date(data + 'T23:59:59+02:00');
+
       const ordini = await Ordine.find({
         $or: [
           { dataRitiro: { $regex: `^${data}` } },
+          { dataRitiro: { $gte: inizioITA, $lte: fineITA } },
           { dataRitiro: { $gte: new Date(data + 'T00:00:00.000Z'), $lte: new Date(data + 'T23:59:59.999Z') } }
         ],
         stato: { $nin: ['annullato', 'cancellato'] }
       }).lean();
+
+      logger.info(`[produzione] data=${data} ordini trovati=${ordini.length}`);
 
       const PEZZI_PER_KG = {
         'ravioli': 30, 'culurgion': 32, 'pardula': 25,
