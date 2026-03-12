@@ -105,7 +105,35 @@ const dashboardController = {
         const quantita = parseFloat(prodotto.quantita) || 0;
         const nomeLC = (prodotto.nome || '').toLowerCase();
         if (unita === '€' || unita === 'euro') {
-          return nomeLC.includes('zeppol') ? quantita / 21 : 0;
+          // Mappa keyword → prezzoKg (da PRODOTTI_CONFIG)
+          const PREZZI_EURO_KG = [
+            { keys: ['ravioli', 'culurgion'],                          prezzoKg: 11 },
+            { keys: ['culurgion'],                                     prezzoKg: 16 },
+            { keys: ['pardula'],                                       prezzoKg: 20 },
+            { keys: ['ciambelle', 'ciambella', 'chiaccher'],           prezzoKg: 17 },
+            { keys: ['amarett'],                                       prezzoKg: 22 },
+            { keys: ['papassin', 'pabassine', 'pabassinas'],           prezzoKg: 22 },
+            { keys: ['gueff'],                                         prezzoKg: 22 },
+            { keys: ['bianchin'],                                      prezzoKg: 15 },
+            { keys: ['zeppol'],                                        prezzoKg: 21 },
+            { keys: ['torta di saba', 'torta'],                        prezzoKg: 26 },
+            { keys: ['dolci misti', 'dolci mix'],                      prezzoKg: 19 },
+            { keys: ['panada anguill'],                                prezzoKg: 30 },
+            { keys: ['panada di agnello', 'panada agnello'],           prezzoKg: 25 },
+            { keys: ['panada di maiale', 'panada maiale'],             prezzoKg: 21 },
+            { keys: ['panada di vitella', 'panada vitella'],           prezzoKg: 23 },
+            { keys: ['panada di verdur', 'panada verdur'],             prezzoKg: 17 },
+            { keys: ['panadine'],                                      prezzoKg: 28 },
+            { keys: ['pasta per panada', 'pasta panada'],              prezzoKg:  5 },
+            { keys: ['pizzette'],                                      prezzoKg: 16 },
+            { keys: ['fregula', 'fregola'],                            prezzoKg: 10 },
+          ];
+          // Culurgiones ha prezzoKg specifico - controlla prima
+          if (nomeLC.includes('culurgion')) return quantita / 16;
+          for (const { keys, prezzoKg } of PREZZI_EURO_KG) {
+            if (keys.some(k => nomeLC.includes(k))) return quantita / prezzoKg;
+          }
+          return 0; // prodotto in € non mappato → ignora
         }
         if (unita === 'kg' || unita === 'kilogrammi') return quantita;
         if (unita === 'pezzi' || unita === 'pz') {
