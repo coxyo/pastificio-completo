@@ -812,8 +812,8 @@ useEffect(() => {
         prodotti: ordineIniziale.prodotti || [],
         note: ordineIniziale.note || '',
         daViaggio: ordineIniziale.daViaggio || false,
-        ricordaEtichetta: ordineIniziale.ricordaEtichetta || false,  // ✅ NUOVO
-        confezioneRegalo: ordineIniziale.confezioneRegalo || false,  // ✅ NUOVO
+        ricordaEtichetta: ordineIniziale.opzioniExtra?.etichettaIngredienti || ordineIniziale.ricordaEtichetta || false,  // ✅ FIX 12/03/2026
+        confezioneRegalo: ordineIniziale.opzioniExtra?.confezionGift || ordineIniziale.confezioneRegalo || false,  // ✅ FIX 12/03/2026
         pagato: ordineIniziale.pagato || false,
         acconto: ordineIniziale.acconto || false,
         importoAcconto: ordineIniziale.importoAcconto || ''
