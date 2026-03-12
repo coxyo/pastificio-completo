@@ -43,7 +43,9 @@ import {
   Alert,
   AlertTitle,
   LinearProgress,
-  Checkbox  // ✅ AGGIUNTO per opzioni extra
+  Checkbox,  // ✅ AGGIUNTO per opzioni extra
+  Collapse,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -76,6 +78,336 @@ import SelectOrarioIntelligente from './SelectOrarioIntelligente';
 import { verificaChiusura } from '../services/chiusureService'; // ✅ NUOVO: Verifica chiusure
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://pastificio-completo-production.up.railway.app/api';
+
+// ✅ NUOVO 12/03/2026: Componente Riepilogo Produzione per NuovoOrdine
+// Mostra kg già ordinati per la data selezionata + limiti + integrazione carrello
+const PEZZI_PER_KG_RIEPILOGO = {
+  'ravioli': 30, 'culurgion': 32, 'pardula': 25,
+  'amarett': 35, 'bianchin': 100, 'papassin': 30, 'pabassine': 30, 'pabassinas': 30,
+  'gueff': 65, 'ciambelle': 30, 'ciambella': 30, 'sebada': 10,
+  'panadine': 20, 'panada': 4, 'pizzette': 30, 'zeppol': 24
+};
+const COMPOSIZIONE_DOLCI_MISTI_RIEPILOGO = { pardulas: 0.40, ciambelle: 0.25, amaretti: 0.15, gueffus: 0.05, pabassine: 0.05, bianchini: 0.03 };
+
+function convertiInKgRiepilogo(prodotto) {
+  const unita = (prodotto.unita || 'kg').toLowerCase();
+  const quantita = parseFloat(prodotto.quantita) || 0;
+  const nomeLC = (prodotto.nome || '').toLowerCase();
+  if (unita === '€' || unita === 'euro') return nomeLC.includes('zeppol') ? quantita / 21 : 0;
+  if (unita === 'kg' || unita === 'kilogrammi') return quantita;
+  if (unita === 'pezzi' || unita === 'pz') {
+    for (const [chiave, pezziKg] of Object.entries(PEZZI_PER_KG_RIEPILOGO)) {
+      if (nomeLC.includes(chiave)) return quantita / pezziKg;
+    }
+    return quantita / 30;
+  }
+  if (unita === 'vassoio' && prodotto.dettagliCalcolo?.composizione) {
+    const numV = parseFloat(prodotto.quantita) || 1;
+    return (prodotto.dettagliCalcolo.composizione || []).reduce((acc, comp) => {
+      const cU = (comp.unita || '').toLowerCase();
+      if (cU === 'kg') return acc + (comp.quantita || 0) * numV;
+      const cN = (comp.nome || '').toLowerCase();
+      for (const [chiave, pezziKg] of Object.entries(PEZZI_PER_KG_RIEPILOGO)) {
+        if (cN.includes(chiave)) return acc + (comp.quantita || 0) / pezziKg * numV;
+      }
+      return acc + (comp.quantita || 0) / 30 * numV;
+    }, 0);
+  }
+  return 0;
+}
+
+function classificaCategoriaRiepilogo(nomeLC) {
+  if (nomeLC.includes('ravioli') || nomeLC.includes('culurgion')) return 'ravioli';
+  if (nomeLC.includes('pardula')) return 'pardulas';
+  if (nomeLC.includes('zeppol')) return 'zeppole';
+  if (nomeLC.includes('panadine')) return 'panadine';
+  if (nomeLC.includes('pasta per panada') || nomeLC === 'pasta panada') return 'pasta';
+  if (nomeLC.includes('panada')) return 'panadas';
+  if (nomeLC.includes('sebada')) return 'sebadas';
+  if (nomeLC.includes('ciambelle') || nomeLC.includes('ciambella') ||
+      nomeLC.includes('amarett') || nomeLC.includes('gueff') ||
+      nomeLC.includes('bianchin') || nomeLC.includes('pabassine') ||
+      nomeLC.includes('papassin')) return 'dolci';
+  return 'altri';
+}
+
+// Calcola kg dal carrello corrente per categoria
+function calcolaTotaliCarrello(prodottiCarrello) {
+  const totali = { ravioli: 0, pardulas: 0, dolci: 0, panadas: 0, panadine: 0, zeppole: 0, sebadas: 0, pasta: 0, altri: 0 };
+  (prodottiCarrello || []).forEach(prodotto => {
+    const nomeLC = (prodotto.nome || '').toLowerCase();
+    const peso = convertiInKgRiepilogo(prodotto);
+    if (peso <= 0) return;
+    if (nomeLC.includes('vassoio') && prodotto.dettagliCalcolo?.composizione) {
+      const numV = parseFloat(prodotto.quantita) || 1;
+      (prodotto.dettagliCalcolo.composizione || []).forEach(comp => {
+        const cN = (comp.nome || '').toLowerCase();
+        let cP = 0;
+        const cU = (comp.unita || '').toLowerCase();
+        if (cU === 'kg') cP = (comp.quantita || 0) * numV;
+        else {
+          for (const [chiave, pezziKg] of Object.entries(PEZZI_PER_KG_RIEPILOGO)) {
+            if (cN.includes(chiave)) { cP = (comp.quantita || 0) / pezziKg * numV; break; }
+          }
+          if (!cP) cP = (comp.quantita || 0) / 30 * numV;
+        }
+        totali.dolci += cP;
+        if (cN.includes('pardula')) totali.pardulas += cP;
+      });
+      return;
+    }
+    if ((nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti')) && !nomeLC.includes('vassoio')) {
+      for (const [comp, perc] of Object.entries(COMPOSIZIONE_DOLCI_MISTI_RIEPILOGO)) {
+        totali.dolci += peso * perc;
+        if (comp === 'pardulas') totali.pardulas += peso * perc;
+      }
+      return;
+    }
+    const cat = classificaCategoriaRiepilogo(nomeLC);
+    totali[cat] = (totali[cat] || 0) + peso;
+  });
+  return totali;
+}
+
+const CATEGORIE_INFO = [
+  { chiave: 'ravioli',  emoji: '🥟', label: 'Ravioli',  color: '#f44336' },
+  { chiave: 'pardulas', emoji: '🟡', label: 'Pardulas', color: '#FF8C00' },
+  { chiave: 'dolci',    emoji: '🍪', label: 'Dolci',    color: '#4CAF50' },
+  { chiave: 'panadas',  emoji: '🥧', label: 'Panadas',  color: '#FF5722' },
+  { chiave: 'zeppole',  emoji: '🍩', label: 'Zeppole',  color: '#9C27B0' },
+  { chiave: 'panadine', emoji: '🥐', label: 'Panadine', color: '#795548' },
+  { chiave: 'sebadas',  emoji: '🍪', label: 'Sebadas',  color: '#607D8B' },
+  { chiave: 'pasta',    emoji: '🍝', label: 'Pasta',    color: '#FFC107' },
+  { chiave: 'altri',    emoji: '📦', label: 'Altri',    color: '#9E9E9E' },
+];
+
+function RiepilogoProduzione({ dataRitiro, prodottiCarrello = [], ordineIdModifica = null, limiti = [] }) {
+  const [produzione, setProduzione] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [espanso, setEspanso] = useState(false);
+
+  // Carica produzione dal server quando cambia la data
+  useEffect(() => {
+    if (!dataRitiro) { setProduzione(null); return; }
+    setLoading(true);
+    fetch(`${API_URL}/dashboard/produzione?data=${dataRitiro}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setProduzione(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [dataRitiro]);
+
+  // Totali dal carrello corrente
+  const totaliCarrello = useMemo(() => calcolaTotaliCarrello(prodottiCarrello), [prodottiCarrello]);
+
+  // Combina totali server + carrello
+  const totaliCombinati = useMemo(() => {
+    const base = produzione?.totali || {};
+    const risultato = {};
+    for (const cat of CATEGORIE_INFO.map(c => c.chiave)) {
+      risultato[cat] = (base[cat] || 0) + (totaliCarrello[cat] || 0);
+    }
+    return risultato;
+  }, [produzione, totaliCarrello]);
+
+  // Mappa limiti per categoria/prodotto
+  const limitiMap = useMemo(() => {
+    const m = {};
+    (limiti || []).forEach(l => {
+      if (l.categoria) m[l.categoria.toLowerCase()] = l;
+      if (l.prodotto) m[l.prodotto.toLowerCase()] = l;
+    });
+    return m;
+  }, [limiti]);
+
+  const getLimitePerCategoria = (chiave) => {
+    // Cerca per chiave diretta o varianti del nome
+    const chiavi = [chiave, chiave.replace('s', ''), chiave + 's'];
+    for (const k of chiavi) {
+      if (limitiMap[k]) return limitiMap[k];
+    }
+    // Cerca parziale
+    for (const [k, v] of Object.entries(limitiMap)) {
+      if (k.includes(chiave) || chiave.includes(k)) return v;
+    }
+    return null;
+  };
+
+  const getColoreLimite = (ordinato, limite) => {
+    if (!limite) return '#4CAF50'; // verde - no limite
+    const perc = (ordinato / limite.limiteQuantita) * 100;
+    if (perc >= 100) return '#f44336'; // rosso
+    if (perc >= 70) return '#FF9800'; // arancione
+    return '#4CAF50'; // verde
+  };
+
+  const totaleGenerale = Object.values(totaliCombinati).reduce((a, b) => a + b, 0);
+  const categoriePresenti = CATEGORIE_INFO.filter(c => totaliCombinati[c.chiave] > 0.05);
+
+  if (!dataRitiro) {
+    return (
+      <Paper sx={{ p: 1.5, mb: 2, bgcolor: 'grey.50', border: '1px dashed #ccc', borderRadius: 2 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          📅 Seleziona una data per vedere la situazione produzione
+        </Typography>
+      </Paper>
+    );
+  }
+
+  return (
+    <Paper sx={{
+      mb: 2,
+      border: '1px solid rgba(46,123,0,0.20)',
+      borderTop: '3px solid #2E7B00',
+      borderRadius: 2,
+      overflow: 'hidden',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+    }}>
+      {/* Riga compatta (sempre visibile) */}
+      <Box
+        onClick={() => setEspanso(e => !e)}
+        sx={{
+          px: 1.5, py: 1,
+          bgcolor: 'rgba(46,123,0,0.04)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          flexWrap: 'wrap',
+          '&:hover': { bgcolor: 'rgba(46,123,0,0.08)' }
+        }}
+      >
+        <Typography variant="caption" sx={{ fontWeight: 700, color: '#2E7B00', whiteSpace: 'nowrap', mr: 0.5 }}>
+          📊 {new Date(dataRitiro + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' })}:
+        </Typography>
+
+        {loading && <CircularProgress size={14} sx={{ ml: 0.5 }} />}
+
+        {!loading && categoriePresenti.length === 0 && (
+          <Typography variant="caption" color="text.secondary">Nessun ordine per questo giorno</Typography>
+        )}
+
+        {!loading && categoriePresenti.map(cat => {
+          const ordinato = totaliCombinati[cat.chiave];
+          const limiteInfo = getLimitePerCategoria(cat.chiave);
+          const colore = getColoreLimite(ordinato, limiteInfo);
+          const dalCarrello = totaliCarrello[cat.chiave] || 0;
+          const haCarrello = dalCarrello > 0.01;
+          const perc = limiteInfo ? Math.round((ordinato / limiteInfo.limiteQuantita) * 100) : null;
+
+          return (
+            <Tooltip
+              key={cat.chiave}
+              title={limiteInfo
+                ? `${ordinato.toFixed(1)}/${limiteInfo.limiteQuantita} ${limiteInfo.unitaMisura || 'Kg'} (${perc}%)${haCarrello ? ` — di cui ${dalCarrello.toFixed(1)} Kg nel carrello` : ''}`
+                : `${ordinato.toFixed(1)} Kg${haCarrello ? ` (inclusi ${dalCarrello.toFixed(1)} Kg nel carrello)` : ''}`
+              }
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: colore }}>
+                  {cat.emoji} {cat.label}: {ordinato.toFixed(1)}{limiteInfo ? `/${limiteInfo.limiteQuantita}` : ''} Kg
+                  {haCarrello ? <span style={{ color: '#1976d2', fontSize: '0.7rem' }}>*</span> : ''}
+                  {limiteInfo && perc >= 90 ? ' ⚠️' : ''}
+                </Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ px: 0.3 }}>|</Typography>
+              </Box>
+            </Tooltip>
+          );
+        })}
+
+        {totaleGenerale > 0.05 && (
+          <Typography variant="caption" sx={{ fontWeight: 700, ml: 'auto', color: '#555' }}>
+            Tot: {totaleGenerale.toFixed(1)} Kg
+          </Typography>
+        )}
+
+        <Typography variant="caption" sx={{ color: '#888', fontSize: '0.7rem' }}>
+          {espanso ? '▲' : '▼'}
+        </Typography>
+      </Box>
+
+      {/* Pannello espanso */}
+      <Collapse in={espanso}>
+        <Box sx={{ px: 2, py: 1.5, borderTop: '1px solid rgba(0,0,0,0.07)' }}>
+          {categoriePresenti.length === 0 ? (
+            <Typography variant="caption" color="text.secondary">Nessun ordine per questo giorno. Tutti i prodotti disponibili.</Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {categoriePresenti.map(cat => {
+                const ordinato = totaliCombinati[cat.chiave];
+                const limiteInfo = getLimitePerCategoria(cat.chiave);
+                const colore = getColoreLimite(ordinato, limiteInfo);
+                const perc = limiteInfo ? Math.min((ordinato / limiteInfo.limiteQuantita) * 100, 100) : null;
+                const dalCarrello = totaliCarrello[cat.chiave] || 0;
+                const dalServer = (produzione?.totali?.[cat.chiave] || 0);
+
+                return (
+                  <Box key={cat.chiave}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.4 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: colore }}>
+                        {cat.emoji} {cat.label}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: colore, fontWeight: 600 }}>
+                        {ordinato.toFixed(1)}{limiteInfo ? `/${limiteInfo.limiteQuantita} ${limiteInfo.unitaMisura || 'Kg'}` : ' Kg'}
+                        {limiteInfo && (
+                          <span style={{ marginLeft: 6, fontSize: '0.7rem' }}>
+                            {perc >= 100 ? '🔴 LIMITE RAGGIUNTO' : perc >= 70 ? `🟡 ${Math.round(perc)}%` : `🟢 ${Math.round(perc)}%`}
+                          </span>
+                        )}
+                      </Typography>
+                    </Box>
+
+                    {limiteInfo && (
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.min((ordinato / limiteInfo.limiteQuantita) * 100, 100)}
+                        sx={{
+                          height: 6, borderRadius: 3, mb: 0.3,
+                          '& .MuiLinearProgress-bar': { backgroundColor: colore }
+                        }}
+                      />
+                    )}
+
+                    {dalCarrello > 0.01 && (
+                      <Typography variant="caption" sx={{ color: '#1976d2', fontSize: '0.7rem' }}>
+                        * {dalServer.toFixed(1)} Kg già ordinati + {dalCarrello.toFixed(1)} Kg nel carrello attuale
+                      </Typography>
+                    )}
+
+                    {/* Dettaglio ravioli */}
+                    {cat.chiave === 'ravioli' && produzione?.dettaglio?.ravioli && Object.keys(produzione.dettaglio.ravioli).length > 0 && (
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.3, pl: 1 }}>
+                        {Object.entries(produzione.dettaglio.ravioli).map(([v, kg]) => (
+                          <Chip key={v} label={`${v}: ${kg.toFixed(1)}Kg`} size="small" variant="outlined"
+                            sx={{ fontSize: '0.65rem', height: 18, color: '#f44336', borderColor: '#f44336' }} />
+                        ))}
+                      </Box>
+                    )}
+
+                    {/* Dettaglio dolci */}
+                    {cat.chiave === 'dolci' && produzione?.dettaglio?.dolci && Object.keys(produzione.dettaglio.dolci).length > 0 && (
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.3, pl: 1 }}>
+                        {Object.entries(produzione.dettaglio.dolci).map(([v, kg]) => kg > 0.05 && (
+                          <Chip key={v} label={`${v}: ${kg.toFixed(1)}Kg`} size="small" variant="outlined"
+                            sx={{ fontSize: '0.65rem', height: 18, color: '#4CAF50', borderColor: '#4CAF50' }} />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+
+              {Object.values(totaliCarrello).some(v => v > 0.01) && (
+                <Typography variant="caption" sx={{ color: '#1976d2', fontSize: '0.7rem', mt: 0.5 }}>
+                  * Le quantità con asterisco includono i prodotti nel carrello corrente (non ancora salvati)
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Box>
+      </Collapse>
+    </Paper>
+  );
+}
 
 // ✅ CACHE GLOBALE - NON MODIFICARE
 let clientiCache = null;
@@ -1900,6 +2232,14 @@ useEffect(() => {
             pb: '100px'  // ✅ Spazio per bottone SALVA fisso in basso
           }}>
             <Box sx={{ p: 2, pb: 10 }}>  {/* ✅ Padding extra in fondo */}
+              {/* ✅ NUOVO 12/03/2026: Riepilogo Produzione */}
+              <RiepilogoProduzione
+                dataRitiro={formData.dataRitiro}
+                prodottiCarrello={formData.prodotti}
+                ordineIdModifica={ordineIniziale?._id || null}
+                limiti={limiti}
+              />
+
               {/* Alert Limiti */}
               {alertLimiti.length > 0 && (
                 <Box sx={{ mb: 2 }}>
