@@ -2226,9 +2226,9 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
       dataLimite.setDate(dataLimite.getDate() - 30);
       const dataLimiteISO = dataLimite.toISOString().split('T')[0];
       
-      let url = `${API_URL}/ordini`;
-      // Prova prima con filtro (se backend lo supporta)
-      // Se fallisce, ricarica senza filtro
+      let url = `${API_URL}/ordini?limit=2000`;
+      // ✅ FIX 12/03/2026: limit=2000 per ricevere tutti gli ordini recenti
+      // senza paginazione che tronca i dati (es. 63 su 68 ordini del 4 aprile)
       
       const response = await fetch(url, {
         method: 'GET',
