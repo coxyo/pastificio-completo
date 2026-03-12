@@ -162,7 +162,9 @@ const dashboardController = {
           const peso = convertiInKg(prodotto);
           if (peso <= 0) return;
 
-          // Vassoio dolci misti
+          // Vassoio dolci misti - logica identica a GestoreOrdini:
+          // ogni componente va nella sua categoria (pardulas→pardulas, ciambelle→dolci, ecc.)
+          // NON esiste un totali.dolci per il vassoio, Dolci = Ciambelle+Amaretti+Gueffus+Bianchini+Pabassine
           if (nomeLC.includes('vassoio') && prodotto.dettagliCalcolo?.composizione) {
             const numV = parseFloat(prodotto.quantita) || 1;
             (prodotto.dettagliCalcolo.composizione || []).forEach(comp => {
@@ -176,18 +178,23 @@ const dashboardController = {
                 }
                 if (!cP) cP = (comp.quantita || 0) / 30 * numV;
               }
-              totali.dolci += cP;
-              if (cN.includes('pardula')) totali.pardulas += cP;
-              dettaglioDolci[comp.nome || cN] = (dettaglioDolci[comp.nome || cN] || 0) + cP;
+              // Classifica ogni componente nella sua categoria (come GestoreOrdini)
+              if (cN.includes('pardula'))                                         { totali.pardulas += cP; }
+              else if (cN.includes('ciambelle') || cN.includes('ciambella'))      { totali.dolci += cP; dettaglioDolci[comp.nome||cN] = (dettaglioDolci[comp.nome||cN]||0)+cP; }
+              else if (cN.includes('amarett'))                                    { totali.dolci += cP; dettaglioDolci[comp.nome||cN] = (dettaglioDolci[comp.nome||cN]||0)+cP; }
+              else if (cN.includes('gueff'))                                      { totali.dolci += cP; dettaglioDolci[comp.nome||cN] = (dettaglioDolci[comp.nome||cN]||0)+cP; }
+              else if (cN.includes('bianchin'))                                   { totali.dolci += cP; dettaglioDolci[comp.nome||cN] = (dettaglioDolci[comp.nome||cN]||0)+cP; }
+              else if (cN.includes('pabassine') || cN.includes('papassin'))       { totali.dolci += cP; dettaglioDolci[comp.nome||cN] = (dettaglioDolci[comp.nome||cN]||0)+cP; }
             });
             return;
           }
 
-          // Dolci misti senza vassoio
+          // Dolci misti senza vassoio - esplodi per composizione standard
+          // pardulas → totali.pardulas, il resto → totali.dolci (come GestoreOrdini)
           if ((nomeLC.includes('dolci mix') || nomeLC.includes('dolci misti')) && !nomeLC.includes('vassoio')) {
             for (const [comp, perc] of Object.entries(COMPOSIZIONE_DOLCI_MISTI)) {
-              totali.dolci += peso * perc;
               if (comp === 'pardulas') totali.pardulas += peso * perc;
+              else totali.dolci += peso * perc;
             }
             return;
           }
