@@ -552,6 +552,15 @@ ${prodottiLista}
 
 💰 *Totale:* €${Number(totaleFinale).toFixed(2)}
 ${nuovoOrdine.note ? `\n📝 Note: ${nuovoOrdine.note}` : ''}
+${(() => {
+          const extra = [];
+          if (nuovoOrdine.daViaggio) extra.push('✈️ Da viaggio (sottovuoto)');
+          if (nuovoOrdine.ricordaEtichetta) extra.push('⚠️ Etichetta ingredienti da applicare');
+          if (nuovoOrdine.confezioneRegalo) extra.push('🎁 Confezione regalo');
+          if (nuovoOrdine.pagato) extra.push('💰 Già pagato');
+          if (nuovoOrdine.acconto && !nuovoOrdine.pagato) extra.push(nuovoOrdine.importoAcconto ? `💳 Acconto versato: €${Number(nuovoOrdine.importoAcconto).toFixed(2)}` : '💳 Acconto versato');
+          return extra.length > 0 ? `\nℹ️ *Note:* ${extra.join(' | ')}` : '';
+        })()}
 
 📍 Via Carmine 20/B, Assemini
 📞 070 944382
