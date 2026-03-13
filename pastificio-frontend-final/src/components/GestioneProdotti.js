@@ -81,7 +81,7 @@ export default function GestioneProdotti() {
 
   // Stato configurazione costi
   const [configCosti, setConfigCosti] = useState({
-    overhead: { energia: 15, gas: 8, manodopera: 25, affitto: 5, tasse: 10, imballaggi: 3, varie: 5 },
+    overhead: { energia: 4, gas: 1.5, manodopera: 28, affitto: 0, tasse: 8, imballaggi: 3, iva: 0, varie: 5 },
     margineConsigliato: 70
   });
 
