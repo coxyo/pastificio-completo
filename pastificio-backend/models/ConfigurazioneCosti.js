@@ -11,7 +11,7 @@ const configurazioneCostiSchema = new mongoose.Schema({
     // Valori calibrati su dati reali 2024 - base €96.000 ingredienti annui
     // Aggiornato: Marzo 2026
     energia:     { type: Number, default: 4   }, // €3.305/anno (bolletta Ajo' Energia)
-    gas:         { type: Number, default: 1.5 }, // ~€1.200/anno (stima - aggiornare con bollette reali)
+    gas:         { type: Number, default: 0   }, // non utilizzato
     manodopera:  { type: Number, default: 28  }, // €26.322/anno (Francesca Fenu, part-time 90%)
     affitto:     { type: Number, default: 0   }, // locale di proprietà
     tasse:       { type: Number, default: 8   }, // €7.251/anno (IRPEF Maurizio €1.943 + Valentina €5.308)
