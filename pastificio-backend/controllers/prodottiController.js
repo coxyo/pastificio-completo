@@ -1,15 +1,118 @@
-// controllers/prodottiController.js
+// controllers/prodottiController.js - ✅ AGGIORNATO CON RICETTE E COSTI
 import Prodotto from '../models/Prodotto.js';
+import Ingrediente from '../models/Ingrediente.js';
+import ConfigurazioneCosti from '../models/ConfigurazioneCosti.js';
 import logger from '../config/logger.js';
 
+// ============================================================
+// FUNZIONE HELPER: Ricalcola costi di un prodotto
+// Chiamata sia dal controller che dall'import fatture
+// ============================================================
+export const ricalcolaCostoProdotto = async (prodottoId, configOverride = null) => {
+  try {
+    const prodotto = await Prodotto.findById(prodottoId);
+    if (!prodotto || !prodotto.ricetta || prodotto.ricetta.length === 0) return null;
+
+    const config = configOverride || await ConfigurazioneCosti.getDefault();
+    const overhead = config.overhead;
+
+    // Ricalcola costo ingredienti
+    let costoIngrediente = 0;
+    const ricettaAggiornata = [];
+
+    for (const voce of prodotto.ricetta) {
+      const ingrediente = await Ingrediente.findById(voce.ingredienteId)
+        .select('ultimoPrezzoAcquisto prezzoMedioAcquisto nome');
+
+      let prezzoUnitario = voce.prezzoUnitarioSnapshot || 0;
+      if (ingrediente) {
+        prezzoUnitario = ingrediente.ultimoPrezzoAcquisto || ingrediente.prezzoMedioAcquisto || 0;
+      }
+
+      const costo = prezzoUnitario * voce.quantitaPerKg;
+      costoIngrediente += costo;
+
+      ricettaAggiornata.push({
+        ingredienteId: voce.ingredienteId,
+        ingredienteNome: voce.ingredienteNome,
+        quantitaPerKg: voce.quantitaPerKg,
+        unita: voce.unita,
+        prezzoUnitarioSnapshot: prezzoUnitario,
+        costoCalcolato: costo
+      });
+    }
+
+    // Determina quale overhead usare
+    const useCustom = prodotto.overheadPersonalizzato?.attivo;
+    const oh = useCustom ? prodotto.overheadPersonalizzato : overhead;
+
+    const percOverhead = (oh.energia || 0) + (oh.gas || 0) + (oh.manodopera || 0) +
+      (oh.affitto || 0) + (oh.tasse || 0) + (oh.imballaggi || 0) + (oh.varie || 0);
+
+    const costoIngredientiBase = prodotto.usaCostoManuale && prodotto.costoIngredientiManuale != null
+      ? prodotto.costoIngredientiManuale
+      : costoIngrediente;
+
+    const costoTotale = costoIngredientiBase * (1 + percOverhead / 100);
+
+    // Calcola margine dal prezzoKg
+    const prezzoVendita = prodotto.prezzoKg || 0;
+    const margine = prezzoVendita > 0 && costoTotale > 0
+      ? ((prezzoVendita - costoTotale) / costoTotale) * 100
+      : 0;
+
+    // Aggiorna prodotto
+    await Prodotto.findByIdAndUpdate(prodottoId, {
+      $set: {
+        ricetta: ricettaAggiornata,
+        costoIngredientiCalcolato: costoIngrediente,
+        costoTotaleProduzione: costoTotale,
+        margineAttuale: margine
+      }
+    });
+
+    return { costoIngrediente, costoTotale, margine };
+  } catch (err) {
+    logger.error('Errore ricalcolo costo prodotto:', err);
+    return null;
+  }
+};
+
+// ============================================================
+// Ricalcola tutti i prodotti che usano un certo ingrediente
+// Chiamata dall'autoImport quando arriva nuova fattura
+// ============================================================
+export const ricalcolaPerIngrediente = async (ingredienteId) => {
+  try {
+    const prodotti = await Prodotto.find({
+      'ricetta.ingredienteId': ingredienteId,
+      attivo: true
+    }).select('_id nome');
+
+    if (prodotti.length === 0) return;
+
+    const config = await ConfigurazioneCosti.getDefault();
+    const risultati = [];
+
+    for (const p of prodotti) {
+      const res = await ricalcolaCostoProdotto(p._id, config);
+      if (res) risultati.push({ nome: p.nome, ...res });
+    }
+
+    logger.info(`[RICALCOLO] ${risultati.length} prodotti aggiornati per ingrediente ${ingredienteId}`);
+    return risultati;
+  } catch (err) {
+    logger.error('Errore ricalcolo per ingrediente:', err);
+  }
+};
+
 const prodottiController = {
-  // GET /api/prodotti - Ottiene tutti i prodotti
+
+  // GET /api/prodotti
   getAll: async (req, res) => {
     try {
       const { categoria, disponibile, attivo, search } = req.query;
-      
       let filter = {};
-      
       if (categoria) filter.categoria = categoria;
       if (disponibile !== undefined) filter.disponibile = disponibile === 'true';
       if (attivo !== undefined) filter.attivo = attivo === 'true';
@@ -19,74 +122,36 @@ const prodottiController = {
           { descrizione: { $regex: search, $options: 'i' } }
         ];
       }
-      
-      const prodotti = await Prodotto.find(filter)
-        .sort({ categoria: 1, ordinamento: 1, nome: 1 });
-      
-      logger.info(`Recuperati ${prodotti.length} prodotti`);
-      
-      res.json({
-        success: true,
-        count: prodotti.length,
-        data: prodotti
-      });
+      const prodotti = await Prodotto.find(filter).sort({ categoria: 1, ordinamento: 1, nome: 1 });
+      res.json({ success: true, count: prodotti.length, data: prodotti });
     } catch (error) {
       logger.error('Errore recupero prodotti:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore recupero prodotti',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore recupero prodotti', error: error.message });
     }
   },
 
-  // GET /api/prodotti/disponibili - Prodotti disponibili (pubblico)
+  // GET /api/prodotti/disponibili
   getDisponibili: async (req, res) => {
     try {
-      const prodotti = await Prodotto.find({ 
-        disponibile: true, 
-        attivo: true 
-      }).sort({ categoria: 1, ordinamento: 1, nome: 1 });
-      
-      res.json({
-        success: true,
-        count: prodotti.length,
-        data: prodotti
-      });
+      const prodotti = await Prodotto.find({ disponibile: true, attivo: true })
+        .sort({ categoria: 1, ordinamento: 1, nome: 1 });
+      res.json({ success: true, count: prodotti.length, data: prodotti });
     } catch (error) {
-      logger.error('Errore recupero prodotti disponibili:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore recupero prodotti disponibili',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
   // GET /api/prodotti/categoria/:categoria
   getByCategoria: async (req, res) => {
     try {
-      const { categoria } = req.params;
-      
-      const prodotti = await Prodotto.find({ 
-        categoria, 
-        disponibile: true, 
-        attivo: true 
+      const prodotti = await Prodotto.find({
+        categoria: req.params.categoria,
+        disponibile: true,
+        attivo: true
       }).sort({ ordinamento: 1, nome: 1 });
-      
-      res.json({
-        success: true,
-        categoria,
-        count: prodotti.length,
-        data: prodotti
-      });
+      res.json({ success: true, categoria: req.params.categoria, count: prodotti.length, data: prodotti });
     } catch (error) {
-      logger.error('Errore recupero per categoria:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore recupero per categoria',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
@@ -100,19 +165,18 @@ const prodottiController = {
         { $group: { _id: '$categoria', count: { $sum: 1 } } },
         { $sort: { _id: 1 } }
       ]);
-      
       const giacenzeBasse = await Prodotto.countDocuments({
         attivo: true,
         $expr: { $lt: ['$giacenzaAttuale', '$giacenzaMinima'] }
       });
-      
+      const conRicetta = await Prodotto.countDocuments({ attivo: true, 'ricetta.0': { $exists: true } });
+
       res.json({
         success: true,
         statistiche: {
-          totale,
-          disponibili,
+          totale, disponibili,
           nonDisponibili: totale - disponibili,
-          giacenzeBasse,
+          giacenzeBasse, conRicetta,
           perCategoria: perCategoria.reduce((acc, item) => {
             acc[item._id] = item.count;
             return acc;
@@ -120,12 +184,7 @@ const prodottiController = {
         }
       });
     } catch (error) {
-      logger.error('Errore calcolo statistiche:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore calcolo statistiche',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
@@ -133,47 +192,23 @@ const prodottiController = {
   getById: async (req, res) => {
     try {
       const prodotto = await Prodotto.findById(req.params.id);
-      
-      if (!prodotto) {
-        return res.status(404).json({
-          success: false,
-          message: 'Prodotto non trovato'
-        });
-      }
-      
-      res.json({
-        success: true,
-        data: prodotto
-      });
+      if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
+      res.json({ success: true, data: prodotto });
     } catch (error) {
-      logger.error('Errore recupero prodotto:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore recupero prodotto',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
   // GET /api/prodotti/:id/calcola-prezzo
   calcolaPrezzo: async (req, res) => {
     try {
-      const { id } = req.params;
       const { quantita, unita, variante } = req.query;
-      
-      const prodotto = await Prodotto.findById(id);
-      
-      if (!prodotto) {
-        return res.status(404).json({
-          success: false,
-          message: 'Prodotto non trovato'
-        });
-      }
-      
+      const prodotto = await Prodotto.findById(req.params.id);
+      if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
+
       let prezzoBase = 0;
       let dettagli = '';
-      
-      // Logica calcolo prezzo basata su unità
+
       if (unita === 'Kg' || unita === 'mezzo kg') {
         const kg = unita === 'mezzo kg' ? 0.5 : parseFloat(quantita);
         prezzoBase = prodotto.prezzoKg * kg;
@@ -193,209 +228,315 @@ const prodottiController = {
         prezzoBase = prodotto.prezzoKg * kg;
         dettagli = `${quantita}g (${kg.toFixed(3)} Kg) x €${prodotto.prezzoKg}/Kg`;
       }
-      
-      res.json({
-        success: true,
-        calcolo: {
-          prodotto: prodotto.nome,
-          quantita,
-          unita,
-          prezzoBase: prezzoBase.toFixed(2),
-          dettagli,
-          variante: variante || null
-        }
-      });
+
+      res.json({ success: true, calcolo: { prodotto: prodotto.nome, quantita, unita, prezzoBase: prezzoBase.toFixed(2), dettagli, variante: variante || null } });
     } catch (error) {
-      logger.error('Errore calcolo prezzo:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore calcolo prezzo',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
-  // POST /api/prodotti - Crea nuovo prodotto
+  // ============================================================
+  // RICETTA - GET /api/prodotti/:id/ricetta
+  // ============================================================
+  getRicetta: async (req, res) => {
+    try {
+      const prodotto = await Prodotto.findById(req.params.id)
+        .select('nome ricetta costoIngredientiCalcolato costoIngredientiManuale usaCostoManuale costoTotaleProduzione margineAttuale overheadPersonalizzato prezzoKg');
+      if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
+
+      // Arricchisce con prezzi aggiornati dagli ingredienti
+      const ricettaArricchita = [];
+      for (const voce of (prodotto.ricetta || [])) {
+        const ingrediente = await Ingrediente.findById(voce.ingredienteId)
+          .select('ultimoPrezzoAcquisto prezzoMedioAcquisto storicoPrezzi nome unitaMisura');
+        ricettaArricchita.push({
+          ...voce.toObject(),
+          prezzoAttualeIngrediente: ingrediente?.ultimoPrezzoAcquisto || 0,
+          prezzoMedioIngrediente: ingrediente?.prezzoMedioAcquisto || 0,
+          storicoPrezzi: ingrediente?.storicoPrezzi?.slice(-5) || []
+        });
+      }
+
+      res.json({ success: true, data: { ...prodotto.toObject(), ricetta: ricettaArricchita } });
+    } catch (error) {
+      logger.error('Errore get ricetta:', error);
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
+    }
+  },
+
+  // ============================================================
+  // RICETTA - PUT /api/prodotti/:id/ricetta
+  // ============================================================
+  updateRicetta: async (req, res) => {
+    try {
+      const { ricetta } = req.body;
+
+      if (!Array.isArray(ricetta)) {
+        return res.status(400).json({ success: false, message: 'ricetta deve essere un array' });
+      }
+
+      // Valida e arricchisce con snapshot prezzi
+      const ricettaProcessata = [];
+      for (const voce of ricetta) {
+        if (!voce.ingredienteNome || voce.quantitaPerKg == null || voce.quantitaPerKg < 0) {
+          return res.status(400).json({ success: false, message: `Voce ricetta non valida: ${JSON.stringify(voce)}` });
+        }
+
+        let prezzoSnap = voce.prezzoUnitarioSnapshot || 0;
+        if (voce.ingredienteId) {
+          const ing = await Ingrediente.findById(voce.ingredienteId).select('ultimoPrezzoAcquisto prezzoMedioAcquisto');
+          if (ing) prezzoSnap = ing.ultimoPrezzoAcquisto || ing.prezzoMedioAcquisto || 0;
+        }
+
+        ricettaProcessata.push({
+          ingredienteId: voce.ingredienteId || null,
+          ingredienteNome: voce.ingredienteNome.trim(),
+          quantitaPerKg: parseFloat(voce.quantitaPerKg),
+          unita: voce.unita || 'kg',
+          prezzoUnitarioSnapshot: prezzoSnap,
+          costoCalcolato: prezzoSnap * parseFloat(voce.quantitaPerKg)
+        });
+      }
+
+      await Prodotto.findByIdAndUpdate(req.params.id, { $set: { ricetta: ricettaProcessata } });
+
+      // Ricalcola costi
+      const costiAggiornati = await ricalcolaCostoProdotto(req.params.id);
+
+      const prodottoAggiornato = await Prodotto.findById(req.params.id);
+
+      logger.info(`Ricetta aggiornata: ${prodottoAggiornato?.nome}`);
+
+      res.json({
+        success: true,
+        message: 'Ricetta aggiornata e costi ricalcolati',
+        data: prodottoAggiornato,
+        costiRicalcolati: costiAggiornati
+      });
+    } catch (error) {
+      logger.error('Errore update ricetta:', error);
+      res.status(500).json({ success: false, message: 'Errore aggiornamento ricetta', error: error.message });
+    }
+  },
+
+  // ============================================================
+  // CONFIGURAZIONE COSTI - GET /api/prodotti/configurazione-costi
+  // ============================================================
+  getConfigurazioneCosti: async (req, res) => {
+    try {
+      const config = await ConfigurazioneCosti.getDefault();
+      res.json({ success: true, data: config });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
+    }
+  },
+
+  // ============================================================
+  // CONFIGURAZIONE COSTI - PUT /api/prodotti/configurazione-costi
+  // ============================================================
+  updateConfigurazioneCosti: async (req, res) => {
+    try {
+      const { overhead, margineConsigliato } = req.body;
+
+      const config = await ConfigurazioneCosti.findOneAndUpdate(
+        { tipo: 'default' },
+        {
+          $set: {
+            overhead,
+            margineConsigliato: margineConsigliato || 70,
+            modificatoDa: req.user?.username || 'Admin',
+            modificatoIl: new Date()
+          }
+        },
+        { upsert: true, new: true }
+      );
+
+      // Ricalcola tutti i prodotti con la nuova configurazione
+      const prodotti = await Prodotto.find({ attivo: true, 'ricetta.0': { $exists: true } }).select('_id');
+      for (const p of prodotti) {
+        await ricalcolaCostoProdotto(p._id, config);
+      }
+
+      logger.info(`Configurazione costi aggiornata da ${config.modificatoDa}`);
+      res.json({ success: true, message: 'Configurazione aggiornata e prodotti ricalcolati', data: config });
+    } catch (error) {
+      logger.error('Errore update configurazione:', error);
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
+    }
+  },
+
+  // ============================================================
+  // RICALCOLA COSTI - POST /api/prodotti/:id/ricalcola-costi
+  // ============================================================
+  ricalcolaCosti: async (req, res) => {
+    try {
+      const risultato = await ricalcolaCostoProdotto(req.params.id);
+      if (!risultato) {
+        return res.status(400).json({ success: false, message: 'Nessuna ricetta configurata per questo prodotto' });
+      }
+      const prodotto = await Prodotto.findById(req.params.id);
+      res.json({ success: true, message: 'Costi ricalcolati', data: prodotto, costi: risultato });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
+    }
+  },
+
+  // ============================================================
+  // TABELLA COMPARATIVA - GET /api/prodotti/comparativa
+  // ============================================================
+  getComparativa: async (req, res) => {
+    try {
+      const { periodo = 30 } = req.query;
+
+      const prodotti = await Prodotto.find({ attivo: true })
+        .select('nome categoria prezzoKg prezzoPezzo costoTotaleProduzione costoIngredientiCalcolato margineAttuale ricetta');
+
+      // Per le vendite mensili usiamo gli ordini
+      const Ordine = (await import('../models/Ordine.js')).default;
+      const dataInizio = new Date();
+      dataInizio.setDate(dataInizio.getDate() - parseInt(periodo));
+
+      const vendite = await Ordine.aggregate([
+        {
+          $match: {
+            stato: { $in: ['completato', 'confermato', 'pronto'] },
+            dataCreazione: { $gte: dataInizio }
+          }
+        },
+        { $unwind: '$prodotti' },
+        {
+          $group: {
+            _id: '$prodotti.nome',
+            totaleKg: { $sum: '$prodotti.quantitaKg' },
+            totaleValore: { $sum: '$prodotti.prezzoTotale' },
+            numOrdini: { $sum: 1 }
+          }
+        }
+      ]);
+
+      const venditeMap = {};
+      for (const v of vendite) {
+        venditeMap[v._id] = { totaleKg: v.totaleKg, totaleValore: v.totaleValore, numOrdini: v.numOrdini };
+      }
+
+      const comparativa = prodotti.map(p => {
+        const vendita = venditeMap[p.nome] || { totaleKg: 0, totaleValore: 0, numOrdini: 0 };
+        const prezzoVendita = p.prezzoKg || p.prezzoPezzo || 0;
+        const costo = p.costoTotaleProduzione || 0;
+        const margineEuro = prezzoVendita > 0 ? prezzoVendita - costo : 0;
+        const marginePerc = costo > 0 && prezzoVendita > 0 ? ((prezzoVendita - costo) / costo) * 100 : 0;
+        const profittoMese = vendita.totaleKg > 0 ? margineEuro * vendita.totaleKg : 0;
+
+        return {
+          _id: p._id,
+          nome: p.nome,
+          categoria: p.categoria,
+          prezzoVendita,
+          costoProduzione: costo,
+          costoIngredienti: p.costoIngredientiCalcolato || 0,
+          margineEuro: margineEuro.toFixed(2),
+          marginePerc: marginePerc.toFixed(1),
+          hasRicetta: p.ricetta && p.ricetta.length > 0,
+          venditeKg: vendita.totaleKg,
+          venditeValore: vendita.totaleValore,
+          profittoMese: profittoMese.toFixed(2),
+          numOrdini: vendita.numOrdini
+        };
+      }).sort((a, b) => parseFloat(b.profittoMese) - parseFloat(a.profittoMese));
+
+      res.json({ success: true, data: comparativa, periodo: parseInt(periodo) });
+    } catch (error) {
+      logger.error('Errore tabella comparativa:', error);
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
+    }
+  },
+
+  // ============================================================
+  // LISTA INGREDIENTI per dropdown ricetta
+  // GET /api/prodotti/ingredienti-disponibili
+  // ============================================================
+  getIngredientiDisponibili: async (req, res) => {
+    try {
+      const ingredienti = await Ingrediente.find({ attivo: true })
+        .select('nome categoria unitaMisura ultimoPrezzoAcquisto prezzoMedioAcquisto storicoPrezzi')
+        .sort({ nome: 1 });
+      res.json({ success: true, data: ingredienti });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
+    }
+  },
+
+  // POST /api/prodotti
   create: async (req, res) => {
     try {
       const nuovoProdotto = new Prodotto(req.body);
       await nuovoProdotto.save();
-      
       logger.info(`Prodotto creato: ${nuovoProdotto.nome}`);
-      
-      res.status(201).json({
-        success: true,
-        message: 'Prodotto creato con successo',
-        data: nuovoProdotto
-      });
+      res.status(201).json({ success: true, message: 'Prodotto creato con successo', data: nuovoProdotto });
     } catch (error) {
       if (error.code === 11000) {
-        return res.status(400).json({
-          success: false,
-          message: 'Esiste già un prodotto con questo nome'
-        });
+        return res.status(400).json({ success: false, message: 'Esiste già un prodotto con questo nome' });
       }
-      
       logger.error('Errore creazione prodotto:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore creazione prodotto',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore creazione prodotto', error: error.message });
     }
   },
 
-  // PUT /api/prodotti/:id - Aggiorna prodotto ✅ FIX VARIANTI
+  // PUT /api/prodotti/:id
   update: async (req, res) => {
     try {
-      // ✅ NUOVO: Validazione e sanitizzazione varianti se presenti
       if (req.body.varianti && Array.isArray(req.body.varianti)) {
-        logger.info(`Aggiornamento prodotto con ${req.body.varianti.length} varianti`);
-        
-        // Valida che ogni variante abbia almeno nome
         for (let i = 0; i < req.body.varianti.length; i++) {
           const variante = req.body.varianti[i];
-          
-          // Nome obbligatorio
           if (!variante.nome || variante.nome.trim() === '') {
-            return res.status(400).json({
-              success: false,
-              message: `Variante #${i + 1}: il nome è obbligatorio`
-            });
+            return res.status(400).json({ success: false, message: `Variante #${i + 1}: il nome è obbligatorio` });
           }
-          
-          // Sanitizza prezzo
-          if (variante.prezzo !== undefined && variante.prezzo !== null) {
-            variante.prezzo = parseFloat(variante.prezzo);
-            if (isNaN(variante.prezzo) || variante.prezzo < 0) {
-              return res.status(400).json({
-                success: false,
-                message: `Variante "${variante.nome}": prezzo non valido (${variante.prezzo})`
-              });
-            }
-          } else {
-            variante.prezzo = 0; // Default
-          }
-          
-          // Sanitizza prezzoMaggiorazione
-          if (variante.prezzoMaggiorazione !== undefined && variante.prezzoMaggiorazione !== null) {
-            variante.prezzoMaggiorazione = parseFloat(variante.prezzoMaggiorazione);
-            if (isNaN(variante.prezzoMaggiorazione)) {
-              variante.prezzoMaggiorazione = 0;
-            }
-          } else {
-            variante.prezzoMaggiorazione = 0; // Default
-          }
-          
-          // Sanitizza disponibile
-          if (variante.disponibile === undefined) {
-            variante.disponibile = true; // Default
-          } else {
-            variante.disponibile = Boolean(variante.disponibile);
-          }
-          
-          // Sanitizza descrizione
-          if (variante.descrizione && typeof variante.descrizione === 'string') {
-            variante.descrizione = variante.descrizione.trim();
-          }
-          
-          logger.debug(`Variante sanitizzata: ${JSON.stringify(variante)}`);
+          variante.prezzo = parseFloat(variante.prezzo) || 0;
+          variante.prezzoMaggiorazione = parseFloat(variante.prezzoMaggiorazione) || 0;
+          variante.disponibile = variante.disponibile !== undefined ? Boolean(variante.disponibile) : true;
+          if (variante.descrizione) variante.descrizione = variante.descrizione.trim();
         }
       }
-      
-      // ✅ Sanitizza altri campi numerici
-      if (req.body.prezzoKg !== undefined) {
-        req.body.prezzoKg = parseFloat(req.body.prezzoKg);
-        if (isNaN(req.body.prezzoKg)) req.body.prezzoKg = 0;
-      }
-      
-      if (req.body.prezzoPezzo !== undefined) {
-        req.body.prezzoPezzo = parseFloat(req.body.prezzoPezzo);
-        if (isNaN(req.body.prezzoPezzo)) req.body.prezzoPezzo = 0;
-      }
-      
-      if (req.body.pezziPerKg !== undefined) {
-        req.body.pezziPerKg = parseInt(req.body.pezziPerKg);
-        if (isNaN(req.body.pezziPerKg)) req.body.pezziPerKg = 0;
-      }
-      
-      // Aggiorna prodotto
+      if (req.body.prezzoKg !== undefined) req.body.prezzoKg = parseFloat(req.body.prezzoKg) || 0;
+      if (req.body.prezzoPezzo !== undefined) req.body.prezzoPezzo = parseFloat(req.body.prezzoPezzo) || 0;
+      if (req.body.pezziPerKg !== undefined) req.body.pezziPerKg = parseInt(req.body.pezziPerKg) || null;
+
+      // Rimuovi ricetta dall'update base (gestita da endpoint dedicato)
+      delete req.body.ricetta;
+
       const prodotto = await Prodotto.findByIdAndUpdate(
         req.params.id,
         req.body,
-        { 
-          new: true, 
-          runValidators: true,
-          context: 'query' // ✅ IMPORTANTE: serve per validazioni con update
-        }
+        { new: true, runValidators: true, context: 'query' }
       );
-      
-      if (!prodotto) {
-        return res.status(404).json({
-          success: false,
-          message: 'Prodotto non trovato'
-        });
+
+      if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
+
+      // Se è cambiato il prezzo, ricalcola il margine
+      if (req.body.prezzoKg !== undefined || req.body.prezzoPezzo !== undefined) {
+        await ricalcolaCostoProdotto(prodotto._id);
       }
-      
-      logger.info(`✅ Prodotto aggiornato: ${prodotto.nome}`, {
-        id: prodotto._id,
-        hasVarianti: !!(prodotto.varianti && prodotto.varianti.length > 0),
-        numVarianti: prodotto.varianti ? prodotto.varianti.length : 0
-      });
-      
-      res.json({
-        success: true,
-        message: 'Prodotto aggiornato con successo',
-        data: prodotto
-      });
+
+      logger.info(`Prodotto aggiornato: ${prodotto.nome}`);
+      res.json({ success: true, message: 'Prodotto aggiornato', data: prodotto });
     } catch (error) {
-      logger.error('❌ Errore aggiornamento prodotto:', {
-        error: error.message,
-        stack: error.stack,
-        prodottoId: req.params.id,
-        body: JSON.stringify(req.body).substring(0, 200) // Log primi 200 caratteri
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Errore aggiornamento prodotto',
-        error: error.message
-      });
+      logger.error('Errore aggiornamento prodotto:', error);
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
   // PATCH /api/prodotti/:id/disponibilita
   updateDisponibilita: async (req, res) => {
     try {
-      const { disponibile } = req.body;
-      
       const prodotto = await Prodotto.findByIdAndUpdate(
         req.params.id,
-        { disponibile },
+        { disponibile: req.body.disponibile },
         { new: true }
       );
-      
-      if (!prodotto) {
-        return res.status(404).json({
-          success: false,
-          message: 'Prodotto non trovato'
-        });
-      }
-      
-      logger.info(`Disponibilità aggiornata: ${prodotto.nome} -> ${disponibile}`);
-      
-      res.json({
-        success: true,
-        message: 'Disponibilità aggiornata',
-        data: prodotto
-      });
+      if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
+      res.json({ success: true, message: 'Disponibilità aggiornata', data: prodotto });
     } catch (error) {
-      logger.error('Errore aggiornamento disponibilità:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore aggiornamento disponibilità',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
@@ -403,99 +544,39 @@ const prodottiController = {
   updatePrezzo: async (req, res) => {
     try {
       const { prezzoKg, prezzoPezzo } = req.body;
-      
       const update = {};
       if (prezzoKg !== undefined) update.prezzoKg = prezzoKg;
       if (prezzoPezzo !== undefined) update.prezzoPezzo = prezzoPezzo;
-      
-      const prodotto = await Prodotto.findByIdAndUpdate(
-        req.params.id,
-        update,
-        { new: true }
-      );
-      
-      if (!prodotto) {
-        return res.status(404).json({
-          success: false,
-          message: 'Prodotto non trovato'
-        });
-      }
-      
-      logger.info(`Prezzo aggiornato: ${prodotto.nome}`);
-      
-      res.json({
-        success: true,
-        message: 'Prezzo aggiornato',
-        data: prodotto
-      });
+
+      const prodotto = await Prodotto.findByIdAndUpdate(req.params.id, update, { new: true });
+      if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
+
+      await ricalcolaCostoProdotto(prodotto._id);
+      res.json({ success: true, message: 'Prezzo aggiornato', data: prodotto });
     } catch (error) {
-      logger.error('Errore aggiornamento prezzo:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore aggiornamento prezzo',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
-  // DELETE /api/prodotti/:id - Soft delete
+  // DELETE /api/prodotti/:id
   delete: async (req, res) => {
     try {
-      const prodotto = await Prodotto.findByIdAndUpdate(
-        req.params.id,
-        { attivo: false },
-        { new: true }
-      );
-      
-      if (!prodotto) {
-        return res.status(404).json({
-          success: false,
-          message: 'Prodotto non trovato'
-        });
-      }
-      
-      logger.info(`Prodotto disattivato: ${prodotto.nome}`);
-      
-      res.json({
-        success: true,
-        message: 'Prodotto disattivato',
-        data: prodotto
-      });
+      const prodotto = await Prodotto.findByIdAndUpdate(req.params.id, { attivo: false }, { new: true });
+      if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
+      res.json({ success: true, message: 'Prodotto disattivato', data: prodotto });
     } catch (error) {
-      logger.error('Errore disattivazione prodotto:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore disattivazione prodotto',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   },
 
-  // DELETE /api/prodotti/:id/force - Hard delete
+  // DELETE /api/prodotti/:id/force
   deleteForce: async (req, res) => {
     try {
       const prodotto = await Prodotto.findByIdAndDelete(req.params.id);
-      
-      if (!prodotto) {
-        return res.status(404).json({
-          success: false,
-          message: 'Prodotto non trovato'
-        });
-      }
-      
-      logger.warn(`Prodotto eliminato definitivamente: ${prodotto.nome}`);
-      
-      res.json({
-        success: true,
-        message: 'Prodotto eliminato definitivamente'
-      });
+      if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
+      res.json({ success: true, message: 'Prodotto eliminato definitivamente' });
     } catch (error) {
-      logger.error('Errore eliminazione prodotto:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Errore eliminazione prodotto',
-        error: error.message
-      });
+      res.status(500).json({ success: false, message: 'Errore', error: error.message });
     }
   }
 };

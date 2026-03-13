@@ -1,4 +1,4 @@
-// models/Prodotto.js - ✅ FIX ENUM UNITÀ MISURA
+// models/Prodotto.js - ✅ AGGIORNATO CON RICETTE E CALCOLO COSTI
 import mongoose from 'mongoose';
 
 const varianteSchema = new mongoose.Schema({
@@ -14,7 +14,7 @@ const varianteSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  pezziPerKg: {  // ✅ AGGIUNTO per varianti come "Ravioli piccoli"
+  pezziPerKg: {
     type: Number,
     default: null
   },
@@ -22,14 +22,73 @@ const varianteSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  descrizione: {  // ✅ AGGIUNTO per descrizioni varianti
+  descrizione: {
     type: String,
     default: ''
   },
-  prezzoMaggiorazione: {  // ✅ AGGIUNTO per prezzi differenziati
+  prezzoMaggiorazione: {
     type: Number,
     default: 0
   }
+}, { _id: false });
+
+// Schema ingrediente nella ricetta
+const ricettaIngredienteSchema = new mongoose.Schema({
+  ingredienteId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Ingrediente'
+  },
+  ingredienteNome: {
+    type: String,
+    required: true
+  },
+  quantitaPerKg: {
+    type: Number,
+    required: true,
+    min: 0
+    // Quantità in unità base per 1 Kg di prodotto finito
+    // Es: 0.400 significa 400g di quell'ingrediente per 1 Kg prodotto
+  },
+  unita: {
+    type: String,
+    enum: ['kg', 'g', 'l', 'ml', 'pz'],
+    default: 'kg'
+  },
+  // Snapshot prezzo al momento dell'ultima modifica ricetta
+  prezzoUnitarioSnapshot: {
+    type: Number,
+    default: 0
+  },
+  costoCalcolato: {
+    type: Number,
+    default: 0
+    // prezzoUnitarioSnapshot * quantitaPerKg
+  }
+}, { _id: false });
+
+// Schema storico costi
+const storicoCostiSchema = new mongoose.Schema({
+  data: {
+    type: Date,
+    default: Date.now
+  },
+  costoIngrediente: {
+    type: Number,
+    default: 0
+  },
+  costoTotale: {
+    type: Number,
+    default: 0
+  },
+  prezzoVendita: {
+    type: Number,
+    default: 0
+  },
+  margine: {
+    type: Number,
+    default: 0
+  },
+  note: String
 }, { _id: false });
 
 const prodottoSchema = new mongoose.Schema({
@@ -46,7 +105,7 @@ const prodottoSchema = new mongoose.Schema({
   categoria: {
     type: String,
     required: true,
-    enum: ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Pasta', 'Altro'],  // ✅ Aggiunta "Pasta"
+    enum: ['Ravioli', 'Dolci', 'Pardulas', 'Panadas', 'Pasta', 'Altro'],
     default: 'Altro'
   },
   prezzoKg: {
@@ -63,26 +122,14 @@ const prodottoSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
-  // ✅ FIX PRINCIPALE: ENUM COMPLETO
   unitaMisuraDisponibili: [{
     type: String,
-    enum: [
-      'Kg', 
-      'g', 
-      'pz', 
-      'Pezzi',        // ✅ AGGIUNTO
-      'Unità',        // ✅ AGGIUNTO
-      'dozzina', 
-      'mezzo kg',
-      '€'             // ✅ AGGIUNTO
-    ]
+    enum: ['Kg', 'g', 'pz', 'Pezzi', 'Unità', 'dozzina', 'mezzo kg', '€']
   }],
-  // ✅ AGGIUNTO: Flag per indicare se ha varianti
   hasVarianti: {
     type: Boolean,
     default: false
   },
-  // ✅ ARRAY VARIANTI (già presente ma migliorato)
   varianti: [varianteSchema],
   disponibile: {
     type: Boolean,
@@ -100,12 +147,8 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     default: null
   },
-  allergeni: [{
-    type: String
-  }],
-  ingredienti: [{
-    type: String
-  }],
+  allergeni: [{ type: String }],
+  ingredienti: [{ type: String }],
   tempoPreparazione: {
     type: Number,
     default: 0
@@ -122,6 +165,53 @@ const prodottoSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+
+  // ============================================================
+  // RICETTA E COSTI (NUOVO)
+  // ============================================================
+  ricetta: [ricettaIngredienteSchema],
+
+  // Costo ingredienti calcolato automaticamente dall'ultima fattura
+  costoIngredientiCalcolato: {
+    type: Number,
+    default: 0
+  },
+  // Override manuale: se impostato, usa questo invece del calcolato
+  costoIngredientiManuale: {
+    type: Number,
+    default: null
+  },
+  usaCostoManuale: {
+    type: Boolean,
+    default: false
+  },
+
+  // Override overhead per singolo prodotto (null = usa configurazione globale)
+  overheadPersonalizzato: {
+    attivo: { type: Boolean, default: false },
+    energia: { type: Number, default: null },
+    gas: { type: Number, default: null },
+    manodopera: { type: Number, default: null },
+    affitto: { type: Number, default: null },
+    tasse: { type: Number, default: null },
+    imballaggi: { type: Number, default: null },
+    varie: { type: Number, default: null }
+  },
+
+  // Costo totale produzione (ingredienti + overhead) - calcolato
+  costoTotaleProduzione: {
+    type: Number,
+    default: 0
+  },
+  // Margine attuale % basato su prezzoKg
+  margineAttuale: {
+    type: Number,
+    default: 0
+  },
+
+  // Storico costi
+  storicoCosti: [storicoCostiSchema],
+
   createdAt: {
     type: Date,
     default: Date.now
@@ -140,48 +230,35 @@ prodottoSchema.index({ categoria: 1 });
 prodottoSchema.index({ disponibile: 1 });
 prodottoSchema.index({ attivo: 1 });
 
-// Metodi virtuali
-prodottoSchema.virtual('prezzoDisplay').get(function() {
-  if (this.prezzoKg > 0) {
-    return `€${this.prezzoKg.toFixed(2)}/Kg`;
-  } else if (this.prezzoPezzo > 0) {
-    return `€${this.prezzoPezzo.toFixed(2)}/pz`;
-  }
+// Virtual prezzo display
+prodottoSchema.virtual('prezzoDisplay').get(function () {
+  if (this.prezzoKg > 0) return `€${this.prezzoKg.toFixed(2)}/Kg`;
+  else if (this.prezzoPezzo > 0) return `€${this.prezzoPezzo.toFixed(2)}/pz`;
   return 'N/D';
 });
 
-// ✅ NUOVO: Virtual per controllare se è configurato correttamente
-prodottoSchema.virtual('isConfiguratoCorrettamente').get(function() {
-  // Deve avere almeno un prezzo configurato
-  const haPrezzo = this.prezzoKg > 0 || this.prezzoPezzo > 0;
-  
-  // Se ha varianti, devono essere valide
-  const variantiValide = !this.hasVarianti || 
-    (this.varianti && this.varianti.length > 0 && 
-     this.varianti.every(v => v.nome && (v.prezzoKg > 0 || v.prezzoPezzo > 0)));
-  
-  return haPrezzo && variantiValide;
+// Virtual: costo ingredienti effettivo (manuale o calcolato)
+prodottoSchema.virtual('costoIngredientiEffettivo').get(function () {
+  if (this.usaCostoManuale && this.costoIngredientiManuale != null) {
+    return this.costoIngredientiManuale;
+  }
+  return this.costoIngredientiCalcolato || 0;
 });
 
 // Pre-save middleware
-prodottoSchema.pre('save', function(next) {
+prodottoSchema.pre('save', function (next) {
   this.updatedAt = new Date();
-  
-  // ✅ Auto-imposta hasVarianti in base all'array
   if (this.varianti && this.varianti.length > 0) {
     this.hasVarianti = true;
   } else {
     this.hasVarianti = false;
   }
-  
   next();
 });
 
-// ✅ NUOVO: Pre-update middleware per gestire varianti
-prodottoSchema.pre(['findOneAndUpdate', 'updateOne'], function(next) {
+// Pre-update middleware
+prodottoSchema.pre(['findOneAndUpdate', 'updateOne'], function (next) {
   const update = this.getUpdate();
-  
-  // Auto-imposta hasVarianti se ci sono varianti nell'update
   if (update.varianti !== undefined) {
     if (update.varianti && Array.isArray(update.varianti) && update.varianti.length > 0) {
       update.hasVarianti = true;
@@ -189,10 +266,8 @@ prodottoSchema.pre(['findOneAndUpdate', 'updateOne'], function(next) {
       update.hasVarianti = false;
     }
   }
-  
   next();
 });
 
 const Prodotto = mongoose.model('Prodotto', prodottoSchema);
-
 export default Prodotto;

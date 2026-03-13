@@ -12,6 +12,7 @@ import Ingrediente from '../models/Ingrediente.js';
 import Movimento from '../models/Movimento.js';
 import Fornitore from '../models/Fornitore.js';
 import logger from '../config/logger.js';
+import { ricalcolaPerIngrediente } from './prodottiController.js';
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
@@ -251,7 +252,7 @@ const parseXMLFattura = async (xmlContent) => {
         
         if (!dataScadenza) {
           const desc = linea.Descrizione || '';
-          const scadMatch = desc.match(/(?:SCAD|EXP)[.:\s]*(\d{2}[\/-]\d{2,4}|\d{4}[\/-]\d{2})/i);
+          const scadMatch = desc.match(/(?:SCAD|EXP)[.:\s]*(\d{2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{2})/i);
           if (scadMatch) {
             const parsed = new Date(scadMatch[1].replace(/\//g, '-'));
             if (!isNaN(parsed.getTime())) {
@@ -712,6 +713,22 @@ export const confermaImport = async (req, res) => {
     importFattura.righe = righeProcessate;
     importFattura.aggiornaStatistiche();
     await importFattura.save();
+
+    // ✅ RICALCOLO PREZZI RICETTE - aggiorna i prodotti che usano questi ingredienti
+    try {
+      const ingredientiAggiornatiIds = righeProcessate
+        .filter(r => r.importato && r.ingredienteId)
+        .map(r => r.ingredienteId);
+      const idsUnici = [...new Set(ingredientiAggiornatiIds.map(id => id.toString()))];
+      for (const idStr of idsUnici) {
+        await ricalcolaPerIngrediente(idStr);
+      }
+      if (idsUnici.length > 0) {
+        logger.info(`Ricalcolati costi prodotti per ${idsUnici.length} ingredienti aggiornati`);
+      }
+    } catch (ricalcoloErr) {
+      logger.error('Errore ricalcolo prezzi ricette:', ricalcoloErr.message);
+    }
     
     const io = req.app.get('io');
     if (io) {
@@ -970,6 +987,23 @@ export const autoImport = async (req, res) => {
     importFattura.righe = righeProcessate;
     importFattura.aggiornaStatistiche();
     await importFattura.save();
+
+    // ✅ RICALCOLO PREZZI RICETTE - aggiorna i prodotti che usano questi ingredienti
+    try {
+      const ingredientiAggiornatiIds = righeProcessate
+        .filter(r => r.importato && r.ingredienteId)
+        .map(r => r.ingredienteId);
+      const idsUnici = [...new Set(ingredientiAggiornatiIds.map(id => id.toString()))];
+      for (const idStr of idsUnici) {
+        await ricalcolaPerIngrediente(idStr);
+      }
+      if (idsUnici.length > 0) {
+        logger.info(`[AUTO-IMPORT] Ricalcolati costi prodotti per ${idsUnici.length} ingredienti aggiornati`);
+      }
+    } catch (ricalcoloErr) {
+      // Non blocca l'import se il ricalcolo fallisce
+      logger.error('[AUTO-IMPORT] Errore ricalcolo prezzi ricette:', ricalcoloErr.message);
+    }
 
     const statsFinali = importFattura.statistiche || {};
     const righeNonRicList = righeProcessate
