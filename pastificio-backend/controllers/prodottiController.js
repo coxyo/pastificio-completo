@@ -55,10 +55,11 @@ export const ricalcolaCostoProdotto = async (prodottoId, configOverride = null) 
 
     const costoTotale = costoIngredientiBase * (1 + percOverhead / 100);
 
-    // Calcola margine dal prezzoKg
+    // Calcola margine dal prezzoKg (scorporando IVA 10% - tutti i prodotti al 10%)
     const prezzoVendita = prodotto.prezzoKg || 0;
-    const margine = prezzoVendita > 0 && costoTotale > 0
-      ? ((prezzoVendita - costoTotale) / costoTotale) * 100
+    const prezzoVenditaNetto = prezzoVendita > 0 ? prezzoVendita / 1.10 : 0;
+    const margine = prezzoVenditaNetto > 0 && costoTotale > 0
+      ? ((prezzoVenditaNetto - costoTotale) / costoTotale) * 100
       : 0;
 
     // Aggiorna prodotto
@@ -436,9 +437,10 @@ const prodottiController = {
       const comparativa = prodotti.map(p => {
         const vendita = venditeMap[p.nome] || { totaleKg: 0, totaleValore: 0, numOrdini: 0 };
         const prezzoVendita = p.prezzoKg || p.prezzoPezzo || 0;
+        const prezzoVenditaNetto = prezzoVendita > 0 ? prezzoVendita / 1.10 : 0;
         const costo = p.costoTotaleProduzione || 0;
-        const margineEuro = prezzoVendita > 0 ? prezzoVendita - costo : 0;
-        const marginePerc = costo > 0 && prezzoVendita > 0 ? ((prezzoVendita - costo) / costo) * 100 : 0;
+        const margineEuro = prezzoVenditaNetto > 0 ? prezzoVenditaNetto - costo : 0;
+        const marginePerc = costo > 0 && prezzoVenditaNetto > 0 ? ((prezzoVenditaNetto - costo) / costo) * 100 : 0;
         const profittoMese = vendita.totaleKg > 0 ? margineEuro * vendita.totaleKg : 0;
 
         return {
