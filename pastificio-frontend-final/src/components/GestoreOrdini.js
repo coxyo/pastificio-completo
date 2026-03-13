@@ -2268,7 +2268,21 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
           return dateB - dateA;
         });
         
-        localStorage.setItem('ordini', JSON.stringify(ordiniRecenti));
+        // ✅ FIX 13/03/2026: localStorage salva solo ultimi 14 giorni (evita overflow 5MB)
+        // React state mantiene tutti i 60 giorni per navigazione
+        const quattordiciGiorniFa = new Date();
+        quattordiciGiorniFa.setDate(quattordiciGiorniFa.getDate() - 14);
+        const ordiniPerCache = ordiniRecenti.filter(ordine => {
+          const dataOrdine = new Date(ordine.dataRitiro || ordine.createdAt);
+          return dataOrdine >= quattordiciGiorniFa;
+        });
+        
+        try {
+          localStorage.setItem('ordini', JSON.stringify(ordiniPerCache));
+          console.log(`💾 Cache: ${ordiniPerCache.length} ordini (14gg) | State: ${ordiniRecenti.length} ordini (60gg)`);
+        } catch (cacheErr) {
+          console.warn('⚠️ Impossibile salvare cache ordini:', cacheErr.message);
+        }
         setOrdini(ordiniRecenti);
         
         setIsConnected(true);
@@ -2555,17 +2569,8 @@ const [dashboardWhatsAppAperto, setDashboardWhatsAppAperto] = useState(false);
       });
       
       if (response.ok) {
-        const rispostaUpdate = await response.json().catch(() => ({}));
         await sincronizzaConMongoDB();
         mostraNotifica('Ordine aggiornato', 'success');
-        
-        // ✅ FIX 12/03/2026: Mostra avvisi limiti periodo anche su aggiornamento
-        if (rispostaUpdate.avvisiLimiti && rispostaUpdate.avvisiLimiti.length > 0) {
-          const testoAvvisi = rispostaUpdate.avvisiLimiti.map(a => a.messaggio).join(' | ');
-          setTimeout(() => {
-            mostraNotifica(`⚠️ ${testoAvvisi}`, 'warning');
-          }, 500);
-        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         

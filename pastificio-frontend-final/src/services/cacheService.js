@@ -16,8 +16,8 @@ const CACHE_CONFIG = {
   // Prefissi/chiavi da NON eliminare mai (include autenticazione!)
   protetti: ['preferenze_', 'device_', 'tema_', 'notifiche_config', 'token', 'user', 'sessionId', 'fcm_token', 'push_'],
   // Soglia pulizia automatica (bytes)
-  sogliaAvviso: 3 * 1024 * 1024,    // 3MB → avviso
-  sogliaPulizia: 4 * 1024 * 1024,   // 4MB → pulizia automatica
+  sogliaAvviso: 4 * 1024 * 1024,    // 4MB → avviso
+  sogliaPulizia: 5 * 1024 * 1024,   // 5MB → pulizia automatica
 };
 
 export const CacheService = {
