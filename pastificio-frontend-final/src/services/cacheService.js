@@ -14,7 +14,7 @@ const CACHE_CONFIG = {
     chiamata:  24 * 60 * 60 * 1000,       // 24 ore
   },
   // Prefissi/chiavi da NON eliminare mai (include autenticazione!)
-  protetti: ['preferenze_', 'device_', 'tema_', 'notifiche_config', 'token', 'user', 'sessionId', 'fcm_token', 'push_'],
+  protetti: ['preferenze_', 'device_', 'tema_', 'notifiche_config', 'token', 'user', 'sessionId', 'fcm_token', 'fcm_last_fail', 'push_'],
   // Soglia pulizia automatica (bytes)
   sogliaAvviso: 4 * 1024 * 1024,    // 4MB → avviso
   sogliaPulizia: 5 * 1024 * 1024,   // 5MB → pulizia automatica

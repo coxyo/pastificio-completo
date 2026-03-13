@@ -59,18 +59,27 @@ class FirebasePushService {
       this.inizializzato = true;
 
       // Se il permesso è già granted, prova a ottenere token (silenziosamente)
+      // ✅ FIX 13/03/2026: Cooldown 24h dopo fallimento per evitare 401 ripetuti in console
       if (Notification.permission === 'granted') {
-        try {
-          await this._ottieniERegistraToken(registration);
-          this.pushDisponibile = true;
-        } catch (err) {
-          // ✅ Push service non disponibile su questo dispositivo - silenzioso
+        const lastFail = localStorage.getItem('fcm_last_fail');
+        const cooldown = 24 * 60 * 60 * 1000; // 24 ore
+        const skipRegistration = lastFail && (Date.now() - parseInt(lastFail)) < cooldown;
+        
+        if (!skipRegistration) {
+          try {
+            await this._ottieniERegistraToken(registration);
+            this.pushDisponibile = true;
+            localStorage.removeItem('fcm_last_fail');
+          } catch (err) {
+            this.pushDisponibile = false;
+            localStorage.setItem('fcm_last_fail', Date.now().toString());
+          }
+        } else {
           this.pushDisponibile = false;
         }
       }
 
     } catch (error) {
-      // ✅ Silenzioso - non mostrare errori in console
       this.inizializzato = true;
       this.pushDisponibile = false;
     }
@@ -100,11 +109,16 @@ class FirebasePushService {
       // Ottieni e registra token
       const token = await this._ottieniERegistraToken(registration);
       this.pushDisponibile = true;
+      localStorage.removeItem('fcm_last_fail');
       return { success: true, token };
 
     } catch (error) {
-      // ✅ Errore silenzioso con messaggio chiaro
+      // ✅ FIX 13/03/2026: Registra fallimento per cooldown
+      localStorage.setItem('fcm_last_fail', Date.now().toString());
+      this.pushDisponibile = false;
+      
       const isPushServiceError = error.message?.includes('push service') || 
+                                  error.message?.includes('401') ||
                                   error.name === 'AbortError';
       
       if (isPushServiceError) {
