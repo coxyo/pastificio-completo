@@ -269,7 +269,7 @@ const prodottiController = {
   // ============================================================
   updateRicetta: async (req, res) => {
     try {
-      const { ricetta, istruzioni } = req.body;
+      const { ricetta, istruzioni, usaCostoManuale, costoIngredientiManuale } = req.body;
 
       if (!Array.isArray(ricetta)) {
         return res.status(400).json({ success: false, message: 'ricetta deve essere un array' });
@@ -305,6 +305,12 @@ const prodottiController = {
           cottura:      istruzioni.cottura      || '',
           consigli:     istruzioni.consigli     || ''
         };
+      }
+      if (usaCostoManuale !== undefined) {
+        updateData.$set.usaCostoManuale = Boolean(usaCostoManuale);
+        updateData.$set.costoIngredientiManuale = (usaCostoManuale && costoIngredientiManuale != null)
+          ? parseFloat(costoIngredientiManuale)
+          : null;
       }
       await Prodotto.findByIdAndUpdate(req.params.id, updateData);
 
