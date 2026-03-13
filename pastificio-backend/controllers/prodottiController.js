@@ -241,7 +241,7 @@ const prodottiController = {
   getRicetta: async (req, res) => {
     try {
       const prodotto = await Prodotto.findById(req.params.id)
-        .select('nome ricetta costoIngredientiCalcolato costoIngredientiManuale usaCostoManuale costoTotaleProduzione margineAttuale overheadPersonalizzato prezzoKg');
+        .select('nome ricetta istruzioni costoIngredientiCalcolato costoIngredientiManuale usaCostoManuale costoTotaleProduzione margineAttuale overheadPersonalizzato prezzoKg');
       if (!prodotto) return res.status(404).json({ success: false, message: 'Prodotto non trovato' });
 
       // Arricchisce con prezzi aggiornati dagli ingredienti
@@ -269,7 +269,7 @@ const prodottiController = {
   // ============================================================
   updateRicetta: async (req, res) => {
     try {
-      const { ricetta } = req.body;
+      const { ricetta, istruzioni } = req.body;
 
       if (!Array.isArray(ricetta)) {
         return res.status(400).json({ success: false, message: 'ricetta deve essere un array' });
@@ -298,7 +298,15 @@ const prodottiController = {
         });
       }
 
-      await Prodotto.findByIdAndUpdate(req.params.id, { $set: { ricetta: ricettaProcessata } });
+      const updateData = { $set: { ricetta: ricettaProcessata } };
+      if (istruzioni && typeof istruzioni === 'object') {
+        updateData.$set.istruzioni = {
+          preparazione: istruzioni.preparazione || '',
+          cottura:      istruzioni.cottura      || '',
+          consigli:     istruzioni.consigli     || ''
+        };
+      }
+      await Prodotto.findByIdAndUpdate(req.params.id, updateData);
 
       // Ricalcola costi
       const costiAggiornati = await ricalcolaCostoProdotto(req.params.id);

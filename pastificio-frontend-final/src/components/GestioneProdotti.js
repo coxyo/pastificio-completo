@@ -72,6 +72,9 @@ export default function GestioneProdotti() {
   });
   const [loadingRicetta, setLoadingRicetta] = useState(false);
 
+  // Stato istruzioni ricetta
+  const [istruzioni, setIstruzioni] = useState({ preparazione: '', cottura: '', consigli: '' });
+
   // Stato configurazione costi
   const [configCosti, setConfigCosti] = useState({
     overhead: { energia: 15, gas: 8, manodopera: 25, affitto: 5, tasse: 10, imballaggi: 3, varie: 5 },
@@ -289,6 +292,7 @@ export default function GestioneProdotti() {
       if (r.ok) {
         const d = await r.json();
         setRicettaCorrente(d.data.ricetta || []);
+        setIstruzioni(d.data.istruzioni || { preparazione: '', cottura: '', consigli: '' });
       }
     } catch {
       setRicettaCorrente([]);
@@ -302,7 +306,7 @@ export default function GestioneProdotti() {
       setLoadingRicetta(true);
       const r = await fetch(`${API_URL}/prodotti/${prodottoSelezionato._id}/ricetta`, {
         method: 'PUT', headers: getHeaders(),
-        body: JSON.stringify({ ricetta: ricettaCorrente })
+        body: JSON.stringify({ ricetta: ricettaCorrente, istruzioni })
       });
       if (r.ok) {
         await caricaProdotti();
@@ -1011,6 +1015,48 @@ export default function GestioneProdotti() {
                   </Grid>
                 </Grid>
               </Paper>
+
+              {/* ── ISTRUZIONI DI PREPARAZIONE ── */}
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+                  📖 Istruzioni di Preparazione
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      label="Preparazione"
+                      placeholder="Es: Impastare farina, uova e acqua per 10 minuti. Lasciare riposare 30 minuti coperto."
+                      value={istruzioni.preparazione}
+                      onChange={e => setIstruzioni(prev => ({ ...prev, preparazione: e.target.value }))}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      label="Cottura"
+                      placeholder="Es: Cuocere in forno a 180°C per 25 minuti. Verificare doratura in superficie."
+                      value={istruzioni.cottura}
+                      onChange={e => setIstruzioni(prev => ({ ...prev, cottura: e.target.value }))}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={2}
+                      label="Consigli"
+                      placeholder="Es: Servire tiepido. Si conserva fino a 3 giorni a temperatura ambiente."
+                      value={istruzioni.consigli}
+                      onChange={e => setIstruzioni(prev => ({ ...prev, consigli: e.target.value }))}
+                    />
+                  </Grid>
+                </Grid>
+              </Box>
             </Box>
           )}
         </DialogContent>
@@ -1036,14 +1082,23 @@ export default function GestioneProdotti() {
             Al salvataggio tutti i prodotti con ricetta vengono ricalcolati.
           </Alert>
           <Grid container spacing={2}>
-            {Object.entries(configCosti.overhead || {}).map(([chiave, valore]) => (
-              <Grid item xs={6} key={chiave}>
+            {[
+              { key: 'energia',    label: 'Energia' },
+              { key: 'gas',        label: 'Gas' },
+              { key: 'manodopera', label: 'Manodopera' },
+              { key: 'affitto',    label: 'Affitto' },
+              { key: 'tasse',      label: 'Tasse' },
+              { key: 'imballaggi', label: 'Imballaggi' },
+              { key: 'iva',        label: 'IVA' },
+              { key: 'varie',      label: 'Varie' }
+            ].map(({ key, label }) => (
+              <Grid item xs={6} key={key}>
                 <TextField fullWidth size="small" type="number"
-                  label={`${chiave.charAt(0).toUpperCase() + chiave.slice(1)} (%)`}
-                  value={valore}
+                  label={`${label} (%)`}
+                  value={configCosti.overhead?.[key] ?? 0}
                   onChange={e => setConfigCosti(prev => ({
                     ...prev,
-                    overhead: { ...prev.overhead, [chiave]: parseFloat(e.target.value) || 0 }
+                    overhead: { ...prev.overhead, [key]: parseFloat(e.target.value) || 0 }
                   }))}
                   InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
                 />

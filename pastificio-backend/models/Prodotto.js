@@ -66,6 +66,13 @@ const ricettaIngredienteSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+// Schema istruzioni di preparazione
+const istruzioniSchema = new mongoose.Schema({
+  preparazione: { type: String, default: '' },
+  cottura:      { type: String, default: '' },
+  consigli:     { type: String, default: '' }
+}, { _id: false });
+
 // Schema storico costi
 const storicoCostiSchema = new mongoose.Schema({
   data: {
@@ -211,6 +218,9 @@ const prodottoSchema = new mongoose.Schema({
 
   // Storico costi
   storicoCosti: [storicoCostiSchema],
+
+  // Istruzioni di preparazione
+  istruzioni: { type: istruzioniSchema, default: () => ({}) },
 
   createdAt: {
     type: Date,
