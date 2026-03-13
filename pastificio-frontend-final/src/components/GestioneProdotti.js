@@ -75,13 +75,12 @@ export default function GestioneProdotti() {
   // Stato istruzioni ricetta
   const [istruzioni, setIstruzioni] = useState({ preparazione: '', cottura: '', consigli: '' });
 
-  // Costo manuale (per prodotti dove la ricetta non riflette il peso finale)
-  const [usaCostoManuale, setUsaCostoManuale] = useState(false);
-  const [costoManuale, setCostoManuale] = useState('');
+  // Resa ricetta: quanti kg di prodotto finito escono dagli ingredienti inseriti
+  const [resaRicetta, setResaRicetta] = useState(1);
 
   // Stato configurazione costi
   const [configCosti, setConfigCosti] = useState({
-    overhead: { energia: 4, gas: 0, manodopera: 28, affitto: 0, tasse: 8, imballaggi: 3, iva: 0, varie: 5 },
+    overhead: { energia: 15, gas: 8, manodopera: 25, affitto: 5, tasse: 10, imballaggi: 3, varie: 5 },
     margineConsigliato: 70
   });
 
@@ -297,8 +296,7 @@ export default function GestioneProdotti() {
         const d = await r.json();
         setRicettaCorrente(d.data.ricetta || []);
         setIstruzioni(d.data.istruzioni || { preparazione: '', cottura: '', consigli: '' });
-        setUsaCostoManuale(d.data.usaCostoManuale || false);
-        setCostoManuale(d.data.costoIngredientiManuale != null ? String(d.data.costoIngredientiManuale) : '');
+        setResaRicetta(d.data.resaRicetta || 1);
       }
     } catch {
       setRicettaCorrente([]);
@@ -315,8 +313,7 @@ export default function GestioneProdotti() {
         body: JSON.stringify({
           ricetta: ricettaCorrente,
           istruzioni,
-          usaCostoManuale,
-          costoIngredientiManuale: usaCostoManuale ? (parseFloat(costoManuale) || null) : null
+          resaRicetta: parseFloat(resaRicetta) || 1
         })
       });
       if (r.ok) {
@@ -359,16 +356,16 @@ export default function GestioneProdotti() {
 
   const totaleIngredientiRicetta = ricettaCorrente.reduce((sum, v) => sum + (v.costoCalcolato || 0), 0);
 
-  // Se costo manuale attivo, usa quello per i calcoli (es. ricetta reale con resa diversa da 1kg)
-  const costoIngredientiEffettivo = usaCostoManuale && costoManuale !== ''
-    ? (parseFloat(costoManuale) || 0)
-    : totaleIngredientiRicetta;
+  // Costo ingredienti per 1 kg di prodotto FINITO, tenendo conto della resa
+  const resaEffettiva = parseFloat(resaRicetta) || 1;
+  const costoIngredientiPerKgFinito = resaEffettiva > 0 ? totaleIngredientiRicetta / resaEffettiva : totaleIngredientiRicetta;
 
   const totaleOverhead = Object.values(configCosti.overhead || {}).reduce((s, v) => s + (v || 0), 0);
-  const costoTotaleStimato = costoIngredientiEffettivo * (1 + totaleOverhead / 100);
+  const costoTotaleStimato = costoIngredientiPerKgFinito * (1 + totaleOverhead / 100);
   const prezzoVendita = prodottoSelezionato?.prezzoKg || 0;
-  const margineStimato = costoTotaleStimato > 0 && prezzoVendita > 0
-    ? ((prezzoVendita - costoTotaleStimato) / costoTotaleStimato) * 100
+  const prezzoVenditaNetto = prezzoVendita > 0 ? prezzoVendita / 1.10 : 0;
+  const margineStimato = costoTotaleStimato > 0 && prezzoVenditaNetto > 0
+    ? ((prezzoVenditaNetto - costoTotaleStimato) / costoTotaleStimato) * 100
     : null;
 
   // ============================================================
@@ -860,33 +857,33 @@ export default function GestioneProdotti() {
           ) : (
             <Box sx={{ mt: 2 }}>
               {/* Riepilogo costi */}
-              {(costoTotaleStimato > 0 || usaCostoManuale) && (
+              {(totaleIngredientiRicetta > 0) && (
                 <Paper sx={{ p: 2, mb: 3, background: '#f9f3e8', border: '1px solid #C8A830' }}>
                   <Grid container spacing={2} alignItems="center">
                     <Grid item xs={6} sm={3}>
                       <Typography variant="caption" color="textSecondary">
-                        Costo Ingredienti {usaCostoManuale ? '(manuale)' : '(da ricetta)'}
+                        Costo Ingredienti (ricetta)
                       </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: usaCostoManuale ? '#C8A830' : 'inherit' }}>
-                        €{costoIngredientiEffettivo.toFixed(2)}/Kg
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                        €{totaleIngredientiRicetta.toFixed(2)}
                       </Typography>
-                      {usaCostoManuale && totaleIngredientiRicetta > 0 && (
+                      {resaEffettiva !== 1 && (
                         <Typography variant="caption" color="textSecondary">
-                          (ricetta: €{totaleIngredientiRicetta.toFixed(2)})
+                          = €{costoIngredientiPerKgFinito.toFixed(2)}/kg finito
                         </Typography>
                       )}
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Typography variant="caption" color="textSecondary">Overhead ({totaleOverhead}%)</Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 700 }}>€{(costoTotaleStimato - costoIngredientiEffettivo).toFixed(2)}/Kg</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>€{(costoTotaleStimato - costoIngredientiPerKgFinito).toFixed(2)}/Kg</Typography>
                     </Grid>
                     <Grid item xs={6} sm={3}>
-                      <Typography variant="caption" color="textSecondary">Costo Totale</Typography>
+                      <Typography variant="caption" color="textSecondary">Costo Totale/Kg finito</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 700, color: '#3E2723' }}>€{costoTotaleStimato.toFixed(2)}/Kg</Typography>
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Typography variant="caption" color="textSecondary">
-                        Margine (vs €{prezzoVendita.toFixed(2)}/Kg)
+                        Margine (vs €{prezzoVenditaNetto.toFixed(2)}/Kg netto IVA)
                       </Typography>
                       <Typography variant="h6" sx={{ fontWeight: 700, color: getMargineColor(margineStimato) }}>
                         {margineStimato !== null ? `${margineStimato.toFixed(0)}%` : '—'}
@@ -894,41 +891,23 @@ export default function GestioneProdotti() {
                     </Grid>
                   </Grid>
 
-                  {/* Toggle costo manuale */}
-                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0c96e' }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={usaCostoManuale}
-                          onChange={e => setUsaCostoManuale(e.target.checked)}
-                          size="small"
-                          color="warning"
-                        />
-                      }
-                      label={
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                          Usa costo manuale per Kg (es. ricetta reale con resa diversa da 1 Kg)
-                        </Typography>
-                      }
+                  {/* Campo resa ricetta */}
+                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0c96e', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Resa ricetta (Kg prodotto finito)"
+                      value={resaRicetta}
+                      onChange={e => setResaRicetta(e.target.value)}
+                      sx={{ width: 240 }}
+                      inputProps={{ step: 0.1, min: 0.1 }}
+                      InputProps={{ endAdornment: <InputAdornment position="end">Kg</InputAdornment> }}
+                      helperText="Quanti Kg di prodotto finito escono da questa ricetta"
                     />
-                    {usaCostoManuale && (
-                      <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <TextField
-                          size="small"
-                          type="number"
-                          label="Costo ingredienti per 1 Kg prodotto finito (€)"
-                          value={costoManuale}
-                          onChange={e => setCostoManuale(e.target.value)}
-                          sx={{ width: 320 }}
-                          inputProps={{ step: 0.01, min: 0 }}
-                          InputProps={{ startAdornment: <InputAdornment position="start">€</InputAdornment> }}
-                          helperText={
-                            totaleIngredientiRicetta > 0
-                              ? `Suggerimento: €${totaleIngredientiRicetta.toFixed(2)} (totale ricetta) ÷ resa stimata in Kg`
-                              : 'Inserisci il costo degli ingredienti per 1 Kg di prodotto finito'
-                          }
-                        />
-                      </Box>
+                    {resaEffettiva !== 1 && totaleIngredientiRicetta > 0 && (
+                      <Typography variant="body2" sx={{ color: '#5D4037', fontWeight: 600 }}>
+                        €{totaleIngredientiRicetta.toFixed(2)} ÷ {resaEffettiva} Kg = <strong>€{costoIngredientiPerKgFinito.toFixed(2)}/Kg finito</strong>
+                      </Typography>
                     )}
                   </Box>
                 </Paper>
@@ -936,14 +915,14 @@ export default function GestioneProdotti() {
 
               {/* Tabella ingredienti ricetta */}
               <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-                📋 Ingredienti (per 1 Kg di prodotto finito)
+                📋 Ingredienti
               </Typography>
               <TableContainer component={Paper} sx={{ mb: 2 }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ background: '#f5f5f5' }}>
                       <TableCell>Ingrediente</TableCell>
-                      <TableCell>Quantità/Kg</TableCell>
+                      <TableCell>Quantità</TableCell>
                       <TableCell>Unità</TableCell>
                       <TableCell>Prezzo/Kg (da fattura)</TableCell>
                       <TableCell>Costo</TableCell>
