@@ -51,12 +51,85 @@ router.get('/', async (req, res) => {
       query.attivo = attivo === 'true';
     }
     
-    const limiti = await LimiteGiornaliero.find(query).sort({ data: 1, prodotto: 1 });
+    const limiti = await LimiteGiornaliero.find(query).sort({ data: 1, prodotto: 1 }).lean();
+    
+    // ✅ FIX 13/03/2026: Calcola dinamicamente totale ordini per ogni limite
+    const limitiArricchiti = await Promise.all(limiti.map(async (limite) => {
+      try {
+        const dataLimite = new Date(limite.data);
+        dataLimite.setHours(0, 0, 0, 0);
+        const dataFine = new Date(dataLimite);
+        dataFine.setDate(dataFine.getDate() + 1);
+        
+        // Query ordini per questa data
+        let queryOrdini = {
+          dataRitiro: { $gte: dataLimite, $lt: dataFine }
+        };
+        
+        // Filtro per fascia oraria
+        if (limite.fascia === 'mattina') {
+          queryOrdini.$or = [
+            { oraRitiro: { $lt: ORA_CAMBIO_FASCIA } },
+            { oraRitiro: { $exists: false } },
+            { oraRitiro: null },
+            { oraRitiro: '' }
+          ];
+        } else if (limite.fascia === 'sera') {
+          queryOrdini.oraRitiro = { $gte: ORA_CAMBIO_FASCIA };
+        }
+        
+        // Per prodotto: cerca nome esatto
+        // Per categoria: cerca prodotti il cui nome contiene la categoria
+        if (limite.prodotto) {
+          queryOrdini['prodotti.nome'] = { $regex: new RegExp(`^${limite.prodotto}$`, 'i') };
+        } else if (limite.categoria) {
+          queryOrdini['prodotti.nome'] = { $regex: new RegExp(limite.categoria, 'i') };
+        }
+        
+        const ordini = await Ordine.find(queryOrdini).lean();
+        
+        let totaleOrdini = 0;
+        ordini.forEach(ordine => {
+          ordine.prodotti.forEach(p => {
+            if (limite.prodotto) {
+              // Match esatto per prodotto
+              if (p.nome && p.nome.toLowerCase() === limite.prodotto.toLowerCase()) {
+                totaleOrdini += convertiInKg(p.quantita, p.unita);
+              }
+            } else if (limite.categoria) {
+              // Match per categoria: il nome del prodotto contiene la categoria
+              if (p.nome && p.nome.toLowerCase().includes(limite.categoria.toLowerCase())) {
+                totaleOrdini += convertiInKg(p.quantita, p.unita);
+              }
+            }
+          });
+        });
+        
+        const venditeDirette = limite.quantitaOrdinata || 0;
+        const totaleComplessivo = totaleOrdini + venditeDirette;
+        const disponibile = limite.limiteQuantita - totaleComplessivo;
+        const percentualeUtilizzo = limite.limiteQuantita > 0
+          ? (totaleComplessivo / limite.limiteQuantita) * 100
+          : 0;
+        
+        return {
+          ...limite,
+          totaleOrdini: parseFloat(totaleOrdini.toFixed(2)),
+          totaleComplessivo: parseFloat(totaleComplessivo.toFixed(2)),
+          disponibile: parseFloat(Math.max(0, disponibile).toFixed(2)),
+          percentualeUtilizzo: parseFloat(percentualeUtilizzo.toFixed(1)),
+          totaleOrdiniCount: ordini.length
+        };
+      } catch (err) {
+        // Se il calcolo fallisce per un limite, restituisci i dati base
+        return limite;
+      }
+    }));
     
     res.json({
       success: true,
-      count: limiti.length,
-      data: limiti
+      count: limitiArricchiti.length,
+      data: limitiArricchiti
     });
     
   } catch (error) {

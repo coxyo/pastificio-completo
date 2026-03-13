@@ -365,7 +365,9 @@ export default function GestioneLimiti() {
 
   const calcolaPercentualeUtilizzo = (limite) => {
     if (!limite.limiteQuantita) return 0;
-    return Math.min((limite.quantitaOrdinata / limite.limiteQuantita) * 100, 100);
+    // ✅ FIX 13/03/2026: Usa totaleComplessivo (ordini + vendite dirette) invece di solo quantitaOrdinata
+    const totale = limite.totaleComplessivo ?? limite.quantitaOrdinata ?? 0;
+    return Math.min((totale / limite.limiteQuantita) * 100, 100);
   };
 
   const formattaQuantita = (quantita, unita) => {
@@ -509,7 +511,9 @@ export default function GestioneLimiti() {
                   ) : (
                     limiti.map((limite) => {
                       const percentuale = calcolaPercentualeUtilizzo(limite);
-                      const disponibile = limite.limiteQuantita - limite.quantitaOrdinata;
+                      // ✅ FIX 13/03/2026: Usa dati calcolati dal backend (ordini + vendite dirette)
+                      const ordinato = limite.totaleComplessivo ?? limite.quantitaOrdinata ?? 0;
+                      const disponibile = limite.disponibile ?? (limite.limiteQuantita - ordinato);
                       return (
                         <TableRow key={limite._id}>
                           <TableCell>
@@ -526,7 +530,7 @@ export default function GestioneLimiti() {
                             <strong>{formattaQuantita(limite.limiteQuantita, limite.unitaMisura)}</strong>
                           </TableCell>
                           <TableCell align="right">
-                            {formattaQuantita(limite.quantitaOrdinata, limite.unitaMisura)}
+                            {formattaQuantita(ordinato, limite.unitaMisura)}
                           </TableCell>
                           <TableCell align="right">
                             {formattaQuantita(disponibile, limite.unitaMisura)}
