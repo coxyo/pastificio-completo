@@ -8,14 +8,16 @@ const configurazioneCostiSchema = new mongoose.Schema({
     unique: true
   },
   overhead: {
-    energia:     { type: Number, default: 20 },
-    gas:         { type: Number, default: 0  },
-    manodopera:  { type: Number, default: 25 },
-    affitto:     { type: Number, default: 0  },
-    tasse:       { type: Number, default: 10 },
-    imballaggi:  { type: Number, default: 3  },
-    iva:         { type: Number, default: 10 },
-    varie:       { type: Number, default: 5  }
+    // Valori calibrati su dati reali 2024 - base €96.000 ingredienti annui
+    // Aggiornato: Marzo 2026
+    energia:     { type: Number, default: 4   }, // €3.305/anno (bolletta Ajo' Energia)
+    gas:         { type: Number, default: 1.5 }, // ~€1.200/anno (stima - aggiornare con bollette reali)
+    manodopera:  { type: Number, default: 28  }, // €26.322/anno (Francesca Fenu, part-time 90%)
+    affitto:     { type: Number, default: 0   }, // locale di proprietà
+    tasse:       { type: Number, default: 8   }, // €7.251/anno (IRPEF Maurizio €1.943 + Valentina €5.308)
+    imballaggi:  { type: Number, default: 3   }, // ~€2.880/anno (stima 3%)
+    iva:         { type: Number, default: 0   }, // IVA non è un costo (neutrale per chi la scarica)
+    varie:       { type: Number, default: 5   }  // ~€4.800/anno (INPS artigiani ~€6k + Bluenext ~€600 + altro)
   },
   margineConsigliato: {
     type: Number,
