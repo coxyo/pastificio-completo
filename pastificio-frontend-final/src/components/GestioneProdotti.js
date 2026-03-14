@@ -64,6 +64,7 @@ export default function GestioneProdotti() {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [prodottoMenu, setProdottoMenu] = useState(null);
   const [viewMode, setViewMode] = useState('lista'); // lista | comparativa
+  const [loadingListino, setLoadingListino] = useState(false);
 
   // Stato ricetta
   const [ricettaCorrente, setRicettaCorrente] = useState([]);
@@ -287,8 +288,9 @@ export default function GestioneProdotti() {
 
   // Genera listino prezzi completo con layout grafico (allergeni, ingredienti, prezzi dal DB)
   const scaricaListinoCompleto = async () => {
+    if (loadingListino) return; // protezione anti-doppio-click
     try {
-      setLoading(true);
+      setLoadingListino(true);
       mostraNotifica('Generazione listino in corso...', 'info');
       const r = await fetch(`${API_URL}/listino/pdf`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -306,7 +308,7 @@ export default function GestioneProdotti() {
     } catch {
       mostraNotifica('Errore generazione listino', 'error');
     } finally {
-      setLoading(false);
+      setLoadingListino(false);
     }
   };
 
@@ -516,10 +518,10 @@ export default function GestioneProdotti() {
               onClick={() => { setViewMode('comparativa'); caricaComparativa(); }}>
               Comparativa
             </Button>
-            <Button variant="contained" color="secondary" startIcon={<PdfIcon />}
-              onClick={scaricaListinoCompleto} disabled={loading}
-              sx={{ background: '#1A3D0F', '&:hover': { background: '#2E6B1A' } }}>
-              🖨️ Listino Prezzi
+            <Button variant="contained" color="secondary" startIcon={loadingListino ? <CircularProgress size={16} color="inherit" /> : <PdfIcon />}
+              onClick={scaricaListinoCompleto} disabled={loadingListino}
+              sx={{ background: '#1A3D0F', '&:hover': { background: '#2E6B1A' }, minWidth: 160 }}>
+              {loadingListino ? 'Generazione...' : '🖨️ Listino Prezzi'}
             </Button>
             <Button variant="contained" startIcon={<AddIcon />} onClick={apriDialogNuovo}>
               Nuovo
