@@ -98,9 +98,27 @@ export const estraiProdottiLavorazione = (ordine) => {
 
   const prodotti = [];
 
+  // ✅ FIX 14/03/2026: Pre-calcola quanti vassoi ci sono per numerarli
+  const indiciVassoi = ordine.prodotti
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => isVassioMisto(p));
+  const totalVassoi = indiciVassoi.length;
+
+  // Mappa: indiceProdotto → numero vassio (1-based)
+  const numerazioneVassoio = {};
+  indiciVassoi.forEach(({ i }, contatore) => {
+    numerazioneVassoio[i] = contatore + 1;
+  });
+
   ordine.prodotti.forEach((prodotto, indiceProdotto) => {
     if (isVassioMisto(prodotto) && prodotto.dettagliCalcolo?.composizione) {
       // Vassoio: espandi i componenti
+      const numVassoio = numerazioneVassoio[indiceProdotto];
+      // ✅ FIX: Label vassoio include numero progressivo se ce ne sono più di uno
+      const labelVassoio = totalVassoi > 1
+        ? `Vassoio ${numVassoio} di ${totalVassoi}`
+        : 'Vassoio';
+
       prodotto.dettagliCalcolo.composizione.forEach((comp, indiceComp) => {
         const qtaFormatted = comp.unita === 'Kg'
           ? `${parseFloat(comp.quantita).toFixed(2)} Kg`
@@ -116,7 +134,9 @@ export const estraiProdottiLavorazione = (ordine) => {
           qtaDisplay: qtaFormatted,
           isDaVassoio: true,
           isDaDolciMisti: false,
-          nomeVassoio: `Vassoio ${prodotto.quantita > 1 ? `(${prodotto.quantita}x)` : ''}`,
+          nomeVassoio: labelVassoio,
+          numVassoio,          // ✅ numero progressivo
+          totalVassoi,         // ✅ totale vassoi nell'ordine
         });
       });
     } else if (isDolciMistiSingolo(prodotto)) {
@@ -225,9 +245,15 @@ export default function LavorazionePopup({
 
   const hasVassoio = prodottiDisponibili.some((p) => p.isDaVassoio);
   const hasDolciMisti = prodottiDisponibili.some((p) => p.isDaDolciMisti);
+  // ✅ FIX 14/03/2026: conta vassoi distinti
+  const numVassoiDistinti = hasVassoio
+    ? (prodottiDisponibili.find(p => p.isDaVassoio)?.totalVassoi || 1)
+    : 0;
 
   const sottotitolo = hasVassoio
-    ? 'Vassoio Dolci Misti'
+    ? numVassoiDistinti > 1
+      ? `${numVassoiDistinti} Vassoi Dolci Misti`
+      : 'Vassoio Dolci Misti'
     : hasDolciMisti
     ? 'Dolci Misti — composizione standard'
     : null;
@@ -291,62 +317,127 @@ export default function LavorazionePopup({
         </Box>
 
         <List dense disablePadding>
-          {prodottiDisponibili.map((prodotto) => {
-            const isSelected = selezionati.has(prodotto.id);
-            return (
-              <ListItem
-                key={prodotto.id}
-                disablePadding
-                onClick={() => toggleProdotto(prodotto.id)}
-                sx={{
-                  cursor: 'pointer',
-                  borderRadius: 1,
-                  mb: 0.5,
-                  px: 1,
-                  py: 0.5,
-                  backgroundColor: isSelected ? 'rgba(255, 152, 0, 0.08)' : 'rgba(0,0,0,0.02)',
-                  border: isSelected ? '1px solid rgba(255, 152, 0, 0.4)' : '1px solid rgba(0,0,0,0.08)',
-                  '&:hover': {
-                    backgroundColor: isSelected ? 'rgba(255, 152, 0, 0.15)' : 'rgba(0,0,0,0.05)',
-                  },
-                  transition: 'all 0.15s',
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  {isSelected ? (
-                    <CheckBoxIcon color="warning" fontSize="small" />
-                  ) : (
-                    <CheckBoxOutlineBlankIcon color="disabled" fontSize="small" />
-                  )}
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                      <Typography variant="body2" fontWeight={isSelected ? 600 : 400}>
-                        {prodotto.nome}
-                        {prodotto.variante ? ` (${prodotto.variante})` : ''}
-                      </Typography>
-                      {prodotto.isDaVassoio && (
-                        <Chip label="vassoio" size="small"
-                          sx={{ fontSize: '0.6rem', height: 16, '& .MuiChip-label': { px: 0.5 } }}
-                          color="default" variant="outlined" />
-                      )}
-                      {prodotto.isDaDolciMisti && (
-                        <Chip label="dolci misti" size="small"
-                          sx={{ fontSize: '0.6rem', height: 16, '& .MuiChip-label': { px: 0.5 } }}
-                          color="warning" variant="outlined" />
-                      )}
-                    </Box>
-                  }
-                  secondary={
-                    <Typography variant="caption" color={isSelected ? 'warning.dark' : 'text.secondary'}>
-                      {prodotto.qtaDisplay}{isSelected ? ' ✅' : ''}
+          {(() => {
+            // ✅ FIX 14/03/2026: Raggruppa per vassoio se ci sono più vassoi
+            const tuttiVassoi = prodottiDisponibili.filter(p => p.isDaVassoio);
+            const totalVassoiDistinti = tuttiVassoi.length > 0
+              ? (tuttiVassoi[0].totalVassoi || 1)
+              : 0;
+            const mostraGruppi = totalVassoiDistinti > 1;
+
+            // Costruisce lista con header di gruppo intercalati
+            const items = [];
+            let lastVassoioNum = null;
+
+            prodottiDisponibili.forEach((prodotto) => {
+              // Se più vassoi e cambio gruppo → inserisci separatore
+              if (mostraGruppi && prodotto.isDaVassoio && prodotto.numVassoio !== lastVassoioNum) {
+                lastVassoioNum = prodotto.numVassoio;
+                // Calcola se tutti i componenti di questo vassoio sono selezionati
+                const compDiQuestoVassoio = prodottiDisponibili.filter(
+                  p => p.isDaVassoio && p.numVassoio === prodotto.numVassoio
+                );
+                const tuttiSelezionatiVassoio = compDiQuestoVassoio.every(p => selezionati.has(p.id));
+
+                items.push(
+                  <Box
+                    key={`header-vassoio-${prodotto.numVassoio}`}
+                    sx={{
+                      mt: prodotto.numVassoio > 1 ? 1.5 : 0,
+                      mb: 0.5,
+                      px: 1,
+                      py: 0.4,
+                      backgroundColor: 'rgba(255,152,0,0.12)',
+                      borderRadius: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => {
+                      // Click sull'header → seleziona/deseleziona tutti i componenti del vassoio
+                      const ids = compDiQuestoVassoio.map(p => p.id);
+                      setSelezionati(prev => {
+                        const next = new Set(prev);
+                        if (tuttiSelezionatiVassoio) {
+                          ids.forEach(id => next.delete(id));
+                        } else {
+                          ids.forEach(id => next.add(id));
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    <Typography variant="caption" fontWeight={700} color="warning.dark">
+                      🧺 {prodotto.nomeVassoio}
                     </Typography>
-                  }
-                />
-              </ListItem>
-            );
-          })}
+                    <Typography variant="caption" color="text.secondary">
+                      {tuttiSelezionatiVassoio ? '✅ tutto selezionato' : 'clicca per sel. tutto'}
+                    </Typography>
+                  </Box>
+                );
+              }
+
+              const isSelected = selezionati.has(prodotto.id);
+              items.push(
+                <ListItem
+                  key={prodotto.id}
+                  disablePadding
+                  onClick={() => toggleProdotto(prodotto.id)}
+                  sx={{
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    mb: 0.5,
+                    px: 1,
+                    py: 0.5,
+                    ml: mostraGruppi && prodotto.isDaVassoio ? 1 : 0,  // indenta componenti vassoio
+                    backgroundColor: isSelected ? 'rgba(255, 152, 0, 0.08)' : 'rgba(0,0,0,0.02)',
+                    border: isSelected ? '1px solid rgba(255, 152, 0, 0.4)' : '1px solid rgba(0,0,0,0.08)',
+                    '&:hover': {
+                      backgroundColor: isSelected ? 'rgba(255, 152, 0, 0.15)' : 'rgba(0,0,0,0.05)',
+                    },
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    {isSelected ? (
+                      <CheckBoxIcon color="warning" fontSize="small" />
+                    ) : (
+                      <CheckBoxOutlineBlankIcon color="disabled" fontSize="small" />
+                    )}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                        <Typography variant="body2" fontWeight={isSelected ? 600 : 400}>
+                          {prodotto.nome}
+                          {prodotto.variante ? ` (${prodotto.variante})` : ''}
+                        </Typography>
+                        {/* ✅ FIX: mostra chip vassoio solo se c'è UN solo vassoio */}
+                        {prodotto.isDaVassoio && !mostraGruppi && (
+                          <Chip label="vassoio" size="small"
+                            sx={{ fontSize: '0.6rem', height: 16, '& .MuiChip-label': { px: 0.5 } }}
+                            color="default" variant="outlined" />
+                        )}
+                        {prodotto.isDaDolciMisti && (
+                          <Chip label="dolci misti" size="small"
+                            sx={{ fontSize: '0.6rem', height: 16, '& .MuiChip-label': { px: 0.5 } }}
+                            color="warning" variant="outlined" />
+                        )}
+                      </Box>
+                    }
+                    secondary={
+                      <Typography variant="caption" color={isSelected ? 'warning.dark' : 'text.secondary'}>
+                        {prodotto.qtaDisplay}{isSelected ? ' ✅' : ''}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+              );
+            });
+
+            return items;
+          })()}
         </List>
 
         {selezionati.size > 0 && !tuttiSelezionati && (
