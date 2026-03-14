@@ -163,6 +163,19 @@ export const ordiniController = {
         logger.info(`   - Backend RICALCOLA: €${risultato.prezzoTotale.toFixed(2)}`);
         logger.info(`   - Dettagli: ${risultato.dettagli}`);
         
+        // ✅ FIX 14/03/2026: Preserva composizione vassoio dal frontend
+        // Il backend ricalcola i prezzi ma non deve sovrascrivere la composizione
+        // dettagliata che il frontend ha già costruito (es. Pardulas + Ciambelle da vassoio)
+        const dettagliCalcoloFinale = { ...risultato };
+        if (p.dettagliCalcolo?.composizione && Array.isArray(p.dettagliCalcolo.composizione) && p.dettagliCalcolo.composizione.length > 0) {
+          dettagliCalcoloFinale.composizione = p.dettagliCalcolo.composizione;
+        }
+        // Preserva anche gli altri campi utili del vassoio
+        if (p.dettagliCalcolo?.modalita) dettagliCalcoloFinale.modalita = p.dettagliCalcolo.modalita;
+        if (p.dettagliCalcolo?.pesoTotale) dettagliCalcoloFinale.pesoTotale = p.dettagliCalcolo.pesoTotale;
+        if (p.dettagliCalcolo?.packaging) dettagliCalcoloFinale.packaging = p.dettagliCalcolo.packaging;
+        if (p.dettagliCalcolo?.numeroVassoioDimensione) dettagliCalcoloFinale.numeroVassoioDimensione = p.dettagliCalcolo.numeroVassoioDimensione;
+
         return {
           nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim(),
           quantita: p.quantita,
@@ -172,7 +185,8 @@ export const ordiniController = {
           prezzoUnitario: risultato.prezzoTotale / p.quantita,
           categoria: p.categoria || 'altro',
           variante: p.variante || null,
-          dettagliCalcolo: risultato
+          varianti: p.varianti || [],
+          dettagliCalcolo: dettagliCalcoloFinale
         };
       });
       
@@ -435,6 +449,16 @@ Grazie! 🙏
             unitaMisura
           );
           
+          // ✅ FIX 14/03/2026: Preserva composizione vassoio dal frontend
+          const dettagliCalcoloFinale2 = { ...risultato };
+          if (p.dettagliCalcolo?.composizione && Array.isArray(p.dettagliCalcolo.composizione) && p.dettagliCalcolo.composizione.length > 0) {
+            dettagliCalcoloFinale2.composizione = p.dettagliCalcolo.composizione;
+          }
+          if (p.dettagliCalcolo?.modalita) dettagliCalcoloFinale2.modalita = p.dettagliCalcolo.modalita;
+          if (p.dettagliCalcolo?.pesoTotale) dettagliCalcoloFinale2.pesoTotale = p.dettagliCalcolo.pesoTotale;
+          if (p.dettagliCalcolo?.packaging) dettagliCalcoloFinale2.packaging = p.dettagliCalcolo.packaging;
+          if (p.dettagliCalcolo?.numeroVassoioDimensione) dettagliCalcoloFinale2.numeroVassoioDimensione = p.dettagliCalcolo.numeroVassoioDimensione;
+
           return {
             nome: p.nome?.replace(/\s*\(\d+.*?\)\s*$/, '').trim(),
             quantita: p.quantita,
@@ -444,7 +468,8 @@ Grazie! 🙏
             prezzoUnitario: risultato.prezzoTotale / p.quantita,
             categoria: p.categoria || 'altro',
             variante: p.variante || null,
-            dettagliCalcolo: risultato
+            varianti: p.varianti || [],
+            dettagliCalcolo: dettagliCalcoloFinale2
           };
         });
         
