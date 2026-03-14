@@ -283,6 +283,31 @@ export default function GestioneProdotti() {
     }
   };
 
+  // Genera listino prezzi completo con layout grafico (allergeni, ingredienti, prezzi dal DB)
+  const scaricaListinoCompleto = async () => {
+    try {
+      setLoading(true);
+      mostraNotifica('Generazione listino in corso...', 'info');
+      const r = await fetch(`${API_URL}/listino/pdf`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (r.ok) {
+        const blob = await r.blob();
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = `listino-prezzi-${new Date().toISOString().split('T')[0]}.pdf`;
+        a.click();
+        mostraNotifica('Listino scaricato!', 'success');
+      } else {
+        throw new Error('Errore generazione');
+      }
+    } catch {
+      mostraNotifica('Errore generazione listino', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ============================================================
   // GESTIONE RICETTA
   // ============================================================
@@ -488,8 +513,9 @@ export default function GestioneProdotti() {
               Comparativa
             </Button>
             <Button variant="contained" color="secondary" startIcon={<PdfIcon />}
-              onClick={() => scaricaListinoPDF()} disabled={loading}>
-              📄 Listino PDF
+              onClick={scaricaListinoCompleto} disabled={loading}
+              sx={{ background: '#1A3D0F', '&:hover': { background: '#2E6B1A' } }}>
+              🖨️ Listino Prezzi
             </Button>
             <Button variant="contained" startIcon={<AddIcon />} onClick={apriDialogNuovo}>
               Nuovo
