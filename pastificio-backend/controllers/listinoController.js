@@ -404,4 +404,4 @@ export const generaListinoPDF = async (req, res) => {
       res.status(500).json({ success: false, message: 'Errore generazione listino', error: error.message });
     }
   }
-};
+}; 

@@ -292,4 +292,4 @@ prodottoSchema.pre(['findOneAndUpdate', 'updateOne'], function (next) {
 });
 
 const Prodotto = mongoose.model('Prodotto', prodottoSchema);
-export default Prodotto;
+export default Prodotto; 

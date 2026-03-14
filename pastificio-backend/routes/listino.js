@@ -12,4 +12,4 @@ const router = express.Router();
  */
 router.get('/pdf', protect, generaListinoPDF);
 
-export default router;
+export default router; 
