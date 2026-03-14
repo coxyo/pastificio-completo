@@ -183,16 +183,15 @@ const prodottoSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  // Resa ricetta: quanti Kg di prodotto finito escono dagli ingredienti inseriti
-  // Es: ricetta con ~2kg ingredienti -> 1.8kg ciambelle finite -> resaRicetta = 1.8
-  resaRicetta: {
+  // Override manuale: se impostato, usa questo invece del calcolato
+  costoIngredientiManuale: {
     type: Number,
-    default: 1,
-    min: 0.01
+    default: null
   },
-  // Campi legacy (mantenuti per retrocompatibilita DB)
-  costoIngredientiManuale: { type: Number, default: null },
-  usaCostoManuale: { type: Boolean, default: false },
+  usaCostoManuale: {
+    type: Boolean,
+    default: false
+  },
 
   // Override overhead per singolo prodotto (null = usa configurazione globale)
   overheadPersonalizzato: {
@@ -215,6 +214,18 @@ const prodottoSchema = new mongoose.Schema({
   margineAttuale: {
     type: Number,
     default: 0
+  },
+
+  // ── LISTINO PREZZI ──────────────────────────────────────────
+  // Se true, il prodotto viene incluso nel listino prezzi stampabile
+  includiInListino: {
+    type: Boolean,
+    default: false
+  },
+  // Ingredienti leggibili per il listino (es. "Ricotta, zucchero, uova, aromi")
+  ingredientiListino: {
+    type: String,
+    default: ''
   },
 
   // Storico costi
@@ -248,11 +259,12 @@ prodottoSchema.virtual('prezzoDisplay').get(function () {
   return 'N/D';
 });
 
-// Virtual: costo ingredienti effettivo per 1 Kg di prodotto finito (con resa)
+// Virtual: costo ingredienti effettivo (manuale o calcolato)
 prodottoSchema.virtual('costoIngredientiEffettivo').get(function () {
-  const base = this.costoIngredientiCalcolato || 0;
-  const resa = this.resaRicetta > 0 ? this.resaRicetta : 1;
-  return base / resa;
+  if (this.usaCostoManuale && this.costoIngredientiManuale != null) {
+    return this.costoIngredientiManuale;
+  }
+  return this.costoIngredientiCalcolato || 0;
 });
 
 // Pre-save middleware
