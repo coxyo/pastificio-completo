@@ -1,4 +1,5 @@
 // components/GestioneProdotti.js - GESTIONE COMPLETA PRODOTTI CON RICETTE E COSTI
+// v3.3.1 - fix: bottone listino usa /api/listino/pdf
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
