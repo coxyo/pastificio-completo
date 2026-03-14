@@ -94,7 +94,8 @@ export default function GestioneProdotti() {
     nome: '', descrizione: '', categoria: 'Ravioli',
     prezzoKg: 0, prezzoPezzo: 0, pezziPerKg: null,
     unitaMisuraDisponibili: ['Kg'], disponibile: true, attivo: true,
-    allergeni: [], ingredienti: [], note: ''
+    allergeni: [], ingredienti: [], note: '',
+    includiInListino: false, ingredientiListino: ''
   });
 
   // ============================================================
@@ -427,7 +428,9 @@ export default function GestioneProdotti() {
       unitaMisuraDisponibili: prodotto.unitaMisuraDisponibili || ['Kg'],
       disponibile: prodotto.disponibile, attivo: prodotto.attivo,
       allergeni: prodotto.allergeni || [], ingredienti: prodotto.ingredienti || [],
-      note: prodotto.note || ''
+      note: prodotto.note || '',
+      includiInListino: prodotto.includiInListino || false,
+      ingredientiListino: prodotto.ingredientiListino || ''
     });
     setDialogOpen(true);
   };
@@ -860,6 +863,46 @@ export default function GestioneProdotti() {
               <FormControlLabel control={<Switch checked={formData.attivo}
                 onChange={e => setFormData({ ...formData, attivo: e.target.checked })} />} label="Attivo" />
             </Grid>
+
+            {/* ── SEZIONE LISTINO PREZZI ── */}
+            <Grid item xs={12}>
+              <Box sx={{ borderTop: '1px solid #e0e0e0', pt: 1.5, mt: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: '#1A3D0F', display: 'block', mb: 1 }}>
+                  🖨️ LISTINO PREZZI
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.includiInListino || false}
+                    onChange={e => setFormData({ ...formData, includiInListino: e.target.checked })}
+                    color="success"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Includi nel listino prezzi</Typography>
+                    <Typography variant="caption" color="textSecondary">Se attivo, appare nel PDF del listino stampabile</Typography>
+                  </Box>
+                }
+              />
+            </Grid>
+            {formData.includiInListino && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Ingredienti per il listino"
+                  placeholder="Es: Ricotta, zucchero, uova, farina 00, strutto, lievito, aromi"
+                  value={formData.ingredientiListino || ''}
+                  onChange={e => setFormData({ ...formData, ingredientiListino: e.target.value })}
+                  helperText="Ingredienti leggibili che appariranno nel listino stampato (non i nomi commerciali)"
+                  multiline
+                  rows={2}
+                />
+              </Grid>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions>
