@@ -47,6 +47,7 @@ import emailRoutes from './routes/email.js';
 import haccpRoutes from './routes/haccp.js';
 import emailCorrispettiviRoutes from './routes/emailCorrispettivi.routes.js'; // ✅ NUOVO - Email corrispettivi
 import whatsappBotRoutes from './routes/whatsappBot.js';
+import listinoRoutes from './routes/listino.js';  // ✅ LISTINO PDF
 
 // Import Danea Monitor
 
@@ -449,6 +450,7 @@ app.use('/api/chiusure', chiusureRoutes);                // ✅ NUOVO - Calendar
 app.use('/api/push', pushRoutes);                        // ✅ NUOVO - Web Push Notifications
 app.use('/api/whatsapp-bot', whatsappBotRoutes);
 app.use('/api/limiti-periodo', limitiPeriodoRoutes);
+app.use('/api/listino', listinoRoutes);             // ✅ LISTINO PDF
 
 // Route Danea
 
