@@ -164,28 +164,24 @@ function drawFooter(doc) {
 }
 
 function drawHeaderPag1(doc) {
-  const HDR_H = 32 * mm;
+  const HDR_H = 38 * mm;
+
+  // Sfondo bianco header
   doc.save().rect(0, 0, PAGE_W, HDR_H).fill(BIANCO).restore();
+
+  // Linee decorative in fondo all'header
   doc.save().moveTo(0, HDR_H).lineTo(PAGE_W, HDR_H).lineWidth(3).stroke(ORO).restore();
   doc.save().moveTo(0, HDR_H + 1.5 * mm).lineTo(PAGE_W, HDR_H + 1.5 * mm).lineWidth(1.2).stroke(VERDE).restore();
 
-  // Logo
+  // ── ZONA SINISTRA: logo ──────────────────────────────────────────
+  const logoH = HDR_H - 6 * mm;
+  const logoW = logoH * (2402 / 1622);
   try {
     const logoPath = path.join(__dirname, '../assets/logo.png');
-    const logoH = HDR_H - 5 * mm;
-    const logoW = logoH * (2402 / 1622);
-    doc.image(logoPath, MARGIN, 2.5 * mm, { width: logoW, height: logoH });
+    doc.image(logoPath, MARGIN, 3 * mm, { width: logoW, height: logoH });
   } catch { /* logo non trovato */ }
 
-  // Nome pastificio
-  doc.fontSize(22).fillColor(VERDE).font('Times-BoldItalic')
-    .text('Pastificio Nonna Claudia', 0, 9 * mm, { align: 'center', lineBreak: false });
-
-  // LISTINO PREZZI
-  doc.fontSize(14).fillColor(ORO).font('Helvetica-Bold')
-    .text('LISTINO PREZZI', 0, 20 * mm, { align: 'center', lineBreak: false });
-
-  // Contatti
+  // ── ZONA DESTRA: contatti ────────────────────────────────────────
   const contatti = [
     'Via Carmine 20/B · Assemini (CA)',
     'Tel. 389 887 9833',
@@ -194,26 +190,60 @@ function drawHeaderPag1(doc) {
   doc.fontSize(8).fillColor(GRIGIO_SC).font('Helvetica');
   contatti.forEach((line, i) => {
     const tw = doc.widthOfString(line);
-    doc.text(line, PAGE_W - MARGIN - tw, 8 * mm + i * 7 * mm, { lineBreak: false });
+    doc.text(line, PAGE_W - MARGIN - tw, 6 * mm + i * 7 * mm, { lineBreak: false });
   });
 
-  return HDR_H + 4.5 * mm;
+  // ── ZONA CENTRO: titoli ──────────────────────────────────────────
+  // La zona centro è tra la fine del logo e l'inizio dei contatti
+  const contattoMaxW = 52 * mm; // larghezza stimata colonna destra
+  const centroX  = MARGIN + logoW + 3 * mm;
+  const centroW  = PAGE_W - centroX - contattoMaxW - MARGIN;
+
+  // Nome pastificio centrato nella zona centro
+  doc.fontSize(20).fillColor(VERDE).font('Times-BoldItalic')
+    .text('Pastificio Nonna Claudia', centroX, 7 * mm, {
+      width: centroW, align: 'center', lineBreak: false
+    });
+
+  // LISTINO PREZZI
+  doc.fontSize(13).fillColor(ORO).font('Helvetica-Bold')
+    .text('LISTINO PREZZI', centroX, 19 * mm, {
+      width: centroW, align: 'center', lineBreak: false
+    });
+
+  // Data aggiornamento
+  const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
+  doc.fontSize(7.5).fillColor(GRIGIO_SC).font('Helvetica-Oblique')
+    .text(`aggiornato al ${oggi}`, centroX, 27 * mm, {
+      width: centroW, align: 'center', lineBreak: false
+    });
+
+  return HDR_H + 5 * mm;
 }
 
 function drawHeaderSimple(doc) {
-  const HDR_H = 16 * mm;
+  const HDR_H = 18 * mm;
   doc.save().rect(0, 0, PAGE_W, HDR_H).fill(BIANCO).restore();
   doc.save().moveTo(0, HDR_H).lineTo(PAGE_W, HDR_H).lineWidth(2.5).stroke(ORO).restore();
   doc.save().moveTo(0, HDR_H + 1 * mm).lineTo(PAGE_W, HDR_H + 1 * mm).lineWidth(0.8).stroke(VERDE).restore();
 
+  const logoH = HDR_H - 3 * mm;
+  const logoW = logoH * (2402 / 1622);
+
   try {
     const logoPath = path.join(__dirname, '../assets/logo.png');
-    const logoH = HDR_H - 3 * mm;
-    const logoW = logoH * (2402 / 1622);
-    doc.image(logoPath, (PAGE_W - logoW) / 2, 1.5 * mm, { width: logoW, height: logoH });
+    doc.image(logoPath, MARGIN, 1.5 * mm, { width: logoW, height: logoH });
   } catch { /* logo non trovato */ }
 
-  return HDR_H + 2 * mm;
+  // Nome centrato nella zona a destra del logo
+  const testoX = MARGIN + logoW + 3 * mm;
+  const testoW = PAGE_W - testoX - MARGIN;
+  doc.fontSize(11).fillColor(VERDE).font('Times-BoldItalic')
+    .text('Pastificio Nonna Claudia', testoX, (HDR_H - 11 * 0.352) / 2 - 0.5 * mm, {
+      width: testoW, align: 'center', lineBreak: false
+    });
+
+  return HDR_H + 3 * mm;
 }
 
 // ── Raggruppa varianti ────────────────────────────────────────────
@@ -404,4 +434,4 @@ export const generaListinoPDF = async (req, res) => {
       res.status(500).json({ success: false, message: 'Errore generazione listino', error: error.message });
     }
   }
-}; 
+};
